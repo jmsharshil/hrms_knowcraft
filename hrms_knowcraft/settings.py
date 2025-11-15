@@ -28,7 +28,7 @@ SECRET_KEY = 'django-insecure-0(s=ka%+mzk+5n3*t-h8l0#6yh7$bnt*y)=a!zy!7_q192j%$t
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['hrmsknowcraft-dtetgfbwbxbnfbbu.centralindia-01.azurewebsites.net','127.0.0.1']
+ALLOWED_HOSTS = ['hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net','127.0.0.1']
 
 
 # Application definition
