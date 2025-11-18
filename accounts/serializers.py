@@ -183,3 +183,7 @@ class MagicLinkSerializer(serializers.ModelSerializer):
             base_url = request.build_absolute_uri('/').rstrip('/')
             return f"{base_url}/api/accounts/set-pin/?token={obj.token}"
         return None
+    
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    company_id = serializers.UUIDField(required=False, allow_null=True)
