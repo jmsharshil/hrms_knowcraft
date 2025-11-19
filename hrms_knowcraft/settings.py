@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'accounts',
+    'onboarding',
 ]
 
 MIDDLEWARE = [
@@ -244,3 +245,13 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:5175',
     'http://127.0.0.1:8000',
 ]
+
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = '/media/'
+
+# create media dir if missing
+os.makedirs(MEDIA_ROOT, exist_ok=True)
+
+WASENDER_API_BASE = os.getenv("WASENDER_API_BASE", "https://www.wasenderapi.com")
+WASENDER_API_KEY = os.getenv("WASENDER_API_KEY")
+WASENDER_WEBHOOK_SECRET = os.getenv("WASENDER_WEBHOOK_SECRET")

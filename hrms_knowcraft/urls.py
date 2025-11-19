@@ -22,4 +22,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.home, name='home'),
     path('api/accounts/', include('accounts.urls')),
+    path('api/', include('onboarding.urls')),
 ]
