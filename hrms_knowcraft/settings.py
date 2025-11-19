@@ -235,7 +235,7 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 # EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Frontend URL for magic links (Update based on your frontend)
-FRONTEND_URL = 'https://hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net'  # Change to your frontend URL
+FRONTEND_URL = 'http://localhost:5173'  # Change to your frontend URL
 
 # CORS Settings (if frontend is on different domain)
 CORS_ALLOWED_ORIGINS = [
