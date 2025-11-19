@@ -12,6 +12,7 @@ from .serializers import (
 )
 from .permissions import IsAdmin, IsAdminOrHRManager
 from django.http import HttpResponse
+from django.utils import timezone
 
 def home(request):
     return HttpResponse("Welcome to the HRMS KnowCraft Application!")
@@ -33,8 +34,9 @@ def get_tokens_for_user(user):
 
 def send_magic_link_email(user, magic_link):
     """Send magic link email to user"""
-    base_url = getattr(settings, 'FRONTEND_URL', 'https://hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net')
-    magic_link_url = f"{base_url}/api/accounts/set-pin?token={magic_link.token}"
+    base_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+    magic_link_url = f"{base_url}/otp-set?token={magic_link.token}"
+    # magic_link_url = f"{base_url}/api/accounts/set-pin?token={magic_link.token}"
     
     subject = f"Set Your PIN - {user.company.name}"
     message = f"""
@@ -261,3 +263,60 @@ class ResendMagicLinkView(APIView):
             'message': 'Magic link sent successfully.',
             'magic_link': MagicLinkSerializer(magic_link, context={'request': request}).data
         }, status=status.HTTP_200_OK)
+        
+class ForgotPasswordView(APIView):
+    """
+    Public endpoint: accepts email (and optionally company identifier)
+    and sends a reset magic link if a matching user exists.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    # throttle_classes = [AnonRateThrottle]   # enable in settings or here
+
+    def post(self, request):
+        email = request.data.get("email", "").strip().lower()
+        company_id = request.data.get("company_id")  # optional: use if your app is multi-tenant
+        # Alternatively accept company_domain or subdomain depending on your app design
+
+        if not email:
+            return Response({"error": "Email is required."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Optional: Validate email format here or via serializer
+
+        # Look up user(s) - avoid leaking whether email exists in response
+        qs = User.objects.filter(email=email)
+        if company_id:
+            qs = qs.filter(company_id=company_id)
+
+        # If you support multiple users with same email, decide policy (e.g., send to all)
+        user = qs.first()
+
+        if user:
+            # Optional: check brute-force / resend throttle per-account
+            # Example simple check: if last_magic_sent_at within last X seconds/minutes -> skip/send limited
+            last_sent = getattr(user, "last_magic_sent_at", None)
+            cooldown_seconds = getattr(settings, "MAGIC_LINK_RESEND_COOLDOWN_SECONDS", 120)
+            if last_sent and (timezone.now() - last_sent).total_seconds() < cooldown_seconds:
+                # Don't indicate too much - respond as if request succeeded
+                # You may also log the attempt for admin auditing
+                pass
+            else:
+                # Create a reset magic link (single-use, short expiry)
+                magic_link = MagicLink.create_link(user, purpose='reset_pin')
+                try:
+                    send_magic_link_email(user, magic_link)
+                    # Save last sent timestamp (simple anti-abuse)
+                    user.last_magic_sent_at = timezone.now()
+                    user.save(update_fields=["last_magic_sent_at"])
+                except Exception as e:
+                    # Log internally; do not reveal exception details to the caller
+                    # (but you may choose to return 500 if you prefer)
+                    # logger.exception("Failed sending magic link email")
+                    pass
+
+        # Always return a generic success response so callers can't enumerate accounts
+        return Response(
+            {"message": "If an account with that email exists, a reset link has been sent."},
+            status=status.HTTP_200_OK
+        )
