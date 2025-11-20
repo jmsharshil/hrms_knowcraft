@@ -134,7 +134,22 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
         "sms": "HR is reviewing your salary documents.",
         "log": "HR review of salary documents started for {candidate.email}",
     },
-
+    "hr_review_ok": {
+        "email": {
+            "subject": "Salary Documents Verified",
+            "text": "Your salary documents have been verified successfully. HR will now prepare your salary annexure.",
+        },
+        "sms": "Salary documents verified. HR is preparing your salary annexure.",
+        "log": "HR verified salary documents for {candidate.email}",
+    },
+    "hr_review_rejected": {
+        "email": {
+            "subject": "Salary Documents Rejected",
+            "text": "Your uploaded salary documents were unclear or incorrect. Please re-upload them.",
+        },
+        "sms": "Salary documents rejected. Please re-upload.",
+        "log": "HR rejected salary documents for {candidate.email}",
+    },
     "salary_annexure_prep": {
         "email": {
             "subject": "Salary Annexure Under Preparation",
@@ -143,7 +158,14 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
         "sms": "HR is preparing your salary annexure.",
         "log": "Salary annexure preparation started for {candidate.email}",
     },
-
+    "salary_annexure_sent": {
+        "email": {
+            "subject": "Salary Annexure Sent for Approval",
+            "text": "Your salary annexure has been sent to HR Head for approval.",
+        },
+        "sms": "Salary annexure sent for approval.",
+        "log": "Salary annexure sent for approval for {candidate.email}",
+    },
     "approved_annexure": {
         "email": {
             "subject": "Salary Annexure Approved",
@@ -152,7 +174,14 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
         "sms": "Salary annexure approved. Offer letter preparation started.",
         "log": "Salary annexure approval sent to {candidate.email}",
     },
-
+    "rejected_annexure": {
+        "email": {
+            "subject": "Salary Annexure Rejected",
+            "text": "The HR Head has requested changes. HR will update the annexure and resend.",
+        },
+        "sms": "Salary annexure rejected. HR will resend after correction.",
+        "log": "Salary annexure rejected for {candidate.email}",
+    },
     # --------------------------------------------------------------
     # 3. OFFER FLOW
     # --------------------------------------------------------------
@@ -209,6 +238,14 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
         "sms": "Resignation letter received.",
         "log": "Resignation uploaded confirmation sent to {candidate.email}",
     },
+    "resignation_review": {
+        "email": {
+            "subject": "Resignation Letter Under Review",
+            "text": "Your resignation letter is under review by HR.",
+        },
+        "sms": "Resignation letter is under review.",
+        "log": "Resignation review started for {candidate.email}",
+    },
     "resignation_approved": {
         "email": {
             "subject": "Resignation Letter Approved",
@@ -245,6 +282,22 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
         "sms": "Documents received.",
         "log": "Documents uploaded confirmation sent to {candidate.email}",
     },
+    "review_docs": {
+        "email": {
+            "subject": "Document Verification in Progress",
+            "text": "Your uploaded documents are under review. You'll be notified once verification is completed.",
+        },
+        "sms": "Documents under review.",
+        "log": "Document review started for {candidate.email}",
+    },
+    "docs_unclear": {
+        "email": {
+            "subject": "Documents Unclear",
+            "text": "Some uploaded documents were unclear. Please re-upload the required documents.",
+        },
+        "sms": "Documents unclear. Please re-upload.",
+        "log": "Documents unclear notification sent to {candidate.email}",
+    },
     "docs_incomplete": {
         "email": {
             "subject": "Document Verification Result",
@@ -272,6 +325,14 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
         },
         "sms": "Joining formalities in progress.",
         "log": "Joining pending notification sent to {candidate.email}",
+    },
+    "joining_poned": {
+        "email": {
+            "subject": "Joining Postponed",
+            "text": "Your joining has been postponed. HR will provide the updated joining date.",
+        },
+        "sms": "Joining postponed. Wait for updated date.",
+        "log": "Joining postponed notification sent to {candidate.email}",
     },
     "joined": {
         "email": {

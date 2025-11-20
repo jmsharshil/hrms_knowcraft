@@ -30,16 +30,43 @@ class Candidate(models.Model):
     ("approved", "Approved by Hiring Manager"),
     ("approval_rejected", "Rejected During Approval"),
 
+    # SALARY DOCUMENT FLOW
+    ("salary_docs_pending", "Salary Documents Pending"),
+    ("salary_docs_uploaded", "Salary Documents Uploaded"),
+    ("hr_review_docs", "HR Reviewing Salary Documents"),
+    ("hr_review_ok", "HR Review Completed"),
+    ("hr_review_rejected", "HR Rejected Salary Documents"),
+
+    # SALARY ANNEXURE FLOW
+    ("salary_annexure_prep", "Salary Annexure Under Preparation"),
+    ("salary_annexure_sent", "Salary Annexure Sent to HR Head"),
+    ("approved_annexure", "Salary Annexure Approved"),
+    ("rejected_annexure", "Salary Annexure Rejected"),
+
     # Offer Stage
     ("offer_pending", "Offer Preparation Pending"),
     ("offer_sent", "Offer Sent"),
     ("offer_accepted", "Offer Accepted"),
     ("offer_rejected", "Offer Rejected by Candidate"),
 
-    # Documentation & Joining
-    ("docs_pending", "Documents Pending"),
-    ("docs_received", "Documents Received"),
+    # RESIGNATION FLOW
+    ("resignation_pending", "Resignation Pending (Upload Required)"),
+    ("resignation_uploaded", "Resignation Uploaded"),
+    ("resignation_review", "Resignation Under Review"),
+    ("resignation_approved", "Resignation Approved"),
+    ("resignation_rejected", "Resignation Rejected"),
+
+    # JOINING DOCUMENT FLOW
+    ("docs_pending", "Joining Documents Pending"),
+    ("docs_uploaded", "Joining Documents Uploaded"),
+    ("review_docs", "Document Review In Progress"),
+    ("docs_approved", "Documents Approved"),
+    ("docs_incomplete", "Documents Incomplete"),
+    ("docs_unclear", "Documents Unclear"),
+
+    # JOINING FLOW
     ("joining_pending", "Joining Pending"),
+    ("joining_poned", "Joining Postponed"),
     ("joined", "Joined"),
 
     # General Rejection (fallback)

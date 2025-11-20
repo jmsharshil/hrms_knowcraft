@@ -234,6 +234,18 @@ HTML_TEMPLATES = {
     </body>
     </html>
     """,
+        "joining_poned": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>Joining Date Postponed</h2>
+        <p>Dear {{candidate.name}},</p>
+        <p>You have missed your joining date of {{candidate.joining_date}}.</p>
+        <p>Please join as soon as possible.</p>
+        <br>
+        <p>Regards,<br>HR Team</p>
+    </body>
+    </html>
+    """,
 
     "joined": f"""
     <html>
@@ -305,6 +317,30 @@ HTML_TEMPLATES = {
     </body>
     </html>
     """,
+        "hr_review_ok": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>Salary Documents Verified</h2>
+        <p>Dear {{candidate.name}},</p>
+        <p>Your salary slip and bank statement have been successfully verified.</p>
+        <p>We are now preparing your salary annexure.</p>
+        <br>
+        <p>Regards,<br>HR Team</p>
+    </body>
+    </html>
+    """,
+        "hr_review_rejected": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>Salary Document Verification Failed</h2>
+        <p>Dear {{candidate.name}},</p>
+        <p>Your uploaded documents could not be verified due to missing or unclear information.</p>
+        <p>Please re-upload the required documents to continue the process.</p>
+        <br>
+        <p>Regards,<br>HR Team</p>
+    </body>
+    </html>
+    """,
 
     "salary_annexure_prep": f"""
     <html>
@@ -318,7 +354,30 @@ HTML_TEMPLATES = {
     </body>
     </html>
     """,
-
+        "salary_annexure_sent": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>Salary Annexure Sent for Approval</h2>
+        <p>Dear {{candidate.name}},</p>
+        <p>Your salary annexure has been prepared and sent to the HR Head for approval.</p>
+        <p>We will notify you once it is approved.</p>
+        <br>
+        <p>Regards,<br>HR Team</p>
+    </body>
+    </html>
+    """,
+    "rejected_annexure": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>Salary Annexure Rejected</h2>
+        <p>Dear {{candidate.name}},</p>
+        <p>Your salary annexure has been reviewed by the HR Head and requires corrections.</p>
+        <p>Our HR team will revise the annexure and share it with you again for approval.</p>
+        <br>
+        <p>Regards,<br>HR Team</p>
+    </body>
+    </html>
+    """,
     "approved_annexure": f"""
     <html>
     <body style='font-family: Arial; color:#333;'>
@@ -357,6 +416,18 @@ HTML_TEMPLATES = {
         <p>Dear {{candidate.name}},</p>
         <p>We have received your resignation letter.</p>
         <p>HR will verify and confirm shortly.</p>
+        <br>
+        <p>Regards,<br>HR Team</p>
+    </body>
+    </html>
+    """,
+        "resignation_review": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>Resignation Letter Under Review</h2>
+        <p>Dear {{candidate.name}},</p>
+        <p>Your resignation letter has been received and is currently being reviewed by HR.</p>
+        <p>You will be notified once verification is completed.</p>
         <br>
         <p>Regards,<br>HR Team</p>
     </body>
@@ -414,6 +485,18 @@ HTML_TEMPLATES = {
         <p>Dear {{candidate.name}},</p>
         <p>Some of your documents are incomplete or unclear.</p>
         <p>Please re-upload them using the same link provided earlier.</p>
+        <br>
+        <p>Regards,<br>HR Team</p>
+    </body>
+    </html>
+    """,
+        "docs_unclear": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>Documents Need Clarification</h2>
+        <p>Dear {{candidate.name}},</p>
+        <p>Some of your submitted documents are unclear or unreadable.</p>
+        <p>Please re-upload clearer copies using the same link provided earlier.</p>
         <br>
         <p>Regards,<br>HR Team</p>
     </body>
