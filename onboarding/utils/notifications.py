@@ -225,9 +225,9 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
     "resignation_pending": {
         "email": {
             "subject": "Upload Your Resignation Letter",
-            "text": "Please upload your resignation letter using this link: {link}",
+            "text": "Please upload your resignation letter under 48 hours using this link: {link}",
         },
-        "sms": "Upload your resignation letter: {link}",
+        "sms": "Upload your resignation letter under 48 hours using this link: {link}.",
         "log": "Resignation letter request sent to {candidate.email}",
     },
     "resignation_uploaded": {

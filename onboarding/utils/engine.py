@@ -10,26 +10,48 @@ logger = logging.getLogger(__name__)
 # Notification rules for ALL STATES
 # ------------------------------
 NOTIFY_STATES = {
+    # Screening & Interview
     "shortlisted",
     "interview_pending",
     "interview_done",
     "interview_rejected",
-
-    # "selected",
-    # "approval_pending",
+    # Approval
     "approved",
     "approval_rejected",
-
+    # Salary Docs
+    "salary_docs_pending",
+    "salary_docs_uploaded",
+    "hr_review_docs",
+    "hr_review_ok",
+    "hr_review_rejected",
+    # Salary Annexure
+    "salary_annexure_prep",
+    "salary_annexure_sent",
+    "approved_annexure",
+    "rejected_annexure",
+    # Offer
     "offer_pending",
     "offer_sent",
     "offer_accepted",
     "offer_rejected",
-
+    # Resignation
+    "resignation_pending",
+    "resignation_uploaded",
+    "resignation_review",
+    "resignation_approved",
+    "resignation_rejected",
+    # Documents
     "docs_pending",
-    "docs_received",
+    "docs_uploaded",
+    "review_docs",
+    "docs_approved",
+    "docs_incomplete",
+    "docs_unclear",
+    # Joining
     "joining_pending",
+    "joining_poned",
     "joined",
-
+    # Final rejections
     "duplicate_rejected",
     "rejected",
 }

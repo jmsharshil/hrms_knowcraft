@@ -284,7 +284,7 @@ HTML_TEMPLATES = {
     <body style='font-family: Arial; color:#333;'>
         <h2>Upload Salary Documents</h2>
         <p>Dear {{candidate.name}},</p>
-        <p>Please upload your latest salary slip and bank statement.</p>
+        <p>Please upload your latest salary slip and bank statement using this link https://9bd6882f3e08.ngrok-free.app/api/candidates/{{candidate.id}}/documents/upload/.</p>
         <p>This is required to proceed with your offer process.</p>
         <br>
         <p>Regards,<br>HR Team</p>
@@ -401,7 +401,7 @@ HTML_TEMPLATES = {
     <body style='font-family: Arial; color:#333;'>
         <h2>Upload Your Resignation Letter</h2>
         <p>Dear {{candidate.name}},</p>
-        <p>Please upload your resignation letter using the provided link.</p>
+        <p>Please upload your resignation letter using the provided link under 48 hours.Link <a href='https://9bd6882f3e08.ngrok-free.app/api/candidates/{{candidate.id}}/documents/upload/'>https://9bd6882f3e08.ngrok-free.app/api/candidates/{{candidate.id}}/documents/upload/</a></p>
         <p>This is required to proceed with the onboarding workflow.</p>
         <br>
         <p>Regards,<br>HR Team</p>
@@ -472,6 +472,18 @@ HTML_TEMPLATES = {
         <p>Dear {{candidate.name}},</p>
         <p>We have received your documents.</p>
         <p>HR will review and verify them shortly.</p>
+        <br>
+        <p>Regards,<br>HR Team</p>
+    </body>
+    </html>
+    """,
+    "review_docs": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>Document Review In Progress</h2>
+        <p>Dear {{candidate.name}},</p>
+        <p>We have received your submitted documents and our HR team has started the verification process.</p>
+        <p>You will be notified once the review is completed or if any clarification is required.</p>
         <br>
         <p>Regards,<br>HR Team</p>
     </body>
