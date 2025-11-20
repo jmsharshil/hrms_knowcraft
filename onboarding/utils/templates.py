@@ -158,7 +158,7 @@ HTML_TEMPLATES = {
     <body style='font-family: Arial; color:#333;'>
         <h2>Your Offer Letter</h2>
         <p>Dear {{candidate.name}},</p>
-        <p>Please find your official offer letter attached to this email.</p>
+        <p>Please sign your offer letter using the secure link provided: {{sign_url}}</p>
         <p>If you have any questions, feel free to reach out.</p>
         <br>
         <p>Regards,<br>HR Team</p>

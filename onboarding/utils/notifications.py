@@ -4,6 +4,7 @@ from typing import Optional, Dict, Any
 from .pdf_maker import generate_offer_letter
 from .sender import send_email, send_text
 from .templates import HTML_TEMPLATES
+from .opensign import send_to_opensign_and_get_link
 logger = logging.getLogger(__name__)
 
 # ----------------------------------------------------------------------
@@ -193,14 +194,23 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
         "sms": "Your offer is being prepared.",
         "log": "Offer pending notification sent to {candidate.email}",
     },
+    # "offer_sent": {
+    #     "email": {
+    #         "subject": "Your Offer Letter",
+    #         "text": "Please find your offer letter attached.",
+    #         "attachments_factory": generate_offer_letter,
+    #     },
+    #     "sms": "Your offer letter has been emailed to you.",
+    #     "log": "Offer letter sent to {candidate.email}",
+    # },
     "offer_sent": {
         "email": {
-            "subject": "Your Offer Letter",
-            "text": "Please find your offer letter attached.",
-            "attachments_factory": generate_offer_letter,
+            "subject": "Your Offer Letter – Signature Required",
+            "text": "Please sign your offer letter using the secure link provided: {sign_url}",
         },
-        "sms": "Your offer letter has been emailed to you.",
-        "log": "Offer letter sent to {candidate.email}",
+        "sms": "Your offer letter is ready. Please check email to sign.",
+        "opensign": True,   # <== IMPORTANT FLAG
+        "log": "Offer letter sent for signing to {candidate.email}",
     },
     "offer_accepted": {
         "email": {
@@ -385,18 +395,33 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
     
     if email_cfg:
         attachments = []
-        attach_factory = email_cfg.get("attachments_factory")
-        if attach_factory:
+        # attach_factory = email_cfg.get("attachments_factory")
+        # if attach_factory:
+        #     try:
+        #         pdf = attach_factory(candidate)
+        #         attachments = [pdf]
+        #     except Exception as exc:
+        #         logger.error("Failed to generate attachment for %s: %s", candidate.email, exc)
+        #         success = False
+        sign_url = None
+        if cfg.get("opensign"):
             try:
-                pdf = attach_factory(candidate)
-                attachments = [pdf]
-            except Exception as exc:
-                logger.error("Failed to generate attachment for %s: %s", candidate.email, exc)
-                success = False
+                # filename, pdf_bytes, mimetype = generate_offer_letter(candidate)
 
+                # Call OpenSign API
+                sign_url,form_id = send_to_opensign_and_get_link(candidate=candidate)
+                from django.core.cache import cache
+                cache.set(f"opensign_form_{form_id}", str(candidate.id), timeout=60*60*24)  # e.g. 24h
+
+                # Inject URL into email text
+                email_cfg["text"] = email_cfg["text"].format(sign_url=sign_url)
+
+            except Exception as exc:
+                logger.exception("Failed OpenSign flow: %s", exc)
+                success = False
         try:
             html_template = HTML_TEMPLATES[stage]
-            if stage == 'docs_pending':
+            if stage == 'docs_pending' or stage == "resignation_pending" or stage == "salary_docs_pending":
                 link = f"https://9bd6882f3e08.ngrok-free.app/api/candidates/{candidate.id}/documents/upload/"
                 email_cfg["text"].format(link=link)
                 sms_text.format(link=link)
@@ -405,7 +430,7 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
                 subject=email_cfg["subject"],
                 text=email_cfg["text"],
                 cc= cc,
-                template=html_template.format(candidate=candidate),
+                template=html_template.format(candidate=candidate,sign_url=sign_url),
                 attachments=attachments,
             )
         except Exception as exc:
@@ -432,3 +457,193 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
             logger.exception("Log formatting failed: %s", exc)
 
     return success
+
+NOTIFY_INTERNAL_MAP = {
+    # "applied": {
+    #     "receivers": ["consultant", "referer"],
+    #     "subject": "New Candidate Application Received",
+    #     "body": "A new candidate has applied and requires initial review.",
+    #     "sms": "New candidate applied. Please review.",
+    # },
+    # "interview_pending": {
+    #     "receivers": ["interviewer"],
+    #     "subject": "Interview Pending",
+    #     "body": "The candidate is ready for interview scheduling.",
+    #     "sms": "Interview pending for assigned candidate.",
+    # },
+    "approval_pending": {
+        "receivers": ["hr_manager"],
+        "subject": "Approval Required for Candidate",
+        "body": "Candidate is pending managerial approval.",
+        "sms": "Candidate approval required.",
+    },
+    "approved": {
+        "receivers": ["hr"],
+        "subject": "Candidate Approved",
+        "body": "Candidate has been approved. Move to next steps.",
+        "sms": "Candidate approved.",
+    },
+    "approval_rejected": {
+        "receivers": ["hr"],
+        "subject": "Candidate Approval Rejected",
+        "body": "Approval manager has rejected the candidate’s profile.",
+        "sms": "Candidate approval rejected.",
+    },
+    "salary_docs_uploaded": {
+        "receivers": ["hr"],
+        "subject": "Salary Documents Uploaded",
+        "body": "Salary documents have been uploaded. Review required.",
+        "sms": "Candidate salary documents uploaded.",
+    },
+    "salary_annexure_prep": {
+        "receivers": ["hr"],
+        "subject": "Prepare Salary Annexure",
+        "body": "Start preparing the salary annexure for the candidate.",
+        "sms": "Prepare salary annexure.",
+    },
+    "salary_annexure_sent": {
+        "receivers": ["hr_manager"],
+        "subject": "Salary Annexure Sent for Approval",
+        "body": "Salary annexure has been sent for managerial approval.",
+        "sms": "Salary annexure approval pending.",
+    },
+    "approved_annexure": {
+        "receivers": ["hr"],
+        "subject": "Salary Annexure Approved",
+        "body": "Salary annexure has been approved.",
+        "sms": "Salary annexure approved.",
+    },
+    "rejected_annexure": {
+        "receivers": ["hr"],
+        "subject": "Salary Annexure Rejected",
+        "body": "Salary annexure has been rejected. Further action required.",
+        "sms": "Salary annexure rejected.",
+    },
+    "offer_pending": {
+        "receivers": ["hr"],
+        "subject": "Offer Letter Pending",
+        "body": "Prepare and send the offer letter to the candidate.",
+        "sms": "Offer letter preparation pending.",
+    },
+    # "offer_accepted": {
+    #     "receivers": ["hr"],
+    #     "subject": "Offer Accepted by Candidate",
+    #     "body": "Candidate has accepted the offer.",
+    #     "sms": "Candidate accepted the offer.",
+    # },
+    "offer_rejected": {
+        "receivers": ["consultancy"],
+        "subject": "Offer Rejected",
+        "body": "Candidate has rejected the offer.",
+        "sms": "Candidate rejected the offer.",
+    },
+    "resignation_uploaded": {
+        "receivers": ["hr"],
+        "subject": "Resignation Uploaded",
+        "body": "Candidate's resignation has been uploaded.",
+        "sms": "Resignation document uploaded.",
+    },
+    "docs_uploaded": {
+        "receivers": ["hr"],
+        "subject": "Documents Uploaded",
+        "body": "Candidate has uploaded joining documents.",
+        "sms": "Candidate uploaded joining documents.",
+    },
+    "joining_pending": {
+        "receivers": ["hr", "iternal_team", "admin", "department_head"],
+        "subject": "Joining Pending",
+        "body": "Candidate is pending joining. Prepare required steps.",
+        "sms": "Candidate joining pending.",
+    },
+    "joining_poned": {
+        "receivers": ["hr", "department_head"],
+        "subject": "Joining Postponed",
+        "body": "Candidate has postponed the joining date.",
+        "sms": "Candidate postponed joining.",
+    },
+    "joined": {
+        "receivers": ["hr", "iternal_team", "admin", "department_head", "consultancy", "referer"],
+        "subject": "Candidate Joined",
+        "body": "Candidate has joined successfully.",
+        "sms": "Candidate joined.",
+    },
+    "duplicate_rejected": {
+        "receivers": ["consultancy"],
+        "subject": "Duplicate Profile Rejected",
+        "body": "Candidate profile rejected due to duplication.",
+        "sms": "Duplicate profile rejected.",
+    },
+    "rejected": {
+        "receivers": ["consultancy", "department_head", "hr"],
+        "subject": "Candidate Rejected",
+        "body": "Candidate profile has been rejected.",
+        "sms": "Candidate rejected.",
+    },
+}
+
+def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
+    emails = set()
+
+    job = candidate.job
+    if not job:
+        logger.error(f"No job linked with candidate {candidate.id}")
+        return []
+    try:
+        company = job.company
+        # mrf = job.mrf
+
+        for role in receivers:
+
+            # HR (comes from MRF)
+            # if role == "hr":
+            #     if mrf and mrf.hr and mrf.hr.email:
+            #         emails.add(mrf.hr.email)
+            #         continue
+            
+            if role == "referer":
+                if candidate and candidate.referer:
+                    emails.add(candidate.referer)
+                continue
+
+            if role == "internal_team":
+                #To be written 
+                continue
+
+            # Users from Company by role
+            role_emails = list(
+                company.users.filter(role=role)
+                .exclude(email__isnull=True)
+                .exclude(email="")
+                .values_list("email", flat=True)
+            )
+            for e in role_emails:
+                emails.add(e)
+
+        return list(emails)
+    except Exception as e:
+        logger.exception("Error finding emails to send:",e)
+
+def notify_internal(candidate: Any, stage: str,cc:list) -> bool:
+    recievers = NOTIFY_INTERNAL_MAP[stage]['receivers']
+    subject = NOTIFY_INTERNAL_MAP[stage]['subject']
+    body = NOTIFY_INTERNAL_MAP[stage]['body']
+    sms_text = NOTIFY_INTERNAL_MAP[stage]['sms']
+
+    if not recievers:
+        logger.warning("No notification recievers for stage '%s'", stage)
+        return False
+    to_emails = resolve_internal_emails(candidate, recievers)
+
+    if not to_emails:
+        logger.warning(f"No internal email recipients found for stage {stage}")
+        return False
+    try:
+        for email in to_emails:
+            send_email(email,subject=subject,text=body)
+        logger.info(
+            f"Internal notification sent for {candidate.name} at stage '{stage}' to {to_emails}"
+        )
+        return True
+    except Exception as e:
+        logger.exception(f"Failed internal notification: {e}")
+        return False

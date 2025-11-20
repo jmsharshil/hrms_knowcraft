@@ -1,8 +1,8 @@
 # engine.py
 import logging
 from .stage_transition_rules import get_auto_next, validate_transition
-from .notifications import notify_candidate
-
+from .notifications import notify_candidate,notify_internal
+from .cc_rules import get_cc_for_stage
 logger = logging.getLogger(__name__)
 
 
@@ -17,45 +17,72 @@ NOTIFY_STATES = {
     "interview_rejected",
     # Approval
     "approved",
-    "approval_rejected",
+    # "approval_rejected",
     # Salary Docs
     "salary_docs_pending",
-    "salary_docs_uploaded",
-    "hr_review_docs",
-    "hr_review_ok",
+    # "salary_docs_uploaded",
+    # "hr_review_docs",
+    # "hr_review_ok",
     "hr_review_rejected",
     # Salary Annexure
-    "salary_annexure_prep",
-    "salary_annexure_sent",
-    "approved_annexure",
-    "rejected_annexure",
+    # "salary_annexure_prep",
+    # "salary_annexure_sent",
+    # "approved_annexure",
+    # "rejected_annexure",
     # Offer
-    "offer_pending",
+    # "offer_pending",
     "offer_sent",
     "offer_accepted",
     "offer_rejected",
     # Resignation
     "resignation_pending",
-    "resignation_uploaded",
-    "resignation_review",
-    "resignation_approved",
+    # "resignation_uploaded",
+    # "resignation_review",
+    # "resignation_approved",
     "resignation_rejected",
     # Documents
     "docs_pending",
-    "docs_uploaded",
-    "review_docs",
+    # "docs_uploaded",
+    # "review_docs",
     "docs_approved",
     "docs_incomplete",
     "docs_unclear",
     # Joining
     "joining_pending",
-    "joining_poned",
+    # "joining_poned",
     "joined",
     # Final rejections
     "duplicate_rejected",
     "rejected",
 }
 
+NOTIFY_INTERNAL_STATES = {
+    # Approval Flow
+    "approval_pending",        # Send approval request to HR Manager
+    "approved",                # Notify HR
+    "approval_rejected",       # Notify HR
+    # Salary Documents Flow
+    "salary_docs_uploaded",    # Notify HR for review
+    # Salary Annexure Flow
+    "salary_annexure_prep",    # Notify HR to prepare annexure
+    "salary_annexure_sent",    # Notify HR manager
+    "approved_annexure",       # Notify HR
+    "rejected_annexure",       # Notify HR
+    # Offer Flow (Internal Steps)
+    "offer_pending",           # Notify HR to prepare offer
+    "offer_rejected",
+    # Resignation Collection
+    "resignation_uploaded",    # HR reviews
+    # Document Verification
+    "docs_uploaded",           # HR reviews
+    # Joining
+    "joining_pending",         # Notify HR/IT/Admin internally
+    "joining_poned",           # Internal delay notice
+    "joined",                  # Broadcast to departments
+    # Duplicate or general rejection internal notices
+    "duplicate_rejected",
+    "rejected",
+}
 
 # ------------------------------
 # Broadcast rules for internal teams
@@ -75,19 +102,28 @@ def automation_engine(candidate, old, new):
     # 2️⃣ Send candidate notifications (if applicable)
     if new in NOTIFY_STATES:
         try:
-            notify_candidate(candidate, new,cc=[])
+            cc = get_cc_for_stage(candidate,new)
+            notify_candidate(candidate, new,cc=cc or [])
             logger.info(f"AUTO: Notification sent for {candidate.name} → {new}")
         except Exception as e:
             logger.exception(f"❌ Error sending notification: {e}")
 
-    # 3️⃣ Internal broadcasting for key events
-    if new == "joined" and BROADCAST_ON_JOIN:
-        logger.info(
-            f"AUTO: Broadcasting joining of {candidate.name} to Head/HR/Finance/IT/Consultant/Referral"
-        )
+    # 3️⃣ Send internal person notifications (if applicable)        
+    if new in NOTIFY_INTERNAL_STATES:
+        try:
+            notify_internal(candidate, new, cc=[])
+            logger.info(f"AUTO: Internal Notification sent for {candidate.name} → {new}")
+        except Exception as e:
+            logger.exception(f"❌ Internal Notification Error: {e}")
+    # # 3️⃣ Internal broadcasting for key events
+    # if new == "joined" and BROADCAST_ON_JOIN:
+    #     logger.info(
+    #         f"AUTO: Broadcasting joining of {candidate.name} to Head/HR/Finance/IT/Consultant/Referral"
+    #     )
 
     candidate.stage = new
     candidate.save()
+
     # 4️⃣ Auto-advance the workflow if needed
     next_state = get_auto_next(new)
     if next_state:
