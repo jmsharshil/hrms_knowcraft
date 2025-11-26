@@ -35,7 +35,7 @@ class CanManageWorkflow(permissions.BasePermission):
             return True
         
         # Write access only for admin
-        return request.user.role == 'admin'
+        return request.user.role == 'department_head'   ## earlier it was 'admin'
 
 
 class CanViewMRF(permissions.BasePermission):
