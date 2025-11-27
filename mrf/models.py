@@ -38,10 +38,38 @@ class Designation(models.Model):
         return self.name
 
 
-class ApprovalWorkflow(models.Model):
-    """Configurable approval workflow - easily modify approval levels and roles"""
+class WorkflowTemplate(models.Model):
+    """Workflow template - a collection of approval levels"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=255, help_text="e.g., 'MRF Approval Workflow'")
+    name = models.CharField(max_length=255, help_text="e.g., 'HR First Workflow', 'Admin First Workflow'")
+    description = models.TextField(blank=True, help_text="Description of this workflow")
+    is_active = models.BooleanField(default=True, help_text="Set to False to disable this workflow")
+    is_default = models.BooleanField(default=False, help_text="Use this as default for new MRFs")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-is_default', '-created_at']
+    
+    def __str__(self):
+        default_text = " (Default)" if self.is_default else ""
+        return f"{self.name}{default_text}"
+    
+    def save(self, *args, **kwargs):
+        # If this is set as default, remove default from others
+        if self.is_default:
+            WorkflowTemplate.objects.filter(is_default=True).update(is_default=False)
+        super().save(*args, **kwargs)
+    
+    def get_levels(self):
+        """Get all approval levels for this workflow"""
+        return self.levels.filter(is_active=True).order_by('order', 'level')
+
+
+class ApprovalWorkflow(models.Model):
+    """Individual approval level in a workflow template"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    template = models.ForeignKey(WorkflowTemplate, on_delete=models.CASCADE, related_name='levels')
     level = models.IntegerField(help_text="Approval level (1, 2, 3, etc.)")
     required_role = models.CharField(max_length=20, help_text="Role required for this level")
     is_active = models.BooleanField(default=True)
@@ -50,11 +78,11 @@ class ApprovalWorkflow(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        ordering = ['order', 'level']
-        unique_together = ['name', 'level', 'order']
+        ordering = ['template', 'order', 'level']
+        unique_together = ['template', 'level']
     
     def __str__(self):
-        return f"{self.name} - Level {self.level} ({self.required_role})"
+        return f"{self.template.name} - Level {self.level} ({self.required_role})"
 
 
 class MRF(models.Model):
@@ -64,6 +92,7 @@ class MRF(models.Model):
         ('draft', 'Draft'),
         ('pending_level_1', 'Pending Level 1 Approval'),
         ('pending_level_2', 'Pending Level 2 Approval'),
+        ('pending_level_3', 'Pending Level 3 Approval'),
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
         ('revision_required', 'Revision Required'),
@@ -84,7 +113,16 @@ class MRF(models.Model):
     # Primary Key
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     
+    # Workflow Assignment - IMPORTANT: Links MRF to specific workflow
+    workflow_template = models.ForeignKey(
+        WorkflowTemplate, 
+        on_delete=models.PROTECT, 
+        related_name='mrfs',
+        help_text="The workflow template this MRF follows"
+    )
+    
     # Basic Details
+    mrf_name = models.CharField(max_length=255)
     department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name='mrfs')
     date_of_request = models.DateField(default=timezone.now)
     requested_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='mrfs_created')
@@ -127,7 +165,7 @@ class MRF(models.Model):
     requisition_no = models.CharField(max_length=50, unique=True, blank=True, null=True)
     date_received = models.DateField(blank=True, null=True)
     
-    # Workflow
+    # Workflow State
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='draft')
     current_approval_level = models.IntegerField(default=0)
     
@@ -143,7 +181,7 @@ class MRF(models.Model):
         verbose_name_plural = 'MRFs'
     
     def __str__(self):
-        return f"MRF-{self.requisition_no or self.id} - {self.department.name}"
+        return f"MRF-{self.requisition_no or self.id} - {self.department.name} ({self.workflow_template.name})"
     
     def save(self, *args, **kwargs):
         # Auto-generate requisition number after final approval
@@ -179,8 +217,7 @@ class MRF(models.Model):
     def get_next_approvers(self):
         """Get list of users who can approve at current level"""
         next_level = self.current_approval_level + 1
-        workflow = ApprovalWorkflow.objects.filter(
-            name='MRF Approval Workflow',
+        workflow = self.workflow_template.levels.filter(
             level=next_level,
             is_active=True
         ).first()
@@ -196,12 +233,11 @@ class MRF(models.Model):
     
     def can_user_approve(self, user):
         """Check if user can approve at current level"""
-        if self.status not in ['pending_level_1', 'pending_level_2']:
+        if self.status not in ['pending_level_1', 'pending_level_2', 'pending_level_3']:
             return False
         
         next_level = self.current_approval_level + 1
-        workflow = ApprovalWorkflow.objects.filter(
-            name='MRF Approval Workflow',
+        workflow = self.workflow_template.levels.filter(
             level=next_level,
             is_active=True
         ).first()
@@ -210,6 +246,18 @@ class MRF(models.Model):
             return False
         
         return user.role == workflow.required_role
+    
+    def get_workflow_summary(self):
+        """Get workflow summary for display"""
+        levels = self.workflow_template.get_levels()
+        return [
+            {
+                'level': level.level,
+                'role': level.required_role,
+                'order': level.order
+            }
+            for level in levels
+        ]
 
 
 class MRFApproval(models.Model):

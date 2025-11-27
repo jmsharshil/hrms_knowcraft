@@ -1,5 +1,8 @@
 from rest_framework import serializers
-from .models import Department, Designation, MRF, MRFApproval, MRFRevision, ApprovalWorkflow
+from .models import (
+    Department, Designation, MRF, MRFApproval, MRFRevision, 
+    ApprovalWorkflow, WorkflowTemplate
+)
 from accounts.models import User
 
 
@@ -18,10 +21,43 @@ class DesignationSerializer(serializers.ModelSerializer):
 
 
 class ApprovalWorkflowSerializer(serializers.ModelSerializer):
+    template_name = serializers.CharField(source='template.name', read_only=True)
+    
     class Meta:
         model = ApprovalWorkflow
-        fields = ['id', 'name', 'level', 'required_role', 'is_active', 'order', 'created_at', 'updated_at']
+        fields = [
+            'id', 'template', 'template_name', 'level', 'required_role', 
+            'is_active', 'order', 'created_at', 'updated_at'
+        ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class WorkflowTemplateSerializer(serializers.ModelSerializer):
+    levels = ApprovalWorkflowSerializer(many=True, read_only=True)
+    total_levels = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = WorkflowTemplate
+        fields = [
+            'id', 'name', 'description', 'is_active', 'is_default', 
+            'levels', 'total_levels', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def get_total_levels(self, obj):
+        return obj.levels.filter(is_active=True).count()
+
+
+class WorkflowTemplateSummarySerializer(serializers.ModelSerializer):
+    """Lightweight serializer for listing"""
+    total_levels = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = WorkflowTemplate
+        fields = ['id', 'name', 'description', 'is_active', 'is_default', 'total_levels']
+    
+    def get_total_levels(self, obj):
+        return obj.levels.filter(is_active=True).count()
 
 
 class MRFApprovalSerializer(serializers.ModelSerializer):
@@ -53,18 +89,22 @@ class MRFListSerializer(serializers.ModelSerializer):
     designation_name = serializers.CharField(source='designation.name', read_only=True)
     requested_by_name = serializers.CharField(source='requested_by.name', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    workflow_name = serializers.CharField(source='workflow_template.name', read_only=True)
     
     class Meta:
         model = MRF
         fields = [
+            'mrf_name',
             'id', 'requisition_no', 'department_name', 'designation_name', 
             'no_of_vacancies', 'location', 'status', 'status_display',
-            'requested_by_name', 'date_of_request', 'created_at', 'updated_at'
+            'requested_by_name', 'workflow_name', 'date_of_request', 
+            'created_at', 'updated_at'
         ]
 
 
 class MRFDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for single MRF view"""
+    mrf_name = serializers.CharField(read_only=True)
     department_name = serializers.CharField(source='department.name', read_only=True)
     designation_name = serializers.CharField(source='designation.name', read_only=True)
     position_department_name = serializers.CharField(source='position_department.name', read_only=True)
@@ -72,6 +112,8 @@ class MRFDetailSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     location_display = serializers.CharField(source='get_location_display', read_only=True)
     case_study_required_display = serializers.CharField(source='get_case_study_required_display', read_only=True)
+    workflow_name = serializers.CharField(source='workflow_template.name', read_only=True)
+    workflow_summary = serializers.SerializerMethodField()
     
     approvals = MRFApprovalSerializer(many=True, read_only=True)
     revisions = MRFRevisionSerializer(many=True, read_only=True)
@@ -84,11 +126,15 @@ class MRFDetailSerializer(serializers.ModelSerializer):
         model = MRF
         fields = '__all__'
         read_only_fields = [
+            'mrf_name',
             'id', 'requisition_no', 'date_received', 'status', 
             'current_approval_level', 'created_at', 'updated_at', 
             'submitted_at', 'approved_at', 'requested_by', 
-            'requested_by_name', 'requested_by_designation'
+            'requested_by_name', 'requested_by_designation', 'workflow_template'
         ]
+    
+    def get_workflow_summary(self, obj):
+        return obj.get_workflow_summary()
     
     def get_next_approvers(self, obj):
         approvers = obj.get_next_approvers()
@@ -111,11 +157,17 @@ class MRFDetailSerializer(serializers.ModelSerializer):
 
 class MRFCreateUpdateSerializer(serializers.ModelSerializer):
     """Serializer for creating and updating MRFs"""
+    workflow_template = serializers.PrimaryKeyRelatedField(
+        queryset=WorkflowTemplate.objects.filter(is_active=True),
+        required=False,
+        help_text="If not provided, the default workflow will be used"
+    )
     
     class Meta:
         model = MRF
         fields = [
-            'department', 'designation', 'team', 'position_department',
+            'mrf_name',
+            'workflow_template', 'department', 'designation', 'team', 'position_department',
             'no_of_vacancies', 'location', 'resigned_crafter_name', 'resigned_crafter_ecode',
             'key_responsibility', 'required_qualifications', 'experience_range',
             'skills_competencies', 'business_justification', 'salary_range',
@@ -135,6 +187,24 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     'expected_date_of_joining': 'Expected date of joining cannot be in the past'
                 })
+        
+        # Assign default workflow if not provided
+        if 'workflow_template' not in data or not data.get('workflow_template'):
+            default_workflow = WorkflowTemplate.objects.filter(
+                is_active=True, 
+                is_default=True
+            ).first()
+            
+            if not default_workflow:
+                # If no default, get the first active workflow
+                default_workflow = WorkflowTemplate.objects.filter(is_active=True).first()
+            
+            if not default_workflow:
+                raise serializers.ValidationError({
+                    'workflow_template': 'No active workflow template found. Please create one first.'
+                })
+            
+            data['workflow_template'] = default_workflow
         
         return data
     
@@ -166,6 +236,9 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
                 revision_notes=self.context.get('revision_notes', 'Revised after rejection'),
                 previous_data=previous_data
             )
+        
+        # Don't allow workflow_template change after creation
+        validated_data.pop('workflow_template', None)
         
         for attr, value in validated_data.items():
             setattr(instance, attr, value)

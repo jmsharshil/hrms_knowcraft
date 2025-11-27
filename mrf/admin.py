@@ -1,5 +1,8 @@
 from django.contrib import admin
-from .models import Department, Designation, MRF, MRFApproval, MRFRevision, ApprovalWorkflow
+from .models import (
+    Department, Designation, MRF, MRFApproval, MRFRevision, 
+    ApprovalWorkflow, WorkflowTemplate
+)
 
 
 @admin.register(Department)
@@ -16,27 +19,49 @@ class DesignationAdmin(admin.ModelAdmin):
     search_fields = ['name', 'code']
 
 
+class ApprovalWorkflowInline(admin.TabularInline):
+    model = ApprovalWorkflow
+    extra = 1
+    fields = ['level', 'required_role', 'order', 'is_active']
+    ordering = ['order', 'level']
+
+
+@admin.register(WorkflowTemplate)
+class WorkflowTemplateAdmin(admin.ModelAdmin):
+    list_display = ['name', 'is_active', 'is_default', 'get_total_levels', 'created_at']
+    list_filter = ['is_active', 'is_default']
+    search_fields = ['name', 'description']
+    inlines = [ApprovalWorkflowInline]
+    
+    def get_total_levels(self, obj):
+        return obj.levels.filter(is_active=True).count()
+    get_total_levels.short_description = 'Total Levels'
+
+
 @admin.register(ApprovalWorkflow)
 class ApprovalWorkflowAdmin(admin.ModelAdmin):
-    list_display = ['name', 'level', 'required_role', 'order', 'is_active', 'created_at']
-    list_filter = ['name', 'is_active', 'required_role']
-    ordering = ['order', 'level']
+    list_display = ['template', 'level', 'required_role', 'order', 'is_active', 'created_at']
+    list_filter = ['template', 'is_active', 'required_role']
+    ordering = ['template', 'order', 'level']
 
 
 @admin.register(MRF)
 class MRFAdmin(admin.ModelAdmin):
     list_display = [
-        'requisition_no', 'department', 'designation', 'requested_by', 
-        'status', 'no_of_vacancies', 'created_at'
+        'requisition_no', 'workflow_template', 'department', 'designation', 
+        'requested_by', 'status', 'no_of_vacancies', 'created_at'
     ]
-    list_filter = ['status', 'department', 'designation', 'location']
+    list_filter = ['status', 'workflow_template', 'department', 'designation', 'location']
     search_fields = ['requisition_no', 'requested_by__name', 'requested_by__email']
     readonly_fields = [
         'requisition_no', 'date_received', 'created_at', 'updated_at', 
-        'submitted_at', 'approved_at'
+        'submitted_at', 'approved_at', 'workflow_template'
     ]
     
     fieldsets = (
+        ('Workflow', {
+            'fields': ('workflow_template', 'status', 'current_approval_level')
+        }),
         ('Basic Details', {
             'fields': ('department', 'date_of_request', 'requested_by', 
                       'requested_by_name', 'requested_by_designation')
@@ -63,8 +88,8 @@ class MRFAdmin(admin.ModelAdmin):
         ('HR Use Only', {
             'fields': ('requisition_no', 'date_received')
         }),
-        ('Workflow', {
-            'fields': ('status', 'current_approval_level', 'submitted_at', 'approved_at')
+        ('Timestamps', {
+            'fields': ('submitted_at', 'approved_at', 'created_at', 'updated_at')
         }),
     )
 
