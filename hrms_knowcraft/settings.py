@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'accounts',
     'mrf',
+    'jobs',
 ]
 
 MIDDLEWARE = [
@@ -245,4 +246,8 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:5175',
     "http://localhost",
     'http://127.0.0.1:8000',
+    'https://hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net'
 ]
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
