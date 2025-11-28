@@ -240,6 +240,15 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         # Don't allow workflow_template change after creation
         validated_data.pop('workflow_template', None)
         
+        if 'position_department' in validated_data:
+            if not validated_data.get('position_department'):
+                validated_data['position_department'] = (
+                    validated_data.get('department') or instance.department
+                )
+        else:
+            if 'department' in validated_data and validated_data.get('department'):
+                validated_data['position_department'] = validated_data.get('department')
+        
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         
