@@ -254,3 +254,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 CSRF_COOKIE_SECURE = True      # Only valid if using HTTPS
 SESSION_COOKIE_SECURE = True   # Only valid if using HTTPS
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net',
+]
