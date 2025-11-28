@@ -4,6 +4,7 @@ from .models import (
     ApprovalWorkflow, WorkflowTemplate
 )
 from accounts.models import User
+from django.db import transaction
 
 
 class DepartmentSerializer(serializers.ModelSerializer):
@@ -32,20 +33,96 @@ class ApprovalWorkflowSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
+class ApprovalWorkflowCreateSerializer(serializers.ModelSerializer):
+    """
+    Used ONLY for nested creation inside WorkflowTemplate.
+    Note: template field is NOT present here because we assign it after template creation.
+    """
+    id = serializers.UUIDField(required=False)  # allow client to omit id
+
+    class Meta:
+        model = ApprovalWorkflow
+        fields = ['id', 'level', 'required_role', 'is_active', 'order']
+        read_only_fields = ['id']
+
+    def validate_level(self, value):
+        if value < 1:
+            raise serializers.ValidationError("level must be >= 1")
+        return value
+
 class WorkflowTemplateSerializer(serializers.ModelSerializer):
-    levels = ApprovalWorkflowSerializer(many=True, read_only=True)
+    # Accept nested levels (writable on create)
+    levels = ApprovalWorkflowCreateSerializer(many=True, required=False)
     total_levels = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = WorkflowTemplate
         fields = [
-            'id', 'name', 'description', 'is_active', 'is_default', 
+            'id', 'name', 'description', 'is_active', 'is_default',
             'levels', 'total_levels', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
-    
+
     def get_total_levels(self, obj):
         return obj.levels.filter(is_active=True).count()
+
+    def validate(self, data):
+        """
+        Basic validation on nested levels: ensure duplicate 'level' values are not provided.
+        """
+        levels_data = data.get('levels', [])
+        if levels_data:
+            seen = set()
+            for idx, lvl in enumerate(levels_data):
+                lv = lvl.get('level')
+                if lv in seen:
+                    raise serializers.ValidationError({
+                        'levels': f"Duplicate level '{lv}' in levels payload (index {idx})."
+                    })
+                seen.add(lv)
+        return data
+
+    @transaction.atomic
+    def create(self, validated_data):
+        """
+        Create WorkflowTemplate and nested ApprovalWorkflow(s) in one transaction.
+        This does *not* change how ApprovalWorkflowViewSet works — nested write support
+        is only for template creation (POST /workflow-templates/).
+        """
+        levels_data = validated_data.pop('levels', [])
+
+        # Create the template (this will execute WorkflowTemplate.save() logic which
+        # ensures only one default template exists)
+        template = super().create(validated_data)
+
+        # Create levels if provided
+        created_levels = []
+        for lvl in levels_data:
+            # Remove 'id' if present - we let DB generate a new id for nested-created levels
+            lvl.pop('id', None)
+            # Create ApprovalWorkflow pointing to this template
+            created = ApprovalWorkflow.objects.create(template=template, **lvl)
+            created_levels.append(created)
+
+        # Attach created_levels to serializer.instance so nested data appears in response
+        # (prefetching is not strictly necessary but keeps response consistent)
+        template = WorkflowTemplate.objects.prefetch_related('levels').get(pk=template.pk)
+        return template
+
+# class WorkflowTemplateSerializer(serializers.ModelSerializer):
+#     levels = ApprovalWorkflowSerializer(many=True, read_only=True)
+#     total_levels = serializers.SerializerMethodField()
+    
+#     class Meta:
+#         model = WorkflowTemplate
+#         fields = [
+#             'id', 'name', 'description', 'is_active', 'is_default', 
+#             'levels', 'total_levels', 'created_at', 'updated_at'
+#         ]
+#         read_only_fields = ['id', 'created_at', 'updated_at']
+    
+#     def get_total_levels(self, obj):
+#         return obj.levels.filter(is_active=True).count()
 
 
 class WorkflowTemplateSummarySerializer(serializers.ModelSerializer):
