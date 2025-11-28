@@ -251,3 +251,6 @@ CORS_ALLOWED_ORIGINS = [
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+CSRF_COOKIE_SECURE = True      # Only valid if using HTTPS
+SESSION_COOKIE_SECURE = True   # Only valid if using HTTPS
