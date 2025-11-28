@@ -53,47 +53,106 @@ class DesignationViewSet(viewsets.ModelViewSet):
         
         return queryset
 
-
 class WorkflowTemplateViewSet(viewsets.ModelViewSet):
     """ViewSet for managing workflow templates"""
     queryset = WorkflowTemplate.objects.all()
     permission_classes = [IsAuthenticated, CanManageWorkflow]
-    
+
+    # Return full serializer by default (so list returns detailed info).
+    # If client requests ?summary=true, we will return the lightweight serializer.
     def get_serializer_class(self):
-        if self.action == 'list':
-            return WorkflowTemplateSummarySerializer
+        # If the client explicitly asks for a summary, return the summary serializer.
+        if getattr(self, 'action', None) == 'list' and self.request is not None:
+            if self.request.query_params.get('summary', '').lower() == 'true':
+                return WorkflowTemplateSummarySerializer
+            return WorkflowTemplateSerializer
+
+        # For other actions (retrieve/create/update), use the detailed serializer
+        # so retrieve returns levels too (you already support single GET by id).
         return WorkflowTemplateSerializer
-    
+
     def get_queryset(self):
+        # Prefetch levels to avoid N+1 on nested serialization
         queryset = WorkflowTemplate.objects.prefetch_related('levels')
-        
+
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
-        
+
         is_default = self.request.query_params.get('is_default')
         if is_default is not None:
             queryset = queryset.filter(is_default=is_default.lower() == 'true')
-        
+
         return queryset
-    
+
+    # optional: explicit list override to clarify behavior / ensure ordering/pagination is used
+    def list(self, request, *args, **kwargs):
+        """
+        GET /api/workflow-templates/
+        Returns all workflow templates with nested levels (detailed) by default.
+        Use ?summary=true to get the lightweight representation.
+        """
+        return super().list(request, *args, **kwargs)
+
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanManageWorkflow])
     def set_as_default(self, request, pk=None):
         """Set this workflow as default"""
         workflow = self.get_object()
-        
+
         # Remove default from all others
         WorkflowTemplate.objects.filter(is_default=True).update(is_default=False)
-        
+
         # Set this as default
         workflow.is_default = True
         workflow.save()
-        
+
         serializer = WorkflowTemplateSerializer(workflow)
         return Response({
             'message': f'{workflow.name} is now the default workflow',
             'data': serializer.data
         }, status=status.HTTP_200_OK)
+
+
+# class WorkflowTemplateViewSet(viewsets.ModelViewSet):
+#     """ViewSet for managing workflow templates"""
+#     queryset = WorkflowTemplate.objects.all()
+#     permission_classes = [IsAuthenticated, CanManageWorkflow]
+    
+#     def get_serializer_class(self):
+#         if self.action == 'list':
+#             return WorkflowTemplateSummarySerializer
+#         return WorkflowTemplateSerializer
+    
+#     def get_queryset(self):
+#         queryset = WorkflowTemplate.objects.prefetch_related('levels')
+        
+#         is_active = self.request.query_params.get('is_active')
+#         if is_active is not None:
+#             queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        
+#         is_default = self.request.query_params.get('is_default')
+#         if is_default is not None:
+#             queryset = queryset.filter(is_default=is_default.lower() == 'true')
+        
+#         return queryset
+    
+#     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanManageWorkflow])
+#     def set_as_default(self, request, pk=None):
+#         """Set this workflow as default"""
+#         workflow = self.get_object()
+        
+#         # Remove default from all others
+#         WorkflowTemplate.objects.filter(is_default=True).update(is_default=False)
+        
+#         # Set this as default
+#         workflow.is_default = True
+#         workflow.save()
+        
+#         serializer = WorkflowTemplateSerializer(workflow)
+#         return Response({
+#             'message': f'{workflow.name} is now the default workflow',
+#             'data': serializer.data
+#         }, status=status.HTTP_200_OK)
 
 
 class ApprovalWorkflowViewSet(viewsets.ModelViewSet):
