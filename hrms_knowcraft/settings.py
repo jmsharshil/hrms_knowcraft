@@ -30,7 +30,7 @@ SECRET_KEY = 'django-insecure-0(s=ka%+mzk+5n3*t-h8l0#6yh7$bnt*y)=a!zy!7_q192j%$t
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net','127.0.0.1','localhost','9bd6882f3e08.ngrok-free.app']
+ALLOWED_HOSTS = ['hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net','127.0.0.1','localhost','373cf8796eac.ngrok-free.app']
 
 AUTH_USER_MODEL = 'accounts.User'
 # Application definition
@@ -260,3 +260,7 @@ WASENDER_WEBHOOK_SECRET = os.getenv("WASENDER_WEBHOOK_SECRET")
 
 OPENSIGN_API_BASE_URL = os.getenv("OPENSIGN_API_BASE_URL")
 OPENSIGN_API_TOKEN = os.getenv("OPENSIGN_API_TOKEN")
+
+ZOHO_REFRESH_TOKEN = os.getenv("ZOHO_REFRESH_TOKEN")
+ZOHO_CLIENT_ID = os.getenv("ZOHO_CLIENT_ID")
+ZOHO_CLIENT_SECRET = os.getenv("ZOHO_CLIENT_SECRET")
