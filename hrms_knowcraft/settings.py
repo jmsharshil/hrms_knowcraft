@@ -47,7 +47,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'accounts',
     'mrf',
-    # 'jobs',
+    'jobs',
 ]
 
 MIDDLEWARE = [
@@ -251,6 +251,11 @@ CORS_ALLOWED_ORIGINS = [
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
+
+ALLOWED_RESUME_EXTENSIONS = ['.pdf', '.doc', '.docx']
 
 CSRF_COOKIE_SECURE = True      # Only valid if using HTTPS
 SESSION_COOKIE_SECURE = True   # Only valid if using HTTPS

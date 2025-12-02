@@ -1,0 +1,734 @@
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.db.models import Q, Count
+from django.utils import timezone
+from django.db import transaction
+
+from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLink
+from .serializers import (
+    JobListSerializer, JobDetailSerializer, JobCreateSerializer,
+    JobUpdateSerializer, AssignToConsultancySerializer, CloseJobSerializer,
+    JobAssignmentHistorySerializer, JobApplicationSerializer,
+    JobApplicationCreateSerializer, JobApplicationUpdateSerializer,
+    JobApplicationLinkSerializer, JobApplicationLinkCreateSerializer,
+    PublicJobApplicationCreateSerializer, AssignToInternalHRSerializer
+)
+from .permissions import (
+    CanViewJobs, CanCreateJobs, CanEditJobs, CanAssignToConsultancy,
+    CanCloseJobs, CanSubmitApplications, CanManageApplications,
+    CanViewApplications
+)
+from accounts.models import User
+
+
+class JobViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing Jobs"""
+    
+    queryset = Job.objects.all()
+    
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return JobListSerializer
+        elif self.action == 'create':
+            return JobCreateSerializer
+        elif self.action in ['update', 'partial_update']:
+            return JobUpdateSerializer
+        elif self.action == 'assign_to_consultancy':
+            return AssignToConsultancySerializer
+        elif self.action == 'assign_to_internal_hr':   # NEW
+            return AssignToInternalHRSerializer
+        elif self.action == 'close_job':
+            return CloseJobSerializer
+        return JobDetailSerializer
+    
+    def get_permissions(self):
+        if self.action == 'create':
+            return [IsAuthenticated(), CanCreateJobs()]
+        elif self.action in ['update', 'partial_update']:
+            return [IsAuthenticated(), CanEditJobs()]
+        elif self.action in ['assign_to_consultancy', 'assign_to_internal_hr']:
+            return [IsAuthenticated(), CanAssignToConsultancy()]  # you can make a separate permission for internal HR if needed
+        elif self.action == 'close_job':
+            return [IsAuthenticated(), CanCloseJobs()]
+        return [IsAuthenticated(), CanViewJobs()]
+    
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Job.objects.select_related(
+            'department', 'designation', 'mrf', 
+            'assigned_to_consultancy', 'posted_by'
+        ).prefetch_related('applications', 'history', 'application_links')
+        
+        # Filter based on user role
+        if user.role in ['admin', 'hr_manager']:
+            # Can see all jobs
+            pass
+        elif user.role == 'department_head':
+            # Can see jobs from their department
+            if hasattr(user, 'headed_department'):
+                queryset = queryset.filter(department=user.headed_department)
+            else:
+                queryset = queryset.none()
+        elif user.role == 'hr':
+            # Internal HR: only jobs assigned to them OR jobs they posted
+            queryset = queryset.filter(
+                Q(assigned_to_internal_hr=user) | Q(posted_by=user)
+            )
+        elif user.role == 'consultancy':
+            # Can see assigned jobs or publicly visible jobs
+            queryset = queryset.filter(
+                Q(assigned_to_consultancy=user) | Q(visible_to_consultancy=True)
+            )
+        else:
+            queryset = queryset.none()
+        
+        # Apply filters from query params
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        
+        department_filter = self.request.query_params.get('department')
+        if department_filter:
+            queryset = queryset.filter(department_id=department_filter)
+        
+        priority_filter = self.request.query_params.get('priority')
+        if priority_filter:
+            queryset = queryset.filter(priority=priority_filter)
+        
+        assigned_to_me = self.request.query_params.get('assigned_to_me')
+        if assigned_to_me and assigned_to_me.lower() == 'true':
+            queryset = queryset.filter(assigned_to_consultancy=user)
+        
+        is_active = self.request.query_params.get('is_active')
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        
+        # Search
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(job_title__icontains=search) |
+                Q(mrf__requisition_no__icontains=search) |
+                Q(location__icontains=search)
+            )
+        
+        return queryset
+    
+    def perform_create(self, serializer):
+        serializer.save()
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanAssignToConsultancy])
+    def assign_to_consultancy(self, request, pk=None):
+        """Assign job to a consultancy"""
+        job = self.get_object()
+        serializer = AssignToConsultancySerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        consultancy_id = serializer.validated_data['consultancy_id']
+        notes = serializer.validated_data.get('notes', '')
+        
+        # Get consultancy user
+        try:
+            consultancy = User.objects.get(id=consultancy_id, role='consultancy', is_active=True)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Consultancy user not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if job can be assigned
+        if not job.can_be_assigned_to_consultancy():
+            return Response(
+                {'error': 'Job cannot be assigned. It may be in wrong status or inactive'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if reassigning
+        action = 'assigned'
+        if job.assigned_to_consultancy:
+            action = 'reassigned'
+        
+        # Update job
+        job.assigned_to_consultancy = consultancy
+        job.assigned_at = timezone.now()
+        job.assigned_by = request.user
+        job.status = 'assigned_to_consultancy'
+        job.visible_to_consultancy = True
+        job.save()
+        
+        # Create history record
+        JobAssignmentHistory.objects.create(
+            job=job,
+            action=action,
+            consultancy=consultancy,
+            performed_by=request.user,
+            notes=notes
+        )
+        
+        serializer = JobDetailSerializer(job, context={'request': request})
+        return Response({
+            'message': f'Job successfully assigned to {consultancy.name}',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanAssignToConsultancy])
+    def unassign_consultancy(self, request, pk=None):
+        """Unassign job from consultancy"""
+        job = self.get_object()
+        
+        if not job.assigned_to_consultancy:
+            return Response(
+                {'error': 'Job is not assigned to any consultancy'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        consultancy = job.assigned_to_consultancy
+        notes = request.data.get('notes', '')
+        
+        # Update job
+        job.assigned_to_consultancy = None
+        job.assigned_at = None
+        job.assigned_by = None
+        job.status = 'open'
+        job.save()
+        
+        # Create history record
+        JobAssignmentHistory.objects.create(
+            job=job,
+            action='unassigned',
+            consultancy=consultancy,
+            performed_by=request.user,
+            notes=notes
+        )
+        
+        serializer = JobDetailSerializer(job, context={'request': request})
+        return Response({
+            'message': f'Job unassigned from {consultancy.full_name}',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanAssignToConsultancy])
+    def assign_to_internal_hr(self, request, pk=None):
+        """Assign job to an internal HR user"""
+        job = self.get_object()
+        serializer = AssignToInternalHRSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        internal_hr_id = serializer.validated_data['internal_hr_id']
+        notes = serializer.validated_data.get('notes', '')
+
+        # get user
+        try:
+            internal_hr = User.objects.get(id=internal_hr_id, is_active=True)
+        except User.DoesNotExist:
+            return Response({'error': 'Internal HR user not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # check assignable
+        if not job.can_be_assigned_to_internal_hr():
+            return Response({'error': 'Job cannot be assigned. It may be in wrong status or inactive'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        action = 'assigned_internal'
+        if job.assigned_to_internal_hr:
+            action = 'reassigned_internal'
+
+        # Update job
+        job.assigned_to_internal_hr = internal_hr
+        job.assigned_internal_at = timezone.now()
+        job.assigned_internal_by = request.user
+        job.status = 'assigned_to_internal_hr'
+        # Optionally: leave visible_to_consultancy unchanged; you might want to keep consultancy visibility false by default
+        job.save()
+
+        # Create history record
+        JobAssignmentHistory.objects.create(
+            job=job,
+            action=action,
+            consultancy=job.assigned_to_internal_hr,  # note: consultancy FK reused for history; if you prefer create new field change model
+            performed_by=request.user,
+            notes=notes,
+            old_value='',
+            new_value=str(internal_hr.id)
+        )
+
+        serializer = JobDetailSerializer(job, context={'request': request})
+        return Response({
+            'message': f'Job successfully assigned to internal HR {internal_hr.name}',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+        
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanAssignToConsultancy])
+    def unassign_internal_hr(self, request, pk=None):
+        job = self.get_object()
+        if not job.assigned_to_internal_hr:
+            return Response({'error': 'Job is not assigned to any internal HR'}, status=status.HTTP_400_BAD_REQUEST)
+
+        internal_hr = job.assigned_to_internal_hr
+        notes = request.data.get('notes', '')
+
+        job.assigned_to_internal_hr = None
+        job.assigned_internal_at = None
+        job.assigned_internal_by = None
+        job.status = 'open'
+        job.save()
+
+        JobAssignmentHistory.objects.create(
+            job=job,
+            action='unassigned',
+            consultancy=internal_hr,  # again reused field
+            performed_by=request.user,
+            notes=notes
+        )
+
+        serializer = JobDetailSerializer(job, context={'request': request})
+        return Response({
+            'message': f'Job unassigned from {internal_hr.full_name}',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    @transaction.atomic
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanCloseJobs])
+    def close_job(self, request, pk=None):
+        """Close a job position"""
+        job = self.get_object()
+        serializer = CloseJobSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        closure_notes = serializer.validated_data.get('closure_notes', '')
+        
+        # Check if all positions are filled
+        if job.positions_filled < job.no_of_positions:
+            return Response(
+                {
+                    'error': f'Cannot close job. Only {job.positions_filled} of {job.no_of_positions} positions filled',
+                    'remaining': job.remaining_positions()
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        job.status = 'closed'
+        job.closed_at = timezone.now()
+        job.closed_by = request.user
+        job.closure_notes = closure_notes
+        job.is_active = False
+        job.save()
+        
+        # Deactivate all application links
+        job.application_links.filter(is_active=True).update(is_active=False)
+        
+        # Create history record
+        JobAssignmentHistory.objects.create(
+            job=job,
+            action='closed',
+            consultancy=job.assigned_to_consultancy,
+            performed_by=request.user,
+            notes=closure_notes
+        )
+        
+        serializer = JobDetailSerializer(job, context={'request': request})
+        return Response({
+            'message': 'Job closed successfully',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanEditJobs])
+    def mark_position_filled(self, request, pk=None):
+        """Mark one position as filled (increment positions_filled)"""
+        job = self.get_object()
+        application_id = request.data.get('application_id')
+        
+        if not application_id:
+            return Response(
+                {'error': 'application_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verify application exists and belongs to this job
+        try:
+            application = JobApplication.objects.get(id=application_id, job=job)
+        except JobApplication.DoesNotExist:
+            return Response(
+                {'error': 'Application not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if we can fill more positions
+        if job.positions_filled >= job.no_of_positions:
+            return Response(
+                {'error': 'All positions are already filled'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update application status
+        application.status = 'joined'
+        application.save()
+        
+        # Increment positions filled
+        job.positions_filled += 1
+        job.save()
+        
+        serializer = JobDetailSerializer(job, context={'request': request})
+        return Response({
+            'message': f'Position marked as filled. {job.remaining_positions()} positions remaining',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanEditJobs])
+    def reopen_job(self, request, pk=None):
+        """Reopen a closed/cancelled job"""
+        job = self.get_object()
+        
+        if job.status not in ['closed', 'cancelled']:
+            return Response(
+                {'error': 'Only closed or cancelled jobs can be reopened'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        notes = request.data.get('notes', '')
+        
+        # Reset job status
+        job.status = 'open'
+        job.is_active = True
+        job.closed_at = None
+        job.closed_by = None
+        job.closure_notes = ''
+        job.save()
+        
+        # Create history record
+        JobAssignmentHistory.objects.create(
+            job=job,
+            action='reopened',
+            performed_by=request.user,
+            notes=notes
+        )
+        
+        serializer = JobDetailSerializer(job, context={'request': request})
+        return Response({
+            'message': 'Job reopened successfully',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'])
+    def statistics(self, request):
+        """Get job statistics"""
+        user = request.user
+        
+        # Base queryset based on user role
+        if user.role in ['admin', 'hr_manager', 'hr']:
+            queryset = Job.objects.all()
+        elif user.role == 'department_head':
+            if hasattr(user, 'headed_department'):
+                queryset = Job.objects.filter(department=user.headed_department)
+            else:
+                queryset = Job.objects.none()
+        elif user.role == 'consultancy':
+            queryset = Job.objects.filter(
+                Q(assigned_to_consultancy=user) | Q(visible_to_consultancy=True)
+            )
+        else:
+            queryset = Job.objects.none()
+        
+        stats = {
+            'total': queryset.count(),
+            'open': queryset.filter(status='open').count(),
+            'assigned_to_consultancy': queryset.filter(status='assigned_to_consultancy').count(),
+            'in_progress': queryset.filter(status='in_progress').count(),
+            'filled': queryset.filter(status='filled').count(),
+            'closed': queryset.filter(status='closed').count(),
+            'cancelled': queryset.filter(status='cancelled').count(),
+            'active': queryset.filter(is_active=True).count(),
+        }
+        
+        # Additional stats for consultancy
+        if user.role == 'consultancy':
+            stats['assigned_to_me'] = queryset.filter(assigned_to_consultancy=user).count()
+        
+        # Priority breakdown
+        stats['by_priority'] = {
+            'urgent': queryset.filter(priority='urgent').count(),
+            'high': queryset.filter(priority='high').count(),
+            'medium': queryset.filter(priority='medium').count(),
+            'low': queryset.filter(priority='low').count(),
+        }
+        
+        return Response(stats, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'])
+    def consultancy_list(self, request):
+        """Get list of active consultancies for assignment"""
+        if request.user.role not in ['admin', 'hr_manager']:
+            return Response(
+                {'error': 'Permission denied'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        consultancies = User.objects.filter(
+            role='consultancy',
+            is_active=True
+        ).values('id', 'full_name', 'email', 'phone')
+        
+        return Response(list(consultancies), status=status.HTTP_200_OK)
+
+
+class JobApplicationLinkViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing Job Application Links"""
+    
+    queryset = JobApplicationLink.objects.all()
+    permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return JobApplicationLinkCreateSerializer
+        return JobApplicationLinkSerializer
+    
+    def get_queryset(self):
+        user = self.request.user
+        queryset = JobApplicationLink.objects.select_related('job', 'created_by')
+        
+        # Filter based on user role
+        if user.role in ['admin', 'hr_manager']:
+            # Can see all links
+            pass
+        elif user.role == 'hr':
+            # Internal HR: only links for jobs assigned to them (or created by them if you prefer)
+            queryset = queryset.filter(job__assigned_to_internal_hr=user)
+        elif user.role == 'consultancy':
+            # Can only see links for jobs assigned to them
+            queryset = queryset.filter(job__assigned_to_consultancy=user)
+        else:
+            queryset = queryset.none()
+        
+        # Apply filters
+        job_filter = self.request.query_params.get('job')
+        if job_filter:
+            queryset = queryset.filter(job_id=job_filter)
+        
+        platform_filter = self.request.query_params.get('platform')
+        if platform_filter:
+            queryset = queryset.filter(platform=platform_filter)
+        
+        is_active = self.request.query_params.get('is_active')
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        
+        return queryset
+    
+    @action(detail=True, methods=['post'])
+    def toggle_active(self, request, pk=None):
+        """Toggle link active status"""
+        link = self.get_object()
+        link.is_active = not link.is_active
+        link.save()
+        
+        serializer = JobApplicationLinkSerializer(link, context={'request': request})
+        return Response({
+            'message': f'Link {"activated" if link.is_active else "deactivated"} successfully',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['get'], permission_classes=[AllowAny])
+    def track_view(self, request, pk=None):
+        """Track link view (public endpoint)"""
+        link = self.get_object()
+        
+        if link.is_expired():
+            return Response(
+                {'error': 'This link has expired'},
+                status=status.HTTP_410_GONE
+            )
+        
+        if not link.is_active:
+            return Response(
+                {'error': 'This link is no longer active'},
+                status=status.HTTP_410_GONE
+            )
+        
+        # Increment views
+        link.increment_views()
+        
+        # Return job details for application form
+        return Response({
+            'job_title': link.job.job_title,
+            'department': link.job.department.name if link.job.department else None,
+            'location': link.job.location,
+            'experience_range': link.job.experience_range,
+            'skills_competencies': link.job.skills_competencies,
+            'job_description': link.job.job_description,
+            'application_token': link.unique_token,
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'])
+    def statistics(self, request):
+        """Get link statistics"""
+        user = request.user
+        
+        if user.role in ['admin', 'hr_manager', 'hr']:
+            queryset = JobApplicationLink.objects.all()
+        elif user.role == 'consultancy':
+            queryset = JobApplicationLink.objects.filter(job__assigned_to_consultancy=user)
+        else:
+            queryset = JobApplicationLink.objects.none()
+        
+        stats = {
+            'total_links': queryset.count(),
+            'active_links': queryset.filter(is_active=True).count(),
+            'total_views': queryset.aggregate(total=models.Sum('views_count'))['total'] or 0,
+            'total_applications': queryset.aggregate(total=models.Sum('applications_count'))['total'] or 0,
+            'by_platform': {}
+        }
+        
+        # Platform-wise breakdown
+        from django.db.models import Sum
+        platforms = queryset.values('platform').annotate(
+            count=Count('id'),
+            views=Sum('views_count'),
+            applications=Sum('applications_count')
+        )
+        
+        for platform in platforms:
+            stats['by_platform'][platform['platform']] = {
+                'links': platform['count'],
+                'views': platform['views'] or 0,
+                'applications': platform['applications'] or 0
+            }
+        
+        return Response(stats, status=status.HTTP_200_OK)
+
+
+class JobApplicationViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing Job Applications"""
+    
+    queryset = JobApplication.objects.all()
+    
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return JobApplicationCreateSerializer
+        elif self.action in ['update', 'partial_update']:
+            return JobApplicationUpdateSerializer
+        elif self.action == 'public_apply':
+            return PublicJobApplicationCreateSerializer
+        return JobApplicationSerializer
+    
+    def get_permissions(self):
+        if self.action == 'public_apply':
+            return [AllowAny()]
+        elif self.action == 'create':
+            return [IsAuthenticated(), CanSubmitApplications()]
+        elif self.action in ['update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), CanManageApplications()]
+        return [IsAuthenticated(), CanViewApplications()]
+    
+    def get_queryset(self):
+        user = self.request.user
+        queryset = JobApplication.objects.select_related(
+            'job', 'job__department', 'submitted_by', 'application_link'
+        )
+        
+        # Filter based on user role
+        if user.role in ['admin', 'hr_manager']:
+            # Can see all applications
+            pass
+        elif user.role == 'hr':
+            # Internal HR: only applications for jobs assigned to them
+            queryset = queryset.filter(job__assigned_to_internal_hr=user)
+        elif user.role == 'consultancy':
+            # Can see applications for jobs assigned to them
+            queryset = queryset.filter(job__assigned_to_consultancy=user)
+        else:
+            queryset = queryset.none()
+        
+        # Apply filters
+        job_filter = self.request.query_params.get('job')
+        if job_filter:
+            queryset = queryset.filter(job_id=job_filter)
+        
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        
+        source_filter = self.request.query_params.get('source')
+        if source_filter:
+            queryset = queryset.filter(source=source_filter)
+        
+        platform_filter = self.request.query_params.get('platform')
+        if platform_filter:
+            queryset = queryset.filter(application_link__platform=platform_filter)
+        
+        my_applications = self.request.query_params.get('my_applications')
+        if my_applications and my_applications.lower() == 'true':
+            queryset = queryset.filter(submitted_by=user)
+        
+        # Search
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(candidate_name__icontains=search) |
+                Q(candidate_email__icontains=search) |
+                Q(candidate_phone__icontains=search)
+            )
+        
+        return queryset
+    
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    def public_apply(self, request):
+        """
+        Public endpoint for direct resume upload - NO FORM REQUIRED
+        Candidate just uploads resume file with application token
+        """
+        serializer = PublicJobApplicationCreateSerializer(
+            data=request.data,
+            context={'request': request}
+        )
+        
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        application = serializer.save()
+        
+        return Response({
+            'success': True,
+            'message': 'Resume uploaded successfully',
+            'application_id': str(application.id),
+            'job_title': application.job.job_title
+        }, status=status.HTTP_201_CREATED)
+    
+    @action(detail=False, methods=['get'])
+    def statistics(self, request):
+        """Get application statistics"""
+        user = request.user
+        
+        if user.role in ['admin', 'hr_manager', 'hr']:
+            queryset = JobApplication.objects.all()
+        elif user.role == 'consultancy':
+            queryset = JobApplication.objects.filter(job__assigned_to_consultancy=user)
+        else:
+            queryset = JobApplication.objects.none()
+        
+        stats = {
+            'total': queryset.count(),
+            'received': queryset.filter(status='received').count(),
+            'screening': queryset.filter(status='screening').count(),
+            'shortlisted': queryset.filter(status='shortlisted').count(),
+            'interviewed': queryset.filter(status='interviewed').count(),
+            'selected': queryset.filter(status='selected').count(),
+            'rejected': queryset.filter(status='rejected').count(),
+            'joined': queryset.filter(status='joined').count(),
+        }
+        
+        # Source breakdown
+        stats['by_source'] = {
+            'internal_hr': queryset.filter(source='internal_hr').count(),
+            'consultancy': queryset.filter(source='consultancy').count(),
+            'application_link': queryset.filter(source='application_link').count(),
+            'direct': queryset.filter(source='direct').count(),
+            'referral': queryset.filter(source='referral').count(),
+        }
+        
+        return Response(stats, status=status.HTTP_200_OK)
