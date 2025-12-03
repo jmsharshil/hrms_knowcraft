@@ -108,7 +108,7 @@ from jobs.models import Job,JobApplication
 #     updated_at = models.DateTimeField(auto_now=True)
 
 def application_upload_path(instance, filename):
-    return f"applications/{instance.job_application.id}/{filename}"
+    return f"documents/{instance.job_application.id}/{filename}"
 
 class JobApplicationDocument(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
