@@ -53,6 +53,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -189,8 +190,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-STATIC_URL = 'static/'
-STATIC_ROOT = '/home/site/wwwroot/static/staticfiles'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 # Default primary key field type
@@ -251,6 +252,36 @@ CORS_ALLOWED_ORIGINS = [
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+USE_AZURE_MEDIA = os.environ.get("USE_AZURE_MEDIA", "0") in ("1", "true", "True")
+
+if USE_AZURE_MEDIA:
+    AZURE_ACCOUNT_NAME = os.environ["AZURE_ACCOUNT_NAME"]
+    AZURE_ACCOUNT_KEY  = os.environ["AZURE_ACCOUNT_KEY"]
+    AZURE_CONTAINER    = os.environ.get("AZURE_MEDIA_CONTAINER", "media")
+    AZURE_ACCOUNT_URL  = f"https://{AZURE_ACCOUNT_NAME}.blob.core.windows.net"
+    AZURE_CUSTOM_DOMAIN = os.environ.get(
+        "AZURE_CUSTOM_DOMAIN",
+        f"{AZURE_ACCOUNT_NAME}.blob.core.windows.net",
+    )
+    AZURE_URL_EXPIRATION_SECS = int(os.environ.get("AZURE_URL_EXPIRATION_SECS", "3600"))
+    AZURE_OVERWRITE_FILES = False
+
+    # ✅ New-style Django 4.2/5.x storage config
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.azure_storage.AzureStorage",
+        },
+        "staticfiles": {
+            # keep whatever you use for static files (example with WhiteNoise)
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+
+    MEDIA_URL = f"https://{AZURE_CUSTOM_DOMAIN}/{AZURE_CONTAINER}/"
+else:
+    MEDIA_URL  = "/media/"
+    MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
