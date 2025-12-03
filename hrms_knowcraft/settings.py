@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'accounts',
     'onboarding',
     'mrf',
+    'jobs',
 ]
 
 MIDDLEWARE = [
@@ -253,6 +254,14 @@ MEDIA_URL = '/media/'
 
 # create media dir if missing
 os.makedirs(MEDIA_ROOT, exist_ok=True)
+
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
+
+ALLOWED_RESUME_EXTENSIONS = ['.pdf', '.doc', '.docx']
+
+CSRF_COOKIE_SECURE = True      # Only valid if using HTTPS
+SESSION_COOKIE_SECURE = True   # Only valid if using HTTPS
 
 WASENDER_API_BASE = os.getenv("WASENDER_API_BASE", "https://www.wasenderapi.com")
 WASENDER_API_KEY = os.getenv("WASENDER_API_KEY")
