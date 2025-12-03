@@ -328,6 +328,12 @@ class JobApplication(models.Model):
     candidate_email = models.EmailField(blank=True, null=True)
     candidate_phone = models.CharField(max_length=20, blank=True)
     cover_letter = models.TextField(blank=True)
+
+    location = models.CharField(max_length=50,blank=True,null=True)
+    availibility = models.CharField(blank=True,null=True)
+    current_employer = models.CharField(max_length=50,blank=True,null=True)
+    skill = models.JSONField(blank=True,null=True,default=list)
+    education = models.JSONField(blank=True,null=True,default=list)
     
     # Source
     submitted_by = models.ForeignKey(
@@ -358,15 +364,21 @@ class JobApplication(models.Model):
         null=True,
         blank=True
     )
-    current_ctc = models.CharField(max_length=50, blank=True)
-    expected_ctc = models.CharField(max_length=50, blank=True)
-    notice_period = models.CharField(max_length=50, blank=True)
+    relevant_experience_years = models.DecimalField(
+        max_digits=4,
+        decimal_places=1,
+        null=True,
+        blank=True
+    )
+    current_ctc = models.CharField(max_length=50, blank=True,null=True)
+    expected_ctc = models.CharField(max_length=50, blank=True,null=True)
+    notice_period = models.CharField(max_length=50, blank=True,null=True)
     
     # LinkedIn Profile
-    linkedin_url = models.URLField(blank=True, max_length=500)
+    linkedin_url = models.URLField(blank=True, max_length=500,null=True)
     
     # Portfolio/GitHub
-    portfolio_url = models.URLField(blank=True, max_length=500)
+    portfolio_url = models.URLField(blank=True, max_length=500,null=True)
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -380,6 +392,12 @@ class JobApplication(models.Model):
         blank=True,
         help_text='Rating out of 5'
     )
+    
+    #AI Parsed Score
+    match_score = models.DecimalField(blank=True,null=True,max_digits=5,decimal_places=2,help_text="Score out of 0 to 100")
+
+    joining_date = models.DateField(null=True, blank=True) 
+    is_active = models.BooleanField(default=True) #Status of Application (for archiving)
     
     class Meta:
         db_table = 'job_applications'

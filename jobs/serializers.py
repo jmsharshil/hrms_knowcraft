@@ -491,6 +491,26 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
 
         resume_file = validated_data['resume']
 
+        from .utils import parse_resume_ai,calculate_match_score
+        # ---- AI extraction ----
+        parsed = parse_resume_ai(resume_file)
+        print("Parsed............",parsed)
+        name = parsed.get('name') or parsed.get('full_name')
+        email = parsed.get('email')
+        phone = parsed.get('phone_number') or parsed.get('phone')
+        total_experience_years = parsed.get("total_experience_years")
+        relevant_experience_years = parsed.get("relevant_experience_years")
+        skills = parsed.get('skills')
+        education = parsed.get("education")
+        current_ctc = parsed.get("current_ctc")
+        expected_ctc = parsed.get("expected_ctc",'')
+        linkedin_url = parsed.get("linkedin_url",'')
+        portfolio_url = parsed.get("portfolio_url",'')
+        location = parsed.get("location")
+        current_employer = parsed.get("current_employer")
+        # ---- AI scoring ----
+        ai_score = calculate_match_score(parsed, link.job)
+        print("Score:",ai_score)
         # prepare values to save
         original_filename = getattr(resume_file, 'name', '')
         file_size = getattr(resume_file, 'size', 0)
@@ -505,6 +525,20 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
                     status='received',
                     original_filename=original_filename,
                     file_size=file_size,
+                    match_score=ai_score,
+                    candidate_name = name,
+                    candidate_email = email,
+                    candidate_phone = phone,
+                    relevant_experience_years = relevant_experience_years,
+                    experience_years = total_experience_years,
+                    linkedin_url = linkedin_url,
+                    current_ctc = current_ctc,
+                    expected_ctc = expected_ctc,
+                    portfolio_url = portfolio_url,
+                    skill = skills,
+                    education = education,
+                    current_employer = current_employer,
+                    location = location
                     # submitted_by remains null for public uploads
                     # candidate_email intentionally left null to avoid duplicate empty-string constraint
                 )
