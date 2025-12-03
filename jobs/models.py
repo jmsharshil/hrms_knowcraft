@@ -256,7 +256,8 @@ class JobApplicationLink(models.Model):
         """Get the full application URL"""
         from django.conf import settings
         base_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
-        return f"{base_url}/apply/{self.unique_token}"
+        # return f"{base_url}/apply/{self.unique_token}"
+        return f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/apply/{self.unique_token}"
     
     def is_expired(self):
         """Check if link is expired"""
