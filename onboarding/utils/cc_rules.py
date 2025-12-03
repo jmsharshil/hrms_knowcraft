@@ -4,7 +4,7 @@ from accounts.models import User
 CC_RULES = {
     "shortlisted": ["consultancy","referer"],
     "interview_pending": ["consultancy"],
-    "interview_done": ["recruiter"],
+    "interview_done": [],
     "interview_rejected": [ "consultancy","referer"],
 
     # "selected": ["hr", "department_head"],
@@ -97,9 +97,10 @@ def get_emails_for_role(candidate, roles):
         # ---------------------------
         # Consultant for consultancy agencies
         # ---------------------------
-        # elif role == "consultant":
-        #     if getattr(candidate, "consultant_email", None):
-        #         emails.add(candidate.consultant_email)
+        if role == "consultancy":
+            if getattr(candidate, "job", None) and getattr(candidate.job,'assigned_to_consultancy',None) and getattr(candidate.job.assigned_to_consultancy,'email',None):
+                emails.add(candidate.job.assigned_to_consultancy.email)
+                
         role_emails = list(
                 company.users.filter(role=role)
                 .exclude(email__isnull=True)
