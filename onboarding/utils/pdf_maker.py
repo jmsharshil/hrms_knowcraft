@@ -51,8 +51,8 @@ def generate_offer_letter(candidate):
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
 
-    c.drawString(100, 750, f"Offer Letter for {candidate.name}")
-    c.drawString(100, 730, f"Email: {candidate.email}")
+    c.drawString(100, 750, f"Offer Letter for {candidate.candidate_name}")
+    c.drawString(100, 730, f"Email: {candidate.candidate_email}")
     c.save()
 
     buffer.seek(0)

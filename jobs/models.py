@@ -278,20 +278,71 @@ class JobApplicationLink(models.Model):
 class JobApplication(models.Model):
     """Track applications/candidates for jobs"""
     
+    # STATUS_CHOICES = [
+    #     ('received', 'Received'),
+    #     ('screening', 'Under Screening'),
+    #     ('shortlisted', 'Shortlisted'),
+    #     ('interview_scheduled', 'Interview Scheduled'),
+    #     ('interviewed', 'Interviewed'),
+    #     ('selected', 'Selected'),
+    #     ('rejected', 'Rejected'),
+    #     ('offer_sent', 'Offer Sent'),
+    #     ('offer_accepted', 'Offer Accepted'),
+    #     ('offer_declined', 'Offer Declined'),
+    #     ('joined', 'Joined'),
+    #     ('withdrawn', 'Withdrawn'),
+    # ]
+
     STATUS_CHOICES = [
-        ('received', 'Received'),
-        ('screening', 'Under Screening'),
-        ('shortlisted', 'Shortlisted'),
-        ('interview_scheduled', 'Interview Scheduled'),
-        ('interviewed', 'Interviewed'),
-        ('selected', 'Selected'),
-        ('rejected', 'Rejected'),
-        ('offer_sent', 'Offer Sent'),
-        ('offer_accepted', 'Offer Accepted'),
-        ('offer_declined', 'Offer Declined'),
-        ('joined', 'Joined'),
-        ('withdrawn', 'Withdrawn'),
-    ]
+    # Submission
+    ("received", "Received"),
+    # Screening & Interview
+    ("shortlisted", "Shortlisted"),
+    ("interview_pending", "Interview Pending"),
+    ("interview_done", "Interview Completed"),
+    ("interview_rejected", "Rejected After Interview"),
+    # Approval Stage
+    ("selected", "Selected by Interview Panel"),
+    ("approval_pending", "Approval Pending (Sent to Hiring Manager)"),
+    ("approved", "Approved by Hiring Manager"),
+    ("approval_rejected", "Rejected During Approval"),
+    # SALARY DOCUMENT FLOW
+    ("salary_docs_pending", "Salary Documents Pending"),
+    ("salary_docs_uploaded", "Salary Documents Uploaded"),
+    ("hr_review_docs", "HR Reviewing Salary Documents"),
+    ("hr_review_ok", "HR Review Completed"),
+    ("hr_review_rejected", "HR Rejected Salary Documents"),
+    # SALARY ANNEXURE FLOW
+    ("salary_annexure_prep", "Salary Annexure Under Preparation"),
+    ("salary_annexure_sent", "Salary Annexure Sent to HR Head"),
+    ("approved_annexure", "Salary Annexure Approved"),
+    ("rejected_annexure", "Salary Annexure Rejected"),
+    # Offer Stage
+    ("offer_pending", "Offer Preparation Pending"),
+    ("offer_sent", "Offer Sent"),
+    ("offer_accepted", "Offer Accepted"),
+    ("offer_rejected", "Offer Rejected by Candidate"),
+    # RESIGNATION FLOW
+    ("resignation_pending", "Resignation Pending (Upload Required)"),
+    ("resignation_uploaded", "Resignation Uploaded"),
+    ("resignation_review", "Resignation Under Review"),
+    ("resignation_approved", "Resignation Approved"),
+    ("resignation_rejected", "Resignation Rejected"),
+    # JOINING DOCUMENT FLOW
+    ("docs_pending", "Joining Documents Pending"),
+    ("docs_uploaded", "Joining Documents Uploaded"),
+    ("review_docs", "Document Review In Progress"),
+    ("docs_approved", "Documents Approved"),
+    ("docs_incomplete", "Documents Incomplete"),
+    ("docs_unclear", "Documents Unclear"),
+    # JOINING FLOW
+    ("joining_pending", "Joining Pending"),
+    ("joining_poned", "Joining Postponed"),
+    ("joined", "Joined"),
+    # General Rejection (fallback)
+    ("rejected", "Rejected"),
+]
+
     
     SOURCE_CHOICES = [
         ('internal_hr', 'Internal HR'),

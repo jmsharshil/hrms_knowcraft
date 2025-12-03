@@ -16,13 +16,13 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
     # --------------------------------------------------------------
     # 0. APPLICATION / DUPLICATE CHECK
     # --------------------------------------------------------------
-    "applied": {
+    "received": {
         "email": {
             "subject": "Application Received",
             "text": "Thank you for applying! Your application has been received and is under review.",
         },
         "sms": "Application received. We'll review your profile shortly.",
-        "log": "Application acknowledgment sent to {candidate.email}",
+        "log": "Application acknowledgment sent to {candidate.candidate_email}",
     },
     "duplicate_rejected": {
         "email": {
@@ -33,7 +33,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             ),
         },
         "sms": "Your profile already exists in our system.",
-        "log": "Duplicate rejection sent to {candidate.email}",
+        "log": "Duplicate rejection sent to {candidate.candidate_email}",
     },
 
     # --------------------------------------------------------------
@@ -45,7 +45,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "You have been shortlisted and will move to the interview stage.",
         },
         "sms": "You have been shortlisted! HR will schedule interview soon.",
-        "log": "Shortlisting notification sent to {candidate.email}",
+        "log": "Shortlisting notification sent to {candidate.candidate_email}",
     },
     "interview_pending": {
         "email": {
@@ -53,7 +53,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Your interview has been scheduled. Check your email for details.",
         },
         "sms": "Interview scheduled. Check email for timing/link.",
-        "log": "Interview pending notification sent to {candidate.email}",
+        "log": "Interview pending notification sent to {candidate.candidate_email}",
     },
     "interview_done": {
         "email": {
@@ -61,7 +61,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Thank you for attending the interview. We are reviewing the results.",
         },
         "sms": "Thanks for interviewing! You’ll be updated soon.",
-        "log": "Interview completion message sent to {candidate.email}",
+        "log": "Interview completion message sent to {candidate.candidate_email}",
     },
     "interview_rejected": {
         "email": {
@@ -69,7 +69,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "We appreciate your time. Unfortunately, we will not move ahead at this time.",
         },
         "sms": "We will not move ahead with your application.",
-        "log": "Interview rejection sent to {candidate.email}",
+        "log": "Interview rejection sent to {candidate.candidate_email}",
     },
 
     # --------------------------------------------------------------
@@ -81,7 +81,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "You have been selected by the interview panel. Awaiting approval.",
         },
         "sms": "Congrats! You’ve been selected. Approval process started.",
-        "log": "Selection notification sent to {candidate.email}",
+        "log": "Selection notification sent to {candidate.candidate_email}",
     },
     "approval_pending": {
         "email": {
@@ -89,7 +89,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Your profile has been sent for approval.",
         },
         "sms": "Your profile is under approval.",
-        "log": "Approval pending notification sent to {candidate.email}",
+        "log": "Approval pending notification sent to {candidate.candidate_email}",
     },
     "approved": {
         "email": {
@@ -97,7 +97,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Your profile has been approved. Offer letter will be prepared.",
         },
         "sms": "Profile approved! Offer preparation started.",
-        "log": "Approval confirmation sent to {candidate.email}",
+        "log": "Approval confirmation sent to {candidate.candidate_email}",
     },
     "approval_rejected": {
         "email": {
@@ -105,7 +105,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Your profile was not approved by the hiring manager.",
         },
         "sms": "Your profile was not approved.",
-        "log": "Approval rejection sent to {candidate.email}",
+        "log": "Approval rejection sent to {candidate.candidate_email}",
     },
     
     # ---------------------------- NEW NOTIFICATION BLOCKS ----------------------------
@@ -115,7 +115,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Please upload your latest salary slip and bank statement.",
         },
         "sms": "Please upload your salary slip and bank statement.",
-        "log": "Salary document upload request sent to {candidate.email}",
+        "log": "Salary document upload request sent to {candidate.candidate_email}",
     },
 
     "salary_docs_uploaded": {
@@ -124,7 +124,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "We have received your salary slip and bank statement. HR will review them shortly.",
         },
         "sms": "Salary documents received.",
-        "log": "Salary documents uploaded confirmation sent to {candidate.email}",
+        "log": "Salary documents uploaded confirmation sent to {candidate.candidate_email}",
     },
 
     "hr_review_docs": {
@@ -133,7 +133,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "HR is reviewing your uploaded salary documents.",
         },
         "sms": "HR is reviewing your salary documents.",
-        "log": "HR review of salary documents started for {candidate.email}",
+        "log": "HR review of salary documents started for {candidate.candidate_email}",
     },
     "hr_review_ok": {
         "email": {
@@ -141,7 +141,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Your salary documents have been verified successfully. HR will now prepare your salary annexure.",
         },
         "sms": "Salary documents verified. HR is preparing your salary annexure.",
-        "log": "HR verified salary documents for {candidate.email}",
+        "log": "HR verified salary documents for {candidate.candidate_email}",
     },
     "hr_review_rejected": {
         "email": {
@@ -149,7 +149,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Your uploaded salary documents were unclear or incorrect. Please re-upload them.",
         },
         "sms": "Salary documents rejected. Please re-upload.",
-        "log": "HR rejected salary documents for {candidate.email}",
+        "log": "HR rejected salary documents for {candidate.candidate_email}",
     },
     "salary_annexure_prep": {
         "email": {
@@ -157,7 +157,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "HR is preparing your salary annexure based on the verified documents.",
         },
         "sms": "HR is preparing your salary annexure.",
-        "log": "Salary annexure preparation started for {candidate.email}",
+        "log": "Salary annexure preparation started for {candidate.candidate_email}",
     },
     "salary_annexure_sent": {
         "email": {
@@ -165,7 +165,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Your salary annexure has been sent to HR Head for approval.",
         },
         "sms": "Salary annexure sent for approval.",
-        "log": "Salary annexure sent for approval for {candidate.email}",
+        "log": "Salary annexure sent for approval for {candidate.candidate_email}",
     },
     "approved_annexure": {
         "email": {
@@ -173,7 +173,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Your salary annexure has been approved by HR Head. Offer letter will be prepared next.",
         },
         "sms": "Salary annexure approved. Offer letter preparation started.",
-        "log": "Salary annexure approval sent to {candidate.email}",
+        "log": "Salary annexure approval sent to {candidate.candidate_email}",
     },
     "rejected_annexure": {
         "email": {
@@ -181,7 +181,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "The HR Head has requested changes. HR will update the annexure and resend.",
         },
         "sms": "Salary annexure rejected. HR will resend after correction.",
-        "log": "Salary annexure rejected for {candidate.email}",
+        "log": "Salary annexure rejected for {candidate.candidate_email}",
     },
     # --------------------------------------------------------------
     # 3. OFFER FLOW
@@ -192,7 +192,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "We are preparing your offer letter.",
         },
         "sms": "Your offer is being prepared.",
-        "log": "Offer pending notification sent to {candidate.email}",
+        "log": "Offer pending notification sent to {candidate.candidate_email}",
     },
     # "offer_sent": {
     #     "email": {
@@ -201,7 +201,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
     #         "attachments_factory": generate_offer_letter,
     #     },
     #     "sms": "Your offer letter has been emailed to you.",
-    #     "log": "Offer letter sent to {candidate.email}",
+    #     "log": "Offer letter sent to {candidate.candidate_email}",
     # },
     "offer_sent": {
         "email": {
@@ -210,7 +210,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
         },
         "sms": "Your offer letter is ready. Please check email to sign.",
         "opensign": True,   # <== IMPORTANT FLAG
-        "log": "Offer letter sent for signing to {candidate.email}",
+        "log": "Offer letter sent for signing to {candidate.candidate_email}",
     },
     "offer_accepted": {
         "email": {
@@ -218,7 +218,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Thank you for accepting the offer! Please upload your resignation letter.",
         },
         "sms": "Offer accepted! Please upload your resignation letter.",
-        "log": "Offer acceptance notification sent to {candidate.email}",
+        "log": "Offer acceptance notification sent to {candidate.candidate_email}",
     },
     "offer_rejected": {
         "email": {
@@ -226,7 +226,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "You have declined the offer. Application closed.",
         },
         "sms": "You declined the offer.",
-        "log": "Offer rejection notification sent to {candidate.email}",
+        "log": "Offer rejection notification sent to {candidate.candidate_email}",
     },
 
     # --------------------------------------------------------------
@@ -238,7 +238,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Please upload your resignation letter under 48 hours using this link: {link}",
         },
         "sms": "Upload your resignation letter under 48 hours using this link: {link}.",
-        "log": "Resignation letter request sent to {candidate.email}",
+        "log": "Resignation letter request sent to {candidate.candidate_email}",
     },
     "resignation_uploaded": {
         "email": {
@@ -246,7 +246,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "We have received your resignation letter. HR will verify it shortly.",
         },
         "sms": "Resignation letter received.",
-        "log": "Resignation uploaded confirmation sent to {candidate.email}",
+        "log": "Resignation uploaded confirmation sent to {candidate.candidate_email}",
     },
     "resignation_review": {
         "email": {
@@ -254,7 +254,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Your resignation letter is under review by HR.",
         },
         "sms": "Resignation letter is under review.",
-        "log": "Resignation review started for {candidate.email}",
+        "log": "Resignation review started for {candidate.candidate_email}",
     },
     "resignation_approved": {
         "email": {
@@ -262,7 +262,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Your resignation letter has been approved. Please upload the required documents.",
         },
         "sms": "Resignation approved. Please upload required documents.",
-        "log": "Resignation approved notification sent to {candidate.email}",
+        "log": "Resignation approved notification sent to {candidate.candidate_email}",
     },
     "resignation_rejected": {
         "email": {
@@ -270,7 +270,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Your resignation letter is unclear or incomplete. Please re-upload.",
         },
         "sms": "Resignation rejected. Please re-upload.",
-        "log": "Resignation rejected notification sent to {candidate.email}",
+        "log": "Resignation rejected notification sent to {candidate.candidate_email}",
     },
 
     # --------------------------------------------------------------
@@ -282,7 +282,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Please upload your joining documents using this link: {link}",
         },
         "sms": "Upload your documents: {link}",
-        "log": "Document upload request sent to {candidate.email}",
+        "log": "Document upload request sent to {candidate.candidate_email}",
     },
     "docs_uploaded": {
         "email": {
@@ -290,7 +290,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "We’ve received your documents. Verification will be done shortly.",
         },
         "sms": "Documents received.",
-        "log": "Documents uploaded confirmation sent to {candidate.email}",
+        "log": "Documents uploaded confirmation sent to {candidate.candidate_email}",
     },
     "review_docs": {
         "email": {
@@ -298,7 +298,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Your uploaded documents are under review. You'll be notified once verification is completed.",
         },
         "sms": "Documents under review.",
-        "log": "Document review started for {candidate.email}",
+        "log": "Document review started for {candidate.candidate_email}",
     },
     "docs_unclear": {
         "email": {
@@ -306,7 +306,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Some uploaded documents were unclear. Please re-upload the required documents.",
         },
         "sms": "Documents unclear. Please re-upload.",
-        "log": "Documents unclear notification sent to {candidate.email}",
+        "log": "Documents unclear notification sent to {candidate.candidate_email}",
     },
     "docs_incomplete": {
         "email": {
@@ -314,7 +314,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Some documents were incomplete or unclear. Please re-upload using the same link.",
         },
         "sms": "Some documents were unclear. Please re-upload.",
-        "log": "Documents incomplete notification sent to {candidate.email}",
+        "log": "Documents incomplete notification sent to {candidate.candidate_email}",
     },
     "docs_approved": {
         "email": {
@@ -322,7 +322,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "All documents verified successfully. Joining process will begin.",
         },
         "sms": "Documents approved. Joining process started.",
-        "log": "Documents approved notification sent to {candidate.email}",
+        "log": "Documents approved notification sent to {candidate.candidate_email}",
     },
 
     # --------------------------------------------------------------
@@ -334,7 +334,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "HR is preparing your onboarding formalities.",
         },
         "sms": "Joining formalities in progress.",
-        "log": "Joining pending notification sent to {candidate.email}",
+        "log": "Joining pending notification sent to {candidate.candidate_email}",
     },
     "joining_poned": {
         "email": {
@@ -342,7 +342,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Your joining has been postponed. HR will provide the updated joining date.",
         },
         "sms": "Joining postponed. Wait for updated date.",
-        "log": "Joining postponed notification sent to {candidate.email}",
+        "log": "Joining postponed notification sent to {candidate.candidate_email}",
     },
     "joined": {
         "email": {
@@ -350,7 +350,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Congratulations on joining our team!",
         },
         "sms": "Welcome aboard!",
-        "log": "Joining confirmation sent to {candidate.email}",
+        "log": "Joining confirmation sent to {candidate.candidate_email}",
     },
 
     # --------------------------------------------------------------
@@ -362,7 +362,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "text": "Your application has been closed.",
         },
         "sms": "Your application has been closed.",
-        "log": "Final rejection sent to {candidate.email}",
+        "log": "Final rejection sent to {candidate.candidate_email}",
     },
 }
 
@@ -401,7 +401,7 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
         #         pdf = attach_factory(candidate)
         #         attachments = [pdf]
         #     except Exception as exc:
-        #         logger.error("Failed to generate attachment for %s: %s", candidate.email, exc)
+        #         logger.error("Failed to generate attachment for %s: %s", candidate.candidate_email, exc)
         #         success = False
         sign_url = None
         if cfg.get("opensign"):
@@ -426,7 +426,7 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
                 email_cfg["text"].format(link=link)
                 sms_text.format(link=link)
             send_email(
-                to=candidate.email,
+                to=candidate.candidate_email,
                 subject=email_cfg["subject"],
                 text=email_cfg["text"],
                 cc= cc,
@@ -434,7 +434,7 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
                 attachments=attachments,
             )
         except Exception as exc:
-            logger.exception("Email failed for %s (stage=%s): %s", candidate.email, stage, exc)
+            logger.exception("Email failed for %s (stage=%s): %s", candidate.candidate_email, stage, exc)
             success = False
 
     # ---------- SMS ----------
@@ -601,8 +601,8 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
             #         continue
             
             if role == "referer":
-                if candidate and candidate.referer:
-                    emails.add(candidate.referer)
+                # if candidate and candidate.referer:
+                #     emails.add(candidate.referer)
                 continue
 
             if role == "internal_team":
@@ -641,7 +641,7 @@ def notify_internal(candidate: Any, stage: str,cc:list) -> bool:
         for email in to_emails:
             send_email(email,subject=subject,text=body)
         logger.info(
-            f"Internal notification sent for {candidate.name} at stage '{stage}' to {to_emails}"
+            f"Internal notification sent for {candidate.candidate_name} at stage '{stage}' to {to_emails}"
         )
         return True
     except Exception as e:

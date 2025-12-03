@@ -12,7 +12,7 @@ def upload_docs_to_storage(candidate,file_obj):
     except Exception as e:
         logger.error("Failed to read file_obj: %s", e, exc_info=True)
         return None
-    filename = f"{candidate.name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    filename = f"{candidate.candidate_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     if settings.USE_AZURE_MEDIA:
         try:
             # Step 3: Upload to Azure Blob Storage

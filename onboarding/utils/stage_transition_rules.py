@@ -1,6 +1,6 @@
 ALLOWED_TRANSITIONS = {
     # APPLICATION
-    "applied": ["duplicate_rejected", "shortlisted"],
+    "received": ["duplicate_rejected", "shortlisted"],
     # "duplicate_rejected": ["applied"],
     # SHORTLISTING & INTERVIEW
     "shortlisted": ["interview_pending"],

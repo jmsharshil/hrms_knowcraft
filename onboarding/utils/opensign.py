@@ -11,8 +11,8 @@ from django.core.cache import cache
 from django.utils import timezone
 
 from .pdf_maker import generate_offer_letter
-from onboarding.models import Candidate
-
+# from onboarding.models import Candidate
+from jobs.models import JobApplication
 logger = logging.getLogger(__name__)
 
 OPENSIGN_API_BASE = getattr(settings, "OPENSIGN_API_BASE_URL", None)
@@ -31,7 +31,7 @@ def _get_opensign_url():
     return OPENSIGN_API_BASE
 
 
-def send_to_opensign_and_get_link(candidate: Candidate) -> tuple[str, str]:
+def send_to_opensign_and_get_link(candidate: JobApplication) -> tuple[str, str]:
     """
     Sends offer letter PDF to OpenSign (selfsign API)
     and returns (signing_url, form_id).
@@ -52,15 +52,15 @@ def send_to_opensign_and_get_link(candidate: Candidate) -> tuple[str, str]:
     # OpenSign selfsign accepts ONLY 1 signer block, not a list
     payload = {
         "file": pdf_base64,
-        "title": f"Offer Letter – {candidate.name}",
+        "title": f"Offer Letter – {candidate.candidate_name}",
         "note": "Please sign your offer letter",
         "description": "Digital offer letter signing",
         "timeToCompleteDays": 7,
 
         "signer": {
             "role": "candidate",
-            "email": candidate.email,
-            "name": candidate.name,
+            "email": candidate.candidate_email,
+            "name": candidate.candidate_name,
             "phone": "",      # optional
             "company": "",    # optional
             "job_title": "",  # optional
@@ -138,10 +138,10 @@ def opensign_webhook(request: HttpRequest):
         return JsonResponse({"error": "not found"}, status=404)
 
     try:
-        candidate = Candidate.objects.get(id=candidate_id)
-    except Candidate.DoesNotExist:
-        logger.exception("Candidate not found for id from cache: %s (form_id=%s)", candidate_id, objectId)
-        return JsonResponse({"error": "candidate not found"}, status=404)
+        candidate = JobApplication.objects.get(id=candidate_id)
+    except JobApplication.DoesNotExist:
+        logger.exception("Job Application not found for id from cache: %s (form_id=%s)", candidate_id, objectId)
+        return JsonResponse({"error": "Job Application not found"}, status=404)
 
     # IMPORTANT: capture old stage BEFORE calling automation_engine
     old_stage = candidate.stage

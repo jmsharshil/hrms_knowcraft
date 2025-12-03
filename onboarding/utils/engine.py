@@ -91,7 +91,7 @@ BROADCAST_ON_JOIN = True
 
 
 def automation_engine(candidate, old, new):
-    logger.info(f"AUTO: {candidate.name} {old} → {new}")
+    logger.info(f"AUTO: {candidate.candidate_name} {old} → {new}")
 
     # 1️⃣ Validate transition
     ok, reason = validate_transition(old, new)
@@ -104,7 +104,7 @@ def automation_engine(candidate, old, new):
         try:
             cc = get_cc_for_stage(candidate,new)
             notify_candidate(candidate, new,cc=cc or [])
-            logger.info(f"AUTO: Notification sent for {candidate.name} → {new}")
+            logger.info(f"AUTO: Notification sent for {candidate.candidate_name} → {new}")
         except Exception as e:
             logger.exception(f"❌ Error sending notification: {e}")
 
@@ -112,23 +112,23 @@ def automation_engine(candidate, old, new):
     if new in NOTIFY_INTERNAL_STATES:
         try:
             notify_internal(candidate, new, cc=[])
-            logger.info(f"AUTO: Internal Notification sent for {candidate.name} → {new}")
+            logger.info(f"AUTO: Internal Notification sent for {candidate.candidate_name} → {new}")
         except Exception as e:
             logger.exception(f"❌ Internal Notification Error: {e}")
     # # 3️⃣ Internal broadcasting for key events
     # if new == "joined" and BROADCAST_ON_JOIN:
     #     logger.info(
-    #         f"AUTO: Broadcasting joining of {candidate.name} to Head/HR/Finance/IT/Consultant/Referral"
+    #         f"AUTO: Broadcasting joining of {candidate.candidate_name} to Head/HR/Finance/IT/Consultant/Referral"
     #     )
 
-    candidate.stage = new
+    candidate.status = new
     candidate.save()
 
     # 4️⃣ Auto-advance the workflow if needed
     next_state = get_auto_next(new)
     if next_state:
-        logger.info(f"AUTO: Moving {candidate.name} → {next_state}")
-        candidate.stage = next_state
+        logger.info(f"AUTO: Moving {candidate.candidate_name} → {next_state}")
+        candidate.status = next_state
         candidate.save()
 
         # IMPORTANT: Recursively process next state

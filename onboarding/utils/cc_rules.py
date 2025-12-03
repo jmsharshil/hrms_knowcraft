@@ -2,19 +2,19 @@
 from accounts.models import User
 
 CC_RULES = {
-    "shortlisted": ["recruiter","consultancy","referer"],
-    "interview_pending": ["recruiter","consultancy"],
+    "shortlisted": ["consultancy","referer"],
+    "interview_pending": ["consultancy"],
     "interview_done": ["recruiter"],
-    "interview_rejected": ["recruiter", "consultancy","referer"],
+    "interview_rejected": [ "consultancy","referer"],
 
     # "selected": ["hr", "department_head"],
     # "approval_pending": ["approver", "hr"],
-    "approved": ["recruiter", "consultancy"],
+    "approved": [ "consultancy"],
     # "approval_rejected": ["hr", "recruiter"],
 
     # "offer_pending": ["recruiter"],
     "offer_sent": ["consultancy"],
-    "offer_accepted": ["recruiter","consultancy","referer"],
+    "offer_accepted": ["consultancy","referer"],
     "offer_rejected": ["consultancy","referer"],
     "resignation_pending": ["consultancy"],
     "salary_docs_pending": ["consultancy"],
@@ -24,8 +24,8 @@ CC_RULES = {
     "joining_pending": ["consultancy"],
     "joined": ["consultant", "referer","hr_manager"],
 
-    "duplicate_rejected": ["recruiter","consultancy","referer"],
-    "rejected": ["recruiter","consultancy","referer"],
+    "duplicate_rejected": ["consultancy","referer"],
+    "rejected": ["consultancy","referer"],
 }
 def get_emails_for_role(candidate, roles):
     """
@@ -63,7 +63,7 @@ def get_emails_for_role(candidate, roles):
         #     add(getattr(mrf, "hr_manager", None))
 
         # elif role == "recruiter":
-        #     add(getattr(mrf, "recruiter", None))
+        #     add(getattr(mrf,  None))
 
         # elif role == "interviewer":
         #     # interviewer can be many
