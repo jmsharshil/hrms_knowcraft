@@ -494,10 +494,10 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
         from .utils import parse_resume_ai,calculate_match_score
         # ---- AI extraction ----
         parsed = parse_resume_ai(resume_file)
-        print("Parsed............",parsed)
         name = parsed.get('name') or parsed.get('full_name')
         email = parsed.get('email')
         phone = parsed.get('phone_number') or parsed.get('phone')
+        phone = phone.replace(" ",'')
         total_experience_years = parsed.get("total_experience_years")
         relevant_experience_years = parsed.get("relevant_experience_years")
         skills = parsed.get('skills')
@@ -510,7 +510,6 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
         current_employer = parsed.get("current_employer")
         # ---- AI scoring ----
         ai_score = calculate_match_score(parsed, link.job)
-        print("Score:",ai_score)
         # prepare values to save
         original_filename = getattr(resume_file, 'name', '')
         file_size = getattr(resume_file, 'size', 0)
