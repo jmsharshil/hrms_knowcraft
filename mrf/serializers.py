@@ -247,7 +247,7 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
             'workflow_template', 'department', 'designation', 'team', 'position_department',
             'no_of_vacancies', 'location', 'resigned_crafter_name', 'resigned_crafter_ecode',
             'key_responsibility', 'required_qualifications', 'experience_range',
-            'skills_competencies', 'business_justification', 'salary_range',
+            'skills_competencies', 'business_justification',
             'expected_date_of_joining', 'case_study_required', 'technical_interview_1',
             'technical_interview_2', 'final_interview'
         ]
@@ -256,6 +256,13 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         # Auto-fill position_department from department if not provided
         if 'position_department' not in data or not data.get('position_department'):
             data['position_department'] = data.get('department')
+
+        if 'salary_range' in data and data.get("salary_range"):
+            department_name = data.get('department')
+            designation_name = data.get('designation')
+            salary_range = data.get('salary_range')
+            from .utils import validate_salary_range
+            validate_salary_range(salary_range,department_name,designation_name)
         
         # Validate dates
         if data.get('expected_date_of_joining'):
@@ -292,7 +299,10 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         validated_data['requested_by'] = user
         validated_data['requested_by_name'] = user.name
         validated_data['requested_by_designation'] = user.role
-        
+        from .utils import get_auto_salary_range
+        salary_range = get_auto_salary_range(validated_data['department'],validated_data['designation'])
+        if salary_range:
+            validated_data['salary_range'] = salary_range   
         mrf = MRF.objects.create(**validated_data)
         return mrf
     
