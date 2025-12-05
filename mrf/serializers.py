@@ -355,14 +355,14 @@ class MRFSubmitSerializer(serializers.Serializer):
         from .utils import email_templates,alt_text
         if mrf.resigned_crafter_name:
             template = email_templates['mrf_submit_replace']
-            template = template.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.submitted_at.strftime("%Y-%m-%d %H:%M:%S"),resigned_employee=mrf.resigned_crafter_name)
+            template = template.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.created_at.strftime("%B %d,%Y"),resigned_employee=mrf.resigned_crafter_name)
             text = alt_text['mrf_submit_replace']
-            text = text.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.submitted_at.strftime("%Y-%m-%d %H:%M:%S"),resigned_employee=mrf.resigned_crafter_name)
+            text = text.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.created_at.strftime("%B %d,%Y"),resigned_employee=mrf.resigned_crafter_name)
         else:
             template = email_templates['mrf_submit_new']
-            template = template.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.submitted_at.strftime("%Y-%m-%d %H:%M:%S"))
+            template = template.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.created_at.strftime("%B %d,%Y"))
             text = alt_text['mrf_submit_new']
-            text = text.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.submitted_at.strftime("%Y-%m-%d %H:%M:%S"))
+            text = text.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.created_at.strftime("%B %d,%Y"))
         try:
             send_email(to=manager_email,subject=subject,template=template,text=text)
         except Exception as e:
