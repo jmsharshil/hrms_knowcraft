@@ -157,7 +157,6 @@ def get_auto_salary_range(department, designation):
 
     department = str(department).strip()
     designation = str(designation).strip()
-    print(department,designation)
     try:
         if department not in list(SALARY_BANDS.keys()):
             return
@@ -170,4 +169,66 @@ def get_auto_salary_range(department, designation):
     except KeyError:
         return None
 
-    
+email_templates = {
+    "mrf_submit_new":f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; color: #333;">
+        <p>Dear <strong>{{manager_name}}</strong>,</p>
+        <p>
+            We would like to inform you that a requisition for
+            <strong>{{designation}}</strong> position was raised by 
+            <strong>{{hod_name}}</strong> on <strong>{{date}}</strong> 
+            as a <strong>new request</strong>.
+        </p>
+        <p>
+            We kindly request you to review the requisition and take the necessary 
+            action at the earliest.
+        </p>
+        <p>Thank you for your support.</p>
+        <p>
+            Best regards,<br>
+            <strong>Team HR</strong>
+        </p>
+    </body>
+    </html>""",
+    "mrf_submit_replace":f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; color: #333;">
+        <p>Dear <strong>{{manager_name}}</strong>,</p>
+        <p>
+            We would like to inform you that a requisition for 
+            <strong>{{designation}}</strong> position was raised by 
+            <strong>{{hod_name}}</strong> on <strong>{{date}}</strong>, 
+            for the replacement of <strong>{{resigned_employee}}</strong>.
+        </p>
+        <p>
+            We kindly request you to review the requisition and take the necessary 
+            action at the earliest.
+        </p>
+        <p>Thank you for your support.</p>
+        <p>
+            Best regards,<br>
+            <strong>Team HR</strong>
+        </p>
+    </body>
+    </html>
+    """,
+}
+
+alt_text = {
+    "mrf_submit_replace":f"""
+Dear {{manager_name}},
+We would like to inform you that a requisition for an Analyst – {{designation}} position was raised by {{hod_name}} on {{date}}, for the replacement of {{resigned_employee}}.
+We kindly request you to review the requisition and take the necessary action at the earliest.
+Thank you for your support.
+Best regards,
+Team HR
+""",
+    "mrf_submit_new":f"""Dear {{manager_name}},
+We would like to inform you that a requisition for an Analyst – {{designation}} position was raised by {{hod_name}} on {{date}} as a new request.
+We kindly request you to review the requisition and take the necessary action at the earliest.
+Thank you for your support.
+Best regards,
+Team HR
+""",
+}

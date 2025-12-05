@@ -5,7 +5,7 @@ from .models import (
 )
 from accounts.models import User
 from django.db import transaction
-
+from datetime import datetime
 
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -345,8 +345,28 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
 
 class MRFSubmitSerializer(serializers.Serializer):
     """Serializer for submitting MRF for approval"""
-    pass
-
+    def submit(self):
+        mrf = self.context['mrf']   # mrf instance passed from view
+        user = self.context['request'].user
+        from onboarding.utils.sender import send_email
+        subject = f'Requisition Raised for {mrf.designation} Position'
+        manager_name = User.objects.filter(role="hr_manager").first().name
+        manager_email = User.objects.filter(role="hr_manager").first().email
+        from .utils import email_templates,alt_text
+        if mrf.resigned_crafter_name:
+            template = email_templates['mrf_submit_replace']
+            template = template.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.submitted_at.strftime("%Y-%m-%d %H:%M:%S"),resigned_employee=mrf.resigned_crafter_name)
+            text = alt_text['mrf_submit_replace']
+            text = text.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.submitted_at.strftime("%Y-%m-%d %H:%M:%S"),resigned_employee=mrf.resigned_crafter_name)
+        else:
+            template = email_templates['mrf_submit_new']
+            template = template.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.submitted_at.strftime("%Y-%m-%d %H:%M:%S"))
+            text = alt_text['mrf_submit_new']
+            text = text.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.submitted_at.strftime("%Y-%m-%d %H:%M:%S"))
+        try:
+            send_email(to=manager_email,subject=subject,template=template,text=text)
+        except Exception as e:
+            print(f"Error Occured while trying to send email for MRF Approval:{e}")
 
 class MRFApproveRejectSerializer(serializers.Serializer):
     """Serializer for approving or rejecting MRF"""
