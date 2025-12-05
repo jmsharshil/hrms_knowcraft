@@ -365,6 +365,8 @@ class MRFSubmitSerializer(serializers.Serializer):
             text = text.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.created_at.strftime("%B %d,%Y"))
         try:
             send_email(to=manager_email,subject=subject,template=template,text=text)
+            from .utils import schedule_mrf_reminder
+            schedule_mrf_reminder(mrf_id=mrf.id)
         except Exception as e:
             print(f"Error Occured while trying to send email for MRF Approval:{e}")
 

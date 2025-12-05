@@ -213,6 +213,24 @@ email_templates = {
     </body>
     </html>
     """,
+    "mrf_reminder":f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; color:#333;">
+        <p>Dear {{manager_name}},</p>
+        <p>
+            This is a gentle reminder that a requisition for an 
+            <strong>{{position}}</strong> position was raised on 
+            <strong>{{requisition_date}}</strong>.
+        </p>
+        <p>
+            We kindly request you to review the requisition and take the necessary action at the earliest.
+        </p>
+        <p>Thank you for your attention.</p>
+        <p>Best regards,<br>
+        <strong>Team HR</strong></p>
+    </body>
+    </html>
+    """
 }
 
 alt_text = {
@@ -231,4 +249,55 @@ Thank you for your support.
 Best regards,
 Team HR
 """,
+    "mrf_reminder":f"""Dear {{manager_name}},
+This is a gentle reminder that a requisition for an {{position}} position was raised on {{requisition_date}}.
+Kindly review the requisition and take the necessary action at the earliest.
+Thank you.
+Best regards,
+Team HR
+"""
 }
+
+import threading
+import time
+from .models import MRF
+from accounts.models import User
+from onboarding.utils.sender import send_email
+def schedule_mrf_reminder(mrf_id):
+    """Runs a reminder check after 48 hours in a background thread."""
+
+    def task():
+        time.sleep(48 * 60 * 60)  # 48 hours
+
+        try:
+            mrf = MRF.objects.get(id=mrf_id)
+
+            # Only send reminder if still pending
+            if mrf.status not in ["approved", "rejected"]:
+                manager = User.objects.filter(role="hr_manager").first()
+
+                if manager:
+                    template = email_templates["mrf_reminder"].format(
+                        manager_name=manager.name,
+                        position=mrf.designation.name,
+                        requisition_date=mrf.created_at.strftime("%B %d, %Y")
+                    )
+
+                    text = alt_text["mrf_reminder"].format(
+                        manager_name=manager.name,
+                        position=mrf.designation.name,
+                        requisition_date=mrf.created_at.strftime("%B %d, %Y")
+                    )
+
+                    send_email(
+                        to=manager.email,
+                        subject=f"Reminder – Requisition Pending Review",
+                        template=template,
+                        text=text
+                    )
+                    print(f"Reminder email sent for MRF {mrf_id}")
+
+        except Exception as e:
+            print(f"Reminder scheduler error: {e}")
+
+    threading.Thread(target=task, daemon=True).start()
