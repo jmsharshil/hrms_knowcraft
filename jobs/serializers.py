@@ -232,6 +232,10 @@ class AssignToConsultancySerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid consultancy user")
         return value
 
+class AssignToBothSerializer(serializers.Serializer):
+    consultancy_id = serializers.UUIDField()
+    internal_hr_id = serializers.UUIDField()
+    notes = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 class CloseJobSerializer(serializers.Serializer):
     """Serializer for closing a job"""
