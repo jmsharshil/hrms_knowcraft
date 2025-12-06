@@ -5,6 +5,7 @@ from .pdf_maker import generate_offer_letter
 from .sender import send_email, send_text
 from .templates import HTML_TEMPLATES
 from .opensign import send_to_opensign_and_get_link
+from accounts.models import User
 logger = logging.getLogger(__name__)
 
 # ----------------------------------------------------------------------
@@ -589,8 +590,7 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
         logger.error(f"No job linked with candidate {candidate.id}")
         return []
     try:
-        company = job.company
-        # mrf = job.mrf
+        mrf = job.mrf
 
         for role in receivers:
 
@@ -611,7 +611,7 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
 
             # Users from Company by role
             role_emails = list(
-                company.users.filter(role=role)
+                User.objects.filter(role=role).first()
                 .exclude(email__isnull=True)
                 .exclude(email="")
                 .values_list("email", flat=True)
