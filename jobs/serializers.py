@@ -342,7 +342,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'experience_years','relevant_experience_years', 'current_ctc', 'expected_ctc', 'notice_period',
             'linkedin_url', 'portfolio_url','skill','education','location','current_employer','match_score', 'status', 'status_display',
             'source', 'source_display', 'platform_name', 'application_link',
-            'submitted_by', 'submitted_by_name', 'notes', 'rating',
+            'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report',
             'created_at', 'updated_at'
         ]
     
@@ -494,35 +494,7 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
 
         resume_file = validated_data['resume']
-        from .utils import parse_resume_ai,calculate_match_score,create_resume_report_html,render_beautiful_report
-        # ---- AI extraction ----
-        parsed = parse_resume_ai(resume_file)
-        name = parsed.get('name') or parsed.get('full_name')
-        email = parsed.get('email')
-        phone = parsed.get('phone_number') or parsed.get('phone')
-        phone = phone.replace(" ",'')
-        total_experience_years = parsed.get("total_experience_years")
-        relevant_experience_years = parsed.get("relevant_experience_years")
-        skills = parsed.get('skills')
-        education = parsed.get("education")
-        current_ctc = parsed.get("current_ctc")
-        expected_ctc = parsed.get("expected_ctc",'')
-        linkedin_url = parsed.get("linkedin_url",'')
-        portfolio_url = parsed.get("portfolio_url",'')
-        location = parsed.get("location")
-        current_employer = parsed.get("current_employer")
-        # ---- AI scoring ----
-        ai_match = calculate_match_score(parsed, link.job)
-        ai_score = int(ai_match.get('score'))
-        match_reason = ai_match.get('reason')
-        parsed['match_reason'] = match_reason
-        # ---- AI Report ----
-        # html_report = create_resume_report_html(parsed,link.job)
-        html_report = render_beautiful_report(parsed,link.job,ai_score)
-        from onboarding.utils.pdf_maker import html_to_pdf
-        report_pdf = html_to_pdf(html_report)
-        from django.core.files.base import ContentFile
-        pdf_file = ContentFile(report_pdf, name=f"{name}_{email}_resume_report.pdf")
+        
         # prepare values to save
         original_filename = getattr(resume_file, 'name', '')
         file_size = getattr(resume_file, 'size', 0)
@@ -537,28 +509,10 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
                     status='received',
                     original_filename=original_filename,
                     file_size=file_size,
-                    match_score=ai_score,
-                    candidate_name = name,
-                    candidate_email = email,
-                    candidate_phone = phone,
-                    relevant_experience_years = relevant_experience_years,
-                    experience_years = total_experience_years,
-                    linkedin_url = linkedin_url,
-                    current_ctc = current_ctc,
-                    expected_ctc = expected_ctc,
-                    portfolio_url = portfolio_url,
-                    skill = skills,
-                    education = education,
-                    current_employer = current_employer,
-                    location = location,
                     # submitted_by remains null for public uploads
                     # candidate_email intentionally left null to avoid duplicate empty-string constraint
                 )
-                application.resume_report.save(
-                    f"{name}_{email}_resume_report.pdf",
-                    pdf_file,
-                    save=True
-                )
+
                 # Increment link statistics AFTER successful create
                 link.increment_applications()
 
@@ -569,7 +523,9 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
                     'Could not create application. Possible duplicate candidate entry for this job.'
                 ]
             })
-
+        from onboarding.utils.task_queue import TASK_QUEUE
+        from .utils import parse_resume_task
+        TASK_QUEUE.enqueue(parse_resume_task,application,application.resume.file,link.job)
         return application
 
 
