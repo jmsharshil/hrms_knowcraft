@@ -98,13 +98,6 @@ class MRF(models.Model):
         ('revision_required', 'Revision Required'),
     ]
     
-    LOCATION_CHOICES = [
-        ('ahmedabad', 'Ahmedabad'),
-        ('mumbai', 'Mumbai'),
-        ('delhi', 'Delhi'),
-        ('bangalore', 'Bangalore'),
-    ]
-    
     CASE_STUDY_CHOICES = [
         ('yes', 'Yes'),
         ('no', 'No'),
@@ -134,7 +127,7 @@ class MRF(models.Model):
     team = models.CharField(max_length=255)
     position_department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name='position_mrfs')
     no_of_vacancies = models.PositiveIntegerField(default=1)
-    location = models.CharField(max_length=50, choices=LOCATION_CHOICES, default='ahmedabad')
+    location = models.CharField(max_length=50, default='ahmedabad')
     
     # Optional Fields
     resigned_crafter_name = models.CharField(max_length=255, blank=True, null=True)
