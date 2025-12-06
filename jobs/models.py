@@ -381,7 +381,7 @@ class JobApplication(models.Model):
     candidate_phone = models.CharField(max_length=20, blank=True)
     cover_letter = models.TextField(blank=True)
 
-    location = models.CharField(max_length=50,blank=True,null=True)
+    location = models.CharField(max_length=255,blank=True,null=True)
     availibility = models.CharField(blank=True,null=True)
     current_employer = models.CharField(max_length=50,blank=True,null=True)
     skill = models.JSONField(blank=True,null=True,default=list)
@@ -447,6 +447,7 @@ class JobApplication(models.Model):
     
     #AI Parsed Score
     match_score = models.DecimalField(blank=True,null=True,max_digits=5,decimal_places=2,help_text="Score out of 0 to 100")
+    resume_report = models.FileField(blank=True,null=True,upload_to='reports/', help_text='Candidate resume report.')
 
     joining_date = models.DateField(null=True, blank=True) 
     is_active = models.BooleanField(default=True) #Status of Application (for archiving)

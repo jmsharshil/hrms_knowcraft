@@ -3,12 +3,34 @@ from django.template.loader import render_to_string
 from io import BytesIO
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
-from pypdf import PdfReader, PdfWriter
+# from pypdf import PdfReader, PdfWriter
 
 # def html_to_pdf(template_name, context):
 #     html_string = render_to_string(template_name, context)
 #     pdf_bytes = HTML(string=html_string).write_pdf()
 #     return pdf_bytes
+
+# def html_to_pdf(html_string):
+#     pdf_bytes = HTML(string=html_string).write_pdf()
+#     return pdf_bytes
+
+from xhtml2pdf import pisa
+
+def html_to_pdf(html_content):
+    """
+    Convert FULL HTML + CSS to PDF using xhtml2pdf.
+    """
+    pdf_buffer = BytesIO()
+    pisa_status = pisa.CreatePDF(
+        html_content,
+        dest=pdf_buffer
+    )
+    
+    if pisa_status.err:
+        raise Exception("PDF generation error using xhtml2pdf.")
+
+    pdf_buffer.seek(0)
+    return pdf_buffer.read()
 
 # def fill_pdf_overlay(template_path, data):
 #     # Create overlay in memory

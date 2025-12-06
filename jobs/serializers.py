@@ -490,8 +490,7 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
 
         resume_file = validated_data['resume']
-        
-        from .utils import parse_resume_ai,calculate_match_score
+        from .utils import parse_resume_ai,calculate_match_score,create_resume_report_html,render_beautiful_report
         # ---- AI extraction ----
         parsed = parse_resume_ai(resume_file)
         name = parsed.get('name') or parsed.get('full_name')
@@ -509,7 +508,17 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
         location = parsed.get("location")
         current_employer = parsed.get("current_employer")
         # ---- AI scoring ----
-        ai_score = calculate_match_score(parsed, link.job)
+        ai_match = calculate_match_score(parsed, link.job)
+        ai_score = int(ai_match.get('score'))
+        match_reason = ai_match.get('reason')
+        parsed['match_reason'] = match_reason
+        # ---- AI Report ----
+        # html_report = create_resume_report_html(parsed,link.job)
+        html_report = render_beautiful_report(parsed,link.job,ai_score)
+        from onboarding.utils.pdf_maker import html_to_pdf
+        report_pdf = html_to_pdf(html_report)
+        from django.core.files.base import ContentFile
+        pdf_file = ContentFile(report_pdf, name=f"{name}_{email}_resume_report.pdf")
         # prepare values to save
         original_filename = getattr(resume_file, 'name', '')
         file_size = getattr(resume_file, 'size', 0)
@@ -537,11 +546,15 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
                     skill = skills,
                     education = education,
                     current_employer = current_employer,
-                    location = location
+                    location = location,
                     # submitted_by remains null for public uploads
                     # candidate_email intentionally left null to avoid duplicate empty-string constraint
                 )
-
+                application.resume_report.save(
+                    f"{name}_{email}_resume_report.pdf",
+                    pdf_file,
+                    save=True
+                )
                 # Increment link statistics AFTER successful create
                 link.increment_applications()
 
