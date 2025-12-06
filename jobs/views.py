@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.db.models import Q, Count
+from django.db.models import Q, Count, F
 from django.utils import timezone
 from django.db import transaction
 
@@ -783,7 +783,7 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
                 Q(candidate_email__icontains=search) |
                 Q(candidate_phone__icontains=search)
             )
-        
+        queryset = queryset.order_by(F('match_score').desc(nulls_last=True), '-created_at')
         return queryset
     
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
