@@ -686,16 +686,16 @@ class JobApplicationLinkViewSet(viewsets.ModelViewSet):
         else:
             queryset = JobApplicationLink.objects.none()
         
+        from django.db.models import Sum
         stats = {
             'total_links': queryset.count(),
             'active_links': queryset.filter(is_active=True).count(),
-            'total_views': queryset.aggregate(total=models.Sum('views_count'))['total'] or 0,
-            'total_applications': queryset.aggregate(total=models.Sum('applications_count'))['total'] or 0,
+            'total_views': queryset.aggregate(total=Sum('views_count'))['total'] or 0,
+            'total_applications': queryset.aggregate(total=Sum('applications_count'))['total'] or 0,
             'by_platform': {}
         }
         
         # Platform-wise breakdown
-        from django.db.models import Sum
         platforms = queryset.values('platform').annotate(
             count=Count('id'),
             views=Sum('views_count'),

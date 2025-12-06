@@ -194,11 +194,13 @@ class MRF(models.Model):
     
     def generate_requisition_no(self):
         """Generate unique requisition number"""
-        year = timezone.now().year
+        date = timezone.now().date()
+        designation = self.designation
+        department = self.department
         count = MRF.objects.filter(
-            requisition_no__startswith=f'MRF-{year}'
+            requisition_no__startswith=f'MRF_{designation}_{department}'
         ).count() + 1
-        return f'MRF-{year}-{count:05d}'
+        return f'MRF_{designation}_{department}_{count:05d}_{date}'
     
     def calculate_date_received(self):
         """Calculate date received based on approval time"""
