@@ -43,10 +43,11 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
     "shortlisted": {
         "email": {
             "subject": "You Have Been Shortlisted!",
-            "text": "You have been shortlisted and will move to the interview stage.",
+            "text": "You have been shortlisted and will move to the interview stage.Please select interview slot from using given link : {schedule_link}",
         },
-        "sms": "You have been shortlisted! HR will schedule interview soon.",
+        "sms": "You have been shortlisted! Schedule your interview by selecting the time slot using this link: {schedule_link}.",
         "log": "Shortlisting notification sent to {candidate.candidate_email}",
+        "schedule_link":True
     },
     "interview_pending": {
         "email": {
@@ -420,6 +421,19 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
             except Exception as exc:
                 logger.exception("Failed OpenSign flow: %s", exc)
                 success = False
+        schedule_link = None
+        if cfg.get("schedule_link"):
+            try:
+                from booking.models import Booking
+                booking = Booking.objects.filter(candidate=candidate).first()
+                schedule_link = (
+                        f"http://127.0.0.1:8000/api/slots/available/"
+                        f"?candidate_id={candidate.id}&interviewer_id={booking.interviewer.id}"
+                    )
+                email_cfg["text"] = email_cfg["text"].format(schedule_link=schedule_link)
+                sms_text.format(schedule_link=schedule_link)
+            except Exception as e:
+                print(e)
         try:
             html_template = HTML_TEMPLATES[stage]
             if stage == 'docs_pending' or stage == "resignation_pending" or stage == "salary_docs_pending":
@@ -431,7 +445,7 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
                 subject=email_cfg["subject"],
                 text=email_cfg["text"],
                 cc= cc,
-                template=html_template.format(candidate=candidate,sign_url=sign_url),
+                template=html_template.format(candidate=candidate,sign_url=sign_url,schedule_link=schedule_link),
                 attachments=attachments,
             )
         except Exception as exc:

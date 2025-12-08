@@ -38,7 +38,7 @@ HTML_TEMPLATES = {
         <h2>You Have Been Shortlisted!</h2>
         <p>Dear {{candidate.candidate_name}},</p>
         <p>Congratulations! You have been shortlisted for the next stage of the selection process.</p>
-        <p>Our team will contact you soon to schedule your interview.</p>
+        <p>Select Time slot for your interview using this link {{schedule_link}}.</p>
         <br>
         <p>Regards,<br>Recruitment Team</p>
     </body>
