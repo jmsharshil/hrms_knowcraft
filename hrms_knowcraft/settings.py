@@ -50,6 +50,8 @@ INSTALLED_APPS = [
     'onboarding',
     'mrf',
     'jobs',
+    'slots',
+    'booking',
 ]
 
 MIDDLEWARE = [
@@ -74,6 +76,9 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DATETIME_FORMAT': '%Y-%m-%d %H:%M:%S',
+    "DEFAULT_RENDERER_CLASSES": (
+        "rest_framework.renderers.JSONRenderer",
+    ),
 }
 
 ROOT_URLCONF = 'hrms_knowcraft.urls'
@@ -308,3 +313,19 @@ ZOHO_CLIENT_SECRET = os.getenv("ZOHO_CLIENT_SECRET")
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 ENDPOINT_URL = os.getenv("ENDPOINT_URL")
+CSRF_TRUSTED_ORIGINS = [
+    'https://hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net',
+]
+
+MICROSOFT_CLIENT_ID = "bde15c16-74e1-458d-9906-0f937c1fab27"
+MICROSOFT_CLIENT_SECRET = "JMb8Q~5vSNbtsIGeH6J6VVckgTp-Yw4hJUr0Eat5"
+MICROSOFT_TENANT_ID = "d902dae3-a93d-4dbb-86cd-56fed3603160"
+
+GRAPH_API_SCOPE = ["https://graph.microsoft.com/.default"]
+GRAPH_API_TOKEN_URL = f"https://login.microsoftonline.com/{MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
+
+TIME_ZONE = "Asia/Kolkata"
+USE_TZ = True
+
+
+USE_L10N = True
