@@ -7,11 +7,13 @@ from .graph import get_interviewer_busy_slots
 from .availability import generate_free_slots_for_day
 from .serializers import FreeSlotSerializer,InterviewerCreateSerializer
 from slots.models import Interviewer
+from rest_framework import permissions
 
 IST = ZoneInfo("Asia/Kolkata")
 
 
 class AvailableSlotsForInterviewerView(APIView):
+    permission_classes = [permissions.AllowAny]
     def get(self, request):
         candidate_id = request.query_params.get("candidate_id")
         interviewer_id = request.query_params.get("interviewer_id")
