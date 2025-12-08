@@ -598,6 +598,7 @@ def create_resume_report_html(parsed_resume, job):
     return res.choices[0].message.content.strip()
 
 from django.db import transaction
+from .models import JobApplication
 def parse_resume_task(application,resume_file,job):
     # ---- AI extraction ----
     parsed = parse_resume_ai(resume_file)
@@ -615,6 +616,24 @@ def parse_resume_task(application,resume_file,job):
     portfolio_url = parsed.get("portfolio_url",'')
     location = parsed.get("location")
     current_employer = parsed.get("current_employer")
+    if email:
+        duplicate_application = JobApplication.objects.filter(candidate_email=email).first()
+        if duplicate_application:
+            print("Duplicate resume found!")
+            from onboarding.utils.notifications import _NOTIFICATION_MAP
+            from onboarding.utils.sender import send_email,send_text
+            from onboarding.utils.templates import HTML_TEMPLATES
+            template = HTML_TEMPLATES['duplicate_rejected'].format(candidate=duplicate_application)
+            subject = _NOTIFICATION_MAP['duplicate_rejected']['email']['subject']
+            text = _NOTIFICATION_MAP['duplicate_rejected']['email']['text']
+            sms_text =  _NOTIFICATION_MAP['duplicate_rejected']['sms']
+            try:
+                send_email(to=duplicate_application.candidate_email,subject=subject,text=text,template=template)
+                if duplicate_application.candidate_phone:
+                    send_text(to=duplicate_application.candidate_phone,text=sms_text)
+            except Exception as e:
+                print("Error Occured During Sending Notification:",e)
+            return
     # ---- AI scoring ----
     ai_match = calculate_match_score(parsed, job)
     ai_score = int(ai_match.get('score'))
