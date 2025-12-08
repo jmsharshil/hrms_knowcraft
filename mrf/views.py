@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.db.models import Q
 from django.db import transaction
+from slots.models import Interviewer
 
 from .models import (
     Department, Designation, MRF, MRFApproval, 
@@ -257,6 +258,48 @@ class MRFViewSet(viewsets.ModelViewSet):
             )
         
         return queryset
+    @action(detail=True, methods=['get'], url_path='interviewers')
+    def get_interviewers(self, request, pk=None):
+        """
+        Return all interviewers from this MRF.
+        Auto-creates missing Interviewer entries so interviewer_id is NEVER null.
+        """
+        mrf = self.get_object()
+
+        # Collect interviewer emails from MRF
+        interviewer_emails = [
+            mrf.technical_interview_1,
+            mrf.technical_interview_2,
+            mrf.final_interview
+        ]
+
+        interviewer_list = []
+
+        for email in interviewer_emails:
+            if not email:
+                continue
+            
+            # Extract readable name from email prefix
+            name = email.split("@")[0].replace(".", " ").title()
+
+            # Ensure interviewer exists → auto-create if not found
+            interviewer, created = Interviewer.objects.get_or_create(
+                email=email,
+                defaults={"name": name}
+            )
+
+            interviewer_list.append({
+                "interviewer_id": str(interviewer.id),
+                "name": interviewer.name,
+                "email": interviewer.email
+            })
+
+        return Response({
+            "mrf_id": str(mrf.id),
+            "interviewers": interviewer_list
+        }, status=200)
+
+
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanSubmitMRF])
     def submit(self, request, pk=None):
