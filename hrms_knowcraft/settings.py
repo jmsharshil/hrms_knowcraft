@@ -28,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-0(s=ka%+mzk+5n3*t-h8l0#6yh7$bnt*y)=a!zy!7_q192j%$t'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net','127.0.0.1','localhost']
 
@@ -49,8 +49,6 @@ INSTALLED_APPS = [
     'accounts',
     'mrf',
     'jobs',
-    'slots',
-    'booking',
 ]
 
 MIDDLEWARE = [
@@ -75,9 +73,6 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
     'DATETIME_FORMAT': '%Y-%m-%d %H:%M:%S',
-    "DEFAULT_RENDERER_CLASSES": (
-        "rest_framework.renderers.JSONRenderer",
-    ),
 }
 
 ROOT_URLCONF = 'hrms_knowcraft.urls'
@@ -185,7 +180,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'Asia/Kolkata'
+TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
@@ -300,16 +295,3 @@ SESSION_COOKIE_SECURE = True   # Only valid if using HTTPS
 CSRF_TRUSTED_ORIGINS = [
     'https://hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net',
 ]
-
-MICROSOFT_CLIENT_ID = "bde15c16-74e1-458d-9906-0f937c1fab27"
-MICROSOFT_CLIENT_SECRET = "JMb8Q~5vSNbtsIGeH6J6VVckgTp-Yw4hJUr0Eat5"
-MICROSOFT_TENANT_ID = "d902dae3-a93d-4dbb-86cd-56fed3603160"
-
-GRAPH_API_SCOPE = ["https://graph.microsoft.com/.default"]
-GRAPH_API_TOKEN_URL = f"https://login.microsoftonline.com/{MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
-
-TIME_ZONE = "Asia/Kolkata"
-USE_TZ = True
-
-
-USE_L10N = True

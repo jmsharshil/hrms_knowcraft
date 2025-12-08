@@ -5,7 +5,7 @@ from .models import (
 )
 from accounts.models import User
 from django.db import transaction
-from slots.models import Interviewer
+
 
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -198,8 +198,7 @@ class MRFDetailSerializer(serializers.ModelSerializer):
     next_approvers = serializers.SerializerMethodField()
     can_approve = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
-    interviewers = serializers.SerializerMethodField()
-
+    
     class Meta:
         model = MRF
         fields = '__all__'
@@ -231,27 +230,6 @@ class MRFDetailSerializer(serializers.ModelSerializer):
         user = request.user
         # Only creator can edit in draft or revision_required status
         return obj.requested_by == user and obj.status in ['draft', 'revision_required']
-    
-    def get_interviewers(self, obj):
-        emails = [
-            obj.technical_interview_1,
-            obj.technical_interview_2,
-            obj.final_interview
-        ]
-
-        result = []
-
-        for email in [e for e in emails if e]:
-            interviewer = Interviewer.objects.filter(email=email).first()
-
-            result.append({
-                "interviewer_id": interviewer.id if interviewer else None,
-                "name": email.split("@")[0].replace(".", " ").title(),
-                "email": email
-            })
-
-        return result
-
 
 
 class MRFCreateUpdateSerializer(serializers.ModelSerializer):
