@@ -5,11 +5,7 @@ from .models import (
 )
 from accounts.models import User
 from django.db import transaction
-<<<<<<< HEAD
 from slots.models import Interviewer
-=======
-from datetime import datetime
->>>>>>> a0fc8473ae7917c2ccbd0fb5228d8fa4deecf599
 
 class DepartmentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -273,7 +269,7 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
             'workflow_template', 'department', 'designation', 'team', 'position_department',
             'no_of_vacancies', 'location', 'resigned_crafter_name', 'resigned_crafter_ecode',
             'key_responsibility', 'required_qualifications', 'experience_range',
-            'skills_competencies', 'business_justification',
+            'skills_competencies', 'business_justification', 'salary_range',
             'expected_date_of_joining', 'case_study_required', 'technical_interview_1',
             'technical_interview_2', 'final_interview'
         ]
@@ -282,13 +278,6 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         # Auto-fill position_department from department if not provided
         if 'position_department' not in data or not data.get('position_department'):
             data['position_department'] = data.get('department')
-
-        if 'salary_range' in data and data.get("salary_range"):
-            department_name = data.get('department')
-            designation_name = data.get('designation')
-            salary_range = data.get('salary_range')
-            from .utils import validate_salary_range
-            validate_salary_range(salary_range,department_name,designation_name)
         
         # Validate dates
         if data.get('expected_date_of_joining'):
@@ -325,10 +314,7 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         validated_data['requested_by'] = user
         validated_data['requested_by_name'] = user.name
         validated_data['requested_by_designation'] = user.role
-        from .utils import get_auto_salary_range
-        salary_range = get_auto_salary_range(validated_data['department'],validated_data['designation'])
-        if salary_range:
-            validated_data['salary_range'] = salary_range   
+        
         mrf = MRF.objects.create(**validated_data)
         return mrf
     
@@ -371,30 +357,8 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
 
 class MRFSubmitSerializer(serializers.Serializer):
     """Serializer for submitting MRF for approval"""
-    def submit(self):
-        mrf = self.context['mrf']   # mrf instance passed from view
-        user = self.context['request'].user
-        from onboarding.utils.sender import send_email
-        subject = f'Requisition Raised for {mrf.designation} Position'
-        manager_name = User.objects.filter(role="hr_manager").first().name
-        manager_email = User.objects.filter(role="hr_manager").first().email
-        from .utils import email_templates,alt_text
-        if mrf.resigned_crafter_name:
-            template = email_templates['mrf_submit_replace']
-            template = template.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.created_at.strftime("%B %d,%Y"),resigned_employee=mrf.resigned_crafter_name)
-            text = alt_text['mrf_submit_replace']
-            text = text.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.created_at.strftime("%B %d,%Y"),resigned_employee=mrf.resigned_crafter_name)
-        else:
-            template = email_templates['mrf_submit_new']
-            template = template.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.created_at.strftime("%B %d,%Y"))
-            text = alt_text['mrf_submit_new']
-            text = text.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.created_at.strftime("%B %d,%Y"))
-        try:
-            send_email(to=manager_email,subject=subject,template=template,text=text)
-            from .utils import schedule_mrf_reminder
-            schedule_mrf_reminder(mrf_id=mrf.id)
-        except Exception as e:
-            print(f"Error Occured while trying to send email for MRF Approval:{e}")
+    pass
+
 
 class MRFApproveRejectSerializer(serializers.Serializer):
     """Serializer for approving or rejecting MRF"""

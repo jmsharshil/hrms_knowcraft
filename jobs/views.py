@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.db.models import Q, Count, F
+from django.db.models import Q, Count
 from django.utils import timezone
 from django.db import transaction
 
@@ -13,7 +13,7 @@ from .serializers import (
     JobAssignmentHistorySerializer, JobApplicationSerializer,
     JobApplicationCreateSerializer, JobApplicationUpdateSerializer,
     JobApplicationLinkSerializer, JobApplicationLinkCreateSerializer,
-    PublicJobApplicationCreateSerializer, AssignToInternalHRSerializer, AssignToBothSerializer
+    PublicJobApplicationCreateSerializer, AssignToInternalHRSerializer
 )
 from .permissions import (
     CanViewJobs, CanCreateJobs, CanEditJobs, CanAssignToConsultancy,
@@ -39,8 +39,6 @@ class JobViewSet(viewsets.ModelViewSet):
             return AssignToConsultancySerializer
         elif self.action == 'assign_to_internal_hr':   # NEW
             return AssignToInternalHRSerializer
-        elif self.action == 'assign_to_both':     # 👈 NEW
-            return AssignToBothSerializer
         elif self.action == 'close_job':
             return CloseJobSerializer
         return JobDetailSerializer
@@ -50,7 +48,7 @@ class JobViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated(), CanCreateJobs()]
         elif self.action in ['update', 'partial_update']:
             return [IsAuthenticated(), CanEditJobs()]
-        elif self.action in ['assign_to_consultancy', 'assign_to_internal_hr', 'assign_to_both']:
+        elif self.action in ['assign_to_consultancy', 'assign_to_internal_hr']:
             return [IsAuthenticated(), CanAssignToConsultancy()]  # you can make a separate permission for internal HR if needed
         elif self.action == 'close_job':
             return [IsAuthenticated(), CanCloseJobs()]
@@ -292,114 +290,6 @@ class JobViewSet(viewsets.ModelViewSet):
             'message': f'Job unassigned from {internal_hr.full_name}',
             'data': serializer.data
         }, status=status.HTTP_200_OK)
-        
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanAssignToConsultancy])
-    def assign_to_both(self, request, pk=None):
-        """
-        Assign job to BOTH a consultancy and an internal HR.
-        This is intended to be used while the job is still 'open',
-        so we don't change the behavior of your existing actions.
-        """
-        job = self.get_object()
-        serializer = AssignToBothSerializer(data=request.data)
-
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        consultancy_id = serializer.validated_data['consultancy_id']
-        internal_hr_id = serializer.validated_data['internal_hr_id']
-        notes = serializer.validated_data.get('notes', '') or ''
-
-        # --- Get consultancy user ---
-        try:
-            consultancy = User.objects.get(
-                id=consultancy_id,
-                role='consultancy',
-                is_active=True
-            )
-        except User.DoesNotExist:
-            return Response(
-                {'error': 'Consultancy user not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        # --- Get internal HR user ---
-        try:
-            internal_hr = User.objects.get(
-                id=internal_hr_id,
-                role__in=['hr', 'hr_manager'],
-                is_active=True
-            )
-        except User.DoesNotExist:
-            return Response(
-                {'error': 'Internal HR user not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        # --- Check if job can be assigned (reuse your existing logic) ---
-        if not (job.can_be_assigned_to_consultancy() and job.can_be_assigned_to_internal_hr()):
-            return Response(
-                {'error': 'Job cannot be assigned. It may be in wrong status or inactive'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Determine history actions
-        consultancy_action = 'assigned'
-        if job.assigned_to_consultancy:
-            consultancy_action = 'reassigned'
-
-        internal_action = 'assigned_internal'
-        if job.assigned_to_internal_hr:
-            internal_action = 'reassigned_internal'
-
-        # --- Update job fields ---
-        now = timezone.now()
-
-        job.assigned_to_consultancy = consultancy
-        job.assigned_at = now
-        job.assigned_by = request.user
-
-        job.assigned_to_internal_hr = internal_hr
-        job.assigned_internal_at = now
-        job.assigned_internal_by = request.user
-
-        # Make it visible for consultancy
-        job.visible_to_consultancy = True
-
-        # You can choose status; 'in_progress' makes sense when both are working on it
-        job.status = 'in_progress'
-
-        job.save()
-
-        # --- Create history records (no change to ACTION_CHOICES) ---
-        JobAssignmentHistory.objects.create(
-            job=job,
-            action=consultancy_action,
-            consultancy=consultancy,
-            performed_by=request.user,
-            notes=notes,
-            old_value='',
-            new_value=str(consultancy.id)
-        )
-
-        JobAssignmentHistory.objects.create(
-            job=job,
-            action=internal_action,
-            consultancy=internal_hr,  # same reused field as in your existing code
-            performed_by=request.user,
-            notes=notes,
-            old_value='',
-            new_value=str(internal_hr.id)
-        )
-
-        job_data = JobDetailSerializer(job, context={'request': request}).data
-        return Response(
-            {
-                'message': f'Job successfully assigned to consultancy {consultancy.name} and internal HR {internal_hr.name}',
-                'data': job_data
-            },
-            status=status.HTTP_200_OK
-        )
     
     @transaction.atomic
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanCloseJobs])
@@ -686,16 +576,16 @@ class JobApplicationLinkViewSet(viewsets.ModelViewSet):
         else:
             queryset = JobApplicationLink.objects.none()
         
-        from django.db.models import Sum
         stats = {
             'total_links': queryset.count(),
             'active_links': queryset.filter(is_active=True).count(),
-            'total_views': queryset.aggregate(total=Sum('views_count'))['total'] or 0,
-            'total_applications': queryset.aggregate(total=Sum('applications_count'))['total'] or 0,
+            'total_views': queryset.aggregate(total=models.Sum('views_count'))['total'] or 0,
+            'total_applications': queryset.aggregate(total=models.Sum('applications_count'))['total'] or 0,
             'by_platform': {}
         }
         
         # Platform-wise breakdown
+        from django.db.models import Sum
         platforms = queryset.values('platform').annotate(
             count=Count('id'),
             views=Sum('views_count'),
@@ -783,7 +673,7 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
                 Q(candidate_email__icontains=search) |
                 Q(candidate_phone__icontains=search)
             )
-        queryset = queryset.order_by(F('match_score').desc(nulls_last=True), '-created_at')
+        
         return queryset
     
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])

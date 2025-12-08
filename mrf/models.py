@@ -98,6 +98,13 @@ class MRF(models.Model):
         ('revision_required', 'Revision Required'),
     ]
     
+    LOCATION_CHOICES = [
+        ('ahmedabad', 'Ahmedabad'),
+        ('mumbai', 'Mumbai'),
+        ('delhi', 'Delhi'),
+        ('bangalore', 'Bangalore'),
+    ]
+    
     CASE_STUDY_CHOICES = [
         ('yes', 'Yes'),
         ('no', 'No'),
@@ -127,7 +134,7 @@ class MRF(models.Model):
     team = models.CharField(max_length=255)
     position_department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name='position_mrfs')
     no_of_vacancies = models.PositiveIntegerField(default=1)
-    location = models.CharField(max_length=50, default='ahmedabad')
+    location = models.CharField(max_length=50, choices=LOCATION_CHOICES, default='ahmedabad')
     
     # Optional Fields
     resigned_crafter_name = models.CharField(max_length=255, blank=True, null=True)
@@ -187,13 +194,11 @@ class MRF(models.Model):
     
     def generate_requisition_no(self):
         """Generate unique requisition number"""
-        date = timezone.now().date()
-        designation = self.designation
-        department = self.department
+        year = timezone.now().year
         count = MRF.objects.filter(
-            requisition_no__startswith=f'MRF_{designation}_{department}'
+            requisition_no__startswith=f'MRF-{year}'
         ).count() + 1
-        return f'MRF_{designation}_{department}_{count:05d}_{date}'
+        return f'MRF-{year}-{count:05d}'
     
     def calculate_date_received(self):
         """Calculate date received based on approval time"""

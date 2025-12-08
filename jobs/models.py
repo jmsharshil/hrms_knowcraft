@@ -279,71 +279,20 @@ class JobApplicationLink(models.Model):
 class JobApplication(models.Model):
     """Track applications/candidates for jobs"""
     
-    # STATUS_CHOICES = [
-    #     ('received', 'Received'),
-    #     ('screening', 'Under Screening'),
-    #     ('shortlisted', 'Shortlisted'),
-    #     ('interview_scheduled', 'Interview Scheduled'),
-    #     ('interviewed', 'Interviewed'),
-    #     ('selected', 'Selected'),
-    #     ('rejected', 'Rejected'),
-    #     ('offer_sent', 'Offer Sent'),
-    #     ('offer_accepted', 'Offer Accepted'),
-    #     ('offer_declined', 'Offer Declined'),
-    #     ('joined', 'Joined'),
-    #     ('withdrawn', 'Withdrawn'),
-    # ]
-
     STATUS_CHOICES = [
-    # Submission
-    ("received", "Received"),
-    # Screening & Interview
-    ("shortlisted", "Shortlisted"),
-    ("interview_pending", "Interview Pending"),
-    ("interview_done", "Interview Completed"),
-    ("interview_rejected", "Rejected After Interview"),
-    # Approval Stage
-    ("selected", "Selected by Interview Panel"),
-    ("approval_pending", "Approval Pending (Sent to Hiring Manager)"),
-    ("approved", "Approved by Hiring Manager"),
-    ("approval_rejected", "Rejected During Approval"),
-    # SALARY DOCUMENT FLOW
-    ("salary_docs_pending", "Salary Documents Pending"),
-    ("salary_docs_uploaded", "Salary Documents Uploaded"),
-    ("hr_review_docs", "HR Reviewing Salary Documents"),
-    ("hr_review_ok", "HR Review Completed"),
-    ("hr_review_rejected", "HR Rejected Salary Documents"),
-    # SALARY ANNEXURE FLOW
-    ("salary_annexure_prep", "Salary Annexure Under Preparation"),
-    ("salary_annexure_sent", "Salary Annexure Sent to HR Head"),
-    ("approved_annexure", "Salary Annexure Approved"),
-    ("rejected_annexure", "Salary Annexure Rejected"),
-    # Offer Stage
-    ("offer_pending", "Offer Preparation Pending"),
-    ("offer_sent", "Offer Sent"),
-    ("offer_accepted", "Offer Accepted"),
-    ("offer_rejected", "Offer Rejected by Candidate"),
-    # RESIGNATION FLOW
-    ("resignation_pending", "Resignation Pending (Upload Required)"),
-    ("resignation_uploaded", "Resignation Uploaded"),
-    ("resignation_review", "Resignation Under Review"),
-    ("resignation_approved", "Resignation Approved"),
-    ("resignation_rejected", "Resignation Rejected"),
-    # JOINING DOCUMENT FLOW
-    ("docs_pending", "Joining Documents Pending"),
-    ("docs_uploaded", "Joining Documents Uploaded"),
-    ("review_docs", "Document Review In Progress"),
-    ("docs_approved", "Documents Approved"),
-    ("docs_incomplete", "Documents Incomplete"),
-    ("docs_unclear", "Documents Unclear"),
-    # JOINING FLOW
-    ("joining_pending", "Joining Pending"),
-    ("joining_poned", "Joining Postponed"),
-    ("joined", "Joined"),
-    # General Rejection (fallback)
-    ("rejected", "Rejected"),
-]
-
+        ('received', 'Received'),
+        ('screening', 'Under Screening'),
+        ('shortlisted', 'Shortlisted'),
+        ('interview_scheduled', 'Interview Scheduled'),
+        ('interviewed', 'Interviewed'),
+        ('selected', 'Selected'),
+        ('rejected', 'Rejected'),
+        ('offer_sent', 'Offer Sent'),
+        ('offer_accepted', 'Offer Accepted'),
+        ('offer_declined', 'Offer Declined'),
+        ('joined', 'Joined'),
+        ('withdrawn', 'Withdrawn'),
+    ]
     
     SOURCE_CHOICES = [
         ('internal_hr', 'Internal HR'),
@@ -380,12 +329,6 @@ class JobApplication(models.Model):
     candidate_email = models.EmailField(blank=True, null=True)
     candidate_phone = models.CharField(max_length=20, blank=True)
     cover_letter = models.TextField(blank=True)
-
-    location = models.CharField(max_length=255,blank=True,null=True)
-    availibility = models.CharField(blank=True,null=True)
-    current_employer = models.CharField(max_length=50,blank=True,null=True)
-    skill = models.JSONField(blank=True,null=True,default=list)
-    education = models.JSONField(blank=True,null=True,default=list)
     
     # Source
     submitted_by = models.ForeignKey(
@@ -416,21 +359,15 @@ class JobApplication(models.Model):
         null=True,
         blank=True
     )
-    relevant_experience_years = models.DecimalField(
-        max_digits=4,
-        decimal_places=1,
-        null=True,
-        blank=True
-    )
-    current_ctc = models.CharField(max_length=50, blank=True,null=True)
-    expected_ctc = models.CharField(max_length=50, blank=True,null=True)
-    notice_period = models.CharField(max_length=50, blank=True,null=True)
+    current_ctc = models.CharField(max_length=50, blank=True)
+    expected_ctc = models.CharField(max_length=50, blank=True)
+    notice_period = models.CharField(max_length=50, blank=True)
     
     # LinkedIn Profile
-    linkedin_url = models.URLField(blank=True, max_length=500,null=True)
+    linkedin_url = models.URLField(blank=True, max_length=500)
     
     # Portfolio/GitHub
-    portfolio_url = models.URLField(blank=True, max_length=500,null=True)
+    portfolio_url = models.URLField(blank=True, max_length=500)
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -444,13 +381,6 @@ class JobApplication(models.Model):
         blank=True,
         help_text='Rating out of 5'
     )
-    
-    #AI Parsed Score
-    match_score = models.DecimalField(blank=True,null=True,max_digits=5,decimal_places=2,help_text="Score out of 0 to 100")
-    resume_report = models.FileField(blank=True,null=True,upload_to='reports/', help_text='Candidate resume report.')
-
-    joining_date = models.DateField(null=True, blank=True) 
-    is_active = models.BooleanField(default=True) #Status of Application (for archiving)
     
     class Meta:
         db_table = 'job_applications'

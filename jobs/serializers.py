@@ -232,10 +232,6 @@ class AssignToConsultancySerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid consultancy user")
         return value
 
-class AssignToBothSerializer(serializers.Serializer):
-    consultancy_id = serializers.UUIDField()
-    internal_hr_id = serializers.UUIDField()
-    notes = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
 class CloseJobSerializer(serializers.Serializer):
     """Serializer for closing a job"""
@@ -339,10 +335,10 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'id', 'job', 'job_title', 'department_name', 'candidate_name',
             'candidate_email', 'candidate_phone', 'resume', 'resume_url',
             'original_filename', 'file_size', 'file_size_mb', 'cover_letter',
-            'experience_years','relevant_experience_years', 'current_ctc', 'expected_ctc', 'notice_period',
-            'linkedin_url', 'portfolio_url','skill','education','location','current_employer','match_score', 'status', 'status_display',
+            'experience_years', 'current_ctc', 'expected_ctc', 'notice_period',
+            'linkedin_url', 'portfolio_url', 'status', 'status_display',
             'source', 'source_display', 'platform_name', 'application_link',
-            'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report',
+            'submitted_by', 'submitted_by_name', 'notes', 'rating',
             'created_at', 'updated_at'
         ]
     
@@ -494,7 +490,7 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
 
         resume_file = validated_data['resume']
-        
+
         # prepare values to save
         original_filename = getattr(resume_file, 'name', '')
         file_size = getattr(resume_file, 'size', 0)
@@ -523,9 +519,7 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
                     'Could not create application. Possible duplicate candidate entry for this job.'
                 ]
             })
-        from onboarding.utils.task_queue import TASK_QUEUE
-        from .utils import parse_resume_task
-        TASK_QUEUE.enqueue(parse_resume_task,application,application.resume.file,link.job)
+
         return application
 
 
@@ -541,30 +535,24 @@ class JobApplicationUpdateSerializer(serializers.ModelSerializer):
         current_status = instance.status
         
         # Define allowed status transitions
-        # allowed_transitions = {
-        #     'received': ['screening', 'rejected', 'withdrawn'],
-        #     'screening': ['shortlisted', 'rejected'],
-        #     'shortlisted': ['interview_scheduled', 'rejected'],
-        #     'interview_scheduled': ['interviewed', 'rejected'],
-        #     'interviewed': ['selected', 'rejected'],
-        #     'selected': ['offer_sent', 'rejected'],
-        #     'offer_sent': ['offer_accepted', 'offer_declined'],
-        #     'offer_accepted': ['joined'],
-        # }
-        from onboarding.utils.stage_transition_rules import validate_transition
-        ok,reason = validate_transition(current_status,value)
-        if ok:
-            return value
-        else:
-            raise serializers.ValidationError(reason)
-
-        # if current_status in allowed_transitions:
-        #     if value not in allowed_transitions[current_status] and value != current_status:
-        #         raise serializers.ValidationError(
-        #             f"Cannot change status from {current_status} to {value}"
-        #         )
+        allowed_transitions = {
+            'received': ['screening', 'rejected', 'withdrawn'],
+            'screening': ['shortlisted', 'rejected'],
+            'shortlisted': ['interview_scheduled', 'rejected'],
+            'interview_scheduled': ['interviewed', 'rejected'],
+            'interviewed': ['selected', 'rejected'],
+            'selected': ['offer_sent', 'rejected'],
+            'offer_sent': ['offer_accepted', 'offer_declined'],
+            'offer_accepted': ['joined'],
+        }
         
-        # return value
+        if current_status in allowed_transitions:
+            if value not in allowed_transitions[current_status] and value != current_status:
+                raise serializers.ValidationError(
+                    f"Cannot change status from {current_status} to {value}"
+                )
+        
+        return value
 
 
 class JobAssignmentHistorySerializer(serializers.ModelSerializer):
