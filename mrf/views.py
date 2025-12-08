@@ -328,7 +328,8 @@ class MRFViewSet(viewsets.ModelViewSet):
         mrf.current_approval_level = 0
         mrf.submitted_at = timezone.now()
         mrf.save()
-        
+        serializer = MRFSubmitSerializer(context={'mrf': mrf, 'request': request})
+        serializer.submit()
         serializer = MRFDetailSerializer(mrf, context={'request': request})
         return Response({
             'message': f'MRF submitted successfully using workflow: {mrf.workflow_template.name}',

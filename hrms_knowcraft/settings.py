@@ -30,7 +30,7 @@ SECRET_KEY = 'django-insecure-0(s=ka%+mzk+5n3*t-h8l0#6yh7$bnt*y)=a!zy!7_q192j%$t
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net','127.0.0.1','localhost']
+ALLOWED_HOSTS = ['hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net','127.0.0.1','localhost','373cf8796eac.ngrok-free.app']
 
 AUTH_USER_MODEL = 'accounts.User'
 # Application definition
@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'storages',
     'accounts',
+    'onboarding',
     'mrf',
     'jobs',
     'slots',
@@ -253,11 +254,13 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:5175',
     "http://localhost",
     'http://127.0.0.1:8000',
-    'https://hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net'
 ]
 
-MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = '/media/'
+
+# create media dir if missing
+os.makedirs(MEDIA_ROOT, exist_ok=True)
 
 USE_AZURE_MEDIA = os.environ.get("USE_AZURE_MEDIA", "0") in ("1", "true", "True")
 
@@ -313,3 +316,16 @@ USE_TZ = True
 
 
 USE_L10N = True
+WASENDER_API_BASE = os.getenv("WASENDER_API_BASE", "https://www.wasenderapi.com")
+WASENDER_API_KEY = os.getenv("WASENDER_API_KEY")
+WASENDER_WEBHOOK_SECRET = os.getenv("WASENDER_WEBHOOK_SECRET")
+
+OPENSIGN_API_BASE_URL = os.getenv("OPENSIGN_API_BASE_URL")
+OPENSIGN_API_TOKEN = os.getenv("OPENSIGN_API_TOKEN")
+
+ZOHO_REFRESH_TOKEN = os.getenv("ZOHO_REFRESH_TOKEN")
+ZOHO_CLIENT_ID = os.getenv("ZOHO_CLIENT_ID")
+ZOHO_CLIENT_SECRET = os.getenv("ZOHO_CLIENT_SECRET")
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+ENDPOINT_URL = os.getenv("ENDPOINT_URL")
