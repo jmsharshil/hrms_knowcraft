@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.db.models import Q
 from django.db import transaction
-
+from slots.models import Interviewer
 from .models import (
     Department, Designation, MRF, MRFApproval, 
     ApprovalWorkflow, WorkflowTemplate
