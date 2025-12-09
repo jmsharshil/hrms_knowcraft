@@ -8,7 +8,7 @@ from onboarding.utils.engine import automation_engine
 from .serializers import JobApplicationDocumentSerializer
 import logging
 from jobs.models import JobApplication
-logger = logging.getLogger("workflow")
+logger = logging.getLogger(__name__)
 
 
 class UpdatestatusAPI(APIView):

@@ -125,6 +125,7 @@ def calculate_match_score(parsed_resume, job):
     Job:
     Title: {job.job_title}
     Required Skills: {job.skills_competencies}
+    Technical Skills: {job.technical_skills}
     Experience Range: {job.experience_range}
     Key Responsibilities: {job.key_responsibility}
     Required Qualifications: {job.required_qualifications}

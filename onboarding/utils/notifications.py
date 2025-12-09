@@ -49,7 +49,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
         "log": "Shortlisting notification sent to {candidate.candidate_email}",
         "schedule_link":True
     },
-    "interview_pending": {
+    "interview_pending_1": {
         "email": {
             "subject": "Interview Scheduled",
             "text": "Your interview has been scheduled. Check your email for details.",
@@ -57,7 +57,7 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
         "sms": "Interview scheduled. Check email for timing/link.",
         "log": "Interview pending notification sent to {candidate.candidate_email}",
     },
-    "interview_done": {
+    "interview_done_1": {
         "email": {
             "subject": "Thank You for Interviewing",
             "text": "Thank you for attending the interview. We are reviewing the results.",
@@ -65,15 +65,80 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
         "sms": "Thanks for interviewing! You’ll be updated soon.",
         "log": "Interview completion message sent to {candidate.candidate_email}",
     },
-    "interview_rejected": {
+    "interview_rejected_1": {
         "email": {
             "subject": "Interview Update",
             "text": "We appreciate your time. Unfortunately, we will not move ahead at this time.",
         },
         "sms": "We will not move ahead with your application.",
-        "log": "Interview rejection sent to {candidate.candidate_email}",
+        "log": "Interview round 1 rejection sent to {candidate.candidate_email}",
     },
-
+    "interview_next_2": {
+        "email": {
+            "subject": "Interview Second Round",
+            "text": "You have been shortlisted for second round of interview.Please select interview slot from using given link : {schedule_link}",
+        },
+        "sms": "You have been shortlisted for second round of interview! Schedule your interview by selecting the time slot using this link: {schedule_link}.",
+        "log": "Round 2 notification sent to {candidate.candidate_email}",
+        "schedule_link":True
+    },
+    "interview_pending_2": {
+        "email": {
+            "subject": "Interview Scheduled",
+            "text": "Your interview for round 2 has been scheduled. Check your email for details.",
+        },
+        "sms": "Interview for round 2 has been scheduled. Check email for timing/link.",
+        "log": "Interview round 2 pending notification sent to {candidate.candidate_email}",
+    },
+    "interview_done_2": {
+        "email": {
+            "subject": "Thank You for Interviewing",
+            "text": "Thank you for attending the interview. We are reviewing the results.",
+        },
+        "sms": "Thanks for interviewing! You’ll be updated soon.",
+        "log": "Interview round 2 completion message sent to {candidate.candidate_email}",
+    },
+    "interview_rejected_2": {
+        "email": {
+            "subject": "Interview Update",
+            "text": "We appreciate your time. Unfortunately, we will not move ahead at this time.",
+        },
+        "sms": "We will not move ahead with your application.",
+        "log": "Interview rejection for round 2 sent to {candidate.candidate_email}",
+    },
+    "interview_next_final": {
+        "email": {
+            "subject": "Final Round interview",
+            "text": "You have been shortlisted for final round.Please select interview slot from using given link : {schedule_link}",
+        },
+        "sms": "You have been shortlisted for final round! Schedule your interview by selecting the time slot using this link: {schedule_link}.",
+        "log": "Final Round selection notification sent to {candidate.candidate_email}",
+        "schedule_link":True
+    },
+    "interview_pending_final": {
+        "email": {
+            "subject": "Interview Scheduled",
+            "text": "Your interview for round 3 has been scheduled. Check your email for details.",
+        },
+        "sms": "Interview round 3 has been scheduled. Check email for timing/link.",
+        "log": "Final Interview pending notification sent to {candidate.candidate_email}",
+    },
+    "interview_done_final": {
+        "email": {
+            "subject": "Thank You for Interviewing",
+            "text": "Thank you for attending the interview. We are reviewing the results.",
+        },
+        "sms": "Thanks for interviewing! You’ll be updated soon.",
+        "log": "Final Interview completion message sent to {candidate.candidate_email}",
+    },
+    "interview_rejected_final": {
+        "email": {
+            "subject": "Interview Update",
+            "text": "We appreciate your time. Unfortunately, we will not move ahead at this time.",
+        },
+        "sms": "We will not move ahead with your application.",
+        "log": "Interview rejection for final round sent to {candidate.candidate_email}",
+    },
     # --------------------------------------------------------------
     # 2. SELECTION & APPROVAL FLOW
     # --------------------------------------------------------------
@@ -424,11 +489,30 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
         schedule_link = None
         if cfg.get("schedule_link"):
             try:
-                from booking.models import Booking
-                booking = Booking.objects.filter(candidate=candidate).first()
+                mrf = candidate.job.mrf
+                from slots.models import Interviewer
+                # from rest_framework.test import APIRequestFactory
+                # from mrf.views import MRFViewSet
+                # request = APIRequestFactory().get(f'api/mrf/mrfs/{mrf.id}/interviewers/')
+                # response = MRFViewSet.as_view({'get':"list"})(request)
+                # resp = response.data
+                if stage == 'shortlisted':
+                    # interviewer_id = resp['interviewers'][0]['interviewer_id']
+                    interviewer_email = mrf.interviewer_email_1
+                elif stage == "interview_next_2":
+                    interviewer_email = mrf.interviewer_email_2
+                    # interviewer_id = resp['interviewers'][1]['interviewer_id']
+                elif stage == "interview_next_final":
+                    interviewer_email = mrf.interviewer_email_final
+                    # interviewer_id = resp['interviewers'][2]['interviewer_id']
+                interviewer = Interviewer.objects.filter(email=interviewer_email).first()
+                if interviewer:
+                    interviewer_id = interviewer.id
+                else:
+                    interviewer_id = None
                 schedule_link = (
                         f"http://127.0.0.1:8000/api/slots/available/"
-                        f"?candidate_id={candidate.id}&interviewer_id={booking.interviewer.id}"
+                        f"?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
                     )
                 email_cfg["text"] = email_cfg["text"].format(schedule_link=schedule_link)
                 sms_text.format(schedule_link=schedule_link)

@@ -268,9 +268,9 @@ class MRFViewSet(viewsets.ModelViewSet):
 
         # Collect interviewer emails from MRF
         interviewer_emails = [
-            mrf.technical_interview_1,
-            mrf.technical_interview_2,
-            mrf.final_interview
+            mrf.interviewer_email_1,
+            mrf.interviewer_email_2,
+            mrf.interviewer_email_final
         ]
 
         interviewer_list = []

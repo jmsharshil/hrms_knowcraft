@@ -57,6 +57,7 @@ class Job(models.Model):
     required_qualifications = models.TextField()
     experience_range = models.CharField(max_length=50)
     skills_competencies = models.TextField()
+    technical_skills = models.TextField()
     salary_range = models.CharField(max_length=100)
     
     # Job Status
@@ -299,9 +300,17 @@ class JobApplication(models.Model):
     ("received", "Received"),
     # Screening & Interview
     ("shortlisted", "Shortlisted"),
-    ("interview_pending", "Interview Pending"),
-    ("interview_done", "Interview Completed"),
-    ("interview_rejected", "Rejected After Interview"),
+    ("interview_pending_1", "Interview 1 Pending"),
+    ("interview_done_1", "Interview 1 Completed"),
+    ("interview_rejected_1", "Rejected After Interview 1"),
+    ("interview_next_2", "Shortlisted For Round 2"),
+    ("interview_pending_2", "Interview 2 Pending"),
+    ("interview_done_2", "Interview 2 Completed"),
+    ("interview_rejected_2", "Rejected After Interview 2"),
+    ("interview_next_final", "Shortlisted For Round 3"),
+    ("interview_pending_final", "Interview 3 Pending"),
+    ("interview_done_final", "Final Round Of Interview Completed"),
+    ("interview_rejected_final", "Rejected After Interview 3"),
     # Approval Stage
     ("selected", "Selected by Interview Panel"),
     ("approval_pending", "Approval Pending (Sent to Hiring Manager)"),
