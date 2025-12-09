@@ -45,10 +45,10 @@ HTML_TEMPLATES = {
     </html>
     """,
 
-    "interview_pending": f"""
+    "interview_pending_1": f"""
     <html>
     <body style='font-family: Arial; color:#333;'>
-        <h2>Your Interview is Scheduled</h2>
+        <h2>Your Interview Round 1 is Scheduled</h2>
         <p>Dear {{candidate.candidate_name}},</p>
         <p>Your interview has been scheduled. Please check your email/calendar invite for the meeting details.</p>
         <p>We wish you the best!</p>
@@ -58,7 +58,7 @@ HTML_TEMPLATES = {
     </html>
     """,
 
-    "interview_done": f"""
+    "interview_done_1": f"""
     <html>
     <body style='font-family: Arial; color:#333;'>
         <h2>Thank You for Interviewing</h2>
@@ -70,7 +70,7 @@ HTML_TEMPLATES = {
     </html>
     """,
 
-    "interview_rejected": f"""
+    "interview_rejected_1": f"""
     <html>
     <body style='font-family: Arial; color:#333;'>
         <h2>Update on Your Interview</h2>
@@ -82,7 +82,106 @@ HTML_TEMPLATES = {
     </body>
     </html>
     """,
+    "interview_next_2": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>You Have Been Shortlisted For Next Round!</h2>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Congratulations! You have been shortlisted for the next Round.</p>
+        <p>Select Time slot for your interview using this link {{schedule_link}}.</p>
+        <br>
+        <p>Regards,<br>Recruitment Team</p>
+    </body>
+    </html>
+    """,
 
+    "interview_pending_2": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>Your Interview Round 2 is Scheduled</h2>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Your interview has been scheduled. Please check your email/calendar invite for the meeting details.</p>
+        <p>We wish you the best!</p>
+        <br>
+        <p>Regards,<br>Recruitment Team</p>
+    </body>
+    </html>
+    """,
+
+    "interview_done_2": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>Thank You for Interviewing</h2>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Thank you for attending the interview. Our team is reviewing your performance, and we will update you soon.</p>
+        <br>
+        <p>Regards,<br>Recruitment Team</p>
+    </body>
+    </html>
+    """,
+
+    "interview_rejected_2": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>Update on Your Interview</h2>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Thank you for interviewing with us. After reviewing all candidates, we regret to inform you that we will not be proceeding forward.</p>
+        <p>We encourage you to apply for future opportunities.</p>
+        <br>
+        <p>Regards,<br>Recruitment Team</p>
+    </body>
+    </html>
+    """,
+    "interview_next_final": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>You Have Been Shortlisted For Final Round!</h2>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Congratulations! You have been shortlisted for the third round of inerview.</p>
+        <p>Select Time slot for your interview using this link {{schedule_link}}.</p>
+        <br>
+        <p>Regards,<br>Recruitment Team</p>
+    </body>
+    </html>
+    """,
+
+    "interview_pending_final": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>Your Interview for round 3 is Scheduled</h2>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Your interview has been scheduled. Please check your email/calendar invite for the meeting details.</p>
+        <p>We wish you the best!</p>
+        <br>
+        <p>Regards,<br>Recruitment Team</p>
+    </body>
+    </html>
+    """,
+
+    "interview_done_final": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>Thank You for Interviewing</h2>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Thank you for attending the interview. Our team is reviewing your performance, and we will update you soon.</p>
+        <br>
+        <p>Regards,<br>Recruitment Team</p>
+    </body>
+    </html>
+    """,
+
+    "interview_rejected_final": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>Update on Your Interview</h2>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Thank you for interviewing with us. After reviewing all candidates, we regret to inform you that we will not be proceeding forward.</p>
+        <p>We encourage you to apply for future opportunities.</p>
+        <br>
+        <p>Regards,<br>Recruitment Team</p>
+    </body>
+    </html>
+    """,
     # -----------------------------------------------------------
     # 2. SELECTION & APPROVAL
     # -----------------------------------------------------------

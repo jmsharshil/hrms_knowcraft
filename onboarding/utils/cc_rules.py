@@ -3,9 +3,17 @@ from accounts.models import User
 
 CC_RULES = {
     "shortlisted": ["consultancy","referer"],
-    "interview_pending": ["consultancy"],
-    "interview_done": [],
-    "interview_rejected": [ "consultancy","referer"],
+    "interview_pending_1": ["consultancy","interviewer_1"],
+    "interview_done_1": [],
+    "interview_rejected_1": [ "consultancy","referer"],
+    "interview_next_2": ["consultancy","referer"],
+    "interview_pending_2": ["consultancy","interviewer_2"],
+    "interview_done_2": [],
+    "interview_rejected_2": [ "consultancy","referer"],
+    "interview_next_final": ["consultancy","referer"],
+    "interview_pending_final": ["consultancy","interviewer_3"],
+    "interview_done_final": [],
+    "interview_rejected_final": [ "consultancy","referer"],
 
     # "selected": ["hr", "department_head"],
     # "approval_pending": ["approver", "hr"],
@@ -100,6 +108,15 @@ def get_emails_for_role(candidate, roles):
         if role == "consultancy":
             if getattr(candidate, "job", None) and getattr(candidate.job,'assigned_to_consultancy',None) and getattr(candidate.job.assigned_to_consultancy,'email',None):
                 emails.add(candidate.job.assigned_to_consultancy.email)
+
+        if role == "interviewer_1":
+            emails.add(candidate.job.mrf.technical_interview_1)
+
+        if role == "interviewer_2":
+            emails.add(candidate.job.mrf.technical_interview_1)
+        
+        if role == "interviewe_3":
+            emails.add(candidate.job.mrf.final_interview)
                 
         role_emails = list(
                 company.users.filter(role=role)
