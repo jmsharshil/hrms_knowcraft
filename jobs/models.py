@@ -57,6 +57,7 @@ class Job(models.Model):
     required_qualifications = models.TextField()
     experience_range = models.CharField(max_length=50)
     skills_competencies = models.TextField()
+    technical_skills = models.TextField()
     salary_range = models.CharField(max_length=100)
     
     # Job Status
