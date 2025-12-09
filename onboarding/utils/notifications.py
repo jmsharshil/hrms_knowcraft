@@ -505,7 +505,11 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
                 elif stage == "interview_next_final":
                     interviewer_email = mrf.interviewer_email_final
                     # interviewer_id = resp['interviewers'][2]['interviewer_id']
-                interviewer_id = Interviewer.objects.filter(email=interviewer_email).first().id
+                interviewer = Interviewer.objects.filter(email=interviewer_email).first()
+                if interviewer:
+                    interviewer_id = interviewer.id
+                else:
+                    interviewer_id = None
                 schedule_link = (
                         f"http://127.0.0.1:8000/api/slots/available/"
                         f"?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
