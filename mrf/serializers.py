@@ -1,4 +1,6 @@
 from rest_framework import serializers
+
+from slots.models import Interviewer
 from .models import (
     Department, Designation, MRF, MRFApproval, MRFRevision, 
     ApprovalWorkflow, WorkflowTemplate
@@ -230,6 +232,26 @@ class MRFDetailSerializer(serializers.ModelSerializer):
         user = request.user
         # Only creator can edit in draft or revision_required status
         return obj.requested_by == user and obj.status in ['draft', 'revision_required']
+    
+    def get_interviewers(self, obj):
+        emails = [
+            obj.technical_interview_1,
+            obj.technical_interview_2,
+            obj.final_interview
+        ]
+
+        result = []
+
+        for email in [e for e in emails if e]:
+            interviewer = Interviewer.objects.filter(email=email).first()
+
+            result.append({
+                "interviewer_id": interviewer.id if interviewer else None,
+                "name": email.split("@")[0].replace(".", " ").title(),
+                "email": email
+            })
+
+        return result
 
 
 class MRFCreateUpdateSerializer(serializers.ModelSerializer):
