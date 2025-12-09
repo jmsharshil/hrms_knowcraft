@@ -153,6 +153,10 @@ class MRF(models.Model):
     technical_interview_1 = models.CharField(max_length=255, help_text="Name of interviewer")
     technical_interview_2 = models.CharField(max_length=255, blank=True, null=True, help_text="Optional")
     final_interview = models.CharField(max_length=255, help_text="Name of final interviewer")
+
+    interviewer_email_1 = models.EmailField(max_length=50, help_text="Email of interviewer")
+    interviewer_email_2 = models.EmailField(max_length=50, blank=True, null=True, help_text="Optional")
+    interviewer_email_final = models.EmailField(max_length=50, help_text="Email of final interviewer")
     
     # HR Use Only
     requisition_no = models.CharField(max_length=50, unique=True, blank=True, null=True)

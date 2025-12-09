@@ -110,13 +110,13 @@ def get_emails_for_role(candidate, roles):
                 emails.add(candidate.job.assigned_to_consultancy.email)
 
         if role == "interviewer_1":
-            emails.add(candidate.job.mrf.technical_interview_1)
+            emails.add(candidate.job.mrf.interviewer_email_1)
 
         if role == "interviewer_2":
-            emails.add(candidate.job.mrf.technical_interview_1)
+            emails.add(candidate.job.mrf.interviewer_email_2)
         
         if role == "interviewe_3":
-            emails.add(candidate.job.mrf.final_interview)
+            emails.add(candidate.job.mrf.interviewer_email_final)
                 
         role_emails = list(
                 company.users.filter(role=role)

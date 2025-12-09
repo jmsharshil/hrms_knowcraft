@@ -235,9 +235,9 @@ class MRFDetailSerializer(serializers.ModelSerializer):
     
     def get_interviewers(self, obj):
         emails = [
-            obj.technical_interview_1,
-            obj.technical_interview_2,
-            obj.final_interview
+            obj.interviewer_email_1,
+            obj.interviewer_email_2,
+            obj.interviewer_email_final
         ]
 
         result = []
@@ -271,7 +271,8 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
             'key_responsibility', 'required_qualifications', 'experience_range',
             'skills_competencies', 'business_justification',
             'expected_date_of_joining', 'case_study_required', 'technical_interview_1',
-            'technical_interview_2', 'final_interview'
+            'technical_interview_2', 'final_interview',
+            'interviewer_email_1','interviewer_email_2','interviewer_email_final'
         ]
     
     def validate(self, data):

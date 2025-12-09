@@ -490,6 +490,7 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
         if cfg.get("schedule_link"):
             try:
                 mrf = candidate.job.mrf
+                from slots.models import Interviewer
                 # from rest_framework.test import APIRequestFactory
                 # from mrf.views import MRFViewSet
                 # request = APIRequestFactory().get(f'api/mrf/mrfs/{mrf.id}/interviewers/')
@@ -497,16 +498,14 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
                 # resp = response.data
                 if stage == 'shortlisted':
                     # interviewer_id = resp['interviewers'][0]['interviewer_id']
-                    interviewer_id = mrf.technical_interview_1
-                    print("PPPPPPPP1",interviewer_id)
+                    interviewer_email = mrf.interviewer_email_1
                 elif stage == "interview_next_2":
-                    interviewer_id = mrf.technical_interview_2
+                    interviewer_email = mrf.interviewer_email_2
                     # interviewer_id = resp['interviewers'][1]['interviewer_id']
-                    print("PPPPPPPP2",interviewer_id)
                 elif stage == "interview_next_final":
-                    interviewer_id = mrf.final_interview
+                    interviewer_email = mrf.interviewer_email_final
                     # interviewer_id = resp['interviewers'][2]['interviewer_id']
-                    print("PPPPPPPP3",interviewer_id)
+                interviewer_id = Interviewer.objects.filter(email=interviewer_email).first().id
                 schedule_link = (
                         f"http://127.0.0.1:8000/api/slots/available/"
                         f"?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
