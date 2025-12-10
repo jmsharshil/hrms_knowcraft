@@ -127,7 +127,7 @@ class MRF(models.Model):
     team = models.CharField(max_length=255)
     position_department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name='position_mrfs')
     no_of_vacancies = models.PositiveIntegerField(default=1)
-    location = models.CharField(max_length=50, default='ahmedabad')
+    location = models.CharField(max_length=255, default='ahmedabad')
     
     # Optional Fields
     resigned_crafter_name = models.CharField(max_length=255, blank=True, null=True)
@@ -159,7 +159,7 @@ class MRF(models.Model):
     interviewer_email_final = models.EmailField(max_length=50, help_text="Email of final interviewer")
     
     # HR Use Only
-    requisition_no = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    requisition_no = models.CharField(max_length=255, unique=True, blank=True, null=True)
     date_received = models.DateField(blank=True, null=True)
     
     # Workflow State
