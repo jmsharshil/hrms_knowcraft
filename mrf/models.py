@@ -150,9 +150,9 @@ class MRF(models.Model):
     
     # Interview Details
     case_study_required = models.CharField(max_length=10, choices=CASE_STUDY_CHOICES, default='no')
-    technical_interview_1 = models.CharField(max_length=255, help_text="Name of interviewer")
+    technical_interview_1 = models.CharField(max_length=255, help_text="Name of interviewer", blank=True, null=True)
     technical_interview_2 = models.CharField(max_length=255, blank=True, null=True, help_text="Optional")
-    final_interview = models.CharField(max_length=255, help_text="Name of final interviewer")
+    final_interview = models.CharField(max_length=255, help_text="Name of final interviewer", blank=True, null=True)
 
     interviewer_email_1 = models.EmailField(max_length=50, help_text="Email of interviewer")
     interviewer_email_2 = models.EmailField(max_length=50, blank=True, null=True, help_text="Optional")
