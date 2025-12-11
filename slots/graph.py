@@ -4,6 +4,8 @@ from datetime import datetime, timezone,time
 
 from zoneinfo import ZoneInfo
 from django.conf import settings
+from dateutil import parser as dateutil_parser
+import zoneinfo
 
 IST = ZoneInfo("Asia/Kolkata")
 
@@ -22,52 +24,87 @@ def get_graph_token():
     r.raise_for_status()
     return r.json()["access_token"]
 
+WINDOWS_TO_IANA = {
+    "India Standard Time": "Asia/Kolkata",
+    "UTC": "UTC",
+    "Pacific Standard Time": "America/Los_Angeles",
+    # add others you use...
+}
+
+def _localize_graph_datetime(dt_str, tz_str):
+    """
+    Given Graph's dt_str and tz_str, return an aware datetime.
+    dt_str may include offset (ISO) or be naive. tz_str is Graph's timeZone (Windows name).
+    """
+    # parse with dateutil (handles offset if present)
+    dt = dateutil_parser.isoparse(dt_str)
+
+    if dt.tzinfo is not None:
+        return dt  # already aware
+
+    # dt is naive — try to derive tz from tz_str
+    if tz_str:
+        iana = WINDOWS_TO_IANA.get(tz_str) or tz_str  # try using mapping, fall back
+        try:
+            tz = zoneinfo.ZoneInfo(iana)
+        except Exception:
+            # fallback to project timezone
+            tz = zoneinfo.ZoneInfo(settings.TIME_ZONE)
+        return dt.replace(tzinfo=tz)
+
+    # no tz_str provided — fallback to project timezone
+    return dt.replace(tzinfo=zoneinfo.ZoneInfo(settings.TIME_ZONE))
 
 def get_interviewer_busy_slots(email, start_ist, end_ist):
-    """Fetch ALL busy Outlook events in IST."""
-
+    """Fetch ALL busy Outlook events in IST and return aware datetimes converted to IST ZoneInfo objects."""
     token = get_graph_token()
 
-    # Convert IST → UTC
+    # Send times to Graph in UTC ISO format (Graph accepts ISO with offset)
     start_utc = start_ist.astimezone(timezone.utc).isoformat()
     end_utc = end_ist.astimezone(timezone.utc).isoformat()
 
     url = f"https://graph.microsoft.com/v1.0/users/{email}/calendarView"
-
-    params = {
-        "startDateTime": start_utc,
-        "endDateTime": end_utc,
-    }
-
+    params = {"startDateTime": start_utc, "endDateTime": end_utc}
     headers = {
         "Authorization": f"Bearer {token}",
+        # Prefer Graph to return values in the specified timezone; still, the API may return dateTime + timeZone separately.
         "Prefer": 'outlook.timezone="Asia/Kolkata"',
     }
 
     r = requests.get(url, headers=headers, params=params)
     r.raise_for_status()
-
     events = r.json().get("value", [])
 
     busy = []
-
     for event in events:
         try:
-            start = datetime.fromisoformat(event["start"]["dateTime"])
-            end = datetime.fromisoformat(event["end"]["dateTime"])
+            ev_start = event.get("start", {})
+            ev_end = event.get("end", {})
+            start_dt_str = ev_start.get("dateTime")
+            end_dt_str = ev_end.get("dateTime")
+            start_tz = ev_start.get("timeZone")
+            end_tz = ev_end.get("timeZone")
 
-            if start.tzinfo is None:
-                start = start.replace(tzinfo=timezone.utc)
-            if end.tzinfo is None:
-                end = end.replace(tzinfo=timezone.utc)
+            if not start_dt_str or not end_dt_str:
+                continue
+
+            # Get aware datetimes (respect Graph-provided timezone if naive)
+            start_aware = _localize_graph_datetime(start_dt_str, start_tz)
+            end_aware = _localize_graph_datetime(end_dt_str, end_tz)
+
+            # Convert to IST (ZoneInfo) for consistent display
+            ist = ZoneInfo("Asia/Kolkata")
+            start_in_ist = start_aware.astimezone(ist)
+            end_in_ist = end_aware.astimezone(ist)
 
             busy.append({
-                "start": start.astimezone(IST),
-                "end": end.astimezone(IST),
+                "start": start_in_ist,
+                "end": end_in_ist,
                 "reason": event.get("subject", "Busy"),
             })
 
-        except:
+        except Exception:
+            # skip malformed events but don't crash
             continue
 
     return busy

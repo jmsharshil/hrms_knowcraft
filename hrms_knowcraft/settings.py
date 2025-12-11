@@ -324,8 +324,4 @@ MICROSOFT_TENANT_ID = "d902dae3-a93d-4dbb-86cd-56fed3603160"
 GRAPH_API_SCOPE = ["https://graph.microsoft.com/.default"]
 GRAPH_API_TOKEN_URL = f"https://login.microsoftonline.com/{MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
 
-TIME_ZONE = "Asia/Kolkata"
-USE_TZ = True
-
-
 USE_L10N = True
