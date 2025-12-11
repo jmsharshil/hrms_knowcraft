@@ -11,12 +11,12 @@ class JobListSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     assigned_to_name = serializers.CharField(
-        source='assigned_to_consultancy.full_name',
+        source='assigned_to_consultancy.name',
         read_only=True,
         allow_null=True
     )
     assigned_internal_name = serializers.CharField(
-        source='assigned_to_internal_hr.full_name',
+        source='assigned_to_internal_hr.name',
         read_only=True,
         allow_null=True
     )
@@ -53,7 +53,7 @@ class JobDetailSerializer(serializers.ModelSerializer):
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     
     assigned_to_name = serializers.CharField(
-        source='assigned_to_consultancy.full_name',
+        source='assigned_to_consultancy.name',
         read_only=True,
         allow_null=True
     )
@@ -63,14 +63,14 @@ class JobDetailSerializer(serializers.ModelSerializer):
         allow_null=True
     )
     assigned_by_name = serializers.CharField(
-        source='assigned_by.full_name',
+        source='assigned_by.name',
         read_only=True,
         allow_null=True
     )
     
     # NEW: internal HR fields
     assigned_internal_name = serializers.CharField(
-        source='assigned_to_internal_hr.full_name',
+        source='assigned_to_internal_hr.name',
         read_only=True,
         allow_null=True
     )
@@ -80,13 +80,13 @@ class JobDetailSerializer(serializers.ModelSerializer):
         allow_null=True
     )
     assigned_internal_by_name = serializers.CharField(
-        source='assigned_internal_by.full_name',
+        source='assigned_internal_by.name',
         read_only=True,
         allow_null=True
     )
     
     posted_by_name = serializers.CharField(
-        source='posted_by.full_name',
+        source='posted_by.name',
         read_only=True,
         allow_null=True
     )
@@ -251,7 +251,7 @@ class JobApplicationLinkSerializer(serializers.ModelSerializer):
     platform_display = serializers.CharField(source='get_platform_display', read_only=True)
     application_url = serializers.SerializerMethodField()
     created_by_name = serializers.CharField(
-        source='created_by.full_name',
+        source='created_by.name',
         read_only=True,
         allow_null=True
     )
@@ -290,7 +290,7 @@ class JobApplicationLinkCreateSerializer(serializers.ModelSerializer):
         if not value.is_active:
             raise serializers.ValidationError("Cannot create link for inactive job")
         
-        if value.status not in ['open', 'assigned_to_consultancy', 'assigned_to_internal_hr','in_progress']:
+        if value.status not in ['open', 'assigned_to_consultancy', 'assigned_to_internal_hr','in_progress','assigned_to_both']:
             raise serializers.ValidationError("Job is not accepting applications")
         
         return value
@@ -325,7 +325,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     source_display = serializers.CharField(source='get_source_display', read_only=True)
     submitted_by_name = serializers.CharField(
-        source='submitted_by.full_name',
+        source='submitted_by.name',
         read_only=True,
         allow_null=True
     )
@@ -378,7 +378,7 @@ class JobApplicationCreateSerializer(serializers.ModelSerializer):
         if not value.is_active:
             raise serializers.ValidationError("This job is no longer active")
         
-        if value.status not in ['open', 'assigned_to_consultancy', 'in_progress']:
+        if value.status not in ['open', 'assigned_to_consultancy', 'in_progress','assigned_to_both']:
             raise serializers.ValidationError("This job is not accepting applications")
         
         return value
@@ -446,7 +446,7 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
             allowed_statuses = [
                 'open',
                 'assigned_to_consultancy',
-                'in_progress',
+                'assigned_to_both',
             ]
 
             if link.job.status not in allowed_statuses:
@@ -571,12 +571,12 @@ class JobAssignmentHistorySerializer(serializers.ModelSerializer):
     """Serializer for job history"""
     
     consultancy_name = serializers.CharField(
-        source='consultancy.full_name',
+        source='consultancy.name',
         read_only=True,
         allow_null=True
     )
     performed_by_name = serializers.CharField(
-        source='performed_by.full_name',
+        source='performed_by.name',
         read_only=True,
         allow_null=True
     )

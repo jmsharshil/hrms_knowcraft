@@ -367,7 +367,7 @@ class JobViewSet(viewsets.ModelViewSet):
         job.visible_to_consultancy = True
 
         # You can choose status; 'in_progress' makes sense when both are working on it
-        job.status = 'in_progress'
+        job.status = 'assigned_to_both'
 
         job.save()
 
@@ -549,6 +549,7 @@ class JobViewSet(viewsets.ModelViewSet):
             'total': queryset.count(),
             'open': queryset.filter(status='open').count(),
             'assigned_to_consultancy': queryset.filter(status='assigned_to_consultancy').count(),
+            'assigned_to_both': queryset.filter(status='assigned_to_both').count(),
             'in_progress': queryset.filter(status='in_progress').count(),
             'filled': queryset.filter(status='filled').count(),
             'closed': queryset.filter(status='closed').count(),

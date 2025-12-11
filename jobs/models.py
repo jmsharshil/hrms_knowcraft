@@ -11,7 +11,8 @@ class Job(models.Model):
         ('open', 'Open'),
         ('assigned_to_consultancy', 'Assigned to Consultancy'),
         ('assigned_to_internal_hr', 'Assigned to Internal HR'),
-        ('in_progress', 'In Progress'),
+        ('assigned_to_both',"Assigned to Both"),
+        # ('in_progress', 'In Progress'),
         ('filled', 'Position Filled'),
         ('closed', 'Closed'),
         ('cancelled', 'Cancelled'),
@@ -464,13 +465,6 @@ class JobApplication(models.Model):
     class Meta:
         db_table = 'job_applications'
         ordering = ['-created_at']
-        constraints = [
-            UniqueConstraint(
-                fields=['job', 'candidate_email'],
-                name='unique_job_candidate_email_nonnull',
-                condition=~Q(candidate_email=None)  # only enforce uniqueness when candidate_email IS NOT NULL
-            ),
-        ]
         indexes = [
             models.Index(fields=['status']),
             models.Index(fields=['source']),

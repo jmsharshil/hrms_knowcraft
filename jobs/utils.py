@@ -600,6 +600,9 @@ def create_resume_report_html(parsed_resume, job):
 
 from django.db import transaction
 from .models import JobApplication
+from django.utils import timezone
+from datetime import timedelta
+
 def parse_resume_task(application,resume_file,job):
     # ---- AI extraction ----
     parsed = parse_resume_ai(resume_file)
@@ -618,7 +621,9 @@ def parse_resume_task(application,resume_file,job):
     location = parsed.get("location")
     current_employer = parsed.get("current_employer")
     if email:
-        duplicate_application = JobApplication.objects.filter(candidate_email=email).first()
+        today = timezone.now()
+        six_months_ago = today - timedelta(days=6*30)
+        duplicate_application = JobApplication.objects.filter(candidate_email=email,job=job,created_at__gte=six_months_ago).first()
         if duplicate_application:
             print("Duplicate resume found!")
             from onboarding.utils.notifications import _NOTIFICATION_MAP
@@ -634,7 +639,7 @@ def parse_resume_task(application,resume_file,job):
                     send_text(to=duplicate_application.candidate_phone,text=sms_text)
             except Exception as e:
                 print("Error Occured During Sending Notification:",e)
-            return
+
     # ---- AI scoring ----
     ai_match = calculate_match_score(parsed, job)
     ai_score = int(ai_match.get('score'))
