@@ -511,7 +511,7 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
                 else:
                     interviewer_id = None
                 schedule_link = (
-                        f"http://127.0.0.1:8000/api/slots/available/"
+                        f"http://localhost:5173/api/slots/available/"
                         f"?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
                     )
                 email_cfg["text"] = email_cfg["text"].format(schedule_link=schedule_link)
