@@ -624,8 +624,10 @@ def parse_resume_task(application,resume_file,job):
         today = timezone.now()
         six_months_ago = today - timedelta(days=6*30)
         duplicate_application = JobApplication.objects.filter(candidate_email=email,job=job,created_at__gte=six_months_ago).first()
+        duplicated = False
         if duplicate_application:
             print("Duplicate resume found!")
+            duplicated = True
             from onboarding.utils.notifications import _NOTIFICATION_MAP
             from onboarding.utils.sender import send_email,send_text
             from onboarding.utils.templates import HTML_TEMPLATES
@@ -668,4 +670,5 @@ def parse_resume_task(application,resume_file,job):
         application.location = location
         application.match_score = ai_score
         application.resume_report.save(f"{name}_{email}_resume_report.pdf", pdf_file, save=True)
+        application.is_duplicate = duplicated
         application.save()
