@@ -15,7 +15,7 @@ import requests
 from slots.graph import get_graph_token,fetch_meeting_recording,fetch_meeting_transcript
 from jobs.serializers import JobApplicationSerializer
 from jobs.models import JobApplication
-
+from rest_framework import permissions
 
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -151,7 +151,7 @@ class CandidateBookSlotView(APIView):
         "interviewer_id": "<uuid>"
     }
     """
-
+    permission_classes = [permissions.AllowAny]
     def post(self, request, candidate_id):
 
         # 1) Validate candidate
