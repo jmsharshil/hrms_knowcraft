@@ -461,6 +461,8 @@ class JobApplication(models.Model):
 
     joining_date = models.DateField(null=True, blank=True) 
     is_active = models.BooleanField(default=True) #Status of Application (for archiving)
+
+    is_duplicate = models.BooleanField(default=False)
     
     class Meta:
         db_table = 'job_applications'
