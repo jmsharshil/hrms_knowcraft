@@ -103,6 +103,12 @@ class MRF(models.Model):
         ('no', 'No'),
     ]
     
+    JOB_TYPE_CHOICES =[
+        ('work_from_office','Work From Office'),
+        ('work_from_home',"Work From Home"),
+        ('hybrid','Hybrid')
+    ]
+
     # Primary Key
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     
@@ -128,6 +134,7 @@ class MRF(models.Model):
     position_department = models.ForeignKey(Department, on_delete=models.PROTECT, related_name='position_mrfs')
     no_of_vacancies = models.PositiveIntegerField(default=1)
     location = models.CharField(max_length=255, default='ahmedabad')
+    job_type = models.CharField(max_length=50,choices=JOB_TYPE_CHOICES,default="work_from_office")
     
     # Optional Fields
     resigned_crafter_name = models.CharField(max_length=255, blank=True, null=True)
