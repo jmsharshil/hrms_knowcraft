@@ -628,20 +628,6 @@ def parse_resume_task(application,resume_file,job):
         if duplicate_application:
             print("Duplicate resume found!")
             duplicated = True
-            from onboarding.utils.notifications import _NOTIFICATION_MAP
-            from onboarding.utils.sender import send_email,send_text
-            from onboarding.utils.templates import HTML_TEMPLATES
-            template = HTML_TEMPLATES['duplicate_rejected'].format(candidate=duplicate_application)
-            subject = _NOTIFICATION_MAP['duplicate_rejected']['email']['subject']
-            text = _NOTIFICATION_MAP['duplicate_rejected']['email']['text']
-            sms_text =  _NOTIFICATION_MAP['duplicate_rejected']['sms']
-            try:
-                send_email(to=duplicate_application.candidate_email,subject=subject,text=text,template=template)
-                if duplicate_application.candidate_phone:
-                    send_text(to=duplicate_application.candidate_phone,text=sms_text)
-            except Exception as e:
-                print("Error Occured During Sending Notification:",e)
-
     # ---- AI scoring ----
     ai_match = calculate_match_score(parsed, job)
     ai_score = int(ai_match.get('score'))
@@ -672,3 +658,9 @@ def parse_resume_task(application,resume_file,job):
         application.resume_report.save(f"{name}_{email}_resume_report.pdf", pdf_file, save=True)
         application.is_duplicate = duplicated
         application.save()
+    
+    if application.is_duplicate:
+        from onboarding.utils.engine import automation_engine
+        automation_engine(application,application.status,'duplicate_rejected')
+    if application.match_score >= 75:
+        automation_engine(application,application.status,'shortlisted')
