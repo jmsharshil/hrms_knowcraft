@@ -175,7 +175,7 @@ class MRFListSerializer(serializers.ModelSerializer):
         fields = [
             'mrf_name',
             'id', 'requisition_no', 'department_name', 'designation_name', 
-            'no_of_vacancies', 'location', 'status', 'status_display',
+            'no_of_vacancies', 'location', 'job_type', 'status', 'status_display',
             'requested_by_name', 'workflow_name', 'date_of_request', 
             'created_at', 'updated_at'
         ]
@@ -190,6 +190,7 @@ class MRFDetailSerializer(serializers.ModelSerializer):
     requested_by_email = serializers.CharField(source='requested_by.email', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     location_display = serializers.CharField(source='get_location_display', read_only=True)
+    job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
     case_study_required_display = serializers.CharField(source='get_case_study_required_display', read_only=True)
     workflow_name = serializers.CharField(source='workflow_template.name', read_only=True)
     workflow_summary = serializers.SerializerMethodField()
@@ -206,7 +207,7 @@ class MRFDetailSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = [
             'mrf_name',
-            'id', 'requisition_no', 'date_received', 'status', 
+            'id', 'requisition_no', 'date_received', 'status',
             'current_approval_level', 'created_at', 'updated_at', 
             'submitted_at', 'approved_at', 'requested_by', 
             'requested_by_name', 'requested_by_designation', 'workflow_template'
@@ -269,7 +270,7 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
             'workflow_template', 'department', 'designation', 'team', 'position_department',
             'no_of_vacancies', 'location', 'resigned_crafter_name', 'resigned_crafter_ecode',
             'key_responsibility', 'required_qualifications', 'experience_range',
-            'skills_competencies', 'business_justification',
+            'skills_competencies', 'business_justification','job_type',
             'expected_date_of_joining', 'case_study_required', 'technical_interview_1',
             'technical_interview_2', 'final_interview',
             'interviewer_email_1','interviewer_email_2','interviewer_email_final'

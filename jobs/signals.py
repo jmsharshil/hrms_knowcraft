@@ -31,6 +31,7 @@ def create_job_on_mrf_approval(sender, instance, created, **kwargs):
             department=instance.department,
             designation=instance.designation,
             location=instance.location,
+            job_type=instance.job_type,
             no_of_positions=instance.no_of_vacancies,
             key_responsibility=instance.key_responsibility,
             required_qualifications=instance.required_qualifications,

@@ -50,6 +50,7 @@ class Job(models.Model):
         related_name='jobs'
     )
     location = models.CharField(max_length=100)
+    job_type = models.CharField(max_length=50,default="work_from_office")
     no_of_positions = models.PositiveIntegerField(default=1)
     positions_filled = models.PositiveIntegerField(default=0)
     

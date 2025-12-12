@@ -28,7 +28,7 @@ class JobListSerializer(serializers.ModelSerializer):
         model = Job
         fields = [
             'id', 'job_title', 'department', 'department_name',
-            'designation', 'designation_name', 'location',
+            'designation', 'designation_name', 'location','job_type',
             'no_of_positions', 'positions_filled', 'remaining_positions',
             'status', 'status_display', 'priority', 'priority_display',
             'assigned_to_consultancy', 'assigned_to_name',
@@ -160,6 +160,7 @@ class JobCreateSerializer(serializers.ModelSerializer):
             department=mrf.department,
             designation=mrf.designation,
             location=mrf.location,
+            job_type=mrf.job_type,
             no_of_positions=mrf.no_of_vacancies,
             key_responsibility=mrf.key_responsibility,
             required_qualifications=mrf.required_qualifications,
@@ -192,7 +193,7 @@ class JobUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Job
         fields = [
-            'priority', 'expected_closure_date', 'status',
+            'priority', 'expected_closure_date', 'status','job_type',
             'is_active', 'visible_to_consultancy', 'job_description'
         ]
     
@@ -342,7 +343,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'experience_years','relevant_experience_years', 'current_ctc', 'expected_ctc', 'notice_period',
             'linkedin_url', 'portfolio_url','skill','education','location','current_employer','match_score', 'status', 'status_display',
             'source', 'source_display', 'platform_name', 'application_link','is_duplicate',
-            'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report',
+            'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report','job_type',
             'created_at', 'updated_at'
         ]
     
