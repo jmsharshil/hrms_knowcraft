@@ -25,6 +25,12 @@ class Job(models.Model):
         ('urgent', 'Urgent'),
     ]
     
+    JOB_TYPE_CHOICES =[
+        ('work_from_office','Work From Office'),
+        ('work_from_home',"Work From Home"),
+        ('hybrid','Hybrid')
+    ]
+    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     
     # Link to MRF
@@ -50,7 +56,7 @@ class Job(models.Model):
         related_name='jobs'
     )
     location = models.CharField(max_length=100)
-    job_type = models.CharField(max_length=50,default="work_from_office")
+    job_type = models.CharField(max_length=50,choices=JOB_TYPE_CHOICES,default="work_from_office")
     no_of_positions = models.PositiveIntegerField(default=1)
     positions_filled = models.PositiveIntegerField(default=0)
     

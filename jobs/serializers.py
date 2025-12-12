@@ -23,12 +23,13 @@ class JobListSerializer(serializers.ModelSerializer):
     mrf_requisition_no = serializers.CharField(source='mrf.requisition_no', read_only=True)
     applications_count = serializers.SerializerMethodField()
     remaining_positions = serializers.SerializerMethodField()
+    job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
     
     class Meta:
         model = Job
         fields = [
             'id', 'job_title', 'department', 'department_name',
-            'designation', 'designation_name', 'location','job_type',
+            'designation', 'designation_name', 'location','job_type', 'job_type_display',
             'no_of_positions', 'positions_filled', 'remaining_positions',
             'status', 'status_display', 'priority', 'priority_display',
             'assigned_to_consultancy', 'assigned_to_name',
@@ -95,7 +96,7 @@ class JobDetailSerializer(serializers.ModelSerializer):
     applications_summary = serializers.SerializerMethodField()
     application_links_count = serializers.SerializerMethodField()
     remaining_positions = serializers.SerializerMethodField()
-    
+    job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
     class Meta:
         model = Job
         fields = '__all__'

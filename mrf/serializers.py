@@ -169,13 +169,13 @@ class MRFListSerializer(serializers.ModelSerializer):
     requested_by_name = serializers.CharField(source='requested_by.name', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     workflow_name = serializers.CharField(source='workflow_template.name', read_only=True)
-    
+    job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
     class Meta:
         model = MRF
         fields = [
             'mrf_name',
             'id', 'requisition_no', 'department_name', 'designation_name', 
-            'no_of_vacancies', 'location', 'job_type', 'status', 'status_display',
+            'no_of_vacancies', 'location', 'job_type', 'job_type_display','status', 'status_display',
             'requested_by_name', 'workflow_name', 'date_of_request', 
             'created_at', 'updated_at'
         ]
@@ -262,7 +262,7 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         required=False,
         help_text="If not provided, the default workflow will be used"
     )
-    
+    job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
     class Meta:
         model = MRF
         fields = [
@@ -270,7 +270,7 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
             'workflow_template', 'department', 'designation', 'team', 'position_department',
             'no_of_vacancies', 'location', 'resigned_crafter_name', 'resigned_crafter_ecode',
             'key_responsibility', 'required_qualifications', 'experience_range',
-            'skills_competencies', 'business_justification','job_type',
+            'skills_competencies', 'business_justification','job_type', 'job_type_display',
             'expected_date_of_joining', 'case_study_required', 'technical_interview_1',
             'technical_interview_2', 'final_interview',
             'interviewer_email_1','interviewer_email_2','interviewer_email_final'
