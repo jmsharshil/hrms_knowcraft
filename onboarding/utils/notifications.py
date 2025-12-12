@@ -688,16 +688,34 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
         logger.error(f"No job linked with candidate {candidate.id}")
         return []
     try:
-        mrf = job.mrf
 
         for role in receivers:
 
             # HR (comes from MRF)
-            # if role == "hr":
-            #     if mrf and mrf.hr and mrf.hr.email:
-            #         emails.add(mrf.hr.email)
-            #         continue
+            if role == "hr":
+                if job and job.assigned_to_internal_hr and job.assigned_to_internal_hr.email:
+                    emails.add(job.assigned_to_internal_hr.email)
+                    continue
+            if role == "consultancy":
+                if job and job.assigned_to_consultancy and job.assigned_to_consultancy.email:
+                    emails.add(job.assigned_to_consultancy.email)
+                    continue
             
+            if role == 'department_head':
+                if job and job.mrf and job.mrf.requested_by and job.mrf.requested_by.email:
+                   emails.add(job.mrf.requested_by.email) 
+                continue
+
+            if role == 'hr_manager':
+                if job and job.assigned_by and job.assigned_by.email:
+                   emails.add(job.assigned_by.email) 
+                continue
+
+            if role == 'admin':
+                admin = User.objects.filter(role='admin').exclude(email__isnull=True).exclude(email="").first()
+                emails.add(admin.email)
+                continue
+
             if role == "referer":
                 # if candidate and candidate.referer:
                 #     emails.add(candidate.referer)
@@ -706,16 +724,6 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
             if role == "internal_team":
                 #To be written 
                 continue
-
-            # Users from Company by role
-            role_emails = list(
-                User.objects.filter(role=role).first()
-                .exclude(email__isnull=True)
-                .exclude(email="")
-                .values_list("email", flat=True)
-            )
-            for e in role_emails:
-                emails.add(e)
 
         return list(emails)
     except Exception as e:

@@ -12,16 +12,16 @@ logger = logging.getLogger(__name__)
 NOTIFY_STATES = {
     # Screening & Interview
     "shortlisted",
-    "interview_pending_1",
-    "interview_done_1",
+    # "interview_pending_1",
+    # "interview_done_1",
     "interview_rejected_1",
     "interview_next_2",
-    "interview_pending_2",
-    "interview_done_2",
+    # "interview_pending_2",
+    # "interview_done_2",
     "interview_rejected_2",
     "interview_next_final",
-    "interview_pending_final",
-    "interview_done_final",
+    # "interview_pending_final",
+    # "interview_done_final",
     "interview_rejected_final",
     # Approval
     "approved",
@@ -88,7 +88,7 @@ NOTIFY_INTERNAL_STATES = {
     "joining_poned",           # Internal delay notice
     "joined",                  # Broadcast to departments
     # Duplicate or general rejection internal notices
-    "duplicate_rejected",
+    # "duplicate_rejected",
     "rejected",
 }
 

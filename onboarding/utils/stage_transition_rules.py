@@ -5,10 +5,10 @@ ALLOWED_TRANSITIONS = {
     # SHORTLISTING & INTERVIEW
     "shortlisted": ["interview_pending_1"],
     "interview_pending_1": ["interview_done_1"],
-    "interview_done_1": ["interview_next_2","interview_next_final", "interview_rejected_1"],
+    "interview_done_1": ["interview_next_2","interview_next_final", "interview_rejected_1","selected"],
     "interview_next_2":["interview_pending_2"],
     "interview_pending_2": ["interview_done_2"],
-    "interview_done_2": ["interview_next_final", "interview_rejected_2"],
+    "interview_done_2": ["interview_next_final", "interview_rejected_2","selected"],
     "interview_next_final":["interview_pending_final"],
     "interview_pending_final": ["interview_done_final"],
     "interview_done_final": ["selected", "interview_rejected_final"],

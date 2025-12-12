@@ -299,6 +299,7 @@ class JobApplication(models.Model):
     STATUS_CHOICES = [
     # Submission
     ("received", "Received"),
+    ("duplicate_rejected","Duplicate Rejected"),
     # Screening & Interview
     ("shortlisted", "Shortlisted"),
     ("interview_pending_1", "Interview 1 Pending"),

@@ -245,6 +245,13 @@ class CandidateBookSlotView(APIView):
             [interviewer.email],
         )
 
+        from onboarding.utils.engine import automation_engine
+        if candidate.status == 'shortlisted':
+            automation_engine(candidate,candidate.status,'interview_pending_1')
+        elif candidate.status == 'interview_next_2':
+            automation_engine(candidate,candidate.status,'interview_pending_2')
+        elif candidate.status == 'interview_next_final':
+            automation_engine(candidate,candidate.status,'interview_pending_final')
         return Response(BookingSerializer(booking).data, status=201)
 
 
