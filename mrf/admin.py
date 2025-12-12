@@ -71,7 +71,7 @@ class MRFAdmin(admin.ModelAdmin):
                       'no_of_vacancies', 'location')
         }),
         ('Optional Fields', {
-            'fields': ('resigned_crafter_name', 'resigned_crafter_ecode'),
+            'fields': ('resigned_crafter_name', 'resigned_crafter_ecode', 'resigned_crafter_designation'),
             'classes': ('collapse',)
         }),
         ('Job Details', {

@@ -269,7 +269,7 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
             'mrf_name',
             'workflow_template', 'department', 'designation', 'team', 'position_department',
             'no_of_vacancies', 'location', 'resigned_crafter_name', 'resigned_crafter_ecode',
-            'key_responsibility', 'required_qualifications', 'experience_range',
+            'resigned_crafter_designation','key_responsibility', 'required_qualifications', 'experience_range',
             'skills_competencies', 'business_justification','job_type', 'job_type_display',
             'expected_date_of_joining', 'case_study_required', 'technical_interview_1',
             'technical_interview_2', 'final_interview',
