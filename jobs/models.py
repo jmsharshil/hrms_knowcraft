@@ -465,6 +465,8 @@ class JobApplication(models.Model):
     is_active = models.BooleanField(default=True) #Status of Application (for archiving)
 
     is_duplicate = models.BooleanField(default=False)
+
+    slot_link = models.URLField(null=True,blank=True)
     
     class Meta:
         db_table = 'job_applications'

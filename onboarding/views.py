@@ -28,6 +28,20 @@ class UpdatestatusAPI(APIView):
 
         ok,reason = automation_engine(application, old_status, new_status)
         if ok:
+            from slots.models import Interviewer
+            if application.status == 'shortlisted':
+                interviewer_email = application.job.mrf.interviewer_email_1
+            elif application.status == "interview_next_2":
+                interviewer_email = application.job.mrf.interviewer_email_2
+            elif application.status == "interview_next_final":
+                interviewer_email = application.job.mrf.interviewer_email_final
+            interviewer = Interviewer.objects.filter(email=interviewer_email).first()
+            if interviewer:
+                interviewer_id = interviewer.id
+            else:
+                interviewer_id = None
+            application.slot_link = f"http://localhost:5173/api/slots/available/?candidate_id={application.id}&interviewer_id={interviewer_id}"
+            application.save()
             return Response({"success": ok,"status":application.status})
         else:
             return Response({"Error:",reason})
