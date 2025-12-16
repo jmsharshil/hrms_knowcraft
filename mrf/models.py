@@ -139,6 +139,7 @@ class MRF(models.Model):
     # Optional Fields
     resigned_crafter_name = models.CharField(max_length=255, blank=True, null=True)
     resigned_crafter_ecode = models.CharField(max_length=100, blank=True, null=True)
+    resigned_crafter_designation = models.CharField(max_length=100, blank=True, null=True)
     
     # Job Details
     key_responsibility = models.TextField()

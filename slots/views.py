@@ -49,8 +49,8 @@ class AvailableSlotsForInterviewerView(APIView):
             "free_slots": FreeSlotSerializer(all_free, many=True).data,
             "busy_slots": [
                 {
-                    "start": b["start"],
-                    "end": b["end"],
+                    "start": b["start"].strftime("%Y-%m-%d %H:%M:%S"),   # -> 2025-12-11T14:30:00+05:30
+                    "end": b["end"].strftime("%Y-%m-%d %H:%M:%S"),
                     "reason": b["reason"]
                 }
                 for b in all_busy
