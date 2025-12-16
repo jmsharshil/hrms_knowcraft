@@ -344,7 +344,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'experience_years','relevant_experience_years', 'current_ctc', 'expected_ctc', 'notice_period',
             'linkedin_url', 'portfolio_url','skill','education','location','current_employer','match_score', 'status', 'status_display',
             'source', 'source_display', 'platform_name', 'application_link','is_duplicate',
-            'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report',
+            'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report','slot_link',
             'created_at', 'updated_at'
         ]
     
