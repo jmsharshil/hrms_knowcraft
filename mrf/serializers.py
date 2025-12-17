@@ -3,7 +3,7 @@ from rest_framework import serializers
 from slots.models import Interviewer
 from .models import (
     Department, Designation, MRF, MRFApproval, MRFRevision, 
-    ApprovalWorkflow, WorkflowTemplate
+    ApprovalWorkflow, WorkflowTemplate,ExpectedJoiningDate
 )
 from accounts.models import User
 from django.db import transaction
@@ -409,3 +409,9 @@ class MRFApproveRejectSerializer(serializers.Serializer):
                 'rejection_reason': 'Rejection reason is required when rejecting an MRF'
             })
         return data
+    
+class ExpectedJoiningDateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExpectedJoiningDate
+        fields = ['id', 'is_active', 'created_at','designation','days']
+        read_only_fields = ['id', 'created_at']
