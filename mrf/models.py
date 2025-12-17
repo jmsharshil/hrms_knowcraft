@@ -306,3 +306,17 @@ class MRFRevision(models.Model):
     
     def __str__(self):
         return f"Revision for {self.mrf.requisition_no or self.mrf.id}"
+    
+class ExpectedJoiningDate(models.Model):
+    """Expected joining date for MRF according to designation-department"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    designation = models.ForeignKey(Designation, on_delete=models.PROTECT, related_name='expected_joining')
+    days = models.IntegerField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"TOT-{self.designation}"

@@ -323,10 +323,13 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         validated_data['requested_by'] = user
         validated_data['requested_by_name'] = user.name
         validated_data['requested_by_designation'] = user.role
-        from .utils import get_auto_salary_range
+        from .utils import get_auto_salary_range,get_expected_date_of_joining
         salary_range = get_auto_salary_range(validated_data['department'],validated_data['designation'])
         if salary_range:
-            validated_data['salary_range'] = salary_range   
+            validated_data['salary_range'] = salary_range
+        expected_doj = get_expected_date_of_joining(validated_data.get("designation"))
+        if expected_doj:
+            validated_data['expected_date_of_joining'] = expected_doj   
         mrf = MRF.objects.create(**validated_data)
         return mrf
     

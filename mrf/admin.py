@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     Department, Designation, MRF, MRFApproval, MRFRevision, 
-    ApprovalWorkflow, WorkflowTemplate
+    ApprovalWorkflow, WorkflowTemplate,ExpectedJoiningDate
 )
 
 
@@ -107,3 +107,9 @@ class MRFRevisionAdmin(admin.ModelAdmin):
     list_display = ['mrf', 'revised_by', 'created_at']
     search_fields = ['mrf__requisition_no', 'revised_by__name']
     readonly_fields = ['created_at']
+
+@admin.register(ExpectedJoiningDate)
+class ExpectedJoiningDateAdmin(admin.ModelAdmin):
+    list_display = ['designation', 'days', 'is_active', 'created_at']
+    list_filter = ['is_active']
+    search_fields = ['designation']
