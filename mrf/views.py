@@ -8,13 +8,13 @@ from django.db import transaction
 from slots.models import Interviewer
 from .models import (
     Department, Designation, MRF, MRFApproval, 
-    ApprovalWorkflow, WorkflowTemplate
+    ApprovalWorkflow, WorkflowTemplate,ExpectedJoiningDate
 )
 from .serializers import (
     DepartmentSerializer, DesignationSerializer, MRFListSerializer,
     MRFDetailSerializer, MRFCreateUpdateSerializer, MRFApproveRejectSerializer,
     MRFSubmitSerializer, ApprovalWorkflowSerializer, WorkflowTemplateSerializer,
-    WorkflowTemplateSummarySerializer
+    WorkflowTemplateSummarySerializer,ExpectedJoiningDateSerializer
 )
 from .permissions import (
     CanManageMasterData, CanManageWorkflow, CanViewMRF, CanEditMRF,
@@ -466,3 +466,18 @@ class MRFViewSet(viewsets.ModelViewSet):
             stats['pending_my_approval'] = 0
         
         return Response(stats, status=status.HTTP_200_OK)
+    
+class ExpecteJoiningDateViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing expectedjoining date TOT"""
+    queryset = ExpectedJoiningDate.objects.all()
+    serializer_class = ExpectedJoiningDateSerializer
+    permission_classes = [IsAuthenticated, CanManageMasterData]
+    
+    def get_queryset(self):
+        queryset = ExpectedJoiningDate.objects.all()
+        
+        is_active = self.request.query_params.get('is_active')
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        
+        return queryset
