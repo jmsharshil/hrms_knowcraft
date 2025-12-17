@@ -301,3 +301,20 @@ def schedule_mrf_reminder(mrf_id):
             print(f"Reminder scheduler error: {e}")
 
     threading.Thread(target=task, daemon=True).start()
+
+from datetime import timedelta
+from django.utils import timezone
+
+def get_expected_date_of_joining(designation):
+    """
+    Calculate expected DOJ based on department-designation TAT model
+    """
+    from .models import ExpectedJoiningDate
+    tat_days = None
+    joining_obj = ExpectedJoiningDate.objects.filter(designation=designation).first()
+    if joining_obj:
+        tat_days = joining_obj.days
+    if not tat_days:
+        return None
+
+    return timezone.now().date() + timedelta(days=tat_days)
