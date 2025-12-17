@@ -315,6 +315,6 @@ def get_expected_date_of_joining(designation):
     if joining_obj:
         tat_days = joining_obj.days
     if not tat_days:
-        return None
+        return 0
 
     return timezone.now().date() + timedelta(days=tat_days)
