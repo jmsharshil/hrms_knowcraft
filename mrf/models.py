@@ -45,7 +45,7 @@ class WorkflowTemplate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, help_text="e.g., 'HR First Workflow', 'Admin First Workflow'")
     description = models.TextField(blank=True, help_text="Description of this workflow")
-    approver = models.ForeignKey(User, on_delete=models.PROTECT, related_name='workflows')
+    # approver = models.ForeignKey(User, on_delete=models.PROTECT, related_name='workflows')
     is_active = models.BooleanField(default=True, help_text="Set to False to disable this workflow")
     is_default = models.BooleanField(default=False, help_text="Use this as default for new MRFs")
     created_at = models.DateTimeField(auto_now_add=True)
