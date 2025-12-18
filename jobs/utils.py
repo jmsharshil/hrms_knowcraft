@@ -682,7 +682,7 @@ def build_candidate_history(email, exclude_application_id=None):
         history.append({
             "application_id": str(app.id),
             "job_id": str(app.job.id) if app.job else None,
-            "job_title": app.job.title if app.job else None,
+            "job_title": app.job.job_title if app.job else None,
             "status": app.status,
             "match_score": float(app.match_score) if app.match_score else None,
             "created_at": app.created_at.isoformat(),
