@@ -623,10 +623,11 @@ def parse_resume_task(application,resume_file,job):
     if email:
         today = timezone.now()
         six_months_ago = today - timedelta(days=6*30)
-        duplicate_application = JobApplication.objects.filter(candidate_email=email,job=job,created_at__gte=six_months_ago).first()
+        duplicate_application = JobApplication.objects.filter(candidate_email=email,created_at__gte=six_months_ago).exclude(id=application.id)
         duplicated = False
-        if duplicate_application:
+        if duplicate_application.exists():
             print("Duplicate resume found!")
+            history = build_candidate_history(email,application.id)
             duplicated = True
     # ---- AI scoring ----
     ai_match = calculate_match_score(parsed, job)
@@ -657,10 +658,36 @@ def parse_resume_task(application,resume_file,job):
         application.match_score = ai_score
         application.resume_report.save(f"{name}_{email}_resume_report.pdf", pdf_file, save=True)
         application.is_duplicate = duplicated
+        application.candidate_history = history
         application.save()
     
     if application.is_duplicate:
         from onboarding.utils.engine import automation_engine
+        
         automation_engine(application,application.status,'duplicate_rejected')
     if application.match_score >= 75:
         automation_engine(application,application.status,'shortlisted')
+
+def build_candidate_history(email, exclude_application_id=None):
+    qs = JobApplication.objects.filter(
+        candidate_email=email
+    ).order_by("-created_at")
+
+    if exclude_application_id:
+        qs = qs.exclude(id=exclude_application_id)
+
+    history = []
+
+    for app in qs:
+        history.append({
+            "application_id": str(app.id),
+            "job_id": str(app.job.id) if app.job else None,
+            "job_title": app.job.title if app.job else None,
+            "status": app.status,
+            "match_score": float(app.match_score) if app.match_score else None,
+            "created_at": app.created_at.isoformat(),
+            "source": app.source,
+            "is_duplicate": app.is_duplicate,
+        })
+
+    return history

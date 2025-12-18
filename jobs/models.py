@@ -473,6 +473,7 @@ class JobApplication(models.Model):
     is_duplicate = models.BooleanField(default=False)
 
     slot_link = models.URLField(null=True,blank=True)
+    candidate_history = models.JSONField(null=True,blank=True,default=list)
     
     class Meta:
         db_table = 'job_applications'
