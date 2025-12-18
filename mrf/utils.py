@@ -309,11 +309,13 @@ def get_expected_date_of_joining(designation):
     """
     Calculate expected DOJ based on department-designation TAT model
     """
-    from .models import ExpectedJoiningDate
+    from .models import Designation
+    if hasattr(designation, "id"):
+        designation = designation.id
     tat_days = None
-    joining_obj = ExpectedJoiningDate.objects.filter(designation=designation).first()
+    joining_obj = Designation.objects.filter(id=designation).first()
     if joining_obj:
-        tat_days = joining_obj.days
+        tat_days = joining_obj.tat_days
     if not tat_days:
         return 0
 

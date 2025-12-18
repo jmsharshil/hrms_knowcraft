@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from accounts.models import User
 import uuid
 from datetime import datetime, time, timedelta
+from django.db.models import Q, UniqueConstraint
 
 
 class Department(models.Model):
@@ -27,6 +28,7 @@ class Designation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, unique=True)
     code = models.CharField(max_length=50, unique=True)
+    tat_days = models.IntegerField(null=True,blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -43,6 +45,7 @@ class WorkflowTemplate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, help_text="e.g., 'HR First Workflow', 'Admin First Workflow'")
     description = models.TextField(blank=True, help_text="Description of this workflow")
+    approver = models.ForeignKey(User, on_delete=models.PROTECT, related_name='workflows')
     is_active = models.BooleanField(default=True, help_text="Set to False to disable this workflow")
     is_default = models.BooleanField(default=False, help_text="Use this as default for new MRFs")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -307,16 +310,3 @@ class MRFRevision(models.Model):
     def __str__(self):
         return f"Revision for {self.mrf.requisition_no or self.mrf.id}"
     
-class ExpectedJoiningDate(models.Model):
-    """Expected joining date for MRF according to designation-department"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    designation = models.ForeignKey(Designation, on_delete=models.PROTECT, related_name='expected_joining')
-    days = models.IntegerField()
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        ordering = ['-created_at']
-
-    def __str__(self):
-        return f"TOT-{self.designation}"
