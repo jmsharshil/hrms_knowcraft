@@ -5,9 +5,11 @@ from datetime import datetime, timedelta, date
 from zoneinfo import ZoneInfo
 from .graph import get_interviewer_busy_slots
 from .availability import generate_free_slots_for_day
-from .serializers import FreeSlotSerializer,InterviewerCreateSerializer
-from slots.models import Interviewer
+from .serializers import FreeSlotSerializer,InterviewerCreateSerializer,InterviewFeedbackCreateSerializer,InterviewFeedbackUpdateSerializer,InterviewFeedbackDetailSerializer,InterviewFeedbackListSerializer
+from slots.models import Interviewer,InterviewFeedback
 from rest_framework import permissions
+from rest_framework import status
+from django.shortcuts import get_object_or_404
 
 IST = ZoneInfo("Asia/Kolkata")
 
@@ -69,3 +71,104 @@ class InterviewerCreateView(APIView):
                 "interviewer": serializer.data
             }, status=201)
         return Response(serializer.errors, status=400)
+
+class InterviewFeedbackListCreateAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        """
+        List all feedbacks
+        Optional filters:
+        - ?job_application=<uuid>
+        - ?interview_round=round_1
+        """
+        queryset = InterviewFeedback.objects.select_related(
+            "job_application", "job_application__job"
+        ).all()
+
+        job_application = request.query_params.get("job_application")
+        interview_round = request.query_params.get("interview_round")
+
+        if job_application:
+            queryset = queryset.filter(job_application_id=job_application)
+
+        if interview_round:
+            queryset = queryset.filter(interview_round=interview_round)
+
+        queryset = queryset.order_by("-created_at")
+
+        serializer = InterviewFeedbackListSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        """
+        Create interview feedback
+        """
+        serializer = InterviewFeedbackCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        feedback = serializer.save()
+
+        return Response(
+            {
+                "message": "Interview feedback saved successfully",
+                "data": InterviewFeedbackDetailSerializer(feedback).data
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+class InterviewFeedbackDetailAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get_object(self, pk):
+        return get_object_or_404(
+            InterviewFeedback.objects.select_related(
+                "job_application", "job_application__job"
+            ),
+            pk=pk
+        )
+
+    def get(self, request, pk):
+        """
+        Get feedback by ID
+        """
+        feedback = self.get_object(pk)
+        serializer = InterviewFeedbackDetailSerializer(feedback)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, pk):
+        """
+        Full update feedback
+        """
+        feedback = self.get_object(pk)
+        serializer = InterviewFeedbackUpdateSerializer(
+            feedback, data=request.data
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            {
+                "message": "Interview feedback updated successfully",
+                "data": InterviewFeedbackDetailSerializer(feedback).data
+            },
+            status=status.HTTP_200_OK
+        )
+
+    def patch(self, request, pk):
+        """
+        Partial update feedback
+        """
+        feedback = self.get_object(pk)
+        serializer = InterviewFeedbackUpdateSerializer(
+            feedback, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            {
+                "message": "Interview feedback partially updated successfully",
+                "data": InterviewFeedbackDetailSerializer(feedback).data
+            },
+            status=status.HTTP_200_OK
+        )

@@ -1,5 +1,5 @@
 from django.db import models
-
+from jobs.models import JobApplication
 import uuid
 
 
@@ -23,3 +23,31 @@ class Slot(models.Model):
 
     def __str__(self):
         return f"{self.start} - {self.end} (Booked: {self.is_booked})"
+
+class InterviewFeedback(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    job_application = models.ForeignKey(
+        JobApplication,
+        on_delete=models.CASCADE,
+        related_name="interview_feedbacks"
+    )
+
+    interview_round = models.CharField(
+        max_length=50,
+        choices=[
+            ("round_1", "Round 1"),
+            ("round_2", "Round 2"),
+            ("final", "Final Round"),
+        ],
+        blank=True,
+        null=True
+    )
+
+    feedback = models.JSONField(null=True, blank=True)
+    is_selected = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.job_application} - {self.interview_round}"
