@@ -30,7 +30,7 @@ class ApprovalWorkflowSerializer(serializers.ModelSerializer):
         model = ApprovalWorkflow
         fields = [
             'id', 'template', 'template_name', 'level', 'required_role', 
-            'is_active', 'order', 'created_at', 'updated_at'
+            'is_active', 'order', 'created_at', 'updated_at','approver'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
@@ -41,10 +41,10 @@ class ApprovalWorkflowCreateSerializer(serializers.ModelSerializer):
     Note: template field is NOT present here because we assign it after template creation.
     """
     id = serializers.UUIDField(required=False)  # allow client to omit id
-
+    approver = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     class Meta:
         model = ApprovalWorkflow
-        fields = ['id', 'level', 'required_role', 'is_active', 'order']
+        fields = ['id', 'level', 'required_role', 'is_active', 'order','approver']
         read_only_fields = ['id']
 
     def validate_level(self, value):
