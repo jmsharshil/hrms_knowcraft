@@ -237,7 +237,7 @@ class MRF(models.Model):
         
         return User.objects.filter(
             role=workflow.required_role,
-            id=workflow.approver.id,
+            id=workflow.approver,
             is_active=True,
             company=self.requested_by.company
         )
