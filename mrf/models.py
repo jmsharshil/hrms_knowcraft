@@ -75,7 +75,7 @@ class ApprovalWorkflow(models.Model):
     level = models.IntegerField(help_text="Approval level (1, 2, 3, etc.)")
     required_role = models.CharField(max_length=20, help_text="Role required for this level")
     is_active = models.BooleanField(default=True)
-    approver = models.ForeignKey(User,on_delete=models.PROTECT,related_name='levels_approver',help_text="User responsible for approvals at this level")
+    approver = models.ForeignKey(User,on_delete=models.PROTECT,related_name='levels_approver',help_text="User responsible for approvals at this level",blank=True,null=True)
     order = models.IntegerField(help_text="Order of execution")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
