@@ -45,7 +45,6 @@ class WorkflowTemplate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, help_text="e.g., 'HR First Workflow', 'Admin First Workflow'")
     description = models.TextField(blank=True, help_text="Description of this workflow")
-    # approver = models.ForeignKey(User, on_delete=models.PROTECT, related_name='workflows')
     is_active = models.BooleanField(default=True, help_text="Set to False to disable this workflow")
     is_default = models.BooleanField(default=False, help_text="Use this as default for new MRFs")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -76,6 +75,7 @@ class ApprovalWorkflow(models.Model):
     level = models.IntegerField(help_text="Approval level (1, 2, 3, etc.)")
     required_role = models.CharField(max_length=20, help_text="Role required for this level")
     is_active = models.BooleanField(default=True)
+    approver = models.ForeignKey(User,on_delete=models.PROTECT,related_name='levels_approver',help_text="User responsible for approvals at this level")
     order = models.IntegerField(help_text="Order of execution")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -237,6 +237,7 @@ class MRF(models.Model):
         
         return User.objects.filter(
             role=workflow.required_role,
+            id=workflow.approver.id,
             is_active=True,
             company=self.requested_by.company
         )
