@@ -65,6 +65,9 @@ NOTIFY_STATES = {
 }
 
 NOTIFY_INTERNAL_STATES = {
+    "interview_pending_1",
+    "interview_pending_2",
+    "interview_pending_final",
     # Approval Flow
     "approval_pending",        # Send approval request to HR Manager
     "approved",                # Notify HR

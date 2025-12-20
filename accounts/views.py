@@ -10,7 +10,7 @@ from .serializers import (
     CompanySignupSerializer, UserSerializer, CreateUserSerializer,
     SetPinSerializer, PinLoginSerializer, MagicLinkSerializer
 )
-from .permissions import IsAdmin, IsAdminOrHRManager
+from .permissions import IsAdmin, IsAdminOrHRManager,IsDepartmentHead
 from django.http import HttpResponse
 from django.utils import timezone
 
@@ -195,7 +195,7 @@ class CreateUserView(APIView):
 
 class UserListView(generics.ListAPIView):
     """List all users in the company"""
-    permission_classes = [permissions.IsAuthenticated, IsAdminOrHRManager]
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrHRManager, IsDepartmentHead]
     serializer_class = UserSerializer
     
     def get_queryset(self):
