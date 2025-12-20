@@ -628,3 +628,150 @@ HTML_TEMPLATES = {
     """,
 
 }
+
+NOTIFY_INTERNAL_HTML_TEMPLATES = {
+
+    "interview_pending_1": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Interview Scheduled (Round 1)</h2>
+        <p>Dear,</p>
+        <p>The first round of interview slot of candidate <strong>{{candidate.candidate_name}}</strong> is scheduled.</p>
+        <p>Fill the interview feedback on this link: {{feedback_link}}</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "interview_pending_2": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Interview Scheduled (Round 2)</h2>
+        <p>Dear,</p>
+        <p>The second round of interview slot of candidate <strong>{{candidate.candidate_name}}</strong> is scheduled.</p>
+        <p>Fill the interview feedback on this link: {{feedback_link}}</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "interview_pending_final": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Interview Scheduled (Final Round)</h2>
+        <p>Dear,</p>
+        <p>The final round of interview slot of candidate <strong>{{candidate.candidate_name}}</strong> is scheduled.</p>
+        <p>Fill the interview feedback on this link: {{feedback_link}}</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+
+    </body>
+    </html>
+    """,
+
+    "shortlisted": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Candidate Shortlisted</h2>
+        <p>Dear HR Team,</p>
+        <p>The candidate <strong>{{candidate.candidate_name}}</strong> has been shortlisted.</p>
+        <p>Please proceed with the next steps in the hiring process.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "approval_pending": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Approval Required</h2>
+        <p>Dear Manager,</p>
+        <p>The candidate <strong>{{candidate.candidate_name}}</strong> is pending your approval.</p>
+        <p>Please review the profile and provide your decision.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "approved": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Candidate Approved</h2>
+        <p>Dear HR Team,</p>
+        <p>The candidate <strong>{{candidate.candidate_name}}</strong> has been approved.</p>
+        <p>Please continue with salary and offer formalities.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "approval_rejected": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Candidate Approval Rejected</h2>
+        <p>Dear HR Team,</p>
+        <p>The candidate <strong>{{candidate.candidate_name}}</strong> was rejected during the approval stage.</p>
+        <p>Please take necessary action.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "salary_docs_uploaded": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Salary Documents Uploaded</h2>
+        <p>Dear HR Team,</p>
+        <p>The candidate <strong>{{candidate.candidate_name}}</strong> has uploaded salary documents.</p>
+        <p>Please review them at your convenience.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "offer_pending": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Offer Letter Pending</h2>
+        <p>Dear HR Team,</p>
+        <p>The offer letter for <strong>{{candidate.candidate_name}}</strong> is pending.</p>
+        <p>Please prepare and send the offer.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "joined": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Candidate Joined Successfully</h2>
+        <p>Dear Team,</p>
+        <p>We are pleased to inform you that <strong>{{candidate.candidate_name}}</strong> has joined the organization.</p>
+        <p>Welcome aboard!</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "rejected": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Candidate Rejected</h2>
+        <p>Dear Team,</p>
+        <p>The candidate <strong>{{candidate.candidate_name}}</strong> has been rejected.</p>
+        <p>This concludes the hiring process for this profile.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+}

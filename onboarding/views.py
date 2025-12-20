@@ -29,13 +29,15 @@ class UpdatestatusAPI(APIView):
         ok,reason = automation_engine(application, old_status, new_status)
         if ok:
             from slots.models import Interviewer
+            interviewer_email,interviewer = None,None
             if application.status == 'shortlisted':
                 interviewer_email = application.job.mrf.interviewer_email_1
             elif application.status == "interview_next_2":
                 interviewer_email = application.job.mrf.interviewer_email_2
             elif application.status == "interview_next_final":
                 interviewer_email = application.job.mrf.interviewer_email_final
-            interviewer = Interviewer.objects.filter(email=interviewer_email).first()
+            if interviewer_email:
+                interviewer = Interviewer.objects.filter(email=interviewer_email).first()
             if interviewer:
                 interviewer_id = interviewer.id
             else:

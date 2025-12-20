@@ -564,12 +564,78 @@ NOTIFY_INTERNAL_MAP = {
     #     "body": "A new candidate has applied and requires initial review.",
     #     "sms": "New candidate applied. Please review.",
     # },
-    # "interview_pending": {
+    "interview_pending_1": {
+        "receivers": ["interviewer"],
+        "subject": "Interview Pending",
+        "body": "The candidate is ready for interview scheduling.",
+        "sms": "Interview pending for assigned candidate.",
+    },
+    "interview_pending_2": {
+        "receivers": ["interviewer"],
+        "subject": "Interview Pending",
+        "body": "The candidate is ready for interview scheduling.",
+        "sms": "Interview pending for assigned candidate.",
+    },
+    "interview_pending_final": {
+        "receivers": ["interviewer"],
+        "subject": "Interview Pending",
+        "body": "The candidate is ready for interview scheduling.",
+        "sms": "Interview pending for assigned candidate.",
+    },
+    # "interview_done_1": {
     #     "receivers": ["interviewer"],
     #     "subject": "Interview Pending",
     #     "body": "The candidate is ready for interview scheduling.",
     #     "sms": "Interview pending for assigned candidate.",
     # },
+    # "interview_done_2": {
+    #     "receivers": ["interviewer"],
+    #     "subject": "Interview Pending",
+    #     "body": "The candidate is ready for interview scheduling.",
+    #     "sms": "Interview pending for assigned candidate.",
+    # },
+    # "interview_done_final": {
+    #     "receivers": ["interviewer"],
+    #     "subject": "Interview Pending",
+    #     "body": "The candidate is ready for interview scheduling.",
+    #     "sms": "Interview pending for assigned candidate.",
+    # },
+    "shortlisted": {
+        "receivers": ["hr"],
+        "subject": "Interview Pending",
+        "body": "The candidate is ready for interview scheduling.",
+        "sms": "Interview pending for assigned candidate.",
+    },
+    "interview_next_2": {
+        "receivers": ["interviewer"],
+        "subject": "Interview Pending",
+        "body": "The candidate is ready for interview scheduling.",
+        "sms": "Interview pending for assigned candidate.",
+    },
+    "interview_next_final": {
+        "receivers": ["interviewer"],
+        "subject": "Interview Pending",
+        "body": "The candidate is ready for interview scheduling.",
+        "sms": "Interview pending for assigned candidate.",
+    },
+    "interview_rejected_1": {
+        "receivers": ["interviewer"],
+        "subject": "Interview Pending",
+        "body": "The candidate is ready for interview scheduling.",
+        "sms": "Interview pending for assigned candidate.",
+    },
+    "interview_rejected_2": {
+        "receivers": ["interviewer"],
+        "subject": "Interview Pending",
+        "body": "The candidate is ready for interview scheduling.",
+        "sms": "Interview pending for assigned candidate.",
+    },
+    "interview_rejected_final": {
+        "receivers": ["interviewer"],
+        "subject": "Interview Pending",
+        "body": "The candidate is ready for interview scheduling.",
+        "sms": "Interview pending for assigned candidate.",
+    },
     "approval_pending": {
         "receivers": ["hr_manager"],
         "subject": "Approval Required for Candidate",
@@ -696,6 +762,17 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
                 if job and job.assigned_to_internal_hr and job.assigned_to_internal_hr.email:
                     emails.add(job.assigned_to_internal_hr.email)
                     continue
+            
+            if role == "interviewer":
+                if job and job.mrf:
+                    if candidate.status in ["interview_pending_1","interview_done_1","interview_rejected_1","shorlisted"]:
+                        emails.add(job.mrf.interviewer_email_1)
+                    if candidate.status in ["interview_pending_1","interview_done_1","interview_rejected_1","interview_next_2"]:
+                        emails.add(job.mrf.interviewer_email_2)
+                    if candidate.status in ["interview_pending_1","interview_done_1","interview_rejected_1","interview_next_final"]:
+                        emails.add(job.mrf.interviewer_email_final)
+                    continue
+
             if role == "consultancy":
                 if job and job.assigned_to_consultancy and job.assigned_to_consultancy.email:
                     emails.add(job.assigned_to_consultancy.email)
@@ -744,8 +821,20 @@ def notify_internal(candidate: Any, stage: str,cc:list) -> bool:
         logger.warning(f"No internal email recipients found for stage {stage}")
         return False
     try:
+        from .templates import NOTIFY_INTERNAL_HTML_TEMPLATES
         for email in to_emails:
-            send_email(email,subject=subject,text=body)
+            template = NOTIFY_INTERNAL_HTML_TEMPLATES[stage]
+            feedback_link = None
+            if stage in ['interview_pending_1','interview_pending_2',"interview_pending_final"]:
+                if stage == 'interview_pending_1':
+                    round = "hr_round"
+                if stage == 'interview_pending_2':
+                    round = "technical_round_1"
+                if stage == 'interview_pending_final':
+                    round = "technical_round_2"
+                feedback_link = f"http://localhost:5173/api/slots/interview-feedback/?job_application={candidate.id}&interview_round={round}"
+            template = template.format(candidate=candidate,feedback_link=feedback_link)
+            send_email(email,subject=subject,text=body,template=template)
         logger.info(
             f"Internal notification sent for {candidate.candidate_name} at stage '{stage}' to {to_emails}"
         )
