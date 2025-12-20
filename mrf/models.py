@@ -238,6 +238,7 @@ class MRF(models.Model):
         return User.objects.filter(
             role=workflow.required_role,
             is_active=True,
+            id = workflow.approver.id,
             company=self.requested_by.company
         )
     
@@ -255,7 +256,7 @@ class MRF(models.Model):
         if not workflow:
             return False
         
-        return user.role == workflow.required_role
+        return user.role == workflow.required_role and user.id == workflow.approver.id
     
     def get_workflow_summary(self):
         """Get workflow summary for display"""
@@ -264,6 +265,7 @@ class MRF(models.Model):
             {
                 'level': level.level,
                 'role': level.required_role,
+                'approver': level.approver.id,
                 'order': level.order
             }
             for level in levels
