@@ -47,6 +47,21 @@ class ApprovalWorkflowCreateSerializer(serializers.ModelSerializer):
         fields = ['id', 'level', 'required_role', 'is_active', 'order','approver']
         read_only_fields = ['id']
 
+    def validate(self, attrs):
+        approver = attrs.get('approver')
+        required_role = attrs.get('required_role')
+
+        if approver and required_role:
+            if approver.role != required_role:
+                raise serializers.ValidationError({
+                    'approver': (
+                        f"Selected approver role '{approver.role}' does not match "
+                        f"required_role '{required_role}'."
+                    )
+                })
+
+        return attrs
+
     def validate_level(self, value):
         if value < 1:
             raise serializers.ValidationError("level must be >= 1")
