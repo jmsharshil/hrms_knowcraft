@@ -195,7 +195,7 @@ class CreateUserView(APIView):
 
 class UserListView(generics.ListAPIView):
     """List all users in the company"""
-    permission_classes = [permissions.IsAuthenticated, IsAdminOrHRManager, IsDepartmentHead]
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrHRManager | IsDepartmentHead]
     serializer_class = UserSerializer
     
     def get_queryset(self):
