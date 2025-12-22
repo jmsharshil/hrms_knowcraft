@@ -114,6 +114,8 @@ class InterviewFeedbackListCreateAPIView(APIView):
                 new_status = 'interview_done_1'
             elif application.status == 'interview_pending_2':
                 new_status = 'interview_done_2'
+            elif application.status == 'interview_pending_3':
+                new_status = 'interview_done_3'
             elif application.status == 'interview_pending_final':
                 new_status = 'interview_done_final'
             automation_engine(application,application.status,new_status)

@@ -106,6 +106,39 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
         "sms": "We will not move ahead with your application.",
         "log": "Interview rejection for round 2 sent to {candidate.candidate_email}",
     },
+    "interview_next_3": {
+        "email": {
+            "subject": "Interview Third Round",
+            "text": "You have been shortlisted for third round of interview.Please select interview slot from using given link : {schedule_link}",
+        },
+        "sms": "You have been shortlisted for third round of interview! Schedule your interview by selecting the time slot using this link: {schedule_link}.",
+        "log": "Round 3 notification sent to {candidate.candidate_email}",
+        "schedule_link":True
+    },
+    "interview_pending_3": {
+        "email": {
+            "subject": "Interview Scheduled",
+            "text": "Your interview for round 3 has been scheduled. Check your email for details.",
+        },
+        "sms": "Interview for round 3 has been scheduled. Check email for timing/link.",
+        "log": "Interview round 3 pending notification sent to {candidate.candidate_email}",
+    },
+    "interview_done_3": {
+        "email": {
+            "subject": "Thank You for Interviewing",
+            "text": "Thank you for attending the interview. We are reviewing the results.",
+        },
+        "sms": "Thanks for interviewing! You’ll be updated soon.",
+        "log": "Interview round 3 completion message sent to {candidate.candidate_email}",
+    },
+    "interview_rejected_3": {
+        "email": {
+            "subject": "Interview Update",
+            "text": "We appreciate your time. Unfortunately, we will not move ahead at this time.",
+        },
+        "sms": "We will not move ahead with your application.",
+        "log": "Interview rejection for round 3 sent to {candidate.candidate_email}",
+    },
     "interview_next_final": {
         "email": {
             "subject": "Final Round interview",
@@ -497,14 +530,13 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
                 # response = MRFViewSet.as_view({'get':"list"})(request)
                 # resp = response.data
                 if stage == 'shortlisted':
-                    # interviewer_id = resp['interviewers'][0]['interviewer_id']
                     interviewer_email = mrf.interviewer_email_1
                 elif stage == "interview_next_2":
                     interviewer_email = mrf.interviewer_email_2
-                    # interviewer_id = resp['interviewers'][1]['interviewer_id']
+                elif stage == "interview_next_3":
+                    interviewer_email = mrf.interviewer_email_3
                 elif stage == "interview_next_final":
                     interviewer_email = mrf.interviewer_email_final
-                    # interviewer_id = resp['interviewers'][2]['interviewer_id']
                 interviewer = Interviewer.objects.filter(email=interviewer_email).first()
                 if interviewer:
                     interviewer_id = interviewer.id
@@ -576,6 +608,12 @@ NOTIFY_INTERNAL_MAP = {
         "body": "The candidate is ready for interview scheduling.",
         "sms": "Interview pending for assigned candidate.",
     },
+    "interview_pending_3": {
+        "receivers": ["interviewer"],
+        "subject": "Interview Pending",
+        "body": "The candidate is ready for interview scheduling.",
+        "sms": "Interview pending for assigned candidate.",
+    },
     "interview_pending_final": {
         "receivers": ["interviewer"],
         "subject": "Interview Pending",
@@ -612,6 +650,12 @@ NOTIFY_INTERNAL_MAP = {
         "body": "The candidate is ready for interview scheduling.",
         "sms": "Interview pending for assigned candidate.",
     },
+    "interview_next_3": {
+        "receivers": ["interviewer"],
+        "subject": "Interview Pending",
+        "body": "The candidate is ready for interview scheduling.",
+        "sms": "Interview pending for assigned candidate.",
+    },
     "interview_next_final": {
         "receivers": ["interviewer"],
         "subject": "Interview Pending",
@@ -620,21 +664,27 @@ NOTIFY_INTERNAL_MAP = {
     },
     "interview_rejected_1": {
         "receivers": ["interviewer"],
-        "subject": "Interview Pending",
-        "body": "The candidate is ready for interview scheduling.",
-        "sms": "Interview pending for assigned candidate.",
+        "subject": "Cnadidate rejection",
+        "body": "The candidate is rejected in First round of interview.",
+        "sms": "The Candindate is rejected in First round of interview.",
     },
     "interview_rejected_2": {
         "receivers": ["interviewer"],
-        "subject": "Interview Pending",
-        "body": "The candidate is ready for interview scheduling.",
-        "sms": "Interview pending for assigned candidate.",
+        "subject": "Cnadidate rejection",
+        "body": "The candidate is rejected in Second round of interview.",
+        "sms": "The Candindate is rejected in Second round of interview.",
+    },
+    "interview_rejected_3": {
+        "receivers": ["interviewer"],
+        "subject": "Cnadidate rejection",
+        "body": "The candidate is rejected in Third round of interview.",
+        "sms": "The Candindate is rejected in Third round of interview.",
     },
     "interview_rejected_final": {
         "receivers": ["interviewer"],
-        "subject": "Interview Pending",
-        "body": "The candidate is ready for interview scheduling.",
-        "sms": "Interview pending for assigned candidate.",
+        "subject": "Cnadidate rejection",
+        "body": "The candidate is rejected in Fianl round of interview.",
+        "sms": "The Candindate is rejected in Final round of interview.",
     },
     "approval_pending": {
         "receivers": ["hr_manager"],
@@ -767,9 +817,11 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
                 if job and job.mrf:
                     if candidate.status in ["interview_pending_1","interview_done_1","interview_rejected_1","shorlisted"]:
                         emails.add(job.mrf.interviewer_email_1)
-                    if candidate.status in ["interview_pending_1","interview_done_1","interview_rejected_1","interview_next_2"]:
+                    if candidate.status in ["interview_pending_2","interview_done_2","interview_rejected_2","interview_next_2"]:
                         emails.add(job.mrf.interviewer_email_2)
-                    if candidate.status in ["interview_pending_1","interview_done_1","interview_rejected_1","interview_next_final"]:
+                    if candidate.status in ["interview_pending_3","interview_done_3","interview_rejected_3","interview_next_3"]:
+                        emails.add(job.mrf.interviewer_email_2)
+                    if candidate.status in ["interview_pending_final","interview_done_final","interview_rejected_final","interview_next_final"]:
                         emails.add(job.mrf.interviewer_email_final)
                     continue
 
@@ -825,13 +877,15 @@ def notify_internal(candidate: Any, stage: str,cc:list) -> bool:
         for email in to_emails:
             template = NOTIFY_INTERNAL_HTML_TEMPLATES[stage]
             feedback_link = None
-            if stage in ['interview_pending_1','interview_pending_2',"interview_pending_final"]:
+            if stage in ['interview_pending_1','interview_pending_2', "interview_pending_3","interview_pending_final"]:
                 if stage == 'interview_pending_1':
                     round = "hr_round"
                 if stage == 'interview_pending_2':
                     round = "technical_round_1"
-                if stage == 'interview_pending_final':
+                if stage == 'interview_pending_3':
                     round = "technical_round_2"
+                if stage == 'interview_pending_final':
+                    round = "final_round"
                 feedback_link = f"http://localhost:5173/api/slots/interview-feedback/?job_application={candidate.id}&interview_round={round}"
             template = template.format(candidate=candidate,feedback_link=feedback_link)
             send_email(email,subject=subject,text=body,template=template)
