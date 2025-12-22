@@ -10,8 +10,12 @@ CC_RULES = {
     "interview_pending_2": ["consultancy","interviewer_2"],
     "interview_done_2": [],
     "interview_rejected_2": [ "consultancy","referer"],
+    "interview_next_3": ["consultancy","referer"],
+    "interview_pending_3": ["consultancy","interviewer_2"],
+    "interview_done_3": [],
+    "interview_rejected_3": [ "consultancy","referer"],
     "interview_next_final": ["consultancy","referer"],
-    "interview_pending_final": ["consultancy","interviewer_3"],
+    "interview_pending_final": ["consultancy","interviewer_final"],
     "interview_done_final": [],
     "interview_rejected_final": [ "consultancy","referer"],
 
@@ -114,8 +118,11 @@ def get_emails_for_role(candidate, roles):
 
         if role == "interviewer_2":
             emails.add(candidate.job.mrf.interviewer_email_2)
-        
-        if role == "interviewe_3":
+
+        if role == "interviewer_3":
+            emails.add(candidate.job.mrf.interviewer_email_3)
+
+        if role == "interviewer_final":
             emails.add(candidate.job.mrf.interviewer_email_final)
                 
         role_emails = list(

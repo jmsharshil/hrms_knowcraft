@@ -250,6 +250,8 @@ class CandidateBookSlotView(APIView):
             automation_engine(candidate,candidate.status,'interview_pending_1')
         elif candidate.status == 'interview_next_2':
             automation_engine(candidate,candidate.status,'interview_pending_2')
+        elif candidate.status == 'interview_next_3':
+            automation_engine(candidate,candidate.status,'interview_pending_3')
         elif candidate.status == 'interview_next_final':
             automation_engine(candidate,candidate.status,'interview_pending_final')
         return Response(BookingSerializer(booking).data, status=201)

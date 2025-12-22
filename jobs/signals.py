@@ -38,7 +38,7 @@ def create_job_on_mrf_approval(sender, instance, created, **kwargs):
             experience_range=instance.experience_range,
             skills_competencies=instance.skills_competencies,
             salary_range=instance.salary_range,
-            priority='medium',  # Default priority
+            priority=instance.priority or 'medium',  # Default priority
             expected_closure_date=instance.expected_date_of_joining,
             posted_by=instance.requested_by,
             company=instance.requested_by.company if hasattr(instance.requested_by, 'company') else None,

@@ -105,6 +105,13 @@ class MRF(models.Model):
         ('yes', 'Yes'),
         ('no', 'No'),
     ]
+
+    PRIORITY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('urgent', 'Urgent'),
+    ]
     
     JOB_TYPE_CHOICES =[
         ('work_from_office','Work From Office'),
@@ -167,6 +174,7 @@ class MRF(models.Model):
 
     interviewer_email_1 = models.EmailField(max_length=50, help_text="Email of interviewer")
     interviewer_email_2 = models.EmailField(max_length=50, blank=True, null=True, help_text="Optional")
+    interviewer_email_3 = models.EmailField(max_length=50, blank=True, null=True, help_text="Optional")
     interviewer_email_final = models.EmailField(max_length=50, blank=True, null=True, help_text="Email of final interviewer")
     
     # HR Use Only
@@ -175,6 +183,11 @@ class MRF(models.Model):
     
     # Workflow State
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='draft')
+    priority = models.CharField(
+        max_length=20,
+        choices=PRIORITY_CHOICES,
+        default='medium'
+    )
     current_approval_level = models.IntegerField(default=0)
     
     # Timestamps

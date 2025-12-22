@@ -19,6 +19,10 @@ NOTIFY_STATES = {
     # "interview_pending_2",
     # "interview_done_2",
     "interview_rejected_2",
+    "interview_next_3",
+    # "interview_pending_3",
+    # "interview_done_3",
+    "interview_rejected_3",
     "interview_next_final",
     # "interview_pending_final",
     # "interview_done_final",
@@ -67,6 +71,7 @@ NOTIFY_STATES = {
 NOTIFY_INTERNAL_STATES = {
     "interview_pending_1",
     "interview_pending_2",
+    "interview_pending_3",
     "interview_pending_final",
     # Approval Flow
     "approval_pending",        # Send approval request to HR Manager

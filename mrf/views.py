@@ -270,6 +270,7 @@ class MRFViewSet(viewsets.ModelViewSet):
         interviewer_emails = [
             mrf.interviewer_email_1,
             mrf.interviewer_email_2,
+            mrf.interviewer_email_3,
             mrf.interviewer_email_final
         ]
 

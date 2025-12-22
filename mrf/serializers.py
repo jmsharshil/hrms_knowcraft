@@ -185,12 +185,13 @@ class MRFListSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     workflow_name = serializers.CharField(source='workflow_template.name', read_only=True)
     job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
+    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     class Meta:
         model = MRF
         fields = [
             'mrf_name',
             'id', 'requisition_no', 'department_name', 'designation_name', 
-            'no_of_vacancies', 'location', 'job_type', 'job_type_display','status', 'status_display',
+            'no_of_vacancies', 'location', 'job_type', 'job_type_display','priority_display','status', 'status_display',
             'requested_by_name', 'workflow_name', 'date_of_request', 
             'created_at', 'updated_at'
         ]
@@ -206,6 +207,7 @@ class MRFDetailSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     location_display = serializers.CharField(source='get_location_display', read_only=True)
     job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
+    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     case_study_required_display = serializers.CharField(source='get_case_study_required_display', read_only=True)
     workflow_name = serializers.CharField(source='workflow_template.name', read_only=True)
     workflow_summary = serializers.SerializerMethodField()
@@ -224,7 +226,7 @@ class MRFDetailSerializer(serializers.ModelSerializer):
             'mrf_name',
             'id', 'requisition_no', 'date_received', 'status',
             'current_approval_level', 'created_at', 'updated_at', 
-            'submitted_at', 'approved_at', 'requested_by', 
+            'submitted_at', 'approved_at', 'requested_by',
             'requested_by_name', 'requested_by_designation', 'workflow_template'
         ]
     
@@ -253,6 +255,7 @@ class MRFDetailSerializer(serializers.ModelSerializer):
         emails = [
             obj.interviewer_email_1,
             obj.interviewer_email_2,
+            obj.interviewer_email_3,
             obj.interviewer_email_final
         ]
 
@@ -278,6 +281,7 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         help_text="If not provided, the default workflow will be used"
     )
     job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
+    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     class Meta:
         model = MRF
         fields = [
@@ -285,10 +289,10 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
             'workflow_template', 'department', 'designation', 'team', 'position_department',
             'no_of_vacancies', 'location', 'resigned_crafter_name', 'resigned_crafter_ecode',
             'resigned_crafter_designation','key_responsibility', 'required_qualifications', 'experience_range',
-            'skills_competencies', 'business_justification','job_type', 'job_type_display',
+            'skills_competencies', 'business_justification','job_type', 'job_type_display','priority','priority_display',
             'case_study_required', 'technical_interview_1',
             'technical_interview_2', 'final_interview',
-            'interviewer_email_1','interviewer_email_2','interviewer_email_final'
+            'interviewer_email_1','interviewer_email_2','interviewer_email_3','interviewer_email_final'
         ]
     
     def validate(self, data):
