@@ -620,6 +620,7 @@ def parse_resume_task(application,resume_file,job):
     portfolio_url = parsed.get("portfolio_url",'')
     location = parsed.get("location")
     current_employer = parsed.get("current_employer")
+    history = []
     if email:
         today = timezone.now()
         six_months_ago = today - timedelta(days=6*30)
