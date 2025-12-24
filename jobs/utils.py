@@ -332,66 +332,67 @@ svg.pie {
 </body>
 </html>
 """)
-def format_skills(skills):
+from html import escape
+
+def format_contact(email, phone, linkedin):
+    return f"""
+    <p class="contact-item"><b>Email:</b> {email or "<span class='empty'>Not provided</span>"}</p>
+    <p class="contact-item"><b>Phone:</b> {phone or "<span class='empty'>Not provided</span>"}</p>
+    <p class="contact-item"><b>LinkedIn:</b> {linkedin or "<span class='empty'>Not provided</span>"}</p>
+    """
+
+def format_skills_tags(skills):
     if not skills:
-        return "<span class='empty'>No skills</span>"
-    return "".join(f"<div class='bullet'>• {escape(str(s))}</div>" for s in skills)
+        return "<span class='empty'>No skills provided</span>"
 
+    return "<ul class='skills-list'>" + "".join(
+        f"<li class='skill-item'>{escape(str(skill))}</li>" for skill in skills
+    ) + "</ul>"
 
-def format_list(items):
+def format_education_right(items):
     if not items:
-        return "<div class='empty'>No data provided</div>"
-    return "".join(f"<div class='bullet'>• {escape(str(i))}</div>" for i in items)
-
-
-def format_education(items):
-    if not items:
-        return "<div class='empty'>No education provided</div>"
+        return "<p><span class='empty'>No education provided</span></p>"
 
     html = ""
     for ed in items:
         if isinstance(ed, dict):
-            degree = escape(ed.get("degree") or "")
-            field = escape(ed.get("field") or "")
-            inst = escape(ed.get("institution") or "")
-            duration = escape(ed.get("duration") or "")
+            degree = escape(ed.get("degree", ""))
+            field = escape(ed.get("field", ""))
+            inst = escape(ed.get("institution", ""))
+            duration = escape(ed.get("duration", ""))
             html += f"""
-            <div class='edu-item'>
-                <strong>{degree}</strong>{f" – {field}" if field else ""}<br>
-                {inst}<br>
-                <span class='duration'>{duration}</span>
-            </div>
+            <p>
+              <b>{degree}{f" in {field}" if field else ""}</b><br>
+              {inst} ({duration})
+            </p>
             """
         else:
-            html += f"<div class='edu-item'>• {escape(str(ed))}</div>"
+            html += f"<p>{escape(str(ed))}</p>"
     return html
 
-
-def format_experience(items):
+def format_experience_right(items):
     if not items:
-        return "<div class='empty'>No experience provided</div>"
+        return "<p><span class='empty'>No experience provided</span></p>"
 
     html = ""
     for ex in items:
         if isinstance(ex, dict):
-            title = escape(ex.get("title") or "")
-            employer = escape(ex.get("employer") or "")
-            duration = escape(ex.get("duration") or "")
+            title = escape(ex.get("title", ""))
+            emp = escape(ex.get("employer", ""))
+            duration = escape(ex.get("duration", ""))
             html += f"""
-            <div class='exp-item'>
-                <strong>{title}</strong> – {employer}<br>
-                <span class='duration'>{duration}</span>
-            </div>
+            <p>
+              <b>{title}</b> – {emp}<br>
+              <span class="duration">{duration}</span>
+            </p>
             """
         else:
-            html += f"<div class='exp-item'>• {escape(str(ex))}</div>"
+            html += f"<p>{escape(str(ex))}</p>"
     return html
-def format_math_reason(reason):
-    if not reason:
-        return "<div class='empty'>No Reason Given</div>"
 
-    html = f"<div class='exp-item'>• {escape(str(reason))}</div>"
-    return html
+def format_reason(reason):
+    return escape(reason) if reason else "<span class='empty'>No reason provided</span>"
+
 def render_beautiful_report(parsed, job, overall_score):
     from html import escape
 
@@ -399,154 +400,285 @@ def render_beautiful_report(parsed, job, overall_score):
     email = escape(parsed.get("email") or parsed.get("candidate_email") or "")
     phone = escape(parsed.get("phone") or parsed.get("phone_number") or "")
     linkedin = escape(parsed.get("linkedin_url") or "")
-
-    skills_html = format_skills(parsed.get("skills"))
-    education_html = format_education(parsed.get("education"))
-    experience_html = format_experience(parsed.get("experience"))
-    projects_html = format_list(parsed.get("projects"))
-    achievements_html = format_list(parsed.get("achievements"))
-    match_reason_html = format_math_reason(parsed.get("match_reason"))
     job_title = escape(
         getattr(job, "job_title", "") or
         (job.get("job_title") if isinstance(job, dict) else "")
     )
 
-    score = overall_score if isinstance(overall_score, int) else 0
-    score = max(0, min(100, score))
-
-    # List helper
-    def li(items):
-        if not items:
-            return "<li><i>Not provided</i></li>"
-        return "".join(f"<li>{escape(str(x))}</li>" for x in items)
-
-    # XHTML2PDF-SAFE HTML BELOW
+    score = max(0, min(100, int(overall_score or 0)))
+    reason = format_reason(parsed.get("reason"))
+    skills = parsed.get("skills", [])
+    education = parsed.get("education", [])
+    experience = parsed.get("experience", [])
+    projects = parsed.get("projects", [])
+    achievements = parsed.get("achievements", [])
     html = f"""
+<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <style>
-
-body {{
-    font-family: Helvetica, Arial;
-    background: #f4f4f4;
-    padding: 20px;
-}}
-
-.container {{
+  body {{
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     background: #ffffff;
+    color: #333333;
     padding: 20px;
-    border: 1px solid #dddddd;
-}}
-
-.title {{
-    text-align: center;
-    font-size: 26px;
-    font-weight: bold;
-    color: #222222;
-    border:none;
-}}
-
-.subtitle {{
-    text-align: center;
-    font-size: 16px;
-    color: #666666;
+    font-size: 14px;
+    line-height: 1.5;
+  }}
+  .container {{
+    max-width: 1200px;
+    margin: 0 auto;
+    background: #ffffff;
+  }}
+  .header {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 20px;
-    border:none;
-}}
-
-.section-title {{
-    background: #efefef;
-    padding: 10px;
+  }}
+  .logo {{
+    font-size: 24px;
+    font-weight: bold;
+    color: #007bff;
+  }}
+  .website {{
+    font-size: 12px;
+    color: #007bff;
+  }}
+  .name-title {{
+    text-align: center;
+    margin-bottom: 30px;
+  }}
+  .name {{
+    font-size: 28px;
+    font-weight: bold;
+    color: #2c3e50;
+    margin: 0;
+  }}
+  .title {{
+    font-size: 18px;
+    color: #7f8c8d;
+    margin-top: 5px;
+  }}
+  .main-content {{
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+  }}
+  .left-column {{
+    flex: 1;
+  }}
+  .middle-column {{
+    flex: 1;
+    text-align: center;
+  }}
+  .right-column {{
+    flex: 1;
+  }}
+  .section-title {{
+    font-size: 18px;
+    font-weight: 600;
+    color: #34495e;
+    margin-bottom: 10px;
+  }}
+  .skills-matching {{
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+  }}
+  .circle {{
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: conic-gradient(#e74c3c 0% 20%, #ecf0f1 20% 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 24px;
+    font-weight: bold;
+    margin-right: 15px;
+  }}
+  .reason-fit {{
+    font-size: 13px;
+    color: #555555;
+  }}
+  .skills-category {{
+    background: #3498db;
+    color: #ffffff;
+    padding: 5px 10px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    font-weight: bold;
+  }}
+  .skills-list {{
+    list-style-type: none;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }}
+  .skill-item {{
+    background: #3498db;
+    color: #ffffff;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+  }}
+  .illustration {{
+    max-width: 200px;
+    margin: 20px auto;
+  }}
+  .behavioral-traits {{
+    list-style-type: none;
+    padding: 0;
+  }}
+  .trait-item {{
+    font-size: 14px;
+    margin-bottom: 10px;
+    color: #2980b9;
+  }}
+  .tenure {{
+    display: flex;
+    justify-content: space-around;
+    margin: 20px 0;
+  }}
+  .tenure-item {{
+    text-align: center;
+  }}
+  .tenure-circle {{
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #8e44ad;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 18px;
     font-weight: bold;
-    margin-top: 25px;
-    border-left: 4px solid #4460dd;
-}}
-
-.box {{
-    background: #ffffff;
-    padding: 12px 15px;
-    border:none;
-}}
-
-.score {{
-    border:none;
-    font-weight: bold;
-    text-align: center;
-    margin: 10px auto;
-}}
-.circle {{
-            width: 90px;
-            height: 90px;
-            border-radius: 50%; /* Makes it a circle */
-            background: blue;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white; /* Text color for better visibility */
-            font-size: 14px;
-}}
-.bullet {{
-    font-size: 14px;
-    margin: 4px 0;
-}}
-
-.empty {{
-    font-style: italic;
-    color: #777777;
-}}
-
-.edu-item, .exp-item {{
-    margin-bottom: 10px;
-    line-height: 1.4;
-}}
-
-.duration {{
+    margin: 0 auto 5px;
+  }}
+  .tenure-desc {{
     font-size: 12px;
     color: #555555;
-}}
+  }}
+  .projects-list {{
+    list-style-type: none;
+    padding: 0;
+  }}
+  .project-item {{
+    margin-bottom: 15px;
+  }}
+  .project-title {{
+    font-weight: bold;
+  }}
+  .project-industry {{
+    font-style: italic;
+    color: #7f8c8d;
+  }}
+  .achievements {{
+    margin-top: 20px;
+  }}
+  .questions-section {{
+    margin-top: 40px;
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+  }}
+  .questions-column {{
+    flex: 1;
+  }}
+  .questions-list {{
+    list-style-type: disc;
+    padding-left: 20px;
+  }}
+  .task {{
+    margin-top: 20px;
+    font-style: italic;
+  }}
+  .contact {{
+    margin-bottom: 20px;
+  }}
+  .contact-item {{
+    margin-bottom: 5px;
+  }}
 </style>
 </head>
-
 <body>
 
 <div class="container">
 
-    <div class="title">{name}</div>
-    <div class="subtitle">{job_title}</div>
+  <div class="header">
+    <div class="logo">KA</div>
+    <div class="website">https://www.knowcraftanalytics.com/</div>
+  </div>
 
-    <div class="section-title">Contact Information</div>
-    <div class="box">
-        <b>Email:</b> {email}<br>
-        <b>Phone:</b> {phone}<br>
-        <b>LinkedIn:</b> {linkedin or "<span class='empty'>Not provided</span>"}
+  <div class="name-title">
+    <h1 class="name">{name}</h1>
+    <p class="title">{job_title}</p>
+  </div>
+
+  <div class="main-content">
+
+    <!-- LEFT COLUMN -->
+    <div class="left-column">
+
+      <div class="contact">
+        <div class="section-title">Contact Information</div>
+        {format_contact(email, phone, linkedin)}
+      </div>
+
+      <div class="section-title">Skills Matching</div>
+      <div class="skills-matching">
+        <div class="circle">{score}%</div>
+        <div class="reason-fit">{reason}</div>
+      </div>
+
+      <div class="section-title">Skills</div>
+      {format_skills_tags(skills)}
+
     </div>
-    <div class="section-title">Match Score</div>
-    <div class="box"><div style="font-size:16px;"><b>Match Score</b>:{score}%</div>
-    <div class="box">{match_reason_html}</div>
-    <div class="section-title">Skills</div>
-    <div class="box">{skills_html}</div>
 
-    <div class="section-title">Education</div>
-    <div class="box">{education_html}</div>
+    <!-- MIDDLE COLUMN -->
+    <div class="middle-column">
 
-    <div class="section-title">Experience</div>
-    <div class="box">{experience_html}</div>
+      <img class="illustration"
+        src="https://thumbs.dreamstime.com/b/young-smiling-man-james-working-laptop-writing-code-create-software-engineering-web-development-programming-coding-concept-403198904.jpg">
 
-    <div class="section-title">Projects</div>
-    <div class="box">{projects_html}</div>
+      <div class="section-title">Profile Summary</div>
+      <p>🎯 Role: {job_title}</p>
+      <p>🎓 Education: {escape(education[0]) if education else "Not provided"}</p>
 
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="right-column">
+
+      <div class="section-title">Projects</div>
+      {format_skills_tags(projects)}
+
+      <div class="section-title">Education</div>
+      {format_education_right(education)}
+
+      <div class="section-title">Experience</div>
+      {format_experience_right(experience)}
+
+    </div>
+
+  </div>
+
+  <div class="achievements">
     <div class="section-title">Achievements</div>
-    <div class="box">{achievements_html}</div>
+    {format_skills_tags(achievements)}
+  </div>
 
 </div>
-
 </body>
 </html>
 """
     return html
-
 
 def create_resume_report_html(parsed_resume, job):
     """
