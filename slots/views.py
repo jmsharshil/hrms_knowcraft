@@ -104,21 +104,50 @@ class InterviewFeedbackListCreateAPIView(APIView):
         """
         Create interview feedback
         """
+        from onboarding.utils.engine import automation_engine
+        from jobs.models import JobApplication
+        application_id = request.data.get('job_application')
+        application = JobApplication.objects.filter(id=application_id).first()
+        new_status = None
+        if application.status == 'interview_pending_1':
+            new_status = 'interview_done_1'
+        elif application.status == 'interview_pending_2':
+            new_status = 'interview_done_2'
+        elif application.status == 'interview_pending_3':
+            new_status = 'interview_done_3'
+        elif application.status == 'interview_pending_final':
+            new_status = 'interview_done_final'
+        automation_engine(application,application.status,new_status)
+        new_status = None
         if request.data.get('is_selected'):
-            from onboarding.utils.engine import automation_engine
-            from jobs.models import JobApplication
-            application_id = request.data.get('job_application')
-            application = JobApplication.objects.filter(id=application_id).first()
-            new_status = None
-            if application.status == 'interview_pending_1':
-                new_status = 'interview_done_1'
-            elif application.status == 'interview_pending_2':
-                new_status = 'interview_done_2'
-            elif application.status == 'interview_pending_3':
-                new_status = 'interview_done_3'
-            elif application.status == 'interview_pending_final':
-                new_status = 'interview_done_final'
-            automation_engine(application,application.status,new_status)
+            if application.status == 'interview_done_1' and application.job.mrf.interviewer_email_2:
+                new_status = 'interview_next_2'
+            elif application.status == 'interview_done_1' and application.job.mrf.interviewer_email_final:
+                new_status = 'interview_next_final'
+            elif application.status == 'interview_done_1' and not application.job.mrf.interviewer_email_2 and not application.job.mrf.interviewer_email_final:
+                new_status = 'selected'
+            elif application.status == 'interview_done_2' and application.job.mrf.interviewer_email_3:
+                new_status = 'interview_next_3'
+            elif application.status == 'interview_done_2' and application.job.mrf.interviewer_email_final:
+                new_status = 'interview_next_final'
+            elif application.status == 'interview_done_2' and not application.job.mrf.interviewer_email_3 and not application.job.mrf.interviewer_email_final:
+                new_status = 'selected'
+            elif application.status == 'interview_done_3' and application.job.mrf.interviewer_email_final:
+                new_status = 'interview_next_final'
+            elif application.status == 'interview_done_3' and not application.job.mrf.interviewer_email_final:
+                new_status = 'selected'
+            elif application.status == 'interview_done_final':
+                new_status = 'selected'
+        else:
+            if application.status == 'interview_done_1':
+                new_status = 'interview_rejected_1'
+            if application.status == 'interview_done_2':
+                new_status = 'interview_rejected_2'
+            if application.status == 'interview_done_3':
+                new_status = 'interview_rejected_3'
+            if application.status == 'interview_done_final':
+                new_status = 'interview_rejected_final'
+        automation_engine(application,application.status,new_status)
         serializer = InterviewFeedbackCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         feedback = serializer.save()
