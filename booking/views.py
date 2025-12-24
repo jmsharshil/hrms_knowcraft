@@ -237,7 +237,7 @@ class CandidateBookSlotView(APIView):
             settings.DEFAULT_FROM_EMAIL,
             [candidate.candidate_email],
         )
-
+        round=None
         if candidate.status == 'interview_pending_1':
             round = "hr_round"
         if candidate.status == 'interview_pending_2':
