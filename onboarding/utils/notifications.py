@@ -814,7 +814,9 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
                     continue
             
             if role == "interviewer":
+                print("in...................")
                 if job and job.mrf:
+                    print('job....................')
                     if candidate.status in ["interview_pending_1","interview_done_1","interview_rejected_1","shorlisted"]:
                         emails.add(job.mrf.interviewer_email_1)
                     if candidate.status in ["interview_pending_2","interview_done_2","interview_rejected_2","interview_next_2"]:
@@ -823,6 +825,7 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
                         emails.add(job.mrf.interviewer_email_2)
                     if candidate.status in ["interview_pending_final","interview_done_final","interview_rejected_final","interview_next_final"]:
                         emails.add(job.mrf.interviewer_email_final)
+                    print(emails,";;;;;;;;;;;;;;;;;;;;;;;;;;")
                     continue
 
             if role == "consultancy":
@@ -853,7 +856,7 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
             if role == "internal_team":
                 #To be written 
                 continue
-
+        print(emails)
         return list(emails)
     except Exception as e:
         logger.exception("Error finding emails to send:",e)
