@@ -11,19 +11,19 @@ logger = logging.getLogger(__name__)
 # ------------------------------
 NOTIFY_STATES = {
     # Screening & Interview
-    "shortlisted",
+    # "shortlisted",
     # "interview_pending_1",
     # "interview_done_1",
     "interview_rejected_1",
-    "interview_next_2",
+    # "interview_next_2",
     # "interview_pending_2",
     # "interview_done_2",
     "interview_rejected_2",
-    "interview_next_3",
+    # "interview_next_3",
     # "interview_pending_3",
     # "interview_done_3",
     "interview_rejected_3",
-    "interview_next_final",
+    # "interview_next_final",
     # "interview_pending_final",
     # "interview_done_final",
     "interview_rejected_final",
