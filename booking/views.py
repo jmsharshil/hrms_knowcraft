@@ -244,7 +244,7 @@ class CandidateBookSlotView(APIView):
             round = "technical_round_1"
         if candidate.status == 'interview_next_3' or candidate.status == 'interview_pending_3':
             round = "technical_round_2"
-        if candidate.status == 'interview_next_final' or or candidate.status == 'interview_pending_final':
+        if candidate.status == 'interview_next_final' or candidate.status == 'interview_pending_final':
             round = "final_round"
         feedback_link = f"http://localhost:5173/api/slots/interview-feedback/?job_application={candidate.id}&interview_round={round}"
 
