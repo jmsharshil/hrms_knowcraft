@@ -6,13 +6,13 @@ ALLOWED_TRANSITIONS = {
     "shortlisted": ["interview_pending_1"],
     "interview_pending_1": ["interview_done_1"],
     "interview_done_1": ["interview_next_2","interview_next_final", "interview_rejected_1","selected"],
-    "interview_next_2":["interview_pending_2"],
+    "interview_next_2":["interview_pending_2","interview_rejected_1"],
     "interview_pending_2": ["interview_done_2"],
     "interview_done_2": ["interview_next_final","interview_next_3", "interview_rejected_2","selected"],
-    "interview_next_3":["interview_pending_3"],
+    "interview_next_3":["interview_pending_3","interview_rejected_2"],
     "interview_pending_3": ["interview_done_3"],
     "interview_done_3": ["interview_next_final", "interview_rejected_3","selected"],
-    "interview_next_final":["interview_pending_final"],
+    "interview_next_final":["interview_pending_final","interview_rejected_3"],
     "interview_pending_final": ["interview_done_final"],
     "interview_done_final": ["selected", "interview_rejected_final"],
     # APPROVAL
@@ -55,15 +55,15 @@ ALLOWED_TRANSITIONS = {
     "joining_pending": ["joined","rejected","joining_poned"],
     "joining_poned":["joined","joining_pending","rejected"],
     # TERMINAL
-    "duplicate_rejected": [],
-    "interview_rejected_1": [],
-    "interview_rejected_2": [],
-    "interview_rejected_3": [],
-    "interview_rejected_final": [],
-    "approval_rejected": [],
-    "offer_rejected": [],
+    "duplicate_rejected": ["shortlisted"],
+    "interview_rejected_1": ["interview_next_2","selected"],
+    "interview_rejected_2": ["interview_next_3","selected"],
+    "interview_rejected_3": ["interview_next_final","selected"],
+    "interview_rejected_final": ["selected"],
+    "approval_rejected": ["selected"],
+    "offer_rejected": ["selected"],
     "joined": [],
-    "rejected": []
+    "rejected": ["selected"]
 }
 
 def validate_transition(old, new):
