@@ -812,6 +812,14 @@ def build_candidate_history(email, exclude_application_id=None):
     history = []
 
     for app in qs:
+        feedbacks = []
+        for feedback in app.interview_feedbacks.all():
+            feedbacks.append({
+                "interview_round": feedback.interview_round,
+                "feedback": feedback.feedback,
+                "is_selected": feedback.is_selected,
+                "created_at": feedback.created_at.isoformat(),
+            })
         history.append({
             "application_id": str(app.id),
             "job_id": str(app.job.id) if app.job else None,
@@ -821,6 +829,7 @@ def build_candidate_history(email, exclude_application_id=None):
             "created_at": app.created_at.isoformat(),
             "source": app.source,
             "is_duplicate": app.is_duplicate,
+            "interview_feedbacks": feedbacks
         })
 
     return history

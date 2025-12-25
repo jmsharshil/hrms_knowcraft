@@ -684,7 +684,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
     "interview_pending_1": f"""
     <html>
     <body style="font-family: Arial; color:#333;">
-        <h2>Interview Scheduled (Round 1)</h2>
+        <h2>Interview Scheduled (HR Round)</h2>
         <p>Dear,</p>
         <p>The first round of interview slot of candidate <strong>{{candidate.candidate_name}}</strong> is scheduled.</p>
         <p>Fill the interview feedback on this link: {{feedback_link}}</p>
@@ -697,7 +697,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
     "interview_pending_2": f"""
     <html>
     <body style="font-family: Arial; color:#333;">
-        <h2>Interview Scheduled (Round 2)</h2>
+        <h2>Interview Scheduled (Technical Round 1)</h2>
         <p>Dear,</p>
         <p>The second round of interview slot of candidate <strong>{{candidate.candidate_name}}</strong> is scheduled.</p>
         <p>Fill the interview feedback on this link: {{feedback_link}}</p>
@@ -709,7 +709,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
     "interview_pending_3": f"""
     <html>
     <body style="font-family: Arial; color:#333;">
-        <h2>Interview Scheduled (Round 3)</h2>
+        <h2>Interview Scheduled (Technical Round 2)</h2>
         <p>Dear,</p>
         <p>The second round of interview slot of candidate <strong>{{candidate.candidate_name}}</strong> is scheduled.</p>
         <p>Fill the interview feedback on this link: {{feedback_link}}</p>

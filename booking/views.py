@@ -237,23 +237,23 @@ class CandidateBookSlotView(APIView):
             settings.DEFAULT_FROM_EMAIL,
             [candidate.candidate_email],
         )
-        round=None
-        if candidate.status == 'shortlisted' or candidate.status == 'interview_pending_1':
-            round = "hr_round"
-        if candidate.status == 'interview_next_2' or candidate.status == 'interview_pending_2':
-            round = "technical_round_1"
-        if candidate.status == 'interview_next_3' or candidate.status == 'interview_pending_3':
-            round = "technical_round_2"
-        if candidate.status == 'interview_next_final' or candidate.status == 'interview_pending_final':
-            round = "final_round"
-        feedback_link = f"http://localhost:5173/api/slots/interview-feedback/?job_application={candidate.id}&interview_round={round}"
+        # round=None
+        # if candidate.status == 'shortlisted' or candidate.status == 'interview_pending_1':
+        #     round = "hr_round"
+        # if candidate.status == 'interview_next_2' or candidate.status == 'interview_pending_2':
+        #     round = "technical_round_1"
+        # if candidate.status == 'interview_next_3' or candidate.status == 'interview_pending_3':
+        #     round = "technical_round_2"
+        # if candidate.status == 'interview_next_final' or candidate.status == 'interview_pending_final':
+        #     round = "final_round"
+        # feedback_link = f"http://localhost:5173/api/slots/interview-feedback/?job_application={candidate.id}&interview_round={round}"
 
-        send_mail(
-            "New Interview Scheduled",
-            f"Hello {interviewer.name},\nYou have an interview with {candidate.candidate_name} at {start_str}.\nJoin link: {meeting_link}\n Feedback link: {feedback_link}",
-            settings.DEFAULT_FROM_EMAIL,
-            [interviewer.email],
-        )
+        # send_mail(
+        #     "New Interview Scheduled",
+        #     f"Hello {interviewer.name},\nYou have an interview with {candidate.candidate_name} at {start_str}.\nJoin link: {meeting_link}\n Feedback link: {feedback_link}",
+        #     settings.DEFAULT_FROM_EMAIL,
+        #     [interviewer.email],
+        # )
 
         from onboarding.utils.engine import automation_engine
         if candidate.status == 'shortlisted':
