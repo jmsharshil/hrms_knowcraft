@@ -36,9 +36,10 @@ class InterviewFeedback(models.Model):
     interview_round = models.CharField(
         max_length=50,
         choices=[
-            ("round_1", "Round 1"),
-            ("round_2", "Round 2"),
-            ("final", "Final Round"),
+            ("hr_round", "HR Round"),
+            ("technical_round_1", "Technical Round 1"),
+            ("technical_round_2", "Technical Round 2"),
+            ("final_round", "Final Round"),
         ],
         blank=True,
         null=True
