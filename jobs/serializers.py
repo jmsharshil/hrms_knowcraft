@@ -343,7 +343,8 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'original_filename', 'file_size', 'file_size_mb', 'cover_letter',
             'experience_years','relevant_experience_years', 'current_ctc', 'expected_ctc', 'notice_period',
             'linkedin_url', 'portfolio_url','skill','education','location','current_employer','match_score', 'status', 'status_display',
-            'source', 'source_display', 'platform_name', 'application_link','is_duplicate',
+            'source', 'source_display', 'platform_name', 'application_link','is_duplicate',"referral_name","referral_email",
+            "referral_emp_code","referral_designation","referral_department",
             'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report','slot_link','candidate_history',
             'created_at', 'updated_at'
         ]
@@ -525,6 +526,14 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
                     'Could not create application. Possible duplicate candidate entry for this job.'
                 ]
             })
+        data = self.context['request'].data
+        if application.get_platform_name() == "Employee Referral" or application.get_platform_name() == "referral":
+            application.referral_name = data.get('referral_name',"")
+            application.referral_email = data.get("referral_email","")
+            application.referral_emp_code = data.get('referral_emp_code',"")
+            application.referral_department = data.get("referral_department","")
+            application.referral_designation = data.get("referral_designation","")
+            application.save()
         from onboarding.utils.task_queue import TASK_QUEUE
         from .utils import parse_resume_task
         TASK_QUEUE.enqueue(parse_resume_task,application,application.resume.file,link.job)
