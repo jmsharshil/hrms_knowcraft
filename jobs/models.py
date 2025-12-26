@@ -266,7 +266,13 @@ class JobApplicationLink(models.Model):
         from django.conf import settings
         base_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
         # return f"{base_url}/apply/{self.unique_token}"
+        if self.platform == 'referral':
+        # If it's a referral, add 'referral' in the URL path
+            return f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/referral/{self.unique_token}"
+    
+    # For other platforms, keep the URL format the same
         return f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/apply/{self.unique_token}"
+        # return f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/apply/{self.unique_token}"
     
     def is_expired(self):
         """Check if link is expired"""
@@ -478,6 +484,12 @@ class JobApplication(models.Model):
 
     slot_link = models.URLField(null=True,blank=True)
     candidate_history = models.JSONField(null=True,blank=True,default=list)
+    
+    referral_name = models.CharField(null=True,blank=True)
+    referral_email = models.CharField(null=True,blank=True)
+    referral_emp_code = models.CharField(null=True,blank=True)
+    referral_designation = models.CharField(null=True,blank=True)
+    referral_department = models.CharField(null=True,blank=True)
     
     class Meta:
         db_table = 'job_applications'
