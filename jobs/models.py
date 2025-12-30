@@ -584,6 +584,7 @@ class ReferralApplication(models.Model):
     referral_emp_code = models.CharField(null=True,blank=True)
     referral_designation = models.CharField(null=True,blank=True)
     referral_department = models.CharField(null=True,blank=True)
+    position_title = models.CharField(null=True,blank=True)
     
     class Meta:
         db_table = 'referral_applications'

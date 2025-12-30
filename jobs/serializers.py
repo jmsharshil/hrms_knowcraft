@@ -660,6 +660,7 @@ class ReferralApplicationCreateSerializer(serializers.ModelSerializer):
         referral_designation = data.get("referral_designation","")
         job_id = data.get('job_id',None)
         try:
+            job = Job.objects.filter(id=job_id).first()
             with transaction.atomic():
                 application = ReferralApplication.objects.create(
                     resume=resume_file,
@@ -669,13 +670,12 @@ class ReferralApplicationCreateSerializer(serializers.ModelSerializer):
                     referral_email=referral_email,
                     referral_emp_code=referral_emp_code,
                     referral_department=referral_department,
-                    referral_designation=referral_designation
+                    referral_designation=referral_designation,
+                    position_title = job.job_title
                 )
         except Exception as e:
             print(e)
         try:
-            job = Job.objects.filter(id=job_id).first()
-            print(job.id)
             with transaction.atomic():
                 job_application = JobApplication.objects.create(
                     job=job,
@@ -690,7 +690,6 @@ class ReferralApplicationCreateSerializer(serializers.ModelSerializer):
                     referral_department=referral_department,
                     referral_designation=referral_designation
                 )
-                print(job_application.id)
         except IntegrityError as e:
             print(e)
             # Convert DB integrity error to serializer validation error so API returns 400
@@ -716,7 +715,7 @@ class ReferralApplicationSerializer(serializers.ModelSerializer):
         model = ReferralApplication
         fields = [
             'id', 'resume', 'resume_url','original_filename', 'file_size',
-            'file_size_mb',"referral_name","referral_email","referral_emp_code",
+            'file_size_mb',"referral_name","referral_email","referral_emp_code","position_title",
             "referral_designation","referral_department",'notes','created_at', 'updated_at'
         ]
     
