@@ -1,11 +1,12 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import JobViewSet, JobApplicationViewSet, JobApplicationLinkViewSet
+from .views import JobViewSet, JobApplicationViewSet, JobApplicationLinkViewSet,ReferralApplicationViewSet
 
 router = DefaultRouter()
 router.register(r'jobs', JobViewSet, basename='job')
 router.register(r'application-links', JobApplicationLinkViewSet, basename='application-link')
 router.register(r'applications', JobApplicationViewSet, basename='application')
+router.register(r'referral-applications', ReferralApplicationViewSet, basename='referral-application')
 
 urlpatterns = [
     path('', include(router.urls)),
