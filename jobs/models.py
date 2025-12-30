@@ -561,3 +561,31 @@ class JobAssignmentHistory(models.Model):
     
     def __str__(self):
         return f"{self.job.job_title} - {self.action} at {self.created_at}"
+    
+class ReferralApplication(models.Model):
+    """Track applications through referral""" 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Resume (REQUIRED - direct upload)
+    resume = models.FileField(upload_to='referral_resumes/', help_text='Referral resume in any format')
+    original_filename = models.CharField(max_length=255, blank=True, help_text='Original file name')
+    file_size = models.PositiveIntegerField(default=0, help_text='File size in bytes')
+    
+    # Additional Info
+    notes = models.TextField(blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    #Referrer Info    
+    referral_name = models.CharField(null=True,blank=True)
+    referral_email = models.CharField(null=True,blank=True)
+    referral_emp_code = models.CharField(null=True,blank=True)
+    referral_designation = models.CharField(null=True,blank=True)
+    referral_department = models.CharField(null=True,blank=True)
+    
+    class Meta:
+        db_table = 'referral_applications'
+        ordering = ['-created_at']
+     

@@ -6,14 +6,15 @@ from django.db.models import Q, Count, F
 from django.utils import timezone
 from django.db import transaction
 
-from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLink
+from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLink,ReferralApplication
 from .serializers import (
     JobListSerializer, JobDetailSerializer, JobCreateSerializer,
     JobUpdateSerializer, AssignToConsultancySerializer, CloseJobSerializer,
     JobAssignmentHistorySerializer, JobApplicationSerializer,
     JobApplicationCreateSerializer, JobApplicationUpdateSerializer,
     JobApplicationLinkSerializer, JobApplicationLinkCreateSerializer,
-    PublicJobApplicationCreateSerializer, AssignToInternalHRSerializer, AssignToBothSerializer
+    PublicJobApplicationCreateSerializer, AssignToInternalHRSerializer, AssignToBothSerializer,
+    ReferralApplicationCreateSerializer,ReferralApplicationSerializer, ReferralToJobApplicationCreateSerializer
 )
 from .permissions import (
     CanViewJobs, CanCreateJobs, CanEditJobs, CanAssignToConsultancy,
@@ -21,6 +22,7 @@ from .permissions import (
     CanViewApplications
 )
 from accounts.models import User
+from rest_framework.parsers import MultiPartParser, FormParser
 
 
 class JobViewSet(viewsets.ModelViewSet):
@@ -843,3 +845,55 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         }
         
         return Response(stats, status=status.HTTP_200_OK)
+    
+class ReferralApplicationViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing Referral Applications"""
+    
+    queryset = ReferralApplication.objects.all()
+    parser_classes = (MultiPartParser, FormParser)
+
+    def get_permissions(self):
+        return [AllowAny()]
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return ReferralApplicationCreateSerializer
+        return ReferralApplicationSerializer
+    
+    def create(self, request, *args, **kwargs):
+        """
+        Override create to return read serializer response
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        application = serializer.save()
+
+        # Return full response using read serializer
+        response_serializer = ReferralApplicationSerializer(
+            application,
+            context={'request': request}
+        )
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_201_CREATED
+        )
+    
+    @action(detail=False, methods=['post'])
+    def create_job_application_from_referral(self, request, *args, **kwargs):
+        """
+        Custom action to create a JobApplication from an existing ReferralApplication.
+        Requires referral_application_id and job_id in the request.
+        """
+        # Use the ReferralToJobApplicationCreateSerializer
+        serializer = ReferralToJobApplicationCreateSerializer(data=request.data)
+
+        if serializer.is_valid():
+            job_application = serializer.save()
+            return Response(
+                {
+                    "message": "Job application created successfully",
+                    "job_application_id": str(job_application.id)
+                },
+                status=status.HTTP_201_CREATED
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
