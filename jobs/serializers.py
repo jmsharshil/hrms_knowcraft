@@ -690,6 +690,9 @@ class ReferralApplicationCreateSerializer(serializers.ModelSerializer):
                     referral_department=referral_department,
                     referral_designation=referral_designation
                 )
+            from onboarding.utils.task_queue import TASK_QUEUE
+            from .utils import parse_resume_task
+            TASK_QUEUE.enqueue(parse_resume_task,job_application,job_application.resume.file,job_application.job)
         except IntegrityError as e:
             print(e)
             # Convert DB integrity error to serializer validation error so API returns 400
@@ -700,9 +703,6 @@ class ReferralApplicationCreateSerializer(serializers.ModelSerializer):
             })
         except Exception as e:
             print(e)
-        from onboarding.utils.task_queue import TASK_QUEUE
-        from .utils import parse_resume_task
-        TASK_QUEUE.enqueue(parse_resume_task,job_application,job_application.resume.file,job_application.job)
         return application
 
 class ReferralApplicationSerializer(serializers.ModelSerializer):
