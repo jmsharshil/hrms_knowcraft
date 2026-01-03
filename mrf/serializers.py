@@ -288,8 +288,8 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
             'mrf_name',
             'workflow_template', 'department', 'designation', 'team', 'position_department',
             'no_of_vacancies', 'location', 'resigned_crafter_name', 'resigned_crafter_ecode',
-            'resigned_crafter_designation','key_responsibility', 'required_qualifications', 'experience_range',
-            'skills_competencies', 'business_justification','job_type', 'job_type_display','priority','priority_display',
+            'resigned_crafter_designation', 'experience_range',
+            'business_justification','job_type', 'job_type_display','priority','priority_display',
             'case_study_required', 'technical_interview_1',
             'technical_interview_2', 'final_interview',
             'interviewer_email_1','interviewer_email_2','interviewer_email_3','interviewer_email_final'
@@ -342,13 +342,19 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         validated_data['requested_by'] = user
         validated_data['requested_by_name'] = user.name
         validated_data['requested_by_designation'] = user.role
-        from .utils import get_auto_salary_range,get_expected_date_of_joining
+        from .utils import get_auto_salary_range,get_expected_date_of_joining,mrf_fields_auto_fill
         salary_range = get_auto_salary_range(validated_data['department'],validated_data['designation'])
         if salary_range:
             validated_data['salary_range'] = salary_range
         expected_doj = get_expected_date_of_joining(validated_data.get("designation"))
         if expected_doj:
-            validated_data['expected_date_of_joining'] = expected_doj   
+            validated_data['expected_date_of_joining'] = expected_doj
+        auto_fill_obj = mrf_fields_auto_fill(validated_data.get("department"),validated_data.get("designation"))
+        print(auto_fill_obj)
+        if auto_fill_obj:
+            validated_data['key_responsibility'] = auto_fill_obj.get('key_responsibility')
+            validated_data['required_qualifications'] = auto_fill_obj.get('required_qualifications')
+            validated_data['skills_competencies'] = auto_fill_obj.get('skills_competencies')
         mrf = MRF.objects.create(**validated_data)
         return mrf
     
