@@ -152,10 +152,10 @@ class MRF(models.Model):
     resigned_crafter_designation = models.CharField(max_length=100, blank=True, null=True)
     
     # Job Details
-    key_responsibility = models.TextField()
-    required_qualifications = models.TextField()
+    key_responsibility = models.TextField(null=True,blank=True)
+    required_qualifications = models.TextField(null=True,blank=True)
     experience_range = models.CharField(max_length=100, help_text="e.g., '2-5 years'")
-    skills_competencies = models.TextField()
+    skills_competencies = models.TextField(null=True,blank=True)
     
     # Justification
     business_justification = models.TextField()
