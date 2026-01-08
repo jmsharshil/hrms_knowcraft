@@ -350,7 +350,6 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         if expected_doj:
             validated_data['expected_date_of_joining'] = expected_doj
         auto_fill_obj = mrf_fields_auto_fill(validated_data.get("department"),validated_data.get("designation"))
-        print(auto_fill_obj)
         if auto_fill_obj:
             validated_data['key_responsibility'] = auto_fill_obj.get('key_responsibility')
             validated_data['required_qualifications'] = auto_fill_obj.get('required_qualifications')
