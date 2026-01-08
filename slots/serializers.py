@@ -16,11 +16,14 @@ class InterviewFeedbackCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = InterviewFeedback
         fields = [
-            "id",
-            "job_application",
-            "interview_round",
-            "feedback",
-            "is_selected",
+            "id","job_application","interview_round","department","comments",
+            "designation","interview_date","interviewer_name","communication_rating",
+            "technical_skill_rating","attitude_intent_rating","team_handling_rating",
+            "stability_rating","problem_solving_rating","analytical_thinking_rating",
+            "cultural_fit_rating","is_selected","qualification","current_organization",
+            "job_change_reason","notice_period","current_ctc","expected_ctc","bond",
+            "role_responsibility","strengths","goals","behavioral_cultural_fit",
+            "personal_background","hometown","preferred_location","behavioral"
         ]
 
     def validate(self, attrs):
@@ -47,13 +50,11 @@ class InterviewFeedbackListSerializer(serializers.ModelSerializer):
     class Meta:
         model = InterviewFeedback
         fields = [
-            "id",
-            "job_application_id",
-            "candidate_name",
-            "interview_round",
-            "feedback",
-            "is_selected",
-            "created_at",
+            "id","job_application_id","candidate_name","interview_round","department",
+            "designation","interview_date","interviewer_name","communication_rating",
+            "technical_skill_rating","attitude_intent_rating","team_handling_rating",
+            "stability_rating","problem_solving_rating","analytical_thinking_rating",
+            "cultural_fit_rating","is_selected","created_at",
         ]
 
 class InterviewFeedbackDetailSerializer(serializers.ModelSerializer):
@@ -62,12 +63,15 @@ class InterviewFeedbackDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = InterviewFeedback
         fields = [
-            "id",
-            "job_application",
-            "interview_round",
-            "feedback",
-            "is_selected",
-            "created_at",
+            "id","job_application","interview_round","department",
+            "designation","interview_date","interviewer_name","communication_rating",
+            "technical_skill_rating","attitude_intent_rating","team_handling_rating",
+            "stability_rating","problem_solving_rating","analytical_thinking_rating",
+            "cultural_fit_rating","is_selected","qualification","current_organization",
+            "job_change_reason","notice_period","current_ctc","expected_ctc","bond",
+            "role_responsibility","strengths","goals","behavioral_cultural_fit",
+            "personal_background","hometown","preferred_location","behavioral",
+            "comments","created_at",
         ]
 
     def get_job_application(self, obj):
@@ -82,11 +86,15 @@ class InterviewFeedbackUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = InterviewFeedback
         fields = [
-            "interview_round",
-            "feedback",
-            "is_selected",
+            "interview_round","department","designation","interview_date",
+            "interviewer_name","communication_rating","technical_skill_rating",
+            "attitude_intent_rating","team_handling_rating","stability_rating",
+            "problem_solving_rating","analytical_thinking_rating","cultural_fit_rating",
+            "is_selected","qualification","current_organization","job_change_reason",
+            "notice_period","current_ctc","expected_ctc","bond","role_responsibility",
+            "strengths","goals","behavioral_cultural_fit","personal_background",
+            "hometown","preferred_location","behavioral","comments",
         ]
-        read_only_fields = []  # handled manually
 
     def validate_interview_round(self, value):
         """
@@ -107,15 +115,8 @@ class InterviewFeedbackUpdateSerializer(serializers.ModelSerializer):
         """
         Update only allowed fields
         """
-        instance.interview_round = validated_data.get(
-            "interview_round", instance.interview_round
-        )
-        instance.feedback = validated_data.get(
-            "feedback", instance.feedback
-        )
-        instance.is_selected = validated_data.get(
-            "is_selected", instance.is_selected
-        )
-
+        for field in self.Meta.fields:
+            if field in validated_data:
+                setattr(instance, field, validated_data[field])
         instance.save()
         return instance

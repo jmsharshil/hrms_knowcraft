@@ -818,12 +818,16 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
                 if job and job.mrf:
                     print('job....................')
                     if candidate.status in ["interview_pending_1","interview_done_1","interview_rejected_1","shorlisted"]:
+                        print(job.mrf.interviewer_email_1,'--------------------------')
                         emails.add(job.mrf.interviewer_email_1)
                     if candidate.status in ["interview_pending_2","interview_done_2","interview_rejected_2","interview_next_2"]:
+                        print(job.mrf.interviewer_email_2,'||||||||||||||||||||')
                         emails.add(job.mrf.interviewer_email_2)
                     if candidate.status in ["interview_pending_3","interview_done_3","interview_rejected_3","interview_next_3"]:
+                        print(job.mrf.interviewer_email_3,'+++++++++++++++++++++++')
                         emails.add(job.mrf.interviewer_email_2)
                     if candidate.status in ["interview_pending_final","interview_done_final","interview_rejected_final","interview_next_final"]:
+                        print(job.mrf.interviewer_email_final,'=====================')
                         emails.add(job.mrf.interviewer_email_final)
                     print(emails,";;;;;;;;;;;;;;;;;;;;;;;;;;")
                     continue
