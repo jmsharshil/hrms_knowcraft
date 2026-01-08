@@ -10,6 +10,8 @@ from slots.models import Interviewer,InterviewFeedback
 from rest_framework import permissions
 from rest_framework import status
 from django.shortcuts import get_object_or_404
+from onboarding.utils.engine import automation_engine
+from jobs.models import JobApplication
 
 IST = ZoneInfo("Asia/Kolkata")
 
@@ -104,50 +106,15 @@ class InterviewFeedbackListCreateAPIView(APIView):
         """
         Create interview feedback
         """
-        from onboarding.utils.engine import automation_engine
-        from jobs.models import JobApplication
         application_id = request.data.get('job_application')
-        application = JobApplication.objects.filter(id=application_id).first()
-        new_status = None
-        if application.status == 'interview_pending_1':
-            new_status = 'interview_done_1'
-        elif application.status == 'interview_pending_2':
-            new_status = 'interview_done_2'
-        elif application.status == 'interview_pending_3':
-            new_status = 'interview_done_3'
-        elif application.status == 'interview_pending_final':
-            new_status = 'interview_done_final'
-        automation_engine(application,application.status,new_status)
-        new_status = None
-        if request.data.get('is_selected'):
-            if application.status == 'interview_done_1' and application.job.mrf.interviewer_email_2:
-                new_status = 'interview_next_2'
-            elif application.status == 'interview_done_1' and application.job.mrf.interviewer_email_final:
-                new_status = 'interview_next_final'
-            elif application.status == 'interview_done_1' and not application.job.mrf.interviewer_email_2 and not application.job.mrf.interviewer_email_final:
-                new_status = 'selected'
-            elif application.status == 'interview_done_2' and application.job.mrf.interviewer_email_3:
-                new_status = 'interview_next_3'
-            elif application.status == 'interview_done_2' and application.job.mrf.interviewer_email_final:
-                new_status = 'interview_next_final'
-            elif application.status == 'interview_done_2' and not application.job.mrf.interviewer_email_3 and not application.job.mrf.interviewer_email_final:
-                new_status = 'selected'
-            elif application.status == 'interview_done_3' and application.job.mrf.interviewer_email_final:
-                new_status = 'interview_next_final'
-            elif application.status == 'interview_done_3' and not application.job.mrf.interviewer_email_final:
-                new_status = 'selected'
-            elif application.status == 'interview_done_final':
-                new_status = 'selected'
-        else:
-            if application.status == 'interview_done_1':
-                new_status = 'interview_rejected_1'
-            if application.status == 'interview_done_2':
-                new_status = 'interview_rejected_2'
-            if application.status == 'interview_done_3':
-                new_status = 'interview_rejected_3'
-            if application.status == 'interview_done_final':
-                new_status = 'interview_rejected_final'
-        automation_engine(application,application.status,new_status)
+        application = get_object_or_404(JobApplication, id=application_id)
+
+        # Determine new status based on current application status
+        current_status = application.status
+        new_status = self._get_status_after_interview(current_status, request.data.get('is_selected', True))
+        automation_engine(application, current_status, new_status)
+
+        # Save feedback
         serializer = InterviewFeedbackCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         feedback = serializer.save()
@@ -159,6 +126,55 @@ class InterviewFeedbackListCreateAPIView(APIView):
             },
             status=status.HTTP_201_CREATED
         )
+
+    def _get_status_after_interview(self, current_status, is_selected):
+        """
+        Determine next status of JobApplication based on current_status and is_selected
+        """
+        application_status_mapping = {
+            'interview_pending_1': 'interview_done_1',
+            'interview_pending_2': 'interview_done_2',
+            'interview_pending_3': 'interview_done_3',
+            'interview_pending_final': 'interview_done_final',
+        }
+
+        # Default: move to "done" stage
+        new_status = application_status_mapping.get(current_status, current_status)
+
+        # If candidate is selected, move to next round or selected
+        if is_selected:
+            if new_status == 'interview_done_1':
+                if hasattr(self, 'application') and self.application.job.mrf.interviewer_email_2:
+                    new_status = 'interview_next_2'
+                elif self.application.job.mrf.interviewer_email_final:
+                    new_status = 'interview_next_final'
+                else:
+                    new_status = 'selected'
+            elif new_status == 'interview_done_2':
+                if self.application.job.mrf.interviewer_email_3:
+                    new_status = 'interview_next_3'
+                elif self.application.job.mrf.interviewer_email_final:
+                    new_status = 'interview_next_final'
+                else:
+                    new_status = 'selected'
+            elif new_status == 'interview_done_3':
+                if self.application.job.mrf.interviewer_email_final:
+                    new_status = 'interview_next_final'
+                else:
+                    new_status = 'selected'
+            elif new_status == 'interview_done_final':
+                new_status = 'selected'
+        else:
+            # If not selected, move to rejected
+            reject_mapping = {
+                'interview_done_1': 'interview_rejected_1',
+                'interview_done_2': 'interview_rejected_2',
+                'interview_done_3': 'interview_rejected_3',
+                'interview_done_final': 'interview_rejected_final',
+            }
+            new_status = reject_mapping.get(new_status, new_status)
+
+        return new_status
 
 class InterviewFeedbackDetailAPIView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -184,9 +200,7 @@ class InterviewFeedbackDetailAPIView(APIView):
         Full update feedback
         """
         feedback = self.get_object(pk)
-        serializer = InterviewFeedbackUpdateSerializer(
-            feedback, data=request.data
-        )
+        serializer = InterviewFeedbackUpdateSerializer(feedback, data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
@@ -203,53 +217,16 @@ class InterviewFeedbackDetailAPIView(APIView):
         Partial update feedback
         """
         feedback = self.get_object(pk)
-        application = feedback.job_application  # Get the associated job application
-    
-        # Check if the `is_selected` flag is updated
-        is_selected = request.data.get('is_selected', None)
-        
-        if is_selected is not None:
-            # Follow the same logic for updating the status based on the current interview status and `is_selected`
-            new_status = None
-            
-            if is_selected:
-                # Similar status change logic as in the `post` method
-                if (application.status == 'interview_done_1' or application.status == 'interview_rejected_1') and application.job.mrf.interviewer_email_2:
-                    new_status = 'interview_next_2'
-                elif (application.status == 'interview_done_1' or application.status == 'interview_rejected_1') and application.job.mrf.interviewer_email_final:
-                    new_status = 'interview_next_final'
-                elif (application.status == 'interview_done_1' or application.status == 'interview_rejected_1') and not application.job.mrf.interviewer_email_2 and not application.job.mrf.interviewer_email_final:
-                    new_status = 'selected'
-                elif (application.status == 'interview_done_2' or application.status == 'interview_rejected_2') and application.job.mrf.interviewer_email_3:
-                    new_status = 'interview_next_3'
-                elif (application.status == 'interview_done_2' or application.status == 'interview_rejected_2') and application.job.mrf.interviewer_email_final:
-                    new_status = 'interview_next_final'
-                elif (application.status == 'interview_done_2' or application.status == 'interview_rejected_2') and not application.job.mrf.interviewer_email_3 and not application.job.mrf.interviewer_email_final:
-                    new_status = 'selected'
-                elif (application.status == 'interview_done_3' or application.status == 'interview_rejected_3') and application.job.mrf.interviewer_email_final:
-                    new_status = 'interview_next_final'
-                elif (application.status == 'interview_done_3' or application.status == 'interview_rejected_3') and not application.job.mrf.interviewer_email_final:
-                    new_status = 'selected'
-                elif (application.status == 'interview_done_final' or application.status == 'interview_rejected_final'):
-                    new_status = 'selected'
-            else:
-                # If `is_selected` is False, set the status to "rejected" based on the current interview stage
-                if (application.status == 'interview_done_1' or application.status == 'interview_next_2'):
-                    new_status = 'interview_rejected_1'
-                elif (application.status == 'interview_done_2' or application.status == 'interview_next_3'):
-                    new_status = 'interview_rejected_2'
-                elif (application.status == 'interview_done_3' or application.status == 'interview_next_final'):
-                    new_status = 'interview_rejected_3'
-                elif (application.status == 'interview_done_final' or application.status == 'selected'):
-                    new_status = 'interview_rejected_final'
+        application = feedback.job_application
 
+        # Update status if is_selected is being updated
+        is_selected = request.data.get('is_selected', None)
+        if is_selected is not None:
+            new_status = self._get_status_after_patch(application, is_selected)
             if new_status:
-                # Update the application's status using the `automation_engine` function
-                from onboarding.utils.engine import automation_engine
                 automation_engine(application, application.status, new_status)
-        serializer = InterviewFeedbackUpdateSerializer(
-            feedback, data=request.data, partial=True
-        )
+
+        serializer = InterviewFeedbackUpdateSerializer(feedback, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
@@ -260,3 +237,46 @@ class InterviewFeedbackDetailAPIView(APIView):
             },
             status=status.HTTP_200_OK
         )
+
+    def _get_status_after_patch(self, application, is_selected):
+        """
+        Determine new status for partial update (PATCH)
+        """
+        current_status = application.status
+
+        # Selected
+        if is_selected:
+            if current_status in ['interview_done_1', 'interview_rejected_1']:
+                if application.job.mrf.interviewer_email_2:
+                    return 'interview_next_2'
+                elif application.job.mrf.interviewer_email_final:
+                    return 'interview_next_final'
+                else:
+                    return 'selected'
+            elif current_status in ['interview_done_2', 'interview_rejected_2']:
+                if application.job.mrf.interviewer_email_3:
+                    return 'interview_next_3'
+                elif application.job.mrf.interviewer_email_final:
+                    return 'interview_next_final'
+                else:
+                    return 'selected'
+            elif current_status in ['interview_done_3', 'interview_rejected_3']:
+                if application.job.mrf.interviewer_email_final:
+                    return 'interview_next_final'
+                else:
+                    return 'selected'
+            elif current_status in ['interview_done_final', 'interview_rejected_final']:
+                return 'selected'
+        else:
+            # Not selected
+            mapping = {
+                'interview_done_1': 'interview_rejected_1',
+                'interview_done_2': 'interview_rejected_2',
+                'interview_done_3': 'interview_rejected_3',
+                'interview_done_final': 'interview_rejected_final',
+                'interview_next_2': 'interview_rejected_1',
+                'interview_next_3': 'interview_rejected_2',
+                'interview_next_final': 'interview_rejected_3',
+                'selected': 'interview_rejected_final',
+            }
+            return mapping.get(current_status, current_status)
