@@ -481,6 +481,7 @@ class JobApplication(models.Model):
     is_active = models.BooleanField(default=True) #Status of Application (for archiving)
 
     is_duplicate = models.BooleanField(default=False)
+    is_shortlisted = models.BooleanField(default=False)
 
     slot_link = models.URLField(null=True,blank=True)
     candidate_history = models.JSONField(null=True,blank=True,default=list)
