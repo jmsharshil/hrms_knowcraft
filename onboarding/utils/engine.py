@@ -150,6 +150,8 @@ def automation_engine(candidate, old, new):
     #     )
 
     candidate.status = new
+    if new == 'shortlisted':
+        candidate.is_shortlisted = True
     candidate.save()
 
     # 4️⃣ Auto-advance the workflow if needed
