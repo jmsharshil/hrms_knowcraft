@@ -328,12 +328,12 @@ FIELD_VALUES={
         "required_qualifications":"Required: Post Graduation/MBA in Human Resources.",
         "skills_competencies":"0–1 years experience in HR & Admin; knowledge of employment law, compensation, recruitment, employee relations, engagement; ability to multi-task in fast-paced environment."
     },
-    "Senior Associate – TA & People Function":   {
+    "Senior Associate-I":   {
         "key_responsibility":"Recruitment coordination; onboarding; HR policy communication; preparation of HR letters; exit process; employee grievance handling; engagement activities; strong interpersonal and problem-solving skills; excellent communication.",
         "required_qualifications":"Required: Bachelor’s degree with Post Graduation/MBA in Human Resources.",
         "skills_competencies":"1–3 years experience in HR & Admin; knowledge of employment law, compensation, recruitment, employee relations, engagement; ability to multi-task in fast-paced environment."
     },
-    "Senior Associate – Payroll":   {
+    "Senior Associate-II":   {
         "key_responsibility":"End-to-end payroll processing; salary input compilation; statutory compliance (TDS, PF, ESIC, PT, Gratuity); HRMS operations; leave & attendance management; benefits administration; issue resolution; strong communication and data privacy adherence.",
         "required_qualifications":"Required: Post Graduation/MBA in Human Resources.",
         "skills_competencies":"Minimum 2 years experience in HR (Payroll); knowledge of employment law, compensation, recruitment, employee relations, engagement; ability to multi-task in fast-paced environment."
@@ -386,7 +386,12 @@ FIELD_VALUES={
         "required_qualifications":"Required: Master’s degree in Finance, Accounting, Economics, or related field.Preferred: CFA, MBA, or relevant certifications.",
         "skills_competencies":"Minimum 1 year experience in investment banking or financial analysis; proficiency in financial modeling and advanced Excel; familiarity with Bloomberg, Thomson Reuters, Pitchbook, CapIQ."
     },
-    "Senior Analyst":   {
+    "Senior Analyst-I":   {
+        "key_responsibility":"Prepare investment presentations and memorandums; conduct industry research; market sizing and mapping; build comprehensive financial models and valuations; strong quantitative and presentation skills.",
+        "required_qualifications":"Required: Bachelor’s degree in Accounting or Finance.Preferred: Master’s degree; CFA or CA certification (obtained or in process).",
+        "skills_competencies":"2–4 years experience in investment banking; exposure to information memoranda, presentations, and financial modeling; strong analytical and communication skills."
+    },
+    "Senior Analyst-II":   {
         "key_responsibility":"Prepare investment presentations and memorandums; conduct industry research; market sizing and mapping; build comprehensive financial models and valuations; strong quantitative and presentation skills.",
         "required_qualifications":"Required: Bachelor’s degree in Accounting or Finance.Preferred: Master’s degree; CFA or CA certification (obtained or in process).",
         "skills_competencies":"2–4 years experience in investment banking; exposure to information memoranda, presentations, and financial modeling; strong analytical and communication skills."
@@ -443,7 +448,12 @@ FIELD_VALUES={
         "required_qualifications":"Required: B.Com / M.Com / PGDM (Finance) / MBA (Finance).Preferred: CA or Semi-qualified CA; CMA; CPA.",
         "skills_competencies":"6–12 months experience in finance/accounting (preferably US accounting); exposure to US GAAP; knowledge of accounting software; strong desire to learn."
     },
-    "Senior Associate":   {
+    "Senior Associate-I":   {
+        "key_responsibility":"Advanced bookkeeping; strong finance & accounting knowledge; resolve complex client issues; professional communication; analytical and presentation skills; ability to work on multiple assignments.",
+        "required_qualifications":"Required: B.Com / M.Com / PGDM (Finance) / MBA (Finance).Preferred: CA or Semi-qualified CA; CMA; CPA.",
+        "skills_competencies":"2–4 years experience in finance/accounting (preferably US accounting); exposure to US GAAP; knowledge of accounting software; strong desire to learn."
+    },
+    "Senior Associate-II":   {
         "key_responsibility":"Advanced bookkeeping; strong finance & accounting knowledge; resolve complex client issues; professional communication; analytical and presentation skills; ability to work on multiple assignments.",
         "required_qualifications":"Required: B.Com / M.Com / PGDM (Finance) / MBA (Finance).Preferred: CA or Semi-qualified CA; CMA; CPA.",
         "skills_competencies":"2–4 years experience in finance/accounting (preferably US accounting); exposure to US GAAP; knowledge of accounting software; strong desire to learn."
@@ -459,7 +469,12 @@ FIELD_VALUES={
         "required_qualifications":"Required: Master’s degree in Finance, Taxation, or related field.Preferred: CPA, EA, or equivalent qualification.",
         "skills_competencies":"0–12 months experience in US business tax preparation and self-review; knowledge of US federal, state, and local tax regulations; proficiency in tax software (CCH Axcess, ProSystem fx, UltraTax CS)."
     },
-    "Senior Associate":   {
+    "Senior Associate-I":   {
+        "key_responsibility":"Prepare and review complex tax returns; tax projections; client communication; strong quantitative and analytical skills; proficiency in tax software; understanding of US tax concepts.",
+        "required_qualifications":"Required: Bachelor’s degree in Accounting/Finance; Master’s degree preferable.Preferred: MBA, M.Com, EA, CA, CA-Inter, CPA.",
+        "skills_competencies":"Minimum 2 years experience in US Individual and Corporate Tax returns (1040/1065/1120/1120S); experience with tax software (UltraTax CS preferred); strong oral and email communication skills."
+    },
+    "Senior Associate-II":   {
         "key_responsibility":"Prepare and review complex tax returns; tax projections; client communication; strong quantitative and analytical skills; proficiency in tax software; understanding of US tax concepts.",
         "required_qualifications":"Required: Bachelor’s degree in Accounting/Finance; Master’s degree preferable.Preferred: MBA, M.Com, EA, CA, CA-Inter, CPA.",
         "skills_competencies":"Minimum 2 years experience in US Individual and Corporate Tax returns (1040/1065/1120/1120S); experience with tax software (UltraTax CS preferred); strong oral and email communication skills."
@@ -483,7 +498,7 @@ FIELD_VALUES={
         "required_qualifications":"Required: CA, CPA, or EA certification preferred; strong domain knowledge of US Business Taxation.",
         "skills_competencies":"Minimum 7 years experience in US Business Tax compliance and advisory; proven client communication, project management, and team development skills; prior experience in tax outsourcing or consulting firms preferred."
     }},
-    'Valuations':{
+    'Valuation':{
      "Analyst":   {
         "key_responsibility":"Well‑versed in income, market, asset approaches; discount rates, discounts, premiums.Strong grasp of three financial statements and key ratios.Financial/forecasting models from scratch (preferred).Perform financial analyses, financial modeling, report writing, and company/industry/economic research.Gather data; plan/manage schedule; validate adequacy of data; review own and teammates’ work; participate in client calls; execute under seniors’ supervision.",
         "required_qualifications":"Required: MBA (Premier B‑School) Add-on: MS (Finance), CA and/or CFA (CFA Institute, US) Preferred: CVA, ASA, and/or ABV ",
@@ -493,7 +508,7 @@ FIELD_VALUES={
         "required_qualifications":"Required: MBA (Premier B‑School) Add-on: MS (Finance), CA and/or CFA (CFA Institute, US) Preferred: CVA, ASA, and/or ABV",
         "skills_competencies":"6–12 months in valuation and/or consulting. Valuation or analytics firm (experience). Ability to effectively communicate with team, seniors, and clients. Excellent quantitative, analytical, written, and presentation skills."
     },
-    "Senior Analyst‑I":   {
+    "Senior Analyst-I":   {
         "key_responsibility":"Portfolio/Fair Value (ASC 820), Equity Awards (ASC 718/IRC 409A), Business Combinations (ASC 805), Goodwill Impairment (ASC 350/360), Embedded Derivatives (ASC 815), Gift & Estate (working knowledge preferred). Advanced ability to summarize analyses and conclusions in complex valuation reports. Financial/forecasting models from scratch (preferred); oversee multiple engagements; quality control of deliverables.Plan, organize, conduct, and manage valuation engagements; lead and mentor analysts; collaborate across teams. Functional team management, daily progression reporting, quality control, simultaneous engagement oversight, complex report writing.",
         "required_qualifications":"Required: MBA (Premier B‑School) Add-on: MS (Finance), CA and/or CFA (CFA Institute, US) Preferred: CVA, ASA, and/or ABV",
         "skills_competencies":"18–36 months in valuation and/or consulting. Big Four valuation team or leading valuation firm (preference).Ability to effectively communicate with team, seniors, and clients. Excellent quantitative, analytical, written, and presentation skills."
