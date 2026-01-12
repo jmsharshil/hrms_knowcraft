@@ -876,17 +876,22 @@ def notify_internal(candidate: Any, stage: str,cc:list) -> bool:
         from .templates import NOTIFY_INTERNAL_HTML_TEMPLATES
         for email in to_emails:
             template = NOTIFY_INTERNAL_HTML_TEMPLATES[stage]
-            feedback_link = None
+            feedback_link = ""
+            feedback_link_base=""
             if stage in ['interview_pending_1','interview_pending_2', "interview_pending_3","interview_pending_final"]:
                 if stage == 'interview_pending_1':
                     round = "hr_round"
+                    feedback_link_base = "http://localhost:5173/api/slots/hr-feedback-form/"
                 if stage == 'interview_pending_2':
                     round = "technical_round_1"
+                    feedback_link_base = "http://localhost:5173/api/slots/technical-feedback-form-one/"
                 if stage == 'interview_pending_3':
                     round = "technical_round_2"
+                    feedback_link_base = "http://localhost:5173/api/slots/technical-feedback-form-two/"
                 if stage == 'interview_pending_final':
                     round = "final_round"
-                feedback_link = f"http://localhost:5173/api/slots/interview-feedback/?job_application={candidate.id}&interview_round={round}"
+                    feedback_link_base = "http://localhost:5173/api/slots/final-feedback-form/"
+                feedback_link = f"{feedback_link_base}?interview_round={round}&job_application={candidate.id}"
             template = template.format(candidate=candidate,feedback_link=feedback_link)
             send_email(email,subject=subject,text=body,template=template)
         logger.info(

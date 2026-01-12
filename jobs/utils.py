@@ -25,6 +25,20 @@ def extract_text(file_path):
 
     return ""
 
+def safe_float(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+def safe_str(value, default="unknown"):
+    if isinstance(value, dict):
+        # try common keys
+        value = value.get("primary") or value.get("email")
+    if value is None:
+        return default
+    return str(value).strip()
+
 class Response(BaseModel):
     name: str
     phone_number: str
@@ -83,6 +97,7 @@ def parse_resume_ai(file_input):
     - expected_ctc (if exists)
     - education (list)
     - experience (list)
+    - certifications (list)
     - linkedin_url (if exists)
     - portfolio_url (if exists any other link)
     - current_employer : (if exists)
@@ -125,7 +140,6 @@ def calculate_match_score(parsed_resume, job):
     Job:
     Title: {job.job_title}
     Required Skills: {job.skills_competencies}
-    Technical Skills: {job.technical_skills}
     Experience Range: {job.experience_range}
     Key Responsibilities: {job.key_responsibility}
     Required Qualifications: {job.required_qualifications}
@@ -390,6 +404,28 @@ def format_experience_right(items):
             html += f"<p>{escape(str(ex))}</p>"
     return html
 
+def format_certifications(items):
+    if not items:
+        return "<p><span class='empty'>No certifications provided</span></p>"
+
+    html = "<ul class='certifications-list'>"
+    for cert in items:
+        if isinstance(cert, dict):
+            name = escape(cert.get("name", ""))
+            issuer = escape(cert.get("issuer", ""))
+            year = escape(cert.get("year", ""))
+            html += f"""
+            <li class="certification-item">
+              <b>{name}</b>
+              {f" – {issuer}" if issuer else ""}
+              {f" ({year})" if year else ""}
+            </li>
+            """
+        else:
+            html += f"<li class='certification-item'>{escape(str(cert))}</li>"
+    html += "</ul>"
+    return html
+
 def format_reason(reason):
     return escape(reason) if reason else "<span class='empty'>No reason provided</span>"
 
@@ -411,6 +447,7 @@ def render_beautiful_report(parsed, job, overall_score):
     education = parsed.get("education", [])
     experience = parsed.get("experience", [])
     projects = parsed.get("projects", [])
+    certifications = parsed.get("certifications", [])
     achievements = parsed.get("achievements", [])
     html = f"""
 <!DOCTYPE html>
@@ -604,6 +641,14 @@ def render_beautiful_report(parsed, job, overall_score):
   .contact-item {{
     margin-bottom: 5px;
   }}
+  .certifications-list {{
+  list-style-type: none;
+  padding: 0;
+}}
+.certification-item {{
+  margin-bottom: 8px;
+  font-size: 13px;
+}}
 </style>
 </head>
 <body>
@@ -649,7 +694,6 @@ def render_beautiful_report(parsed, job, overall_score):
 
       <div class="section-title">Profile Summary</div>
       <p>🎯 Role: {job_title}</p>
-      <p>🎓 Education: {escape(education[0]) if education else "Not provided"}</p>
 
     </div>
 
@@ -664,6 +708,9 @@ def render_beautiful_report(parsed, job, overall_score):
 
       <div class="section-title">Experience</div>
       {format_experience_right(experience)}
+
+      <div class="section-title">Certifications</div>
+      {format_certifications(certifications)}
 
     </div>
 
@@ -738,16 +785,21 @@ from datetime import timedelta
 def parse_resume_task(application,resume_file,job):
     # ---- AI extraction ----
     parsed = parse_resume_ai(resume_file)
-    name = parsed.get('name') or parsed.get('full_name')
-    email = parsed.get('email')
+    name = safe_str(parsed.get("name") or parsed.get("full_name")).capitalize()
+    email = safe_str(parsed.get("email"))
     phone = parsed.get('phone_number') or parsed.get('phone')
-    phone = phone.replace(" ",'')
+    if isinstance(phone, dict):
+      phone = phone.get('primary') or phone.get('number')
+    if phone:
+      phone = str(phone).replace(" ", "").replace("-", "")
+    else:
+      phone = None
     total_experience_years = parsed.get("total_experience_years")
     relevant_experience_years = parsed.get("relevant_experience_years")
     skills = parsed.get('skills')
     education = parsed.get("education")
-    current_ctc = parsed.get("current_ctc")
-    expected_ctc = parsed.get("expected_ctc",'')
+    current_ctc = safe_float(parsed.get("current_ctc"))
+    expected_ctc = safe_float(parsed.get("expected_ctc"))
     linkedin_url = parsed.get("linkedin_url",'')
     portfolio_url = parsed.get("portfolio_url",'')
     location = parsed.get("location")
@@ -815,9 +867,45 @@ def build_candidate_history(email, exclude_application_id=None):
         feedbacks = []
         for feedback in app.interview_feedbacks.all():
             feedbacks.append({
+                "id": str(feedback.id),
                 "interview_round": feedback.interview_round,
-                "feedback": feedback.feedback,
                 "is_selected": feedback.is_selected,
+                "department": feedback.department,
+                "designation": feedback.designation,
+                "interview_date": feedback.interview_date.isoformat() if feedback.interview_date else None,
+                "interviewer_name": feedback.interviewer_name,
+
+                # Ratings
+                "communication_rating": feedback.communication_rating,
+                "technical_skill_rating": feedback.technical_skill_rating,
+                "attitude_intent_rating": feedback.attitude_intent_rating,
+                "team_handling_rating": feedback.team_handling_rating,
+                "stability_rating": feedback.stability_rating,
+                "problem_solving_rating": feedback.problem_solving_rating,
+                "analytical_thinking_rating": feedback.analytical_thinking_rating,
+                "cultural_fit_rating": feedback.cultural_fit_rating,
+
+                # HR / Candidate details
+                "qualification": feedback.qualification,
+                "current_organization": feedback.current_organization,
+                "current_organization_location": feedback.current_organization_location,
+                "job_change_reason": feedback.job_change_reason,
+                "notice_period": feedback.notice_period,
+                "current_ctc": feedback.current_ctc,
+                "expected_ctc": feedback.expected_ctc,
+                "bond": feedback.bond,
+
+                # Qualitative feedback
+                "role_responsibility": feedback.role_responsibility,
+                "strengths": feedback.strengths,
+                "goals": feedback.goals,
+                "behavioral_cultural_fit": feedback.behavioral_cultural_fit,
+                "behavioral": feedback.behavioral,
+                "personal_background": feedback.personal_background,
+                "hometown": feedback.hometown,
+                "preferred_location": feedback.preferred_location,
+                "comments": feedback.comments,
+
                 "created_at": feedback.created_at.isoformat(),
             })
         history.append({
