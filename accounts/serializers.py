@@ -71,6 +71,7 @@ class CreateUserSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255)
     email = serializers.EmailField()
     role = serializers.ChoiceField(choices=[
+        ('admin', 'Admin'),
         ('hr_manager', 'HR Manager'),
         ('hr', 'HR'),
         ('department_head', 'Department Head'),
@@ -90,7 +91,7 @@ class CreateUserSerializer(serializers.Serializer):
         user = request.user if request else None
         
         # Admin can create any role except admin
-        if user and user.role == 'admin':
+        if user and user.role != 'admin':
             if value == 'admin':
                 raise serializers.ValidationError("Cannot create another admin user.")
         
