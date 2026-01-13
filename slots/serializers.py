@@ -13,6 +13,14 @@ class InterviewerCreateSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "email"]
 
 class InterviewFeedbackCreateSerializer(serializers.ModelSerializer):
+
+    interview_date = serializers.DateField(
+        format="%d/%m/%Y",
+        input_formats=["%d/%m/%Y","%d-%m-%Y","%Y-%m-%d","%Y/%m/%d"],
+        required=False,
+        allow_null=True
+    )
+
     class Meta:
         model = InterviewFeedback
         fields = [
