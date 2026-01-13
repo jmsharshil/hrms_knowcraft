@@ -40,7 +40,6 @@ def interview_feedback_reminder_task(booking_id):
 
     # Only send reminder if interview is over
     if booking.end > timezone.now():
-        print("?????????????????")
         delay = (booking.end - timezone.now()).total_seconds()
         logger.info(f"Interview not over yet. Will retry after {delay} seconds.")
 
@@ -48,7 +47,6 @@ def interview_feedback_reminder_task(booking_id):
         threading.Timer(delay, lambda: TASK_QUEUE.enqueue(
             interview_feedback_reminder_task, booking_id
         )).start()
-        print("why????????????????")
         return
 
     # Determine interview round from booking status (adjust according to your logic)
