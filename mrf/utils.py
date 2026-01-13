@@ -338,7 +338,7 @@ FIELD_VALUES={
         "required_qualifications":"Required: Post Graduation/MBA in Human Resources.",
         "skills_competencies":"Minimum 2 years experience in HR (Payroll); knowledge of employment law, compensation, recruitment, employee relations, engagement; ability to multi-task in fast-paced environment."
     }},
-    'Information Technology':{
+    'IT':{
      "Associate":   {
         "key_responsibility":"Remote helpdesk support; ticketing system management; IT support for online training; patch and upgrade management; technical leadership; coordination with third-party providers; professionalism under stress.",
         "required_qualifications":"Required: Bachelor’s degree in Computer Engineering, IT, or related fields. ",
