@@ -112,7 +112,7 @@ class InterviewFeedbackListCreateAPIView(APIView):
         # Determine new status based on current application status
         current_status = application.status
         new_status = self._get_status_after_interview(application,current_status, request.data.get('is_selected', True))
-        automation_engine(application, current_status, new_status)
+        automation_engine(application, application.status, new_status)
 
         # Save feedback
         serializer = InterviewFeedbackCreateSerializer(data=request.data)
@@ -142,8 +142,8 @@ class InterviewFeedbackListCreateAPIView(APIView):
         new_status = application_status_mapping.get(current_status, current_status)
 
         # If candidate is selected, move to next round or selected
+        automation_engine(application,application.status,new_status)
         if is_selected:
-            automation_engine(application,application.status,new_status)
             if new_status == 'interview_done_1':
                 if application.job.mrf.interviewer_email_2:
                     new_status = 'interview_next_2'
