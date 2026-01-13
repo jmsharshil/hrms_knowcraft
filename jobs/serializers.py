@@ -344,7 +344,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'experience_years','relevant_experience_years', 'current_ctc', 'expected_ctc', 'notice_period',
             'linkedin_url', 'portfolio_url','skill','education','location','current_employer','match_score', 'status', 'status_display',
             'source', 'source_display', 'platform_name', 'application_link','is_duplicate',"referral_name","referral_email",
-            "referral_emp_code","referral_designation","referral_department",
+            "referral_emp_code","referral_designation","referral_department","is_shortlisted",
             'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report','slot_link','candidate_history',
             'created_at', 'updated_at'
         ]
@@ -428,11 +428,16 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
     """Serializer for direct resume upload through links - NO FORM REQUIRED"""
 
     application_token = serializers.CharField(write_only=True)
-    resume = serializers.FileField(required=True)
+    # resume = serializers.FileField(required=True)
+    resumes = serializers.ListField(
+        child=serializers.FileField(),
+        write_only=True,
+        required=True
+    )
 
     class Meta:
         model = JobApplication
-        fields = ['application_token', 'resume']
+        fields = ['application_token', 'resumes']
 
     def validate_application_token(self, value):
         try:
@@ -465,80 +470,87 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
 
         return value
 
-    def validate_resume(self, value):
-        if not value:
-            raise serializers.ValidationError("Resume file is required")
+    def validate_resumes(self, values):
+        if not values:
+            raise serializers.ValidationError("At least one resume file is required")
 
-        # Validate file size (max 10MB for any format)
-        max_size = 10 * 1024 * 1024  # 10MB
-        if value.size > max_size:
-            raise serializers.ValidationError("File size must be less than 10MB")
+        for value in values:
+            # Validate file size (max 10MB)
+            max_size = 10 * 1024 * 1024
+            if value.size > max_size:
+                raise serializers.ValidationError(
+                    f"{value.name}: File size must be less than 10MB"
+                )
 
-        # Allow all common document and image formats
-        allowed_extensions = [
-            '.pdf', '.doc', '.docx', '.txt', '.rtf',  # Documents
-            '.jpg', '.jpeg', '.png', '.gif',  # Images
-            '.odt', '.pages',  # Other formats
-        ]
+            allowed_extensions = [
+                '.pdf', '.doc', '.docx', '.txt', '.rtf',
+                '.jpg', '.jpeg', '.png', '.gif',
+                '.odt', '.pages',
+            ]
 
-        import os
-        ext = os.path.splitext(value.name)[1].lower()
-        if ext not in allowed_extensions:
-            raise serializers.ValidationError(
-                f"File format not supported. Allowed formats: {', '.join(allowed_extensions)}"
-            )
+            import os
+            ext = os.path.splitext(value.name)[1].lower()
+            if ext not in allowed_extensions:
+                raise serializers.ValidationError(
+                    f"{value.name}: Unsupported file format"
+                )
 
-        return value
+        return values
 
     def create(self, validated_data):
-        # remove token from payload
         validated_data.pop('application_token', None)
+        resumes = validated_data.pop('resumes')
+
         link = self.context['application_link']
         request = self.context.get('request')
-
-        resume_file = validated_data['resume']
-        
-        # prepare values to save
-        original_filename = getattr(resume_file, 'name', '')
-        file_size = getattr(resume_file, 'size', 0)
+        created_applications = []
 
         try:
             with transaction.atomic():
-                application = JobApplication.objects.create(
-                    job=link.job,
-                    resume=resume_file,
-                    application_link=link,
-                    source='application_link',
-                    status='received',
-                    original_filename=original_filename,
-                    file_size=file_size,
-                    # submitted_by remains null for public uploads
-                    # candidate_email intentionally left null to avoid duplicate empty-string constraint
-                )
+                for resume_file in resumes:
+                    application = JobApplication.objects.create(
+                        job=link.job,
+                        resume=resume_file,
+                        application_link=link,
+                        source='application_link',
+                        status='received',
+                        original_filename=getattr(resume_file, 'name', ''),
+                        file_size=getattr(resume_file, 'size', 0),
+                    )
 
-                # Increment link statistics AFTER successful create
-                link.increment_applications()
+                    # referral logic (unchanged)
+                    data = request.data
+                    if application.get_platform_name() in ["Employee Referral", "referral"]:
+                        application.referral_name = data.get('referral_name', "")
+                        application.referral_email = data.get("referral_email", "")
+                        application.referral_emp_code = data.get('referral_emp_code', "")
+                        application.referral_department = data.get("referral_department", "")
+                        application.referral_designation = data.get("referral_designation", "")
+                        application.save()
 
-        except IntegrityError as e:
-            # Convert DB integrity error to serializer validation error so API returns 400
+                    link.increment_applications()
+                    created_applications.append(application)
+
+        except IntegrityError:
             raise serializers.ValidationError({
                 'non_field_errors': [
-                    'Could not create application. Possible duplicate candidate entry for this job.'
+                    'Could not create applications. Possible duplicate candidate entry.'
                 ]
             })
-        data = self.context['request'].data
-        if application.get_platform_name() == "Employee Referral" or application.get_platform_name() == "referral":
-            application.referral_name = data.get('referral_name',"")
-            application.referral_email = data.get("referral_email","")
-            application.referral_emp_code = data.get('referral_emp_code',"")
-            application.referral_department = data.get("referral_department","")
-            application.referral_designation = data.get("referral_designation","")
-            application.save()
+
+        # enqueue resume parsing
         from onboarding.utils.task_queue import TASK_QUEUE
         from .utils import parse_resume_task
-        TASK_QUEUE.enqueue(parse_resume_task,application,application.resume.file,link.job)
-        return application
 
+        for application in created_applications:
+            TASK_QUEUE.enqueue(
+                parse_resume_task,
+                application,
+                application.resume.file,
+                link.job
+            )
+
+        return created_applications
 
 class JobApplicationUpdateSerializer(serializers.ModelSerializer):
     """Serializer for updating job application"""
@@ -616,94 +628,113 @@ class AssignToInternalHRSerializer(serializers.Serializer):
 class ReferralApplicationCreateSerializer(serializers.ModelSerializer):
     """Serializer for direct resume upload through links - NO FORM REQUIRED"""
 
-    resume = serializers.FileField(required=True)
+    # resume = serializers.FileField(required=True)
+    resumes = serializers.ListField(
+        child=serializers.FileField(),
+        write_only=True,
+        required=True
+    )
 
     class Meta:
         model = JobApplication
-        fields = ['resume']
+        fields = ['resumes']
 
-    def validate_resume(self, value):
-        if not value:
-            raise serializers.ValidationError("Resume file is required")
+    def validate_resumes(self, values):
+        if not values:
+            raise serializers.ValidationError("At least one resume file is required")
 
-        # Validate file size (max 10MB for any format)
         max_size = 10 * 1024 * 1024  # 10MB
-        if value.size > max_size:
-            raise serializers.ValidationError("File size must be less than 10MB")
-
-        # Allow all common document and image formats
         allowed_extensions = [
-            '.pdf', '.doc', '.docx', '.txt', '.rtf',  # Documents
-            '.jpg', '.jpeg', '.png', '.gif',  # Images
-            '.odt', '.pages',  # Other formats
+            '.pdf', '.doc', '.docx', '.txt', '.rtf',
+            '.jpg', '.jpeg', '.png', '.gif',
+            '.odt', '.pages',
         ]
 
         import os
-        ext = os.path.splitext(value.name)[1].lower()
-        if ext not in allowed_extensions:
-            raise serializers.ValidationError(
-                f"File format not supported. Allowed formats: {', '.join(allowed_extensions)}"
-            )
+        for value in values:
+            if value.size > max_size:
+                raise serializers.ValidationError(
+                    f"{value.name}: File size must be less than 10MB"
+                )
 
-        return value
+            ext = os.path.splitext(value.name)[1].lower()
+            if ext not in allowed_extensions:
+                raise serializers.ValidationError(
+                    f"{value.name}: Unsupported file format"
+                )
+
+        return values
+
 
     def create(self, validated_data):
-        resume_file = validated_data['resume']
+        resumes = validated_data.pop('resumes')
         data = self.context['request'].data
-        # prepare values to save
-        original_filename = getattr(resume_file, 'name', '')
-        file_size = getattr(resume_file, 'size', 0)
-        referral_name = data.get('referral_name',"")
-        referral_email = data.get("referral_email","")
-        referral_emp_code = data.get('referral_emp_code',"")
-        referral_department = data.get("referral_department","")
-        referral_designation = data.get("referral_designation","")
-        job_id = data.get('job_id',None)
-        try:
-            job = Job.objects.filter(id=job_id).first()
-            with transaction.atomic():
-                application = ReferralApplication.objects.create(
-                    resume=resume_file,
-                    original_filename=original_filename,
-                    file_size=file_size,
-                    referral_name=referral_name,
-                    referral_email=referral_email,
-                    referral_emp_code=referral_emp_code,
-                    referral_department=referral_department,
-                    referral_designation=referral_designation,
-                    position_title = job.job_title
-                )
-        except Exception as e:
-            print(e)
+
+        referral_name = data.get('referral_name', "")
+        referral_email = data.get("referral_email", "")
+        referral_emp_code = data.get('referral_emp_code', "")
+        referral_department = data.get("referral_department", "")
+        referral_designation = data.get("referral_designation", "")
+        job_id = data.get('job_id')
+
+        job = Job.objects.filter(id=job_id).first()
+        created_referrals = []
+
+        from onboarding.utils.task_queue import TASK_QUEUE
+        from .utils import parse_resume_task
+
         try:
             with transaction.atomic():
-                job_application = JobApplication.objects.create(
-                    job=job,
-                    resume=resume_file,
-                    source='referral',
-                    status='received',
-                    original_filename=original_filename,
-                    file_size=file_size,
-                    referral_name=referral_name,
-                    referral_email=referral_email,
-                    referral_emp_code=referral_emp_code,
-                    referral_department=referral_department,
-                    referral_designation=referral_designation
-                )
-            from onboarding.utils.task_queue import TASK_QUEUE
-            from .utils import parse_resume_task
-            TASK_QUEUE.enqueue(parse_resume_task,job_application,job_application.resume.file,job_application.job)
+                for resume_file in resumes:
+                    original_filename = getattr(resume_file, 'name', '')
+                    file_size = getattr(resume_file, 'size', 0)
+
+                    # Create ReferralApplication
+                    referral_application = ReferralApplication.objects.create(
+                        resume=resume_file,
+                        original_filename=original_filename,
+                        file_size=file_size,
+                        referral_name=referral_name,
+                        referral_email=referral_email,
+                        referral_emp_code=referral_emp_code,
+                        referral_department=referral_department,
+                        referral_designation=referral_designation,
+                        position_title=job.job_title if job else None
+                    )
+
+                    # Create JobApplication
+                    job_application = JobApplication.objects.create(
+                        job=job,
+                        resume=resume_file,
+                        source='referral',
+                        status='received',
+                        original_filename=original_filename,
+                        file_size=file_size,
+                        referral_name=referral_name,
+                        referral_email=referral_email,
+                        referral_emp_code=referral_emp_code,
+                        referral_department=referral_department,
+                        referral_designation=referral_designation
+                    )
+
+                    TASK_QUEUE.enqueue(
+                        parse_resume_task,
+                        job_application,
+                        job_application.resume.file,
+                        job_application.job
+                    )
+
+                    created_referrals.append(referral_application)
+
         except IntegrityError as e:
             print(e)
-            # Convert DB integrity error to serializer validation error so API returns 400
             raise serializers.ValidationError({
                 'non_field_errors': [
-                    'Could not create application. Possible duplicate candidate entry for this job.'
+                    'Could not create application. Possible duplicate candidate entry.'
                 ]
             })
-        except Exception as e:
-            print(e)
-        return application
+
+        return created_referrals
 
 class ReferralApplicationSerializer(serializers.ModelSerializer):
     """Serializer for referral applications"""

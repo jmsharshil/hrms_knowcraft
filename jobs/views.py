@@ -803,13 +803,19 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        application = serializer.save()
+        applications = serializer.save()
         
         return Response({
             'success': True,
-            'message': 'Resume uploaded successfully',
-            'application_id': str(application.id),
-            'job_title': application.job.job_title
+            'message': f'{len(applications)} resume(s) uploaded successfully',
+            'applications': [
+                {
+                    'application_id': str(app.id),
+                    'job_title': app.job.job_title,
+                    'status': app.status
+                }
+                for app in applications
+            ]
         }, status=status.HTTP_201_CREATED)
     
     @action(detail=False, methods=['get'])
@@ -866,15 +872,19 @@ class ReferralApplicationViewSet(viewsets.ModelViewSet):
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        application = serializer.save()
+        applications = serializer.save()
 
         # Return full response using read serializer
         response_serializer = ReferralApplicationSerializer(
-            application,
+            applications,many=True,
             context={'request': request}
         )
         return Response(
-            response_serializer.data,
+            {
+                "success": True,
+                "count": len(applications),
+                "applications": response_serializer.data
+            },
             status=status.HTTP_201_CREATED
         )
     
