@@ -143,6 +143,7 @@ class InterviewFeedbackListCreateAPIView(APIView):
 
         # If candidate is selected, move to next round or selected
         if is_selected:
+            automation_engine(application,application.status,new_status)
             if new_status == 'interview_done_1':
                 if application.job.mrf.interviewer_email_2:
                     new_status = 'interview_next_2'
