@@ -111,7 +111,7 @@ class InterviewFeedbackListCreateAPIView(APIView):
 
         # Determine new status based on current application status
         current_status = application.status
-        new_status = self._get_status_after_interview(current_status, request.data.get('is_selected', True))
+        new_status = self._get_status_after_interview(application,current_status, request.data.get('is_selected', True))
         automation_engine(application, current_status, new_status)
 
         # Save feedback
@@ -127,7 +127,7 @@ class InterviewFeedbackListCreateAPIView(APIView):
             status=status.HTTP_201_CREATED
         )
 
-    def _get_status_after_interview(self, current_status, is_selected):
+    def _get_status_after_interview(self,application, current_status, is_selected):
         """
         Determine next status of JobApplication based on current_status and is_selected
         """
@@ -144,21 +144,21 @@ class InterviewFeedbackListCreateAPIView(APIView):
         # If candidate is selected, move to next round or selected
         if is_selected:
             if new_status == 'interview_done_1':
-                if hasattr(self, 'application') and self.application.job.mrf.interviewer_email_2:
+                if application.job.mrf.interviewer_email_2:
                     new_status = 'interview_next_2'
-                elif self.application.job.mrf.interviewer_email_final:
+                elif application.job.mrf.interviewer_email_final:
                     new_status = 'interview_next_final'
                 else:
                     new_status = 'selected'
             elif new_status == 'interview_done_2':
-                if self.application.job.mrf.interviewer_email_3:
+                if application.job.mrf.interviewer_email_3:
                     new_status = 'interview_next_3'
-                elif self.application.job.mrf.interviewer_email_final:
+                elif application.job.mrf.interviewer_email_final:
                     new_status = 'interview_next_final'
                 else:
                     new_status = 'selected'
             elif new_status == 'interview_done_3':
-                if self.application.job.mrf.interviewer_email_final:
+                if application.job.mrf.interviewer_email_final:
                     new_status = 'interview_next_final'
                 else:
                     new_status = 'selected'
