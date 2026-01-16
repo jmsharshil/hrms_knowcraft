@@ -62,7 +62,11 @@ class InterviewFeedbackListSerializer(serializers.ModelSerializer):
             "designation","interview_date","interviewer_name","communication_rating",
             "technical_skill_rating","attitude_intent_rating","team_handling_rating",
             "stability_rating","problem_solving_rating","analytical_thinking_rating",
-            "cultural_fit_rating","is_selected","created_at",
+            "cultural_fit_rating","is_selected","qualification","current_organization",
+            "job_change_reason","notice_period","current_ctc","expected_ctc","bond",
+            "role_responsibility","strengths","goals","behavioral_cultural_fit",
+            "personal_background","hometown","preferred_location","behavioral",
+            "comments","created_at","current_organization_location"
         ]
 
 class InterviewFeedbackDetailSerializer(serializers.ModelSerializer):
@@ -79,7 +83,7 @@ class InterviewFeedbackDetailSerializer(serializers.ModelSerializer):
             "job_change_reason","notice_period","current_ctc","expected_ctc","bond",
             "role_responsibility","strengths","goals","behavioral_cultural_fit",
             "personal_background","hometown","preferred_location","behavioral",
-            "comments","created_at",
+            "comments","created_at","current_organization_location"
         ]
 
     def get_job_application(self, obj):
