@@ -6,7 +6,7 @@ from django.utils import timezone
 import logging
 
 logger = logging.getLogger(__name__)
-REMINDER_INTERVAL = 300  # 5 minutes
+REMINDER_INTERVAL = 7200  # 5 minutes
 
 def send_feedback_reminder_email(interviewer_email, interviewer_name, candidate_name, round_name):
     subject = f"Reminder: Interview Feedback Pending ({round_name})"
