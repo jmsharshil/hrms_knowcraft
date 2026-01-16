@@ -154,6 +154,22 @@ def automation_engine(candidate, old, new):
         candidate.is_shortlisted = True
     candidate.save()
 
+    from slots.models import Interviewer
+    interviewer_email, interviewer = None, None
+    if new == 'shortlisted':
+        interviewer_email = candidate.job.mrf.interviewer_email_1
+    elif new == "interview_next_2":
+        interviewer_email = candidate.job.mrf.interviewer_email_2
+    elif new == "interview_next_final":
+        interviewer_email = candidate.job.mrf.interviewer_email_final
+    if interviewer_email:
+        interviewer = Interviewer.objects.filter(email=interviewer_email).first()
+    interviewer_id = interviewer.id if interviewer else None
+    candidate.slot_link = (
+        f"http://localhost:5173/api/slots/available/?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
+    )
+
+    candidate.save()
     # 4️⃣ Auto-advance the workflow if needed
     next_state = get_auto_next(new)
     if next_state:
