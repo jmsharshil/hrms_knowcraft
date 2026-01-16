@@ -28,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-0(s=ka%+mzk+5n3*t-h8l0#6yh7$bnt*y)=a!zy!7_q192j%$t'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net','127.0.0.1','localhost','373cf8796eac.ngrok-free.app']
 
@@ -238,7 +238,7 @@ EMAIL_HOST = 'smtp.gmail.com'  # Change to your SMTP server
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'knowcrafthrms@gmail.com'  # Change to your email
-EMAIL_HOST_PASSWORD = 'vpcr mxne ztxf mdfq a'  # Change to your password
+EMAIL_HOST_PASSWORD = 'vpcr mxne ztxf mdfq'  # Change to your password
 # EMAIL_HOST_USER = "testing251299@gmail.com"
 # EMAIL_HOST_PASSWORD = "hqnc uhzo lwch iwss"
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
