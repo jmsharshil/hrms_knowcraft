@@ -257,11 +257,10 @@ class CandidateBookSlotView(APIView):
             round_name = 'Final Round'
             feedback_link_base = "http://localhost:5173/api/slots/final-feedback-form/"
         feedback_link = f"{feedback_link_base}?interview_round={round}&job_application={candidate.id}"
-
-        send_mail(
-            "New Interview Scheduled",
-            f"Hello {interviewer.name},\nYou have an interview with {candidate.candidate_name} at {start_str}.\nJoin link: {meeting_link}\n Feedback link: {feedback_link}",
-            settings.DEFAULT_FROM_EMAIL,
+        from onboarding.utils.sender import send_email
+        send_email(
+            subject="New Interview Scheduled",
+            text=f"Hello {interviewer.name},\nYou have an interview with {candidate.candidate_name} at {start_str}.\nJoin link: {meeting_link}\n Feedback link: {feedback_link}",
             template=f"""
             <html>
             <body style="font-family: Arial; color:#333;">
@@ -276,7 +275,7 @@ class CandidateBookSlotView(APIView):
                 Recruitment System</p>
                 </body>
             </html>""",
-            [interviewer.email],
+            to=interviewer.email,
         )
 
         from onboarding.utils.engine import automation_engine
