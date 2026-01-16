@@ -238,18 +238,23 @@ class CandidateBookSlotView(APIView):
             [candidate.candidate_email],
         )
         round=None
+        round_name = ''
         feedback_link_base = ""
         if candidate.status == 'shortlisted' or candidate.status == 'interview_pending_1':
             round = "hr_round"
+            round_name = 'HR Round'
             feedback_link_base = "http://localhost:5173/api/slots/hr-feedback-form/"
         if candidate.status == 'interview_next_2' or candidate.status == 'interview_pending_2':
             round = "technical_round_1"
+            round_name = 'Technical Round 1'
             feedback_link_base = "http://localhost:5173/api/slots/technical-feedback-form-one/"
         if candidate.status == 'interview_next_3' or candidate.status == 'interview_pending_3':
             round = "technical_round_2"
+            round_name = 'Technical Round 2'
             feedback_link_base = "http://localhost:5173/api/slots/technical-feedback-form-two/"
         if candidate.status == 'interview_next_final' or candidate.status == 'interview_pending_final':
             round = "final_round"
+            round_name = 'Final Round'
             feedback_link_base = "http://localhost:5173/api/slots/final-feedback-form/"
         feedback_link = f"{feedback_link_base}?interview_round={round}&job_application={candidate.id}"
 
@@ -257,6 +262,20 @@ class CandidateBookSlotView(APIView):
             "New Interview Scheduled",
             f"Hello {interviewer.name},\nYou have an interview with {candidate.candidate_name} at {start_str}.\nJoin link: {meeting_link}\n Feedback link: {feedback_link}",
             settings.DEFAULT_FROM_EMAIL,
+            template=f"""
+            <html>
+            <body style="font-family: Arial; color:#333;">
+                <h2>Interview Scheduled ({round_name})</h2>
+                <p>Dear {interviewer.name},</p>
+                <p>You have an interview with {candidate.candidate_name} at {start_str}.</p>
+                <p>Join link: {meeting_link}</p>
+                <p>Feedback link: {feedback_link}</p>
+                <br>
+                <p>Regards,
+                <br>
+                Recruitment System</p>
+                </body>
+            </html>""",
             [interviewer.email],
         )
 
