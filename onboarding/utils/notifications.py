@@ -639,7 +639,7 @@ NOTIFY_INTERNAL_MAP = {
     #     "sms": "Interview pending for assigned candidate.",
     # },
     "shortlisted": {
-        "receivers": ["interviewer","hr"],
+        "receivers": ["interviewer","hr",'referral'],
         "subject": "Selected for interview",
         "body": "The candidate is ready for interview scheduling.",
         "sms": "Interview pending for assigned candidate.",
@@ -663,25 +663,25 @@ NOTIFY_INTERNAL_MAP = {
         "sms": "Interview pending for assigned candidate.",
     },
     "interview_rejected_1": {
-        "receivers": ["interviewer"],
+        "receivers": ["interviewer",'referral'],
         "subject": "Cnadidate rejection",
         "body": "The candidate is rejected in First round of interview.",
         "sms": "The Candindate is rejected in First round of interview.",
     },
     "interview_rejected_2": {
-        "receivers": ["interviewer"],
+        "receivers": ["interviewer",'referral'],
         "subject": "Cnadidate rejection",
         "body": "The candidate is rejected in Second round of interview.",
         "sms": "The Candindate is rejected in Second round of interview.",
     },
     "interview_rejected_3": {
-        "receivers": ["interviewer"],
+        "receivers": ["interviewer",'referral'],
         "subject": "Cnadidate rejection",
         "body": "The candidate is rejected in Third round of interview.",
         "sms": "The Candindate is rejected in Third round of interview.",
     },
     "interview_rejected_final": {
-        "receivers": ["interviewer"],
+        "receivers": ["interviewer",'referral'],
         "subject": "Cnadidate rejection",
         "body": "The candidate is rejected in Fianl round of interview.",
         "sms": "The Candindate is rejected in Final round of interview.",
@@ -693,7 +693,7 @@ NOTIFY_INTERNAL_MAP = {
         "sms": "Candidate approval required.",
     },
     "approved": {
-        "receivers": ["hr"],
+        "receivers": ["hr",'referral'],
         "subject": "Candidate Approved",
         "body": "Candidate has been approved. Move to next steps.",
         "sms": "Candidate approved.",
@@ -789,7 +789,7 @@ NOTIFY_INTERNAL_MAP = {
         "sms": "Duplicate profile rejected.",
     },
     "rejected": {
-        "receivers": ["consultancy", "department_head", "hr"],
+        "receivers": ["consultancy", "department_head", "hr",'referral'],
         "subject": "Candidate Rejected",
         "body": "Candidate profile has been rejected.",
         "sms": "Candidate rejected.",
@@ -846,8 +846,8 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
                 continue
 
             if role == "referer":
-                # if candidate and candidate.referer:
-                #     emails.add(candidate.referer)
+                if candidate and candidate.referral_email:
+                    emails.add(candidate.referral_email)
                 continue
 
             if role == "internal_team":

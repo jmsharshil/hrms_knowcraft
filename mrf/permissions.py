@@ -5,7 +5,7 @@ class IsDepartmentHead(permissions.BasePermission):
     """Only department heads can create MRFs"""
     
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role == 'department_head'
+        return request.user.is_authenticated and request.user.has_role('department_head')
 
 
 class CanManageMasterData(permissions.BasePermission):
@@ -20,7 +20,7 @@ class CanManageMasterData(permissions.BasePermission):
             return True
         
         # Write access only for admin and hr_manager
-        return request.user.role in ['admin', 'hr_manager']
+        return request.user.has_role('admin', 'hr_manager')
 
 
 class CanManageWorkflow(permissions.BasePermission):
@@ -35,7 +35,7 @@ class CanManageWorkflow(permissions.BasePermission):
             return True
         
         # Write access only for admin
-        return request.user.role == 'department_head'   ## earlier it was 'admin'
+        return request.user.has_role('department_head')   ## earlier it was 'admin'
 
 
 class CanViewMRF(permissions.BasePermission):
@@ -57,7 +57,7 @@ class CanViewMRF(permissions.BasePermission):
             return True
         
         # HR and admin can view all
-        if user.role in ['admin', 'hr_manager', 'hr']:
+        if user.has_role('admin', 'hr_manager', 'hr'):
             return True
         
         # Approvers can view pending MRFs at their level

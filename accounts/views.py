@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.mail import send_mail
 from django.conf import settings
-from .models import User, Company, MagicLink
+from .models import User, Company, MagicLink,Role
 from .serializers import (
     CompanySignupSerializer, UserSerializer, CreateUserSerializer,
     SetPinSerializer, PinLoginSerializer, MagicLinkSerializer
@@ -25,7 +25,7 @@ def get_tokens_for_user(user):
     refresh['role'] = user.role
     refresh['company_id'] = str(user.company.id)
     refresh['name'] = user.name
-    
+    refresh['roles'] = list(user.roles.values_list('code', flat=True))
     return {
         'refresh': str(refresh),
         'access': str(refresh.access_token),
@@ -166,6 +166,7 @@ class CreateUserView(APIView):
         serializer = CreateUserSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             # Create user
+            roles = serializer.validated_data.pop("roles", [])
             user = User.objects.create_user(
                 email=serializer.validated_data['email'],
                 name=serializer.validated_data['name'],
@@ -175,6 +176,15 @@ class CreateUserView(APIView):
             user.created_by = request.user
             user.save()
             
+            if roles:
+                role_objs = Role.objects.filter(code__in=roles)
+                user.roles.set(role_objs)
+            else:
+                # Ensure primary role exists in M2M
+                try:
+                    user.roles.add(Role.objects.get(code=user.role))
+                except Role.DoesNotExist:
+                    pass
             # Create magic link
             magic_link = MagicLink.create_link(user, purpose='set_pin')
             
