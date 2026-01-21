@@ -19,7 +19,6 @@ class UserSerializer(serializers.ModelSerializer):
         # read_only=True,
         slug_field="code",
         queryset=Role.objects.all(),
-        required=False
     )
     class Meta:
         model = User
@@ -32,7 +31,7 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'pin': {'write_only': True}
         }
-        
+
     def update(self, instance, validated_data):
         roles = validated_data.pop("roles", None)
         request = self.context.get("request")

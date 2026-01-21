@@ -117,18 +117,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         """Check if user can create other users"""
         return self.has_role('admin', 'hr_manager')
     
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-
-        if self.role:
-            try:
-                role_obj = Role.objects.get(code=self.role)
-                if not self.roles.filter(code=self.role).exists():
-                    self.roles.add(role_obj)
-            except Role.DoesNotExist:
-                pass
-
-
 class MagicLink(models.Model):
     """Magic link for password-less authentication and PIN setup"""
     
@@ -183,8 +171,8 @@ from django.db.models.signals import post_migrate
 from django.dispatch import receiver
 
 @receiver(post_migrate)
-def create_default_roles(sender, **kwargs):
-    from .models import Role
+def create_default_roles_and_assign(sender, **kwargs):
+    from .models import Role, User
 
     ROLE_CODES = [
         ('admin', 'Admin'),
@@ -194,5 +182,16 @@ def create_default_roles(sender, **kwargs):
         ('consultancy', 'Consultancy'),
     ]
 
+    # 1️⃣ Create roles if missing
+    role_map = {}
     for code, name in ROLE_CODES:
-        Role.objects.get_or_create(code=code, defaults={'name': name})
+        role, _ = Role.objects.get_or_create(code=code,defaults={'name': name})
+        role_map[code] = role
+
+    # 2️⃣ Auto-assign roles to users (from legacy `role` field)
+    users = User.objects.exclude(role__isnull=True).exclude(role__exact='')
+
+    for user in users:
+        role_obj = role_map.get(user.role)
+        if role_obj and not user.roles.filter(id=role_obj.id).exists():
+            user.roles.add(role_obj)
