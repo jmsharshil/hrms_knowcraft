@@ -347,6 +347,8 @@ svg.pie {
 </html>
 """)
 from html import escape
+def esc(value):
+    return escape(str(value)) if value is not None else ""
 
 def format_contact(email, phone, linkedin):
     return f"""
@@ -360,7 +362,7 @@ def format_skills_tags(skills):
         return "<span class='empty'>No skills provided</span>"
 
     return "<ul class='skills-list'>" + "".join(
-        f"<li class='skill-item'>{escape(str(skill))}</li>" for skill in skills
+        f"<li class='skill-item'>{esc(str(skill))}</li>" for skill in skills
     ) + "</ul>"
 
 def format_education_right(items):
@@ -370,10 +372,10 @@ def format_education_right(items):
     html = ""
     for ed in items:
         if isinstance(ed, dict):
-            degree = escape(ed.get("degree", ""))
-            field = escape(ed.get("field", ""))
-            inst = escape(ed.get("institution", ""))
-            duration = escape(ed.get("duration", ""))
+            degree = esc(ed.get("degree", ""))
+            field = esc(ed.get("field", ""))
+            inst = esc(ed.get("institution", ""))
+            duration = esc(ed.get("duration", ""))
             html += f"""
             <p>
               <b>{degree}{f" in {field}" if field else ""}</b><br>
@@ -381,7 +383,7 @@ def format_education_right(items):
             </p>
             """
         else:
-            html += f"<p>{escape(str(ed))}</p>"
+            html += f"<p>{esc(str(ed))}</p>"
     return html
 
 def format_experience_right(items):
@@ -391,9 +393,9 @@ def format_experience_right(items):
     html = ""
     for ex in items:
         if isinstance(ex, dict):
-            title = escape(ex.get("title", ""))
-            emp = escape(ex.get("employer", ""))
-            duration = escape(ex.get("duration", ""))
+            title = esc(ex.get("title", ""))
+            emp = esc(ex.get("employer", ""))
+            duration = esc(ex.get("duration", ""))
             html += f"""
             <p>
               <b>{title}</b> – {emp}<br>
@@ -401,7 +403,7 @@ def format_experience_right(items):
             </p>
             """
         else:
-            html += f"<p>{escape(str(ex))}</p>"
+            html += f"<p>{esc(str(ex))}</p>"
     return html
 
 def format_certifications(items):
@@ -411,9 +413,9 @@ def format_certifications(items):
     html = "<ul class='certifications-list'>"
     for cert in items:
         if isinstance(cert, dict):
-            name = escape(cert.get("name", ""))
-            issuer = escape(cert.get("issuer", ""))
-            year = escape(cert.get("year", ""))
+            name = esc(cert.get("name", ""))
+            issuer = esc(cert.get("issuer", ""))
+            year = esc(cert.get("year", ""))
             html += f"""
             <li class="certification-item">
               <b>{name}</b>
@@ -422,21 +424,21 @@ def format_certifications(items):
             </li>
             """
         else:
-            html += f"<li class='certification-item'>{escape(str(cert))}</li>"
+            html += f"<li class='certification-item'>{esc(str(cert))}</li>"
     html += "</ul>"
     return html
 
 def format_reason(reason):
-    return escape(reason) if reason else "<span class='empty'>No reason provided</span>"
+    return esc(reason) if reason else "<span class='empty'>No reason provided</span>"
 
 def render_beautiful_report(parsed, job, overall_score):
     from html import escape
 
-    name = escape(parsed.get("name", ""))
-    email = escape(parsed.get("email") or parsed.get("candidate_email") or "")
-    phone = escape(parsed.get("phone") or parsed.get("phone_number") or "")
-    linkedin = escape(parsed.get("linkedin_url") or "")
-    job_title = escape(
+    name = esc(parsed.get("name", ""))
+    email = esc(parsed.get("email") or parsed.get("candidate_email") or "")
+    phone = esc(parsed.get("phone") or parsed.get("phone_number") or "")
+    linkedin = esc(parsed.get("linkedin_url") or "")
+    job_title = esc(
         getattr(job, "job_title", "") or
         (job.get("job_title") if isinstance(job, dict) else "")
     )
