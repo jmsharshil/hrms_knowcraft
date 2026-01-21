@@ -175,7 +175,7 @@ class CreateUserView(APIView):
             )
             user.created_by = request.user
             user.save()
-            
+
             if roles:
                 role_objs = Role.objects.filter(code__in=roles)
                 user.roles.set(role_objs)
@@ -221,6 +221,9 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         # Only access users from the same company
         return User.objects.filter(company=self.request.user.company)
+    
+    def get_serializer_context(self):
+        return {"request": self.request}
 
 
 class CurrentUserView(APIView):
