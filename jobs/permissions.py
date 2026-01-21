@@ -16,11 +16,11 @@ class CanViewJobs(permissions.BasePermission):
         user = request.user
 
         # Admin and HR Manager can view all jobs
-        if user.role in ['admin', 'hr_manager']:
+        if user.has_role('admin', 'hr_manager'):
             return True
 
         # Internal HR can only view jobs assigned to them OR jobs they posted
-        if user.role == 'hr':
+        if user.has_role('hr'):
             # Allow if job assigned to this internal HR
             if obj.assigned_to_internal_hr == user:
                 return True
@@ -30,13 +30,13 @@ class CanViewJobs(permissions.BasePermission):
             return False
 
         # Department Head can view jobs from their department
-        if user.role == 'department_head':
+        if user.has_role('department_head'):
             if hasattr(user, 'headed_department') and obj.department == user.headed_department:
                 return True
             return False
 
         # Consultancy can view assigned jobs or publicly visible jobs
-        if user.role == 'consultancy':
+        if user.has_role('consultancy'):
             return obj.assigned_to_consultancy == user or obj.visible_to_consultancy
 
         return False
@@ -52,7 +52,7 @@ class CanCreateJobs(permissions.BasePermission):
         return (
             request.user and 
             request.user.is_authenticated and 
-            request.user.role in ['admin', 'hr_manager']
+            request.user.has_role('admin', 'hr_manager')
         )
 
 
@@ -66,12 +66,12 @@ class CanEditJobs(permissions.BasePermission):
         return (
             request.user and 
             request.user.is_authenticated and 
-            request.user.role in ['admin', 'hr_manager']
+            request.user.has_role('admin', 'hr_manager')
         )
     
     def has_object_permission(self, request, view, obj):
         user = request.user
-        return user.role in ['admin', 'hr_manager']
+        return user.has_role('admin', 'hr_manager')
 
 
 class CanAssignToConsultancy(permissions.BasePermission):
@@ -84,7 +84,7 @@ class CanAssignToConsultancy(permissions.BasePermission):
         return (
             request.user and 
             request.user.is_authenticated and 
-            request.user.role in ['admin', 'hr_manager']
+            request.user.has_role('admin', 'hr_manager')
         )
 
 
@@ -98,7 +98,7 @@ class CanCloseJobs(permissions.BasePermission):
         return (
             request.user and 
             request.user.is_authenticated and 
-            request.user.role in ['admin', 'hr_manager']
+            request.user.has_role('admin', 'hr_manager')
         )
 
 
@@ -113,7 +113,7 @@ class CanSubmitApplications(permissions.BasePermission):
         return (
             request.user and 
             request.user.is_authenticated and 
-            request.user.role in ['hr', 'hr_manager', 'admin', 'consultancy']
+            request.user.has_role('hr', 'hr_manager', 'admin', 'consultancy')
         )
 
 
@@ -127,12 +127,12 @@ class CanManageApplications(permissions.BasePermission):
         return (
             request.user and 
             request.user.is_authenticated and 
-            request.user.role in ['admin', 'hr_manager', 'hr']
+            request.user.has_role('admin', 'hr_manager', 'hr')
         )
     
     def has_object_permission(self, request, view, obj):
         user = request.user
-        return user.role in ['admin', 'hr_manager', 'hr']
+        return user.has_role('admin', 'hr_manager', 'hr')
 
 
 class CanViewApplications(permissions.BasePermission):
@@ -149,14 +149,14 @@ class CanViewApplications(permissions.BasePermission):
         user = request.user
         
         # Admin, HR Manager, HR can view all
-        if user.role in ['admin', 'hr_manager']:
+        if user.has_role('admin', 'hr_manager'):
             return True
         
-        if user.role == 'hr':
+        if user.has_role('hr'):
             return obj.job.assigned_to_internal_hr == user
         
         # Consultancy can view applications for their assigned jobs
-        if user.role == 'consultancy':
+        if user.has_role('consultancy'):
             return obj.job.assigned_to_consultancy == user
         
         return False

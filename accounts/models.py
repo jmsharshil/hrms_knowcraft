@@ -54,6 +54,12 @@ class UserManager(BaseUserManager):
         user = self.create_user(email, company, password=password, **extra_fields)
         return user
 
+class Role(models.Model):
+    code = models.CharField(max_length=30, unique=True)
+    name = models.CharField(max_length=50)
+
+    def __str__(self):
+        return self.name
 
 class User(AbstractBaseUser, PermissionsMixin):
     """Custom user model with role-based access and multi-tenancy"""
@@ -70,6 +76,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
     name = models.CharField(max_length=255)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+    roles = models.ManyToManyField(
+        Role,
+        blank=True,
+        related_name="users"
+    )
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='users')
     
     # PIN for authentication (stored as hash)
@@ -98,11 +109,24 @@ class User(AbstractBaseUser, PermissionsMixin):
     
     def has_role(self, *roles):
         """Check if user has any of the specified roles"""
+        if self.roles and self.roles.filter(code__in=roles).exists():
+            return True
         return self.role in roles
     
     def can_create_users(self):
         """Check if user can create other users"""
-        return self.role in ['admin', 'hr_manager']
+        return self.has_role('admin', 'hr_manager')
+    
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        if self.role:
+            try:
+                role_obj = Role.objects.get(code=self.role)
+                if not self.roles.filter(code=self.role).exists():
+                    self.roles.add(role_obj)
+            except Role.DoesNotExist:
+                pass
 
 
 class MagicLink(models.Model):
@@ -154,3 +178,21 @@ class MagicLink(models.Model):
             purpose=purpose,
             expires_at=expires_at
         )
+    
+from django.db.models.signals import post_migrate
+from django.dispatch import receiver
+
+@receiver(post_migrate)
+def create_default_roles(sender, **kwargs):
+    from .models import Role
+
+    ROLE_CODES = [
+        ('admin', 'Admin'),
+        ('hr_manager', 'HR Manager'),
+        ('hr', 'HR'),
+        ('department_head', 'Department Head'),
+        ('consultancy', 'Consultancy'),
+    ]
+
+    for code, name in ROLE_CODES:
+        Role.objects.get_or_create(code=code, defaults={'name': name})
