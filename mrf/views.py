@@ -210,11 +210,11 @@ class MRFViewSet(viewsets.ModelViewSet):
         ).prefetch_related('approvals', 'revisions', 'workflow_template__levels')
         
         # Filter based on user role
-        if user.role == 'department_head':
+        if user.has_role('department_head'):
             queryset = queryset.filter(
                 Q(requested_by=user) | Q(status='approved')
             )
-        elif user.role in ['admin', 'hr_manager', 'hr']:
+        elif user.has_role('admin', 'hr_manager', 'hr'):
             pass  # Can see all
         else:
             queryset = queryset.filter(status='approved')
@@ -239,11 +239,15 @@ class MRFViewSet(viewsets.ModelViewSet):
         pending_approval = self.request.query_params.get('pending_approval')
         if pending_approval and pending_approval.lower() == 'true':
             # Find workflow levels where user's role matches
+            # workflow_levels = ApprovalWorkflow.objects.filter(
+            #     required_role=user.role,
+            #     is_active=True
+            # ).values_list('template_id', 'level')
             workflow_levels = ApprovalWorkflow.objects.filter(
-                required_role=user.role,
+                approver=user,
                 is_active=True
             ).values_list('template_id', 'level')
-            
+    
             # Build query for MRFs at those levels
             q_objects = Q()
             for template_id, level in workflow_levels:
@@ -363,9 +367,9 @@ class MRFViewSet(viewsets.ModelViewSet):
             )
         
         # Verify user has correct role
-        if request.user.role != current_workflow.required_role:
+        if current_workflow.approver_id != request.user.id:
             return Response(
-                {'error': f'You do not have permission to approve at this level. Required role: {current_workflow.required_role}'},
+                {'error': f'You do not have permission to approve at this level.'},
                 status=status.HTTP_403_FORBIDDEN
             )
         
@@ -429,7 +433,7 @@ class MRFViewSet(viewsets.ModelViewSet):
         user = request.user
         
         # Base queryset based on user role
-        if user.role == 'department_head':
+        if user.has_role('department_head'):
             queryset = MRF.objects.filter(requested_by=user)
         else:
             queryset = MRF.objects.all()
@@ -446,8 +450,12 @@ class MRFViewSet(viewsets.ModelViewSet):
         }
         
         # Pending approval count for current user
+        # workflow_levels = ApprovalWorkflow.objects.filter(
+        #     required_role=user.role,
+        #     is_active=True
+        # ).values_list('template_id', 'level')
         workflow_levels = ApprovalWorkflow.objects.filter(
-            required_role=user.role,
+            approver=user,
             is_active=True
         ).values_list('template_id', 'level')
         

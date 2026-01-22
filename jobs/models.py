@@ -87,7 +87,7 @@ class Job(models.Model):
         null=True,
         blank=True,
         related_name='assigned_jobs',
-        limit_choices_to={'role': 'consultancy'}
+        # limit_choices_to={'role': 'consultancy'}
     )
     assigned_at = models.DateTimeField(null=True, blank=True)
     assigned_by = models.ForeignKey(
@@ -103,7 +103,7 @@ class Job(models.Model):
         null=True,
         blank=True,
         related_name='assigned_internal_jobs',
-        limit_choices_to={'role__in': ['hr', 'hr_manager']}  # adjust roles if different in your app
+        # limit_choices_to={'role__in': ['hr', 'hr_manager']}  # adjust roles if different in your app
     )
     assigned_internal_at = models.DateTimeField(null=True, blank=True)
     assigned_internal_by = models.ForeignKey(
