@@ -66,21 +66,21 @@ class JobViewSet(viewsets.ModelViewSet):
         ).prefetch_related('applications', 'history', 'application_links')
         
         # Filter based on user role
-        if user.role in ['admin', 'hr_manager']:
+        if user.has_role('admin', 'hr_manager'):
             # Can see all jobs
             pass
-        elif user.role == 'department_head':
+        elif user.has_role('department_head'):
             # Can see jobs from their department
             if hasattr(user, 'headed_department'):
                 queryset = queryset.filter(department=user.headed_department)
             else:
                 queryset = queryset.none()
-        elif user.role == 'hr':
+        elif user.has_role('hr'):
             # Internal HR: only jobs assigned to them OR jobs they posted
             queryset = queryset.filter(
                 Q(assigned_to_internal_hr=user) | Q(posted_by=user)
             )
-        elif user.role == 'consultancy':
+        elif user.has_role('consultancy'):
             # Can see assigned jobs or publicly visible jobs
             queryset = queryset.filter(
                 Q(assigned_to_consultancy=user) | Q(visible_to_consultancy=True)
@@ -137,7 +137,13 @@ class JobViewSet(viewsets.ModelViewSet):
         
         # Get consultancy user
         try:
-            consultancy = User.objects.get(id=consultancy_id, role='consultancy', is_active=True)
+            # consultancy = User.objects.get(id=consultancy_id, role='consultancy', is_active=True)
+            consultancy = User.objects.get(id=consultancy_id, is_active=True)
+            if not consultancy.has_role('consultancy'):
+                return Response(
+                {'error': 'Consultancy user not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
         except User.DoesNotExist:
             return Response(
                 {'error': 'Consultancy user not found'},
@@ -314,10 +320,11 @@ class JobViewSet(viewsets.ModelViewSet):
 
         # --- Get consultancy user ---
         try:
-            consultancy = User.objects.get(
-                id=consultancy_id,
-                role='consultancy',
-                is_active=True
+            consultancy = User.objects.get(id=consultancy_id, is_active=True)
+            if not consultancy.has_role('consultancy'):
+                return Response(
+                {'error': 'Consultancy user not found'},
+                status=status.HTTP_404_NOT_FOUND
             )
         except User.DoesNotExist:
             return Response(
@@ -327,11 +334,12 @@ class JobViewSet(viewsets.ModelViewSet):
 
         # --- Get internal HR user ---
         try:
-            internal_hr = User.objects.get(
-                id=internal_hr_id,
-                role__in=['hr', 'hr_manager'],
-                is_active=True
-            )
+            internal_hr = User.objects.get(id=internal_hr_id, is_active=True)
+            if not internal_hr.has_role('hr', 'hr_manager'):
+                return Response(
+                    {'error': 'User is not an internal HR'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         except User.DoesNotExist:
             return Response(
                 {'error': 'Internal HR user not found'},
@@ -533,14 +541,14 @@ class JobViewSet(viewsets.ModelViewSet):
         user = request.user
         
         # Base queryset based on user role
-        if user.role in ['admin', 'hr_manager', 'hr']:
+        if user.has_role('admin', 'hr_manager', 'hr'):
             queryset = Job.objects.all()
-        elif user.role == 'department_head':
+        elif user.has_role('department_head'):
             if hasattr(user, 'headed_department'):
                 queryset = Job.objects.filter(department=user.headed_department)
             else:
                 queryset = Job.objects.none()
-        elif user.role == 'consultancy':
+        elif user.has_role('consultancy'):
             queryset = Job.objects.filter(
                 Q(assigned_to_consultancy=user) | Q(visible_to_consultancy=True)
             )
@@ -560,7 +568,7 @@ class JobViewSet(viewsets.ModelViewSet):
         }
         
         # Additional stats for consultancy
-        if user.role == 'consultancy':
+        if user.has_role('consultancy'):
             stats['assigned_to_me'] = queryset.filter(assigned_to_consultancy=user).count()
         
         # Priority breakdown
@@ -576,17 +584,22 @@ class JobViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def consultancy_list(self, request):
         """Get list of active consultancies for assignment"""
-        if request.user.role not in ['admin', 'hr_manager']:
+
+        # ✅ SAFE role check (supports multiple roles)
+        if not request.user.has_role('admin', 'hr_manager'):
             return Response(
                 {'error': 'Permission denied'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
+        # ✅ SAFE M2M role filtering
         consultancies = User.objects.filter(
-            role='consultancy',
+            roles__code='consultancy',
             is_active=True
-        ).values('id', 'full_name', 'email', 'phone')
-        
+        ).distinct().values(
+            'id', 'name', 'email'
+        )
+
         return Response(list(consultancies), status=status.HTTP_200_OK)
 
 
@@ -606,13 +619,13 @@ class JobApplicationLinkViewSet(viewsets.ModelViewSet):
         queryset = JobApplicationLink.objects.select_related('job', 'created_by')
         
         # Filter based on user role
-        if user.role in ['admin', 'hr_manager']:
+        if user.has_role('admin', 'hr_manager'):
             # Can see all links
             pass
-        elif user.role == 'hr':
+        elif user.has_role('hr'):
             # Internal HR: only links for jobs assigned to them (or created by them if you prefer)
             queryset = queryset.filter(job__assigned_to_internal_hr=user)
-        elif user.role == 'consultancy':
+        elif user.has_role('consultancy'):
             # Can only see links for jobs assigned to them
             queryset = queryset.filter(job__assigned_to_consultancy=user)
         else:
@@ -682,9 +695,9 @@ class JobApplicationLinkViewSet(viewsets.ModelViewSet):
         """Get link statistics"""
         user = request.user
         
-        if user.role in ['admin', 'hr_manager', 'hr']:
+        if user.has_role('admin', 'hr_manager', 'hr'):
             queryset = JobApplicationLink.objects.all()
-        elif user.role == 'consultancy':
+        elif user.has_role('consultancy'):
             queryset = JobApplicationLink.objects.filter(job__assigned_to_consultancy=user)
         else:
             queryset = JobApplicationLink.objects.none()
@@ -745,13 +758,13 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         )
         
         # Filter based on user role
-        if user.role in ['admin', 'hr_manager']:
+        if user.has_role('admin', 'hr_manager'):
             # Can see all applications
             pass
-        elif user.role == 'hr':
+        elif user.has_role('hr'):
             # Internal HR: only applications for jobs assigned to them
             queryset = queryset.filter(job__assigned_to_internal_hr=user)
-        elif user.role == 'consultancy':
+        elif user.has_role('consultancy'):
             # Can see applications for jobs assigned to them
             queryset = queryset.filter(job__assigned_to_consultancy=user)
         else:
@@ -823,9 +836,9 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         """Get application statistics"""
         user = request.user
         
-        if user.role in ['admin', 'hr_manager', 'hr']:
+        if user.has_role('admin', 'hr_manager', 'hr'):
             queryset = JobApplication.objects.all()
-        elif user.role == 'consultancy':
+        elif user.has_role('consultancy'):
             queryset = JobApplication.objects.filter(job__assigned_to_consultancy=user)
         else:
             queryset = JobApplication.objects.none()
