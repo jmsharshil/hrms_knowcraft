@@ -105,7 +105,7 @@ AUTO_NEXT = {
     "hr_review_ok": "salary_annexure_prep",
     # "salary_annexure_prep":"salary_annexure_sent",
     "approved_annexure":"offer_pending",
-    "offer_pending":"offer_sent",
+    # "offer_pending":"offer_sent",
     "offer_accepted": "resignation_pending",
     "resignation_approved": "docs_pending",
     "docs_approved": "joining_pending",

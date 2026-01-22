@@ -122,6 +122,7 @@ class SetPinView(APIView):
                     'name': user.name,
                     'email': user.email,
                     # 'role': user.role,
+                    'roles': user.roles.values_list('code', flat=True),
                     'company_id': str(user.company.id)
                 },
                 **tokens
@@ -148,6 +149,7 @@ class PinLoginView(APIView):
                     'id': str(user.id),
                     'name': user.name,
                     'email': user.email,
+                    'roles': user.roles.values_list('code', flat=True),
                     # 'role': user.role,
                     # 'role_display': user.get_role_display(),
                     'company_id': str(user.company.id),
@@ -227,6 +229,7 @@ class CurrentUserView(APIView):
             'id': str(user.id),
             'name': user.name,
             'email': user.email,
+            'roles': user.roles.values_list('code', flat=True),
             # 'role': user.role,
             # 'role_display': user.get_role_display(),
             'company_id': str(user.company.id),
