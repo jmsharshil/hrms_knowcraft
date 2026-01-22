@@ -90,10 +90,10 @@ class CreateUserSerializer(serializers.Serializer):
         request = self.context.get('request')
         user = request.user if request else None
         
-        # Admin can create any role
+        # Admin can create any role except admin
         if user and user.role != 'admin':
             if value == 'admin':
-                raise serializers.ValidationError("Cannot create admin user.")
+                raise serializers.ValidationError("Cannot create another admin user.")
         
         # HR Manager can only create HR, Department Head, Consultancy
         elif user and user.role == 'hr_manager':

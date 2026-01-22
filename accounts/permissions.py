@@ -5,7 +5,7 @@ class IsAdmin(permissions.BasePermission):
     """Permission class for Admin users only"""
     
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.has_role('admin')
+        return request.user and request.user.is_authenticated and request.user.role == 'admin'
 
 
 class IsAdminOrHRManager(permissions.BasePermission):
@@ -15,7 +15,7 @@ class IsAdminOrHRManager(permissions.BasePermission):
         return (
             request.user and 
             request.user.is_authenticated and 
-            request.user.has_role('admin', 'hr_manager')
+            request.user.role in ['admin', 'hr_manager']
         )
 
 
