@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
-from .models import User, Company, MagicLink,Role
+from .models import User, Company, MagicLink
 import re
 
 
@@ -14,16 +14,11 @@ class CompanySerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     company_name = serializers.CharField(source='company.name', read_only=True)
     role_display = serializers.CharField(source='get_role_display', read_only=True)
-    roles = serializers.SlugRelatedField(
-        many=True,
-        # read_only=True,
-        slug_field="code",
-        queryset=Role.objects.all(),
-    )
+    
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'name', 'role', 'role_display', 'roles',
+            'id', 'email', 'name', 'role', 'role_display', 
             'company', 'company_name', 'pin_set', 'is_active',
             'created_at', 'updated_at'
         ]
@@ -31,26 +26,6 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'pin': {'write_only': True}
         }
-
-    def update(self, instance, validated_data):
-        roles = validated_data.pop("roles", None)
-        request = self.context.get("request")
-
-        # Prevent HR from assigning admin role
-        if roles and request and not request.user.has_role("admin"):
-            if any(role.code == "admin" for role in roles):
-                raise serializers.ValidationError(
-                    {"roles": "You are not allowed to assign admin role."}
-                )
-
-        # Update normal fields
-        instance = super().update(instance, validated_data)
-
-        # Update roles if provided
-        if roles is not None:
-            instance.roles.set(roles)
-
-        return instance
 
 
 class CompanySignupSerializer(serializers.Serializer):
@@ -102,12 +77,7 @@ class CreateUserSerializer(serializers.Serializer):
         ('department_head', 'Department Head'),
         ('consultancy', 'Consultancy'),
     ])
-    roles = serializers.ListField(
-        child=serializers.CharField(),
-        required=False,
-        allow_empty=True
-    )
-
+    
     def validate_email(self, value):
         # Check if email exists in the same company
         request = self.context.get('request')
@@ -116,40 +86,22 @@ class CreateUserSerializer(serializers.Serializer):
                 raise serializers.ValidationError("User with this email already exists in your company.")
         return value
     
-    def validate(self, attrs):
-        request = self.context.get("request")
-        creator = request.user
-
-        primary_role = attrs["role"]
-        extra_roles = attrs.get("roles", [])
-
-        requested_roles = set([primary_role] + extra_roles)
-
-        # Admin can assign anything
-        if creator.has_role("admin"):
-            return attrs
-
-        # HR Manager rules
-        if creator.has_role("hr_manager"):
-            allowed = {"hr", "department_head", "consultancy"}
-            if not requested_roles.issubset(allowed):
-                raise serializers.ValidationError(
-                    "HR Manager can only assign HR, Department Head, or Consultancy roles."
-                )
-            return attrs
-
-        raise serializers.ValidationError("You are not allowed to create users.")
-
-    def validate_roles(self, value):
-        valid_roles = set(
-            Role.objects.values_list("code", flat=True)
-        )
-        invalid = set(value) - valid_roles
-        if invalid:
-            raise serializers.ValidationError(
-                f"Invalid role(s): {', '.join(invalid)}"
-            )
+    def validate_role(self, value):
+        request = self.context.get('request')
+        user = request.user if request else None
+        
+        # Admin can create any role
+        if user and user.role != 'admin':
+            if value == 'admin':
+                raise serializers.ValidationError("Cannot create admin user.")
+        
+        # HR Manager can only create HR, Department Head, Consultancy
+        elif user and user.role == 'hr_manager':
+            if value not in ['hr', 'department_head', 'consultancy']:
+                raise serializers.ValidationError("HR Manager can only create HR, Department Head, or Consultancy roles.")
+        
         return value
+
 
 class SetPinSerializer(serializers.Serializer):
     """Serializer for setting 6-digit PIN"""

@@ -25,6 +25,7 @@ def get_tokens_for_user(user):
     refresh['role'] = user.role
     refresh['company_id'] = str(user.company.id)
     refresh['name'] = user.name
+    
     return {
         'refresh': str(refresh),
         'access': str(refresh.access_token),
