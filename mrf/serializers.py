@@ -52,10 +52,11 @@ class ApprovalWorkflowCreateSerializer(serializers.ModelSerializer):
         required_role = attrs.get('required_role')
 
         if approver and required_role:
-            if not approver.roles.filter(code=required_role).exists():
+            if approver.role != required_role:
                 raise serializers.ValidationError({
                     'approver': (
-                        f"Selected approver does not have required role '{required_role}'."
+                        f"Selected approver role '{approver.role}' does not match "
+                        f"required_role '{required_role}'."
                     )
                 })
 
@@ -156,17 +157,13 @@ class WorkflowTemplateSummarySerializer(serializers.ModelSerializer):
 class MRFApprovalSerializer(serializers.ModelSerializer):
     approver_name = serializers.CharField(source='approver.name', read_only=True)
     approver_email = serializers.CharField(source='approver.email', read_only=True)
-    # approver_role = serializers.CharField(source='approver.get_role_display', read_only=True)
-    approver_roles = serializers.SerializerMethodField()
-
-    def get_approver_roles(self, obj):
-        return list(obj.approver.roles.values_list('name', flat=True))
-
+    approver_role = serializers.CharField(source='approver.get_role_display', read_only=True)
+    
     class Meta:
         model = MRFApproval
         fields = [
             'id', 'level', 'approver', 'approver_name', 'approver_email', 
-            'approver_roles', 'action', 'comments', 'rejection_reason', 'created_at'
+            'approver_role', 'action', 'comments', 'rejection_reason', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
 
@@ -238,7 +235,7 @@ class MRFDetailSerializer(serializers.ModelSerializer):
     
     def get_next_approvers(self, obj):
         approvers = obj.get_next_approvers()
-        return [{'id': str(u.id), 'name': u.name, 'email': u.email, 'roles': list(u.roles.values_list('name', flat=True))} for u in approvers]
+        return [{'id': str(u.id), 'name': u.name, 'email': u.email, 'role': u.get_role_display()} for u in approvers]
     
     def get_can_approve(self, obj):
         request = self.context.get('request')
@@ -344,7 +341,7 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         # Set requested_by fields
         validated_data['requested_by'] = user
         validated_data['requested_by_name'] = user.name
-        validated_data['requested_by_designation'] = ", ".join(user.roles.values_list('name', flat=True))
+        validated_data['requested_by_designation'] = user.role
         from .utils import get_auto_salary_range,get_expected_date_of_joining,mrf_fields_auto_fill
         salary_range = get_auto_salary_range(validated_data['department'],validated_data['designation'])
         if salary_range:
@@ -353,14 +350,10 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         if expected_doj:
             validated_data['expected_date_of_joining'] = expected_doj
         auto_fill_obj = mrf_fields_auto_fill(validated_data.get("department"),validated_data.get("designation"))
-        if auto_fill_obj and auto_fill_obj.get('error'):
-            validated_data['key_responsibility'] = validated_data.get('key_responsibility') or "Not Specified"
-            validated_data['required_qualifications'] = validated_data.get('required_qualifications') or "Not Specified"
-            validated_data['skills_competencies'] = validated_data.get('skills_competencies') or "Not Specified"
-        if auto_fill_obj and (not auto_fill_obj.get('error')):
-            validated_data['key_responsibility'] = auto_fill_obj.get('key_responsibility') or validated_data.get('key_responsibility')
-            validated_data['required_qualifications'] = auto_fill_obj.get('required_qualifications') or validated_data.get('required_qualifications')
-            validated_data['skills_competencies'] = auto_fill_obj.get('skills_competencies') or validated_data.get('skills_competencies')
+        if auto_fill_obj:
+            validated_data['key_responsibility'] = auto_fill_obj.get('key_responsibility')
+            validated_data['required_qualifications'] = auto_fill_obj.get('required_qualifications')
+            validated_data['skills_competencies'] = auto_fill_obj.get('skills_competencies')
         mrf = MRF.objects.create(**validated_data)
         return mrf
     
@@ -408,27 +401,8 @@ class MRFSubmitSerializer(serializers.Serializer):
         user = self.context['request'].user
         from onboarding.utils.sender import send_email
         subject = f'Requisition Raised for {mrf.designation} Position'
-        # manager_name = User.objects.filter(role="hr_manager").first().name
-        # manager_email = User.objects.filter(role="hr_manager").first().email
-        # manager = User.objects.filter(roles__code='hr_manager',is_active=True).first()
-        level_1_workflow = mrf.workflow_template.levels.filter(
-            level=1,
-            is_active=True
-        ).select_related('approver').first()
-
-        if not level_1_workflow or not level_1_workflow.approver:
-            # No approver configured → fail silently or log
-            return
-
-        manager = level_1_workflow.approver
-
-        # Extra safety checks
-        if not manager.is_active or manager.company != user.company:
-            return
-
-        manager_name = manager.name
-        manager_email = manager.email
-
+        manager_name = User.objects.filter(role="hr_manager").first().name
+        manager_email = User.objects.filter(role="hr_manager").first().email
         from .utils import email_templates,alt_text
         if mrf.resigned_crafter_name:
             template = email_templates['mrf_submit_replace']
