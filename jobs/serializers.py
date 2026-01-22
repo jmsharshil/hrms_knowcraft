@@ -229,10 +229,7 @@ class AssignToConsultancySerializer(serializers.Serializer):
     
     def validate_consultancy_id(self, value):
         try:
-            # user = User.objects.get(id=value, role='consultancy', is_active=True)
-            user = User.objects.get(id=value, is_active=True)
-            if not user.roles.filter(code='consultancy').exists():
-                raise serializers.ValidationError("Invalid consultancy user")
+            user = User.objects.get(id=value, role='consultancy', is_active=True)
         except User.DoesNotExist:
             raise serializers.ValidationError("Invalid consultancy user")
         return value
@@ -410,13 +407,12 @@ class JobApplicationCreateSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         
         # Determine source based on user role
-        if user.roles.filter(code='consultancy').exists():
+        if user.role == 'consultancy':
             source = 'consultancy'
-        elif user.roles.filter(code__in=['hr', 'hr_manager', 'admin']).exists():
+        elif user.role in ['hr', 'hr_manager', 'admin']:
             source = 'internal_hr'
         else:
             source = 'direct'
-
         
         application = JobApplication.objects.create(
             **validated_data,
@@ -464,7 +460,7 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
             if link.job.status not in allowed_statuses:
                 # relax check if the link was created by an internal HR user
                 creator = getattr(link, 'created_by', None)
-                if not (creator and creator.roles.filter(code__in=['hr', 'hr_manager']).exists()):
+                if not (creator and getattr(creator, 'role', None) in ['hr', 'hr_manager']):
                     raise serializers.ValidationError("This job is not accepting applications")
 
             self.context['application_link'] = link
@@ -625,7 +621,7 @@ class AssignToInternalHRSerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid internal HR user")
 
         # Accept hr or hr_manager roles — adjust to your roles if needed
-        if not user.roles.filter(code__in=['hr', 'hr_manager']).exists():
+        if user.role not in ['hr', 'hr_manager']:
             raise serializers.ValidationError("User is not an internal HR")
         return value
 

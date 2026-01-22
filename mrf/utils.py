@@ -274,17 +274,7 @@ def schedule_mrf_reminder(mrf_id):
 
             # Only send reminder if still pending
             if mrf.status not in ["approved", "rejected"]:
-                # manager = User.objects.filter(role="hr_manager").first()
-                level_1_workflow = mrf.workflow_template.levels.filter(
-                    level=1,
-                    is_active=True
-                ).select_related('approver').first()
-
-                if not level_1_workflow or not level_1_workflow.approver:
-                    # No approver configured → fail silently or log
-                    return
-
-                manager = level_1_workflow.approver
+                manager = User.objects.filter(role="hr_manager").first()
 
                 if manager:
                     template = email_templates["mrf_reminder"].format(

@@ -13,7 +13,7 @@ class CompanySerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     company_name = serializers.CharField(source='company.name', read_only=True)
-    # role_display = serializers.CharField(source='get_role_display', read_only=True)
+    role_display = serializers.CharField(source='get_role_display', read_only=True)
     roles = serializers.SlugRelatedField(
         many=True,
         # read_only=True,
@@ -23,7 +23,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'name', 'roles',
+            'id', 'email', 'name', 'role', 'role_display', 'roles',
             'company', 'company_name', 'pin_set', 'is_active',
             'created_at', 'updated_at'
         ]
@@ -82,7 +82,7 @@ class CompanySignupSerializer(serializers.Serializer):
             email=validated_data['admin_email'],
             name=validated_data['admin_name'],
             company=company,
-            roles=['admin']
+            role='admin'
         )
         
         return {
@@ -95,16 +95,17 @@ class CreateUserSerializer(serializers.Serializer):
     """Serializer for creating users by Admin/HR Manager"""
     name = serializers.CharField(max_length=255)
     email = serializers.EmailField()
-    # role = serializers.ChoiceField(choices=[
-    #     ('admin', 'Admin'),
-    #     ('hr_manager', 'HR Manager'),
-    #     ('hr', 'HR'),
-    #     ('department_head', 'Department Head'),
-    #     ('consultancy', 'Consultancy'),
-    # ])
+    role = serializers.ChoiceField(choices=[
+        ('admin', 'Admin'),
+        ('hr_manager', 'HR Manager'),
+        ('hr', 'HR'),
+        ('department_head', 'Department Head'),
+        ('consultancy', 'Consultancy'),
+    ])
     roles = serializers.ListField(
         child=serializers.CharField(),
-        allow_empty=False
+        required=False,
+        allow_empty=True
     )
 
     def validate_email(self, value):
@@ -119,11 +120,10 @@ class CreateUserSerializer(serializers.Serializer):
         request = self.context.get("request")
         creator = request.user
 
-        # primary_role = attrs["role"]
-        # extra_roles = attrs.get("roles", [])
+        primary_role = attrs["role"]
+        extra_roles = attrs.get("roles", [])
 
-        # requested_roles = set([primary_role] + extra_roles)
-        requested_roles = set(attrs["roles"])
+        requested_roles = set([primary_role] + extra_roles)
 
         # Admin can assign anything
         if creator.has_role("admin"):

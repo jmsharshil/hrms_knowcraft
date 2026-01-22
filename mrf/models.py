@@ -249,11 +249,11 @@ class MRF(models.Model):
             return []
         
         return User.objects.filter(
-            id=workflow.approver_id,
+            role=workflow.required_role,
             is_active=True,
+            id = workflow.approver.id,
             company=self.requested_by.company
         )
-
     
     def can_user_approve(self, user):
         """Check if user can approve at current level"""
@@ -269,7 +269,7 @@ class MRF(models.Model):
         if not workflow:
             return False
         
-        return user.has_role(workflow.required_role) and user.id == workflow.approver.id
+        return user.role == workflow.required_role and user.id == workflow.approver.id
     
     def get_workflow_summary(self):
         """Get workflow summary for display"""

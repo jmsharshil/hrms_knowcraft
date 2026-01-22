@@ -24,27 +24,26 @@ class Company(models.Model):
 class UserManager(BaseUserManager):
     """Custom user manager"""
     
-    def create_user(self, email, company, roles, password=None, **extra_fields):
+    def create_user(self, email, company, role, password=None, **extra_fields):
         if not email:
             raise ValueError('Email is required')
         if not company:
             raise ValueError('Company is required')
         
         email = self.normalize_email(email)
-        user = self.model(email=email, company=company, **extra_fields)
+        user = self.model(email=email, company=company, role=role, **extra_fields)
         
         if password:
             user.set_password(password)
         
         user.save(using=self._db)
-        user.roles.set(Role.objects.filter(code__in=roles))
         return user
 
     def create_superuser(self, email, password=None, **extra_fields):
         """Create superuser (for Django admin)"""
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        # extra_fields.setdefault('role', 'admin')
+        extra_fields.setdefault('role', 'admin')
         
         # Create a default company for superuser
         company, _ = Company.objects.get_or_create(
@@ -52,7 +51,7 @@ class UserManager(BaseUserManager):
             defaults={'email': 'admin@system.local'}
         )
         
-        user = self.create_user(email, company,roles=["admin"], password=password, **extra_fields)
+        user = self.create_user(email, company, password=password, **extra_fields)
         return user
 
 class Role(models.Model):
@@ -76,7 +75,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
     name = models.CharField(max_length=255)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES,null=True,blank=True)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     roles = models.ManyToManyField(
         Role,
         blank=True,
@@ -106,13 +105,13 @@ class User(AbstractBaseUser, PermissionsMixin):
         unique_together = ['email', 'company']
     
     def __str__(self):
-        # return f"{self.name} ({self.email}) - {self.get_role_display()}"
-        roles = ", ".join(self.roles.values_list("code", flat=True))
-        return f"{self.name} ({self.email}) [{roles}]"
+        return f"{self.name} ({self.email}) - {self.get_role_display()}"
     
     def has_role(self, *roles):
         """Check if user has any of the specified roles"""
-        return self.roles.filter(code__in=roles).exists()
+        if self.roles and self.roles.filter(code__in=roles).exists():
+            return True
+        return self.role in roles
     
     def can_create_users(self):
         """Check if user can create other users"""
@@ -172,8 +171,8 @@ from django.db.models.signals import post_migrate
 from django.dispatch import receiver
 
 @receiver(post_migrate)
-def create_default_roles(sender, **kwargs):
-    from .models import Role
+def create_default_roles_and_assign(sender, **kwargs):
+    from .models import Role, User
 
     ROLE_CODES = [
         ('admin', 'Admin'),
@@ -183,5 +182,16 @@ def create_default_roles(sender, **kwargs):
         ('consultancy', 'Consultancy'),
     ]
 
+    # 1️⃣ Create roles if missing
+    role_map = {}
     for code, name in ROLE_CODES:
-        Role.objects.get_or_create(code=code, defaults={'name': name})
+        role, _ = Role.objects.get_or_create(code=code,defaults={'name': name})
+        role_map[code] = role
+
+    # 2️⃣ Auto-assign roles to users (from legacy `role` field)
+    users = User.objects.exclude(role__isnull=True).exclude(role__exact='')
+
+    for user in users:
+        role_obj = role_map.get(user.role)
+        if role_obj and not user.roles.filter(id=role_obj.id).exists():
+            user.roles.add(role_obj)

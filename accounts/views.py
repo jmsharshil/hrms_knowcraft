@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.mail import send_mail
 from django.conf import settings
-from .models import User, Company, MagicLink,Role
+from .models import User, Company, MagicLink
 from .serializers import (
     CompanySignupSerializer, UserSerializer, CreateUserSerializer,
     SetPinSerializer, PinLoginSerializer, MagicLinkSerializer
@@ -22,10 +22,9 @@ def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
     
     # Add custom claims
-    # refresh['role'] = user.role
+    refresh['role'] = user.role
     refresh['company_id'] = str(user.company.id)
     refresh['name'] = user.name
-    refresh['roles'] = list(user.roles.values_list('code', flat=True))
     return {
         'refresh': str(refresh),
         'access': str(refresh.access_token),
@@ -34,16 +33,15 @@ def get_tokens_for_user(user):
 
 def send_magic_link_email(user, magic_link):
     """Send magic link email to user"""
-    base_url = getattr(settings, 'FRONTEND_URL', 'https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/')
+    base_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
     magic_link_url = f"{base_url}/otp-set?token={magic_link.token}"
     # magic_link_url = f"{base_url}/api/accounts/set-pin?token={magic_link.token}"
     
     subject = f"Set Your PIN - {user.company.name}"
-    roles = ", ".join(user.roles.values_list("name", flat=True))
     message = f"""
     Hello {user.name},
     
-    Your account has been created with roles: {roles} at {user.company.name}.
+    Your account has been created as {user.get_role_display()} at {user.company.name}.
     
     Please click the link below to set your 6-digit PIN:
     {magic_link_url}
@@ -95,7 +93,7 @@ class CompanySignupView(APIView):
                     'id': str(admin.id),
                     'name': admin.name,
                     'email': admin.email,
-                    # 'role': admin.role
+                    'role': admin.role
                 },
                 'magic_link': MagicLinkSerializer(magic_link, context={'request': request}).data
             }, status=status.HTTP_201_CREATED)
@@ -121,8 +119,7 @@ class SetPinView(APIView):
                     'id': str(user.id),
                     'name': user.name,
                     'email': user.email,
-                    # 'role': user.role,
-                    'roles': user.roles.values_list('code', flat=True),
+                    'role': user.role,
                     'company_id': str(user.company.id)
                 },
                 **tokens
@@ -149,9 +146,8 @@ class PinLoginView(APIView):
                     'id': str(user.id),
                     'name': user.name,
                     'email': user.email,
-                    'roles': user.roles.values_list('code', flat=True),
-                    # 'role': user.role,
-                    # 'role_display': user.get_role_display(),
+                    'role': user.role,
+                    'role_display': user.get_role_display(),
                     'company_id': str(user.company.id),
                     'company_name': user.company.name
                 },
@@ -169,15 +165,15 @@ class CreateUserView(APIView):
         serializer = CreateUserSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             # Create user
-            roles = serializer.validated_data["roles"]
             user = User.objects.create_user(
                 email=serializer.validated_data['email'],
                 name=serializer.validated_data['name'],
                 company=request.user.company,
-                roles=roles
+                role=serializer.validated_data['role']
             )
             user.created_by = request.user
             user.save()
+            
             # Create magic link
             magic_link = MagicLink.create_link(user, purpose='set_pin')
             
@@ -214,9 +210,6 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         # Only access users from the same company
         return User.objects.filter(company=self.request.user.company)
-    
-    def get_serializer_context(self):
-        return {"request": self.request}
 
 
 class CurrentUserView(APIView):
@@ -229,9 +222,8 @@ class CurrentUserView(APIView):
             'id': str(user.id),
             'name': user.name,
             'email': user.email,
-            'roles': user.roles.values_list('code', flat=True),
-            # 'role': user.role,
-            # 'role_display': user.get_role_display(),
+            'role': user.role,
+            'role_display': user.get_role_display(),
             'company_id': str(user.company.id),
             'company_name': user.company.name,
             'pin_set': user.pin_set,
