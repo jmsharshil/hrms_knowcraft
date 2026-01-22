@@ -42,7 +42,7 @@ class UpdatestatusAPI(APIView):
                 interviewer_id = interviewer.id
             else:
                 interviewer_id = None
-            application.slot_link = f"http://localhost:5173/api/slots/available/?candidate_id={application.id}&interviewer_id={interviewer_id}"
+            application.slot_link = f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/available/?candidate_id={application.id}&interviewer_id={interviewer_id}"
             application.save()
             return Response({"success": ok,"status":application.status})
         else:
