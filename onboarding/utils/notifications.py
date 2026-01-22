@@ -543,7 +543,7 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
                 else:
                     interviewer_id = None
                 schedule_link = (
-                        f"http://localhost:5173/api/slots/available/"
+                        f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/available/"
                         f"?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
                     )
                 email_cfg["text"] = email_cfg["text"].format(schedule_link=schedule_link)
@@ -881,16 +881,16 @@ def notify_internal(candidate: Any, stage: str,cc:list) -> bool:
             if stage in ['interview_pending_1','interview_pending_2', "interview_pending_3","interview_pending_final"]:
                 if stage == 'interview_pending_1':
                     round = "hr_round"
-                    feedback_link_base = "http://localhost:5173/api/slots/hr-feedback-form/"
+                    feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/hr-feedback-form/"
                 if stage == 'interview_pending_2':
                     round = "technical_round_1"
-                    feedback_link_base = "http://localhost:5173/api/slots/technical-feedback-form-one/"
+                    feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/technical-feedback-form-one/"
                 if stage == 'interview_pending_3':
                     round = "technical_round_2"
-                    feedback_link_base = "http://localhost:5173/api/slots/technical-feedback-form-two/"
+                    feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/technical-feedback-form-two/"
                 if stage == 'interview_pending_final':
                     round = "final_round"
-                    feedback_link_base = "http://localhost:5173/api/slots/final-feedback-form/"
+                    feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/final-feedback-form/"
                 feedback_link = f"{feedback_link_base}?interview_round={round}&job_application={candidate.id}"
             template = template.format(candidate=candidate,feedback_link=feedback_link)
             send_email(email,subject=subject,text=body,template=template)

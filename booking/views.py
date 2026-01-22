@@ -243,19 +243,19 @@ class CandidateBookSlotView(APIView):
         if candidate.status == 'shortlisted' or candidate.status == 'interview_pending_1':
             round = "hr_round"
             round_name = 'HR Round'
-            feedback_link_base = "http://localhost:5173/api/slots/hr-feedback-form/"
+            feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/hr-feedback-form/"
         if candidate.status == 'interview_next_2' or candidate.status == 'interview_pending_2':
             round = "technical_round_1"
             round_name = 'Technical Round 1'
-            feedback_link_base = "http://localhost:5173/api/slots/technical-feedback-form-one/"
+            feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/technical-feedback-form-one/"
         if candidate.status == 'interview_next_3' or candidate.status == 'interview_pending_3':
             round = "technical_round_2"
             round_name = 'Technical Round 2'
-            feedback_link_base = "http://localhost:5173/api/slots/technical-feedback-form-two/"
+            feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/technical-feedback-form-two/"
         if candidate.status == 'interview_next_final' or candidate.status == 'interview_pending_final':
             round = "final_round"
             round_name = 'Final Round'
-            feedback_link_base = "http://localhost:5173/api/slots/final-feedback-form/"
+            feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/final-feedback-form/"
         feedback_link = f"{feedback_link_base}?interview_round={round}&job_application={candidate.id}"
         from onboarding.utils.sender import send_email
         send_email(

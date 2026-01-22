@@ -34,7 +34,7 @@ def get_tokens_for_user(user):
 
 def send_magic_link_email(user, magic_link):
     """Send magic link email to user"""
-    base_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+    base_url = getattr(settings, 'FRONTEND_URL', 'https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/')
     magic_link_url = f"{base_url}/otp-set?token={magic_link.token}"
     # magic_link_url = f"{base_url}/api/accounts/set-pin?token={magic_link.token}"
     

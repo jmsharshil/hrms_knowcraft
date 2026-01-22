@@ -166,7 +166,7 @@ def automation_engine(candidate, old, new):
         interviewer = Interviewer.objects.filter(email=interviewer_email).first()
     interviewer_id = interviewer.id if interviewer else None
     candidate.slot_link = (
-        f"http://localhost:5173/api/slots/available/?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
+        f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/available/?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
     )
 
     candidate.save()
