@@ -54,6 +54,7 @@ class UserManager(BaseUserManager):
         user = self.create_user(email, company, password=password, **extra_fields)
         return user
 
+
 class User(AbstractBaseUser, PermissionsMixin):
     """Custom user model with role-based access and multi-tenancy"""
     
@@ -69,7 +70,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
     name = models.CharField(max_length=255)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
-
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='users')
     
     # PIN for authentication (stored as hash)
@@ -102,7 +102,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     
     def can_create_users(self):
         """Check if user can create other users"""
-        return self.has_role('admin', 'hr_manager')
+        return self.role in ['admin', 'hr_manager']
 
 
 class MagicLink(models.Model):

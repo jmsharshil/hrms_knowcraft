@@ -56,7 +56,7 @@ class DesignationViewSet(viewsets.ModelViewSet):
 class WorkflowTemplateViewSet(viewsets.ModelViewSet):
     """ViewSet for managing workflow templates"""
     queryset = WorkflowTemplate.objects.all()
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CanManageWorkflow]
 
     # Return full serializer by default (so list returns detailed info).
     # If client requests ?summary=true, we will return the lightweight serializer.
