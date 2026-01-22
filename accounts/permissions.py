@@ -23,28 +23,28 @@ class IsHRManager(permissions.BasePermission):
     """Permission class for HR Manager users only"""
     
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.has_role('hr_manager')
+        return request.user and request.user.is_authenticated and request.user.role == 'hr_manager'
 
 
 class IsHR(permissions.BasePermission):
     """Permission class for HR users"""
     
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.has_role('hr')
+        return request.user and request.user.is_authenticated and request.user.role == 'hr'
 
 
 class IsDepartmentHead(permissions.BasePermission):
     """Permission class for Department Head users"""
     
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.has_role('department_head')
+        return request.user and request.user.is_authenticated and request.user.role == 'department_head'
 
 
 class IsConsultancy(permissions.BasePermission):
     """Permission class for Consultancy users"""
     
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated and request.user.has_role('consultancy')
+        return request.user and request.user.is_authenticated and request.user.role == 'consultancy'
 
 
 class IsSameCompany(permissions.BasePermission):
