@@ -395,7 +395,9 @@ class MRFViewSet(viewsets.ModelViewSet):
                 mrf.current_approval_level = next_level
             
             mrf.save()
-            
+            if mrf.status.startswith("pending"):
+                from .utils import schedule_mrf_reminder
+                schedule_mrf_reminder(mrf.id)
             message = 'MRF approved successfully'
             if mrf.status == 'approved':
                 message = f'MRF fully approved. Requisition No: {mrf.requisition_no}'
