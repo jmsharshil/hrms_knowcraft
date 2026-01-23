@@ -405,8 +405,25 @@ class MRFSubmitSerializer(serializers.Serializer):
         user = self.context['request'].user
         from onboarding.utils.sender import send_email
         subject = f'Requisition Raised for {mrf.designation} Position'
-        manager_name = User.objects.filter(role="hr_manager").first().name
-        manager_email = User.objects.filter(role="hr_manager").first().email
+        # manager_name = User.objects.filter(role="hr_manager").first().name
+        # manager_email = User.objects.filter(role="hr_manager").first().email
+        level_1_workflow = mrf.workflow_template.levels.filter(
+            level=1,
+            is_active=True
+        ).select_related('approver').first()
+
+        if not level_1_workflow or not level_1_workflow.approver:
+            # No approver configured → fail silently or log
+            return
+
+        manager = level_1_workflow.approver
+
+        # Extra safety checks
+        if not manager.is_active or manager.company != user.company:
+            return
+
+        manager_name = manager.name
+        manager_email = manager.email
         from .utils import email_templates,alt_text
         if mrf.resigned_crafter_name:
             template = email_templates['mrf_submit_replace']

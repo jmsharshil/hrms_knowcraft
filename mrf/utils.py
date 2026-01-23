@@ -272,25 +272,42 @@ def schedule_mrf_reminder(mrf_id):
         try:
             mrf = MRF.objects.get(id=mrf_id)
 
+            if mrf.status in ["approved", "rejected"]:
+                return
+            
+            if not mrf.status.startswith("pending"):
+                return
+            
             # Only send reminder if still pending
             if mrf.status not in ["approved", "rejected"]:
-                manager = User.objects.filter(role="hr_manager").first()
+                # manager = User.objects.filter(role="hr_manager").first()
+                next_level = mrf.current_approval_level + 1
 
-                if manager:
+                workflow = mrf.workflow_template.levels.filter(
+                    level=next_level,
+                    is_active=True
+                ).select_related('approver').first()
+
+                if not workflow or not workflow.approver:
+                    return
+
+                approver = workflow.approver
+
+                if approver:
                     template = email_templates["mrf_reminder"].format(
-                        manager_name=manager.name,
+                        manager_name=approver.name,
                         position=mrf.designation.name,
                         requisition_date=mrf.created_at.strftime("%B %d, %Y")
                     )
 
                     text = alt_text["mrf_reminder"].format(
-                        manager_name=manager.name,
+                        manager_name=approver.name,
                         position=mrf.designation.name,
                         requisition_date=mrf.created_at.strftime("%B %d, %Y")
                     )
 
                     send_email(
-                        to=manager.email,
+                        to=approver.email,
                         subject=f"Reminder – Requisition Pending Review",
                         template=template,
                         text=text
