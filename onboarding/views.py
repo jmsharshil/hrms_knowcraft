@@ -37,7 +37,13 @@ class UpdatestatusAPI(APIView):
             elif application.status == "interview_next_final":
                 interviewer_email = application.job.mrf.interviewer_email_final
             if interviewer_email:
-                interviewer = Interviewer.objects.filter(email=interviewer_email).first()
+                # interviewer = Interviewer.objects.filter(email=interviewer_email).first()
+                name = interviewer_email.split("@")[0].replace(".", " ").title()
+                # Ensure interviewer exists → auto-create if not found
+                interviewer, created = Interviewer.objects.get_or_create(
+                    email=interviewer_email,
+                    defaults={"name": name}
+                )
             if interviewer:
                 interviewer_id = interviewer.id
             else:
