@@ -350,10 +350,14 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         if expected_doj:
             validated_data['expected_date_of_joining'] = expected_doj
         auto_fill_obj = mrf_fields_auto_fill(validated_data.get("department"),validated_data.get("designation"))
-        if auto_fill_obj:
-            validated_data['key_responsibility'] = auto_fill_obj.get('key_responsibility')
-            validated_data['required_qualifications'] = auto_fill_obj.get('required_qualifications')
-            validated_data['skills_competencies'] = auto_fill_obj.get('skills_competencies')
+        if auto_fill_obj and auto_fill_obj.get('error'):
+            validated_data['key_responsibility'] = validated_data.get('key_responsibility') or "Not Specified"
+            validated_data['required_qualifications'] = validated_data.get('required_qualifications') or "Not Specified"
+            validated_data['skills_competencies'] = validated_data.get('skills_competencies') or "Not Specified"
+        if auto_fill_obj and (not auto_fill_obj.get('error')):
+            validated_data['key_responsibility'] = auto_fill_obj.get('key_responsibility') or validated_data.get('key_responsibility')
+            validated_data['required_qualifications'] = auto_fill_obj.get('required_qualifications') or validated_data.get('required_qualifications')
+            validated_data['skills_competencies'] = auto_fill_obj.get('skills_competencies') or validated_data.get('skills_competencies')
         mrf = MRF.objects.create(**validated_data)
         return mrf
     
