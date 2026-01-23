@@ -35,9 +35,14 @@ class CanManageWorkflow(permissions.BasePermission):
             return True
         
         # Write access only for admin
-        return request.user.role == 'department_head'   ## earlier it was 'admin'
+        return request.user.role in ['admin','department_head','hr_manager']   ## earlier it was 'admin'
 
-
+class CanCreateMRF(permissions.BasePermission):
+    """Control who can create MRFs"""
+    
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role in ['admin','department_head']
+    
 class CanViewMRF(permissions.BasePermission):
     """Control who can view MRFs"""
     
