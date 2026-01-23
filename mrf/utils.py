@@ -17,10 +17,10 @@
 SALARY_BANDS = {
     "Valuation": {
         "Analyst": (500000, 700000),
-        "Advanced Analysts": (700000, 950000),
-        "Senior Analysts-I": (950000, 1250000),
-        "Senior Analysts-II": (1250000, 1550000),
-        "Assistant Managers": (1550000, 2200000),
+        "Advanced Analyst": (700000, 950000),
+        "Senior Analyst-I": (950000, 1250000),
+        "Senior Analyst-II": (1250000, 1550000),
+        "Assistant Manager": (1550000, 2200000),
         "Associate Manager": (2200000, 2700000),
         "Manager": (2500000, 3000000),
         "Senior Manager": (3000000, 4000000),
@@ -28,10 +28,10 @@ SALARY_BANDS = {
 
     "Investment Banking": {
         "Analyst": (500000, 650000),
-        "Adv. Analysts": (650000, 850000),
-        "Senior Analysts-I": (850000, 1150000),
-        "Senior Analysts-II": (1150000, 1450000),
-        "Assistant Managers": (1450000, 2000000),
+        "Advanced Analyst": (650000, 850000),
+        "Senior Analyst-I": (850000, 1150000),
+        "Senior Analyst-II": (1150000, 1450000),
+        "Assistant Manager": (1450000, 2000000),
         "Associate Manager": (2200000, 2700000),
         "Manager": (2500000, 3000000),
         "Senior Manager": (2500000, 3200000),
@@ -39,9 +39,9 @@ SALARY_BANDS = {
 
     "US Accounts": {
         "Associate": (400000, 550000),
-        "Advanced Associates": (500000, 650000),
-        "Senior Associates I": (650000, 800000),
-        "Senior Associates-II": (800000, 1000000),
+        "Advanced Associate": (500000, 650000),
+        "Senior Associate-I": (650000, 800000),
+        "Senior Associate-II": (800000, 1000000),
         "Team Lead": (1000000, 1300000),
         "Assistant Manager": (1300000, 1500000),
         "Associate Manager": (1500000, 1750000),
@@ -50,9 +50,9 @@ SALARY_BANDS = {
 
     "US Tax": {
         "Associate": (400000, 500000),
-        "Advanced Associates": (500000, 650000),
-        "Senior Associates I": (650000, 800000),
-        "Senior Associates-II": (800000, 1000000),
+        "Advanced Associate": (500000, 650000),
+        "Senior Associate-I": (650000, 800000),
+        "Senior Associate-II": (800000, 1000000),
         "Team Lead": (1000000, 1300000),
         "Assistant Manager": (1300000, 1750000),
         "Associate Manager": (1500000, 1750000),
@@ -61,9 +61,9 @@ SALARY_BANDS = {
 
     "FDD": {
         "Associate": (400000, 500000),
-        "Advanced Associates": (500000, 650000),
-        "Senior Associates I": (650000, 800000),
-        "Senior Associates-II": (800000, 1000000),
+        "Advanced Associate": (500000, 650000),
+        "Senior Associate-I": (650000, 800000),
+        "Senior Associate-II": (800000, 1000000),
         "Team Lead": (1000000, 1300000),
         "Assistant Manager": (1300000, 1500000),
         "Associate Manager": (1500000, 1750000),
@@ -72,8 +72,8 @@ SALARY_BANDS = {
 
     "Marketing": {
         "Associate": (300000, 450000),
-        "Advanced Associates": (400000, 500000),
-        "Senior Associates": (500000, 650000),
+        "Advanced Associate": (400000, 500000),
+        "Senior Associate": (500000, 650000),
         "Team Lead": (600000, 800000),
         "Assistant Manager": (800000, 1000000),
         "Associate Manager": (1000000, 1300000),
@@ -82,8 +82,8 @@ SALARY_BANDS = {
 
     "HR and Administration": {
         "Associate": (300000, 450000),
-        "Advanced Associates": (400000, 500000),
-        "Senior Associates": (500000, 650000),
+        "Advanced Associate": (400000, 500000),
+        "Senior Associate": (500000, 650000),
         "Team Lead": (600000, 800000),
         "Assistant Manager": (800000, 1000000),
         "Associate Manager": (1000000, 1300000),
@@ -92,8 +92,8 @@ SALARY_BANDS = {
 
     "Information Technology": {
         "Associate": (300000, 450000),
-        "Advanced Associates": (400000, 500000),
-        "Senior Associates": (500000, 650000),
+        "Advanced Associate": (400000, 500000),
+        "Senior Associate": (500000, 650000),
         "Team Lead": (600000, 800000),
         "Assistant Manager": (800000, 1000000),
         "Associate Manager": (1000000, 1300000),
@@ -102,8 +102,8 @@ SALARY_BANDS = {
 
     "Internal Accounts": {
         "Associate": (300000, 450000),
-        "Advanced Associates": (400000, 500000),
-        "Senior Associates": (500000, 650000),
+        "Advanced Associate": (400000, 500000),
+        "Senior Associate": (500000, 650000),
         "Team Lead": (600000, 800000),
         "Assistant Manager": (800000, 1000000),
         "Associate Manager": (1000000, 1300000),
