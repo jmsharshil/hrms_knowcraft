@@ -18,7 +18,7 @@ from .serializers import (
 )
 from .permissions import (
     CanManageMasterData, CanManageWorkflow, CanViewMRF, CanEditMRF,
-    CanApproveMRF, CanSubmitMRF, IsDepartmentHead
+    CanApproveMRF, CanSubmitMRF, IsDepartmentHead,CanCreateMRF
 )
 
 
@@ -193,7 +193,7 @@ class MRFViewSet(viewsets.ModelViewSet):
     
     def get_permissions(self):
         if self.action == 'create':
-            return [IsAuthenticated(), IsDepartmentHead()]
+            return [IsAuthenticated(), CanCreateMRF()]
         elif self.action in ['update', 'partial_update']:
             return [IsAuthenticated(), CanEditMRF()]
         elif self.action == 'submit':
