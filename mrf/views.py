@@ -26,7 +26,15 @@ class DepartmentViewSet(viewsets.ModelViewSet):
     """ViewSet for managing departments"""
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
-    permission_classes = [AllowAny]
+    # permission_classes = [IsAuthenticated, CanManageMasterData]
+
+    def get_permissions(self):
+        # Allow public access for list & retrieve
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+
+        # Restrict create/update/delete
+        return [IsAuthenticated(), CanManageMasterData()]
     
     def get_queryset(self):
         queryset = Department.objects.all()
@@ -42,7 +50,15 @@ class DesignationViewSet(viewsets.ModelViewSet):
     """ViewSet for managing designations"""
     queryset = Designation.objects.all()
     serializer_class = DesignationSerializer
-    permission_classes = [AllowAny]
+    # permission_classes = [IsAuthenticated, CanManageMasterData]
+
+    def get_permissions(self):
+        # Allow public access for list & retrieve
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
+
+        # Restrict create/update/delete
+        return [IsAuthenticated(), CanManageMasterData()]
     
     def get_queryset(self):
         queryset = Designation.objects.all()

@@ -48,6 +48,8 @@ class JobViewSet(viewsets.ModelViewSet):
         return JobDetailSerializer
     
     def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [AllowAny()]
         if self.action == 'create':
             return [IsAuthenticated(), CanCreateJobs()]
         elif self.action in ['update', 'partial_update']:
@@ -64,6 +66,9 @@ class JobViewSet(viewsets.ModelViewSet):
             'department', 'designation', 'mrf', 
             'assigned_to_consultancy', 'posted_by'
         ).prefetch_related('applications', 'history', 'application_links')
+        
+        if not user.is_authenticated:
+            return queryset.filter(is_active=True)
         
         # Filter based on user role
         if user.role in ['admin', 'hr_manager']:
@@ -833,9 +838,9 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         stats = {
             'total': queryset.count(),
             'received': queryset.filter(status='received').count(),
-            'screening': queryset.filter(status='screening').count(),
+            # 'screening': queryset.filter(status='screening').count(),
             'shortlisted': queryset.filter(status='shortlisted').count(),
-            'interviewed': queryset.filter(status='interviewed').count(),
+            # 'interviewed': queryset.filter(status='interviewed').count(),
             'selected': queryset.filter(status='selected').count(),
             'rejected': queryset.filter(status='rejected').count(),
             'joined': queryset.filter(status='joined').count(),
@@ -846,7 +851,7 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
             'internal_hr': queryset.filter(source='internal_hr').count(),
             'consultancy': queryset.filter(source='consultancy').count(),
             'application_link': queryset.filter(source='application_link').count(),
-            'direct': queryset.filter(source='direct').count(),
+            # 'direct': queryset.filter(source='direct').count(),
             'referral': queryset.filter(source='referral').count(),
         }
         
