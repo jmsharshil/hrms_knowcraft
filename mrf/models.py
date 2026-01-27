@@ -27,8 +27,12 @@ class Designation(models.Model):
     """Designation master - easily add/modify/delete"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, unique=True)
-    code = models.CharField(max_length=50, unique=True)
     tat_days = models.IntegerField(null=True,blank=True)
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='designations', blank=True, null=True)
+    key_responsibility = models.TextField(null=True,blank=True)
+    required_qualifications = models.TextField(null=True,blank=True)
+    skills_competencies = models.TextField(null=True,blank=True)
+    salary_range = models.CharField(max_length=100, help_text="e.g., '5-8 LPA'",blank=True,null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
