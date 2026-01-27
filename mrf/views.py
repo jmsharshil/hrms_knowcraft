@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated,AllowAny
 from django.utils import timezone
 from django.db.models import Q
 from django.db import transaction
@@ -26,7 +26,7 @@ class DepartmentViewSet(viewsets.ModelViewSet):
     """ViewSet for managing departments"""
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
-    permission_classes = [IsAuthenticated, CanManageMasterData]
+    permission_classes = [AllowAny]
     
     def get_queryset(self):
         queryset = Department.objects.all()
@@ -42,7 +42,7 @@ class DesignationViewSet(viewsets.ModelViewSet):
     """ViewSet for managing designations"""
     queryset = Designation.objects.all()
     serializer_class = DesignationSerializer
-    permission_classes = [IsAuthenticated, CanManageMasterData]
+    permission_classes = [AllowAny]
     
     def get_queryset(self):
         queryset = Designation.objects.all()
