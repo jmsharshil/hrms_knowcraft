@@ -14,7 +14,7 @@ class DepartmentAdmin(admin.ModelAdmin):
 
 @admin.register(Designation)
 class DesignationAdmin(admin.ModelAdmin):
-    list_display = ['name', 'code', 'tat_days', 'is_active', 'created_at']
+    list_display = ['name', 'tat_days', 'is_active', 'created_at']
     list_filter = ['is_active']
     search_fields = ['name', 'code']
 

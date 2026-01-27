@@ -165,9 +165,12 @@ def automation_engine(candidate, old, new):
     if interviewer_email:
         interviewer = Interviewer.objects.filter(email=interviewer_email).first()
     interviewer_id = interviewer.id if interviewer else None
-    candidate.slot_link = (
-        f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/available/?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
-    )
+    if interviewer_id:
+        candidate.slot_link = (
+            f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/available/?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
+        )
+    else:
+        candidate.slot_link = ""
 
     candidate.save()
     # 4️⃣ Auto-advance the workflow if needed

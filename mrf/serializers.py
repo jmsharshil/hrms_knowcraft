@@ -17,9 +17,17 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
 
 class DesignationSerializer(serializers.ModelSerializer):
+    department = serializers.PrimaryKeyRelatedField(
+        queryset=Department.objects.all(),
+        required=False,
+        allow_null=True
+    )
     class Meta:
         model = Designation
-        fields = ['id', 'name', 'code', 'tat_days', 'is_active', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'tat_days', 'is_active', 'created_at', 'updated_at',
+                "key_responsibility","required_qualifications","skills_competencies",
+                "salary_range","department"
+                ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
