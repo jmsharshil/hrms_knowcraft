@@ -237,8 +237,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'  # Change to your SMTP server
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'knowcrafthrms@gmail.com'  # Change to your email
-EMAIL_HOST_PASSWORD = 'vpcr mxne ztxf mdfq'  # Change to your password
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")  # Change to your email
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")  # Change to your password
 # EMAIL_HOST_USER = "testing251299@gmail.com"
 # EMAIL_HOST_PASSWORD = "hqnc uhzo lwch iwss"
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
@@ -320,9 +320,9 @@ CSRF_TRUSTED_ORIGINS = [
     'https://hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net',
 ]
 
-MICROSOFT_CLIENT_ID = "bde15c16-74e1-458d-9906-0f937c1fab27"
-MICROSOFT_CLIENT_SECRET = "JMb8Q~5vSNbtsIGeH6J6VVckgTp-Yw4hJUr0Eat5"
-MICROSOFT_TENANT_ID = "d902dae3-a93d-4dbb-86cd-56fed3603160"
+MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID")
+MICROSOFT_CLIENT_SECRET = os.getenv("MICROSOFT_CLIENT_SECRET")
+MICROSOFT_TENANT_ID = os.getenv("MICROSOFT_TENANT_ID")
 
 GRAPH_API_SCOPE = ["https://graph.microsoft.com/.default"]
 GRAPH_API_TOKEN_URL = f"https://login.microsoftonline.com/{MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
