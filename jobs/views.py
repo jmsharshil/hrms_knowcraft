@@ -23,7 +23,8 @@ from .permissions import (
 )
 from accounts.models import User
 from rest_framework.parsers import MultiPartParser, FormParser
-
+from django_filters.rest_framework import DjangoFilterBackend
+from .filters import JobApplicationFilter
 
 class JobViewSet(viewsets.ModelViewSet):
     """ViewSet for managing Jobs"""
@@ -725,6 +726,9 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
     
     queryset = JobApplication.objects.all()
     
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = JobApplicationFilter
+    
     def get_serializer_class(self):
         if self.action == 'create':
             return JobApplicationCreateSerializer
@@ -761,7 +765,6 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(job__assigned_to_consultancy=user)
         else:
             queryset = queryset.none()
-        
         # Apply filters
         job_filter = self.request.query_params.get('job')
         if job_filter:
