@@ -12,23 +12,22 @@ from datetime import datetime
 class DesignationSerializer(serializers.ModelSerializer):
     department = serializers.PrimaryKeyRelatedField(
         queryset=Department.objects.all(),
-        required=False,
-        allow_null=True
+        required=True,
     )
     class Meta:
         model = Designation
-        fields = ['id', 'name', 'tat_days', 'is_active', 'created_at', 'updated_at',
+        fields = ['id', 'name','code', 'tat_days', 'is_active', 'created_at', 'updated_at',
                 "key_responsibility","required_qualifications","skills_competencies",
                 "salary_range","department"
                 ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id','code', 'created_at', 'updated_at']
 
 class DepartmentSerializer(serializers.ModelSerializer):
     designations = DesignationSerializer(many=True, read_only=True)
     class Meta:
         model = Department
         fields = ['id', 'name', 'code', 'is_active', 'designations', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id','code', 'created_at', 'updated_at']
 
 class ApprovalWorkflowSerializer(serializers.ModelSerializer):
     template_name = serializers.CharField(source='template.name', read_only=True)

@@ -1,10 +1,10 @@
-from django.db import models
+from django.db import models,transaction
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from accounts.models import User
 import uuid
 from datetime import datetime, time, timedelta
-from django.db.models import Q, UniqueConstraint
+from django.db.models import Q, UniqueConstraint,Max
 
 
 class Department(models.Model):
@@ -19,6 +19,25 @@ class Department(models.Model):
     class Meta:
         ordering = ['name']
     
+    def save(self, *args, **kwargs):
+        if not self.code:
+            last_code = (
+                Department.objects
+                .filter(code__startswith='DEP')
+                .aggregate(max_code=Max('code'))
+                ['max_code']
+            )
+
+            if last_code:
+                last_number = int(last_code.replace('DEP', ''))
+                new_number = last_number + 1
+            else:
+                new_number = 1
+
+            self.code = f"DEP{new_number:03d}"
+
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.name
 
@@ -27,6 +46,7 @@ class Designation(models.Model):
     """Designation master - easily add/modify/delete"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
+    code = models.CharField(max_length=50, unique=True,blank=True, null=True)
     tat_days = models.IntegerField(null=True,blank=True)
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='designations', blank=True, null=True)
     key_responsibility = models.TextField(null=True,blank=True)
@@ -40,6 +60,29 @@ class Designation(models.Model):
     class Meta:
         ordering = ['name']
     
+    def save(self, *args, **kwargs):
+        if not self.department:
+            raise ValidationError("Department is required to generate designation code")
+        if not self.code:
+            with transaction.atomic():
+                dept_code = self.department.code
+
+                last_code = (
+                    Designation.objects
+                    .select_for_update()
+                    .filter(department=self.department)
+                    .aggregate(max_code=Max('code'))
+                    ['max_code']
+                )
+
+                next_number = (
+                    int(last_code.split('DSG')[-1]) + 1 if last_code else 1
+                )
+
+                self.code = f"{dept_code}-DSG{next_number:03d}"
+
+        super().save(*args, **kwargs)
+        
     def __str__(self):
         return self.name
 
