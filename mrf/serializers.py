@@ -9,13 +9,6 @@ from accounts.models import User
 from django.db import transaction
 from datetime import datetime
 
-class DepartmentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Department
-        fields = ['id', 'name', 'code', 'is_active', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
-
-
 class DesignationSerializer(serializers.ModelSerializer):
     department = serializers.PrimaryKeyRelatedField(
         queryset=Department.objects.all(),
@@ -30,6 +23,12 @@ class DesignationSerializer(serializers.ModelSerializer):
                 ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
+class DepartmentSerializer(serializers.ModelSerializer):
+    designations = DesignationSerializer(many=True, read_only=True)
+    class Meta:
+        model = Department
+        fields = ['id', 'name', 'code', 'is_active', 'designations', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
 class ApprovalWorkflowSerializer(serializers.ModelSerializer):
     template_name = serializers.CharField(source='template.name', read_only=True)
