@@ -26,7 +26,7 @@ class Department(models.Model):
 class Designation(models.Model):
     """Designation master - easily add/modify/delete"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=255)
     tat_days = models.IntegerField(null=True,blank=True)
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='designations', blank=True, null=True)
     key_responsibility = models.TextField(null=True,blank=True)
