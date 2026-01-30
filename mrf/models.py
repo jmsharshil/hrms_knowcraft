@@ -223,7 +223,7 @@ class MRF(models.Model):
     interviewer_email_2 = models.EmailField(max_length=50, blank=True, null=True, help_text="Optional")
     interviewer_email_3 = models.EmailField(max_length=50, blank=True, null=True, help_text="Optional")
     interviewer_email_final = models.EmailField(max_length=50, blank=True, null=True, help_text="Email of final interviewer")
-    
+    interviewer_email_management_client = models.EmailField(max_length=50, blank=True, null=True, help_text="Interviewer email of management client interview")
     # HR Use Only
     requisition_no = models.CharField(max_length=255, unique=True, blank=True, null=True)
     date_received = models.DateField(blank=True, null=True)

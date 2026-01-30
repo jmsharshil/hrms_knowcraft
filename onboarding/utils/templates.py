@@ -38,7 +38,6 @@ HTML_TEMPLATES = {
         <h2>You Have Been Shortlisted!</h2>
         <p>Dear {{candidate.candidate_name}},</p>
         <p>Congratulations! You have been shortlisted for the next stage of the selection process.</p>
-        <p>Select Time slot for your interview using this link {{schedule_link}}.</p>
         <br>
         <p>Regards,<br>Recruitment Team</p>
     </body>
@@ -88,7 +87,6 @@ HTML_TEMPLATES = {
         <h2>You Have Been Shortlisted For Next Round!</h2>
         <p>Dear {{candidate.candidate_name}},</p>
         <p>Congratulations! You have been shortlisted for the next Round.</p>
-        <p>Select Time slot for your interview using this link {{schedule_link}}.</p>
         <br>
         <p>Regards,<br>Recruitment Team</p>
     </body>
@@ -138,7 +136,6 @@ HTML_TEMPLATES = {
         <h2>You Have Been Shortlisted For Next Round!</h2>
         <p>Dear {{candidate.candidate_name}},</p>
         <p>Congratulations! You have been shortlisted for the next Round.</p>
-        <p>Select Time slot for your interview using this link {{schedule_link}}.</p>
         <br>
         <p>Regards,<br>Recruitment Team</p>
     </body>
@@ -188,7 +185,6 @@ HTML_TEMPLATES = {
         <h2>You Have Been Shortlisted For Final Round!</h2>
         <p>Dear {{candidate.candidate_name}},</p>
         <p>Congratulations! You have been shortlisted for the third round of inerview.</p>
-        <p>Select Time slot for your interview using this link {{schedule_link}}.</p>
         <br>
         <p>Regards,<br>Recruitment Team</p>
     </body>
@@ -232,6 +228,62 @@ HTML_TEMPLATES = {
     </body>
     </html>
     """,
+    # -----------------------------------------------------------
+    # MANAGEMENT / CLIENT INTERVIEW
+    # -----------------------------------------------------------
+
+    "interview_next_management_client": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>You Have Been Shortlisted for Management / Client Interview</h2>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Congratulations! You have been shortlisted for the Management / Client interview round.</p>
+        <br>
+        <p>Regards,<br>Recruitment Team</p>
+    </body>
+    </html>
+    """,
+
+    "interview_pending_management_client": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>Your Management / Client Interview Is Scheduled</h2>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Your Management / Client interview has been scheduled.</p>
+        <p>Please check your email or calendar invite for details.</p>
+        <br>
+        <p>Regards,<br>Recruitment Team</p>
+    </body>
+    </html>
+    """,
+
+    "interview_done_management_client": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>Thank You for the Interview</h2>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Thank you for attending the Management / Client interview.</p>
+        <p>Our team will review the discussion and update you shortly.</p>
+        <br>
+        <p>Regards,<br>Recruitment Team</p>
+    </body>
+    </html>
+    """,
+
+    "interview_rejected_management_client": f"""
+    <html>
+    <body style='font-family: Arial; color:#333;'>
+        <h2>Interview Update</h2>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Thank you for your time and interest.</p>
+        <p>After careful consideration, we will not be proceeding further after the Management / Client interview.</p>
+        <p>We wish you the very best for your future opportunities.</p>
+        <br>
+        <p>Regards,<br>Recruitment Team</p>
+    </body>
+    </html>
+    """,
+
     # -----------------------------------------------------------
     # 2. SELECTION & APPROVAL
     # -----------------------------------------------------------
@@ -731,7 +783,41 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
     </body>
     </html>
     """,
-
+    "interview_pending_management_client": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Interview Scheduled (Management / Client Round)</h2>
+        <p>Dear Team,</p>
+        <p>The Management / Client interview for candidate <strong>{{candidate.candidate_name}}</strong> has been scheduled.</p>
+        <p>Please submit interview feedback using this link: {{feedback_link}}</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+    "interview_done_management_client": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Management / Client Interview Completed</h2>
+        <p>Dear Team,</p>
+        <p>The Management / Client interview for <strong>{{candidate.candidate_name}}</strong> has been completed.</p>
+        <p>Please review feedback and proceed with the next decision.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+    "interview_rejected_management_client": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Candidate Rejected (Management / Client Interview)</h2>
+        <p>Dear Team,</p>
+        <p>The candidate <strong>{{candidate.candidate_name}}</strong> was rejected after the Management / Client interview.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
     "shortlisted": f"""
     <html>
     <body style="font-family: Arial; color:#333;">

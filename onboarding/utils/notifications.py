@@ -43,9 +43,9 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
     "shortlisted": {
         "email": {
             "subject": "You Have Been Shortlisted!",
-            "text": "You have been shortlisted and will move to the interview stage.Please select interview slot from using given link : {schedule_link}",
+            "text": "You have been shortlisted and will move to the interview stage.",
         },
-        "sms": "You have been shortlisted! Schedule your interview by selecting the time slot using this link: {schedule_link}.",
+        "sms": "You have been shortlisted!",
         "log": "Shortlisting notification sent to {candidate.candidate_email}",
         "schedule_link":True
     },
@@ -76,9 +76,9 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
     "interview_next_2": {
         "email": {
             "subject": "Interview Second Round",
-            "text": "You have been shortlisted for second round of interview.Please select interview slot from using given link : {schedule_link}",
+            "text": "You have been shortlisted for second round of interview.",
         },
-        "sms": "You have been shortlisted for second round of interview! Schedule your interview by selecting the time slot using this link: {schedule_link}.",
+        "sms": "You have been shortlisted for second round of interview!",
         "log": "Round 2 notification sent to {candidate.candidate_email}",
         "schedule_link":True
     },
@@ -109,9 +109,9 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
     "interview_next_3": {
         "email": {
             "subject": "Interview Third Round",
-            "text": "You have been shortlisted for third round of interview.Please select interview slot from using given link : {schedule_link}",
+            "text": "You have been shortlisted for third round of interview.",
         },
-        "sms": "You have been shortlisted for third round of interview! Schedule your interview by selecting the time slot using this link: {schedule_link}.",
+        "sms": "You have been shortlisted for third round of interview!",
         "log": "Round 3 notification sent to {candidate.candidate_email}",
         "schedule_link":True
     },
@@ -142,9 +142,9 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
     "interview_next_final": {
         "email": {
             "subject": "Final Round interview",
-            "text": "You have been shortlisted for final round.Please select interview slot from using given link : {schedule_link}",
+            "text": "You have been shortlisted for final round.",
         },
-        "sms": "You have been shortlisted for final round! Schedule your interview by selecting the time slot using this link: {schedule_link}.",
+        "sms": "You have been shortlisted for final round!",
         "log": "Final Round selection notification sent to {candidate.candidate_email}",
         "schedule_link":True
     },
@@ -171,6 +171,39 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
         },
         "sms": "We will not move ahead with your application.",
         "log": "Interview rejection for final round sent to {candidate.candidate_email}",
+    },
+    "interview_next_management_client": {
+        "email": {
+            "subject": "Management/Client Interview Round",
+            "text": "You have been shortlisted for management/client round of interview.",
+        },
+        "sms": "You have been shortlisted for second round of interview!",
+        "log": "Management Client Round notification sent to {candidate.candidate_email}",
+        "schedule_link":True
+    },
+    "interview_pending_management_client": {
+        "email": {
+            "subject": "Management/Client Interview Scheduled",
+            "text": "Your interview for management/client has been scheduled. Check your email for details.",
+        },
+        "sms": "Interview for management/client round has been scheduled. Check email for timing/link.",
+        "log": "Interview management client round pending notification sent to {candidate.candidate_email}",
+    },
+    "interview_done_management_client": {
+        "email": {
+            "subject": "Thank You for Interviewing",
+            "text": "Thank you for attending the interview. We are reviewing the results.",
+        },
+        "sms": "Thanks for interviewing! You’ll be updated soon.",
+        "log": "Interview management client round completion message sent to {candidate.candidate_email}",
+    },
+    "interview_rejected_management_client": {
+        "email": {
+            "subject": "Interview Update",
+            "text": "We appreciate your time. Unfortunately, we will not move ahead at this time.",
+        },
+        "sms": "We will not move ahead with your application.",
+        "log": "Interview rejection for management client round sent to {candidate.candidate_email}",
     },
     # --------------------------------------------------------------
     # 2. SELECTION & APPROVAL FLOW
@@ -537,6 +570,8 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
                     interviewer_email = mrf.interviewer_email_3
                 elif stage == "interview_next_final":
                     interviewer_email = mrf.interviewer_email_final
+                elif stage == "interview_next_management_client":
+                    interviewer_email = mrf.interviewer_email_management_client
                 interviewer = Interviewer.objects.filter(email=interviewer_email).first()
                 if interviewer:
                     interviewer_id = interviewer.id
@@ -682,9 +717,27 @@ NOTIFY_INTERNAL_MAP = {
     },
     "interview_rejected_final": {
         "receivers": ["interviewer",'referral'],
-        "subject": "Cnadidate rejection",
+        "subject": "Candidate rejection",
         "body": "The candidate is rejected in Fianl round of interview.",
         "sms": "The Candindate is rejected in Final round of interview.",
+    },
+    "interview_pending_management_client": {
+        "receivers": ["interviewer"],
+        "subject": "Interview Pending (Management / Client)",
+        "body": "The candidate is ready for management/client interview scheduling.",
+        "sms": "Management/client interview pending for assigned candidate.",
+    },
+    "interview_next_management_client": {
+        "receivers": ["interviewer", "hr"],
+        "subject": "Selected for Management / Client Interview",
+        "body": "The candidate has been selected for the management/client interview round.",
+        "sms": "Candidate selected for management/client interview.",
+    },
+    "interview_rejected_management_client": {
+        "receivers": ["interviewer", "referral"],
+        "subject": "Candidate Rejected (Management / Client Round)",
+        "body": "The candidate is rejected in the management/client interview round.",
+        "sms": "Candidate rejected in management/client interview.",
     },
     "approval_pending": {
         "receivers": ["hr_manager"],
@@ -823,6 +876,8 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
                         emails.add(job.mrf.interviewer_email_2)
                     if candidate.status in ["interview_pending_final","interview_done_final","interview_rejected_final","interview_next_final"]:
                         emails.add(job.mrf.interviewer_email_final)
+                    if candidate.status in ["interview_pending_management_client","interview_done_management_client","interview_rejected_management_client","interview_next_management_client"]:
+                        emails.add(job.mrf.interviewer_email_final)
                     continue
 
             if role == "consultancy":
@@ -878,7 +933,7 @@ def notify_internal(candidate: Any, stage: str,cc:list) -> bool:
             template = NOTIFY_INTERNAL_HTML_TEMPLATES[stage]
             feedback_link = ""
             feedback_link_base=""
-            if stage in ['interview_pending_1','interview_pending_2', "interview_pending_3","interview_pending_final"]:
+            if stage in ['interview_pending_1','interview_pending_2', "interview_pending_3","interview_pending_final","interview_pending_management_client"]:
                 if stage == 'interview_pending_1':
                     round = "hr_round"
                     feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/hr-feedback-form/"
@@ -891,6 +946,9 @@ def notify_internal(candidate: Any, stage: str,cc:list) -> bool:
                 if stage == 'interview_pending_final':
                     round = "final_round"
                     feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/final-feedback-form/"
+                if stage == 'interview_pending_management_client':
+                    round = "management_round"
+                    feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/management-feedback-form/"
                 feedback_link = f"{feedback_link_base}?interview_round={round}&job_application={candidate.id}"
             template = template.format(candidate=candidate,feedback_link=feedback_link)
             send_email(email,subject=subject,text=body,template=template)

@@ -27,6 +27,10 @@ NOTIFY_STATES = {
     # "interview_pending_final",
     # "interview_done_final",
     "interview_rejected_final",
+    # "interview_next_management_client",
+    # "interview_pending_management_client",
+    # "interview_done_management_client",
+    "interview_rejected_management_client",
     # Approval
     "approved",
     # "approval_rejected",
@@ -85,6 +89,10 @@ NOTIFY_INTERNAL_STATES = {
     "interview_rejected_2",
     "interview_rejected_3",
     "interview_rejected_final",
+    "interview_next_management_client",
+    # "interview_pending_management_client",
+    # "interview_done_management_client",
+    "interview_rejected_management_client",
     # Approval Flow
     "approval_pending",        # Send approval request to HR Manager
     "approved",                # Notify HR
@@ -162,6 +170,8 @@ def automation_engine(candidate, old, new):
         interviewer_email = candidate.job.mrf.interviewer_email_2
     elif new == "interview_next_final":
         interviewer_email = candidate.job.mrf.interviewer_email_final
+    elif new == "interview_next_management_client":
+        interviewer_email = candidate.job.mrf.interviewer_email_management_client
     if interviewer_email:
         interviewer = Interviewer.objects.filter(email=interviewer_email).first()
     interviewer_id = interviewer.id if interviewer else None

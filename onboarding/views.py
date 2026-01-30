@@ -36,6 +36,8 @@ class UpdatestatusAPI(APIView):
                 interviewer_email = application.job.mrf.interviewer_email_2
             elif application.status == "interview_next_final":
                 interviewer_email = application.job.mrf.interviewer_email_final
+            elif application.status == "interview_next_management_client":
+                interviewer_email = application.job.mrf.interviewer_email_management_client
             if interviewer_email:
                 # interviewer = Interviewer.objects.filter(email=interviewer_email).first()
                 name = interviewer_email.split("@")[0].replace(".", " ").title()

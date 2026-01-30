@@ -287,7 +287,8 @@ class MRFViewSet(viewsets.ModelViewSet):
             mrf.interviewer_email_1,
             mrf.interviewer_email_2,
             mrf.interviewer_email_3,
-            mrf.interviewer_email_final
+            mrf.interviewer_email_final,
+            mrf.interviewer_email_management_client
         ]
 
         interviewer_list = []
