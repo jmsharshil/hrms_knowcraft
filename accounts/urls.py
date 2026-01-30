@@ -1,7 +1,7 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
-    CompanySignupView, SetPinView, PinLoginView, CreateUserView,
+    CompanySignupView, SetPinView, PinLoginView, CreateUserView, UpdateMyProfileView,
     UserListView, UserDetailView, CurrentUserView, ResendMagicLinkView, ForgotPasswordView
 )
 
@@ -17,6 +17,7 @@ urlpatterns = [
     # User management endpoints
     path('users/create/', CreateUserView.as_view(), name='create-user'),
     path('users/', UserListView.as_view(), name='user-list'),
+    path('users/me/update/', UpdateMyProfileView.as_view(), name='update-my-profile'),
     path('users/<uuid:pk>/', UserDetailView.as_view(), name='user-detail'),
     path('users/me/', CurrentUserView.as_view(), name='current-user'),
     path('users/resend-magic-link/', ResendMagicLinkView.as_view(), name='resend-magic-link'),

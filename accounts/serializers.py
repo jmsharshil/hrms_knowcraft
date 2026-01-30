@@ -102,6 +102,23 @@ class CreateUserSerializer(serializers.Serializer):
         
         return value
 
+class UpdateMyProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['name', 'email']
+    
+    def validate_email(self, value):
+        user = self.instance
+        # Prevent email collision inside same company
+        if User.objects.filter(
+            email=value,
+            company=user.company
+        ).exclude(id=user.id).exists():
+            raise serializers.ValidationError(
+                "This email is already used in your company."
+            )
+        return value
+
 
 class SetPinSerializer(serializers.Serializer):
     """Serializer for setting 6-digit PIN"""

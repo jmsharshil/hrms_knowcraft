@@ -7,7 +7,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from .models import User, Company, MagicLink
 from .serializers import (
-    CompanySignupSerializer, UserSerializer, CreateUserSerializer,
+    CompanySignupSerializer, UserSerializer, CreateUserSerializer, UpdateMyProfileSerializer,
     SetPinSerializer, PinLoginSerializer, MagicLinkSerializer
 )
 from .permissions import IsAdmin, IsAdminOrHRManager,IsDepartmentHead
@@ -231,6 +231,32 @@ class CurrentUserView(APIView):
             'is_active': user.is_active
         })
 
+class UpdateMyProfileView(APIView):
+    """
+    Allow logged-in user to update their own profile
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request):
+        user = request.user
+        serializer = UpdateMyProfileSerializer(
+            user,
+            data=request.data,
+            partial=True
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'message': 'Profile updated successfully',
+                'user': {
+                    'id': str(user.id),
+                    'name': user.name,
+                    'email': user.email
+                }
+            }, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class ResendMagicLinkView(APIView):
     """Resend magic link to a user"""
