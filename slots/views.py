@@ -34,21 +34,25 @@ class AvailableSlotsForInterviewerView(APIView):
 
         all_free = []
         all_busy = []
+        try:
+            for offset in range(days):
+                d = today_ist + timedelta(days=offset)
+                if d.weekday() >= 5:
+                    continue
 
-        for offset in range(days):
-            d = today_ist + timedelta(days=offset)
-            if d.weekday() >= 5:
-                continue
+                day_start = datetime.combine(d, datetime.min.time(), IST)
+                day_end = datetime.combine(d, datetime.max.time(), IST)
 
-            day_start = datetime.combine(d, datetime.min.time(), IST)
-            day_end = datetime.combine(d, datetime.max.time(), IST)
+                daily_busy = get_interviewer_busy_slots(interviewer.email, day_start, day_end)
+                all_busy.extend(daily_busy)
 
-            daily_busy = get_interviewer_busy_slots(interviewer.email, day_start, day_end)
-            all_busy.extend(daily_busy)
-
-            free_today = generate_free_slots_for_day(daily_busy, d, interviewer)
-            all_free.extend(free_today)
-
+                free_today = generate_free_slots_for_day(daily_busy, d, interviewer)
+                all_free.extend(free_today)
+        except Exception as e:
+            print(f"Can Not get the Slots:{e}")
+            return Response({
+                "error":"Unable to get slots! Interviewer is not a part of the organisation."
+            },status=status.HTTP_404_NOT_FOUND)
         return Response({
             "free_slots": FreeSlotSerializer(all_free, many=True).data,
             "busy_slots": [
