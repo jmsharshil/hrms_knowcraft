@@ -55,6 +55,7 @@ def interview_feedback_reminder_task(booking_id):
         "interview_pending_2": "technical_round_1",
         "interview_pending_3": "technical_round_2",
         "interview_pending_final": "final_round",
+        "interview_pending_management_client": "management_client_round",
     }
     round_name = status_to_round.get(booking.candidate.status, "Interview")
     # Check if feedback exists for this candidate, interviewer, date

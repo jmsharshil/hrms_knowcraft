@@ -111,7 +111,7 @@ class InterviewFeedbackListCreateAPIView(APIView):
 
         # Determine new status based on current application status
         current_status = application.status
-        new_status = self._get_status_after_interview(application,current_status, request.data.get('is_selected', True))
+        new_status = self._get_status_after_interview(application,current_status, request.data.get('is_selected', 'hire'))
         automation_engine(application, application.status, new_status)
 
         # Save feedback
@@ -136,6 +136,7 @@ class InterviewFeedbackListCreateAPIView(APIView):
             'interview_pending_2': 'interview_done_2',
             'interview_pending_3': 'interview_done_3',
             'interview_pending_final': 'interview_done_final',
+            'interview_pending_management_client': 'interview_done_management_client',
         }
 
         # Default: move to "done" stage
@@ -143,12 +144,14 @@ class InterviewFeedbackListCreateAPIView(APIView):
 
         # If candidate is selected, move to next round or selected
         automation_engine(application,application.status,new_status)
-        if is_selected:
+        if is_selected in ['hire', 'strong_hire']:
             if new_status == 'interview_done_1':
                 if application.job.mrf.interviewer_email_2:
                     new_status = 'interview_next_2'
                 elif application.job.mrf.interviewer_email_final:
                     new_status = 'interview_next_final'
+                elif application.job.mrf.interviewer_email_management_client:
+                    new_status = 'interview_next_management_client'
                 else:
                     new_status = 'selected'
             elif new_status == 'interview_done_2':
@@ -156,15 +159,24 @@ class InterviewFeedbackListCreateAPIView(APIView):
                     new_status = 'interview_next_3'
                 elif application.job.mrf.interviewer_email_final:
                     new_status = 'interview_next_final'
+                elif application.job.mrf.interviewer_email_management_client:
+                    new_status = 'interview_next_management_client'
                 else:
                     new_status = 'selected'
             elif new_status == 'interview_done_3':
                 if application.job.mrf.interviewer_email_final:
                     new_status = 'interview_next_final'
+                elif application.job.mrf.interviewer_email_management_client:
+                    new_status = 'interview_next_management_client'
                 else:
                     new_status = 'selected'
             elif new_status == 'interview_done_final':
-                new_status = 'selected'
+                if application.job.mrf.interviewer_email_management_client:
+                    new_status = 'interview_next_management_client'
+                else:
+                    new_status = 'selected'
+            elif new_status == 'interview_done_management_client':
+                    new_status = 'selected'
         else:
             # If not selected, move to rejected
             reject_mapping = {
@@ -172,6 +184,7 @@ class InterviewFeedbackListCreateAPIView(APIView):
                 'interview_done_2': 'interview_rejected_2',
                 'interview_done_3': 'interview_rejected_3',
                 'interview_done_final': 'interview_rejected_final',
+                'interview_done_management_client': 'interview_rejected_management_client',
             }
             new_status = reject_mapping.get(new_status, new_status)
 
@@ -246,12 +259,14 @@ class InterviewFeedbackDetailAPIView(APIView):
         current_status = application.status
 
         # Selected
-        if is_selected:
+        if is_selected in ['hire', 'strong_hire']:
             if current_status in ['interview_done_1', 'interview_rejected_1']:
                 if application.job.mrf.interviewer_email_2:
                     return 'interview_next_2'
                 elif application.job.mrf.interviewer_email_final:
                     return 'interview_next_final'
+                elif application.job.mrf.interviewer_email_management_client:
+                    return 'interview_next_management_client'
                 else:
                     return 'selected'
             elif current_status in ['interview_done_2', 'interview_rejected_2']:
@@ -259,14 +274,23 @@ class InterviewFeedbackDetailAPIView(APIView):
                     return 'interview_next_3'
                 elif application.job.mrf.interviewer_email_final:
                     return 'interview_next_final'
+                elif application.job.mrf.interviewer_email_management_client:
+                    return 'interview_next_management_client'
                 else:
                     return 'selected'
             elif current_status in ['interview_done_3', 'interview_rejected_3']:
                 if application.job.mrf.interviewer_email_final:
                     return 'interview_next_final'
+                elif application.job.mrf.interviewer_email_management_client:
+                    return 'interview_next_management_client'
                 else:
                     return 'selected'
             elif current_status in ['interview_done_final', 'interview_rejected_final']:
+                if application.job.mrf.interviewer_email_management_client:
+                    return 'interview_next_management_client'
+                else:
+                    return 'selected'
+            elif current_status in ['interview_done_management_client', 'interview_rejected_management_client']:
                 return 'selected'
         else:
             # Not selected
@@ -275,9 +299,11 @@ class InterviewFeedbackDetailAPIView(APIView):
                 'interview_done_2': 'interview_rejected_2',
                 'interview_done_3': 'interview_rejected_3',
                 'interview_done_final': 'interview_rejected_final',
+                'interview_done_management_client': 'interview_rejected_management_client',
                 'interview_next_2': 'interview_rejected_1',
                 'interview_next_3': 'interview_rejected_2',
                 'interview_next_final': 'interview_rejected_3',
+                'interview_next_management_client': 'interview_rejected_final',
                 'selected': 'interview_rejected_final',
             }
             return mapping.get(current_status, current_status)

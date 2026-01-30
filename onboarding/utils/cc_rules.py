@@ -18,7 +18,10 @@ CC_RULES = {
     "interview_pending_final": ["consultancy","interviewer_final"],
     "interview_done_final": [],
     "interview_rejected_final": [ "consultancy","referer"],
-
+    "interview_next_management_client": ["consultancy", "referer"],
+    "interview_pending_management_client": ["consultancy", "interviewer_management_client"],
+    "interview_done_management_client": [],
+    "interview_rejected_management_client": ["consultancy", "referer"],
     # "selected": ["hr", "department_head"],
     # "approval_pending": ["approver", "hr"],
     "approved": [ "consultancy"],
@@ -124,6 +127,9 @@ def get_emails_for_role(candidate, roles):
 
         if role == "interviewer_final":
             emails.add(candidate.job.mrf.interviewer_email_final)
+        
+        if role == "interviewer_management_client":
+            emails.add(candidate.job.mrf.interviewer_email_management_client)
                 
         role_emails = list(
                 company.users.filter(role=role)

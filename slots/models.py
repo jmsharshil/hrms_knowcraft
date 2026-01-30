@@ -40,13 +40,14 @@ class InterviewFeedback(models.Model):
             ("technical_round_1", "Technical Round 1"),
             ("technical_round_2", "Technical Round 2"),
             ("final_round", "Final Round"),
+            ("management_client_round", "Management / Client Round")
         ],
         blank=True,
         null=True
     )
 
     # feedback = models.JSONField(null=True, blank=True)
-    is_selected = models.BooleanField(default=True)
+    is_selected = models.CharField(blank=True,null=True,default='reject',choices=[('hire','Hire'),('strong_hire','Strong Hire'),('reject','Reject')])
     department = models.CharField(null=True,blank=True)
     designation = models.CharField(null=True,blank=True)
     interview_date = models.DateField(null=True,blank=True)
@@ -81,7 +82,6 @@ class InterviewFeedback(models.Model):
     problem_solving_rating_remark = models.TextField(null=True,blank=True)
     analytical_thinking_rating_remark = models.TextField(null=True,blank=True)
     cultural_fit_rating_remark = models.TextField(null=True,blank=True)
-    is_selected = models.BooleanField(default=True)
     qualification = models.TextField(null=True,blank=True)
     current_organization = models.CharField(null=True,blank=True)
     current_organization_location = models.CharField(null=True,blank=True)

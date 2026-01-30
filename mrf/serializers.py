@@ -262,7 +262,8 @@ class MRFDetailSerializer(serializers.ModelSerializer):
             obj.interviewer_email_1,
             obj.interviewer_email_2,
             obj.interviewer_email_3,
-            obj.interviewer_email_final
+            obj.interviewer_email_final,
+            obj.interviewer_email_management_client
         ]
 
         result = []
@@ -297,7 +298,7 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
             'resigned_crafter_designation', 'experience_range',
             'business_justification','job_type', 'job_type_display','priority','priority_display',
             'case_study_required', 'technical_interview_1',
-            'technical_interview_2', 'final_interview',
+            'technical_interview_2', 'final_interview','interviewer_email_management_client',
             'interviewer_email_1','interviewer_email_2','interviewer_email_3','interviewer_email_final'
         ]
     

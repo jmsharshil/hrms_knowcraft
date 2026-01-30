@@ -256,6 +256,10 @@ class CandidateBookSlotView(APIView):
             round = "final_round"
             round_name = 'Final Round'
             feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/final-feedback-form/"
+        if candidate.status == 'interview_next_management_client' or candidate.status == 'interview_pending_management_client':
+            round = "management_client_round"
+            round_name = 'Management / Client Round'
+            feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/management-client-feedback-form/"
         feedback_link = f"{feedback_link_base}?interview_round={round}&job_application={candidate.id}"
         from onboarding.utils.sender import send_email
         send_email(
@@ -287,6 +291,8 @@ class CandidateBookSlotView(APIView):
             automation_engine(candidate,candidate.status,'interview_pending_3')
         elif candidate.status == 'interview_next_final':
             automation_engine(candidate,candidate.status,'interview_pending_final')
+        elif candidate.status == 'interview_next_management_client':
+            automation_engine(candidate, candidate.status, 'interview_pending_management_client')
         return Response(BookingSerializer(booking).data, status=201)
 
 
