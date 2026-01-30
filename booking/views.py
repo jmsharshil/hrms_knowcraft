@@ -237,30 +237,43 @@ class CandidateBookSlotView(APIView):
             settings.DEFAULT_FROM_EMAIL,
             [candidate.candidate_email],
         )
-        round=None
-        round_name = ''
-        feedback_link_base = ""
-        if candidate.status == 'shortlisted' or candidate.status == 'interview_pending_1':
+        round = None
+        round_name = ""
+
+        designation = candidate.job.mrf.designation.name
+        level = get_experience_level(designation)
+
+        BASE_URL = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net"
+
+        # Determine round
+        if candidate.status in ['shortlisted', 'interview_pending_1']:
             round = "hr_round"
-            round_name = 'HR Round'
-            feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/hr-feedback-form/"
-        if candidate.status == 'interview_next_2' or candidate.status == 'interview_pending_2':
-            round = "technical_round_1"
-            round_name = 'Technical Round 1'
-            feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/technical-feedback-form-one/"
-        if candidate.status == 'interview_next_3' or candidate.status == 'interview_pending_3':
-            round = "technical_round_2"
-            round_name = 'Technical Round 2'
-            feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/technical-feedback-form-two/"
-        if candidate.status == 'interview_next_final' or candidate.status == 'interview_pending_final':
+            round_name = "HR Round"
+
+        elif candidate.status in ['interview_next_2', 'interview_pending_2']:
+            round = "technical_round"
+            round_name = "Technical Round 1"
+
+        elif candidate.status in ['interview_next_3', 'interview_pending_3']:
+            round = "case_study_round"
+            round_name = "Case Study Round"
+
+        elif candidate.status in ['interview_next_final', 'interview_pending_final']:
             round = "final_round"
-            round_name = 'Final Round'
-            feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/final-feedback-form/"
-        if candidate.status == 'interview_next_management_client' or candidate.status == 'interview_pending_management_client':
+            round_name = "Final Round"
+
+        elif candidate.status in ['interview_next_management_client', 'interview_pending_management_client']:
             round = "management_client_round"
-            round_name = 'Management / Client Round'
-            feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/management-client-feedback-form/"
-        feedback_link = f"{feedback_link_base}?interview_round={round}&job_application={candidate.id}"
+            round_name = "Management / Client Round"
+
+        # Resolve feedback path
+        base_path = FEEDBACK_PATHS.get(round, {}).get(level, "/api/slots/hrfresher/")
+
+        feedback_link = (
+            f"{BASE_URL}{base_path}"
+            f"?interview_round={round}&job_application={candidate.id}"
+        )
+
         from onboarding.utils.sender import send_email
         send_email(
             subject="New Interview Scheduled",
@@ -295,7 +308,53 @@ class CandidateBookSlotView(APIView):
             automation_engine(candidate, candidate.status, 'interview_pending_management_client')
         return Response(BookingSerializer(booking).data, status=201)
 
+FRESHER_DESIGNATIONS = [
+    "Analyst", "Associate", "Advanced Analyst", "Advanced Associate"
+]
 
+JUNIOR_DESIGNATIONS = [
+    "Senior Analyst I", "Senior Analyst II",
+    "Senior Associate I", "Senior Associate II",
+    "Team Lead"
+]
+
+SENIOR_DESIGNATIONS = [
+    "Assistant Manager", "Associate Manager",
+    "Manager", "Senior Manager",
+    "Associate Vice President"
+]
+
+FEEDBACK_PATHS = {
+    "hr_round": {
+        "fresher": "/api/slots/hrfresher/",
+        "junior": "/api/slots/hrjunior/",
+        "senior": "/api/slots/hrsenior/",
+    },
+    "technical_round": {
+        "fresher": "/api/slots/techfresher/",
+        "junior": "/api/slots/techjunior/",
+        "senior": "/api/slots/techsenior/",
+    },
+    "case_study_round": {
+        "fresher": "/api/slots/techfresher/",
+        "junior": "/api/slots/techjunior/",
+        "senior": "/api/slots/techsenior/",
+    },
+    "final_round": {
+        "fresher": "/api/slots/techfresher/",
+        "junior": "/api/slots/techjunior/",
+        "senior": "/api/slots/techsenior/",
+    },
+}
+
+def get_experience_level(designation):
+    if designation in FRESHER_DESIGNATIONS:
+        return "fresher"
+    if designation in JUNIOR_DESIGNATIONS:
+        return "junior"
+    if designation in SENIOR_DESIGNATIONS:
+        return "senior"
+    return "fresher"  # safe default
 
 
 

@@ -807,6 +807,105 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
     </body>
     </html>
     """,
+    "interview_done_1": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>HR Interview Completed</h2>
+        <p>Dear Team,</p>
+        <p>The HR interview for <strong>{{candidate.candidate_name}}</strong> has been completed.</p>
+        <p>Please submit feedback and proceed with the next step.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "interview_rejected_1": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Candidate Rejected (HR Interview)</h2>
+        <p>Dear Team,</p>
+        <p>The candidate <strong>{{candidate.candidate_name}}</strong> was rejected after the HR interview.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "interview_done_2": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Technical Interview Completed</h2>
+        <p>Dear Team,</p>
+        <p>The technical interview for <strong>{{candidate.candidate_name}}</strong> has been completed.</p>
+        <p>Please review feedback.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "interview_rejected_2": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Candidate Rejected (Technical Interview)</h2>
+        <p>Dear Team,</p>
+        <p>The candidate <strong>{{candidate.candidate_name}}</strong> was rejected after the technical interview.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "interview_done_3": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Case Study Interview Completed</h2>
+        <p>Dear Team,</p>
+        <p>The case study interview for <strong>{{candidate.candidate_name}}</strong> has been completed.</p>
+        <p>Please evaluate feedback.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "interview_rejected_3": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Candidate Rejected (Case Study Interview)</h2>
+        <p>Dear Team,</p>
+        <p>The candidate <strong>{{candidate.candidate_name}}</strong> was rejected after the case study interview.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "interview_done_final": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Final Interview Completed</h2>
+        <p>Dear Team,</p>
+        <p>The final interview for <strong>{{candidate.candidate_name}}</strong> has been completed.</p>
+        <p>Please proceed with selection decision.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "interview_rejected_final": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Candidate Rejected (Final Interview)</h2>
+        <p>Dear Team,</p>
+        <p>The candidate <strong>{{candidate.candidate_name}}</strong> was rejected after the final interview.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
     "interview_rejected_management_client": f"""
     <html>
     <body style="font-family: Arial; color:#333;">
@@ -921,4 +1020,149 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
     </body>
     </html>
     """,
+
+    "resignation_uploaded": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Resignation Letter Uploaded</h2>
+        <p>Dear HR Team,</p>
+        <p><strong>{{candidate.candidate_name}}</strong> has uploaded resignation letter.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "resignation_approved": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Resignation Approved</h2>
+        <p>Dear HR Team,</p>
+        <p>Resignation letter of <strong>{{candidate.candidate_name}}</strong> has been approved.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "docs_uploaded": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Joining Documents Uploaded</h2>
+        <p>Dear HR Team,</p>
+        <p><strong>{{candidate.candidate_name}}</strong> has uploaded joining documents.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "docs_approved": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Joining Documents Approved</h2>
+        <p>Dear Team,</p>
+        <p>All joining documents for <strong>{{candidate.candidate_name}}</strong> are approved.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+    "salary_docs_pending": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Salary Documents Requested</h2>
+        <p>Dear HR Team,</p>
+        <p>Salary documents have been requested from <strong>{{candidate.candidate_name}}</strong>.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "hr_review_docs": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Salary Documents Under Review</h2>
+        <p>Dear HR Team,</p>
+        <p>Salary documents of <strong>{{candidate.candidate_name}}</strong> are under HR review.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "hr_review_ok": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Salary Documents Verified</h2>
+        <p>Dear HR Team,</p>
+        <p>Salary documents of <strong>{{candidate.candidate_name}}</strong> have been verified.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "hr_review_rejected": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Salary Documents Rejected</h2>
+        <p>Dear HR Team,</p>
+        <p>Salary documents of <strong>{{candidate.candidate_name}}</strong> were rejected.</p>
+        <p>Candidate needs to re-upload documents.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "salary_annexure_prep": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Salary Annexure Under Preparation</h2>
+        <p>Dear HR Team,</p>
+        <p>Salary annexure is being prepared for <strong>{{candidate.candidate_name}}</strong>.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "salary_annexure_sent": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Salary Annexure Sent for Approval</h2>
+        <p>Dear HR Head,</p>
+        <p>Salary annexure for <strong>{{candidate.candidate_name}}</strong> has been sent for approval.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "approved_annexure": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Salary Annexure Approved</h2>
+        <p>Dear HR Team,</p>
+        <p>Salary annexure for <strong>{{candidate.candidate_name}}</strong> has been approved.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+
+    "rejected_annexure": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Salary Annexure Rejected</h2>
+        <p>Dear HR Team,</p>
+        <p>Salary annexure for <strong>{{candidate.candidate_name}}</strong> was rejected.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+""",
+
 }

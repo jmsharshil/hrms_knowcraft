@@ -37,8 +37,8 @@ class InterviewFeedback(models.Model):
         max_length=50,
         choices=[
             ("hr_round", "HR Round"),
-            ("technical_round_1", "Technical Round 1"),
-            ("technical_round_2", "Technical Round 2"),
+            ("technical_round", "Technical Round"),
+            ("case_study_round", "Case Study Round"),
             ("final_round", "Final Round"),
             ("management_client_round", "Management / Client Round")
         ],
