@@ -762,7 +762,7 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(job__assigned_to_internal_hr=user)
         elif user.role == 'consultancy':
             # Can see applications for jobs assigned to them
-            queryset = queryset.filter(job__assigned_to_consultancy=user)
+            queryset = queryset.filter(source='consultancy')
         else:
             queryset = queryset.none()
         # Apply filters

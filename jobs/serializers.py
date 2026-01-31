@@ -527,6 +527,10 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
                         application.referral_department = data.get("referral_department", "")
                         application.referral_designation = data.get("referral_designation", "")
                         application.save()
+                    
+                    if application.get_platform_name() == 'Other':
+                        application.source = 'consultancy'
+                        application.save()
 
                     link.increment_applications()
                     created_applications.append(application)

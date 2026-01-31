@@ -53,6 +53,9 @@ class InterviewFeedbackCreateSerializer(serializers.ModelSerializer):
             "motivation_for_change_career_aspirations",
             "achievement_orientation_impact",
             "satbility_reliability_commitment",
+            "hr_round_avg_rating","tech_round_avg_rating",
+            "case_study_round_avg_rating","final_round_avg_rating",
+            "management_client_round_rating"
         ]
 
     def validate(self, attrs):
@@ -108,6 +111,9 @@ class InterviewFeedbackListSerializer(serializers.ModelSerializer):
             "motivation_for_change_career_aspirations",
             "achievement_orientation_impact",
             "satbility_reliability_commitment",
+            "hr_round_avg_rating","tech_round_avg_rating",
+            "case_study_round_avg_rating","final_round_avg_rating",
+            "management_client_round_rating"
         ]
 
 class InterviewFeedbackDetailSerializer(serializers.ModelSerializer):
@@ -145,6 +151,9 @@ class InterviewFeedbackDetailSerializer(serializers.ModelSerializer):
             "motivation_for_change_career_aspirations",
             "achievement_orientation_impact",
             "satbility_reliability_commitment",
+            "hr_round_avg_rating","tech_round_avg_rating",
+            "case_study_round_avg_rating","final_round_avg_rating",
+            "management_client_round_rating"
         ]
 
     def get_job_application(self, obj):
@@ -188,6 +197,9 @@ class InterviewFeedbackUpdateSerializer(serializers.ModelSerializer):
             "motivation_for_change_career_aspirations",
             "achievement_orientation_impact",
             "satbility_reliability_commitment",
+            "hr_round_avg_rating","tech_round_avg_rating",
+            "case_study_round_avg_rating","final_round_avg_rating",
+            "management_client_round_rating"
         ]
 
     def validate_interview_round(self, value):
