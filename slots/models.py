@@ -108,6 +108,11 @@ class InterviewFeedback(models.Model):
     motivation_for_change_career_aspirations = models.TextField(null=True,blank=True)
     achievement_orientation_impact = models.TextField(null=True,blank=True)
     satbility_reliability_commitment = models.TextField(null=True,blank=True)
+    hr_round_avg_rating = models.FloatField(default=0)
+    tech_round_avg_rating = models.FloatField(default=0)
+    case_study_round_avg_rating = models.FloatField(default=0)
+    final_round_avg_rating = models.FloatField(default=0)
+    management_client_round_rating = models.FloatField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
