@@ -61,6 +61,32 @@ def send_magic_link_email(user, magic_link):
         fail_silently=False,
     )
 
+def send_forget_pin_email(user, magic_link):
+    """Send forget pin email to user"""
+    base_url = getattr(settings, 'FRONTEND_URL', 'https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net')
+    magic_link_url = f"{base_url}/otp-set?token={magic_link.token}"
+    # magic_link_url = f"{base_url}/api/accounts/set-pin?token={magic_link.token}"
+    
+    subject = f"ReSet Your PIN - {user.company.name}"
+    message = f"""
+    Hello {user.name},
+        
+    Please click the link below to reset your 6-digit PIN:
+    {magic_link_url}
+    
+    This link will expire in 24 hours.
+    
+    Best regards,
+    {user.company.name} Team
+    """
+    
+    send_mail(
+        subject,
+        message,
+        settings.DEFAULT_FROM_EMAIL,
+        [user.email],
+        fail_silently=False,
+    )
 
 class CompanySignupView(APIView):
     """Company admin signup endpoint"""
@@ -331,7 +357,7 @@ class ForgotPasswordView(APIView):
                 # Create a reset magic link (single-use, short expiry)
                 magic_link = MagicLink.create_link(user, purpose='reset_pin')
                 try:
-                    send_magic_link_email(user, magic_link)
+                    send_forget_pin_email(user, magic_link)
                     # Save last sent timestamp (simple anti-abuse)
                     user.last_magic_sent_at = timezone.now()
                     user.save(update_fields=["last_magic_sent_at"])
