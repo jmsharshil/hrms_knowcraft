@@ -152,6 +152,8 @@ class InterviewFeedbackListCreateAPIView(APIView):
             if new_status == 'interview_done_1':
                 if application.job.mrf.interviewer_email_2:
                     new_status = 'interview_next_2'
+                elif application.job.mrf.interviewer_email_3:
+                    new_status = 'interview_next_3'
                 elif application.job.mrf.interviewer_email_final:
                     new_status = 'interview_next_final'
                 elif application.job.mrf.interviewer_email_management_client:
@@ -267,6 +269,8 @@ class InterviewFeedbackDetailAPIView(APIView):
             if current_status in ['interview_done_1', 'interview_rejected_1']:
                 if application.job.mrf.interviewer_email_2:
                     return 'interview_next_2'
+                elif application.job.mrf.interviewer_email_3:
+                    return 'interview_next_3'
                 elif application.job.mrf.interviewer_email_final:
                     return 'interview_next_final'
                 elif application.job.mrf.interviewer_email_management_client:

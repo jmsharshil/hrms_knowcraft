@@ -168,6 +168,8 @@ def automation_engine(candidate, old, new):
         interviewer_email = candidate.job.mrf.interviewer_email_1
     elif new == "interview_next_2":
         interviewer_email = candidate.job.mrf.interviewer_email_2
+    elif new == "interview_next_3":
+        interviewer_email = candidate.job.mrf.interviewer_email_3
     elif new == "interview_next_final":
         interviewer_email = candidate.job.mrf.interviewer_email_final
     elif new == "interview_next_management_client":
