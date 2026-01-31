@@ -620,7 +620,7 @@ class JobApplicationLinkViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(job__assigned_to_internal_hr=user)
         elif user.role == 'consultancy':
             # Can only see links for jobs assigned to them
-            queryset = queryset.filter(job__assigned_to_consultancy=user)
+            queryset = queryset.filter(created_by=user)
         else:
             queryset = queryset.none()
         
