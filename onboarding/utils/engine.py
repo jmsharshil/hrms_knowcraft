@@ -160,6 +160,12 @@ def automation_engine(candidate, old, new):
     candidate.status = new
     if new == 'shortlisted':
         candidate.is_shortlisted = True
+    if new == 'selected':
+        candidate.is_selected = True
+    if new == 'rejected':
+        candidate.is_rejected = True
+    if new == 'approved':
+        candidate.is_approved = True
     candidate.save()
 
     from slots.models import Interviewer

@@ -877,7 +877,10 @@ def build_candidate_history(email, exclude_application_id=None):
                 "interview_date": feedback.interview_date.isoformat() if feedback.interview_date else None,
                 "interviewer_name": feedback.interviewer_name,
 
-                # Ratings
+                #Total Avg. Ratings
+                "round_avg_rating": feedback.get_round_avg(),
+
+                # --- Core Ratings ---
                 "communication_rating": feedback.communication_rating,
                 "technical_skill_rating": feedback.technical_skill_rating,
                 "attitude_intent_rating": feedback.attitude_intent_rating,
@@ -886,8 +889,32 @@ def build_candidate_history(email, exclude_application_id=None):
                 "problem_solving_rating": feedback.problem_solving_rating,
                 "analytical_thinking_rating": feedback.analytical_thinking_rating,
                 "cultural_fit_rating": feedback.cultural_fit_rating,
+                "competency_rating": feedback.competency_rating,
+                "interpersonal_skills_rating": feedback.interpersonal_skills_rating,
+                "leadership_skills_rating": feedback.leadership_skills_rating,
+                "learning_agility_rating": feedback.learning_agility_rating,
+                "problem_solving_critical_thinking_decision_making_rating": feedback.problem_solving_critical_thinking_decision_making_rating,
+                "business_acumen_industry_understanding_rating": feedback.business_acumen_industry_understanding_rating,
+                "ownership_accountibility_rating": feedback.ownership_accountibility_rating,
 
-                # HR / Candidate details
+                # --- Rating Remarks ---
+                "communication_rating_remark": feedback.communication_rating_remark,
+                "technical_skill_rating_remark": feedback.technical_skill_rating_remark,
+                "attitude_intent_rating_remark": feedback.attitude_intent_rating_remark,
+                "team_handling_rating_remark": feedback.team_handling_rating_remark,
+                "stability_rating_remark": feedback.stability_rating_remark,
+                "problem_solving_rating_remark": feedback.problem_solving_rating_remark,
+                "analytical_thinking_rating_remark": feedback.analytical_thinking_rating_remark,
+                "cultural_fit_rating_remark": feedback.cultural_fit_rating_remark,
+                "competency_rating_remark": feedback.competency_rating_remark,
+                "interpersonal_skills_rating_remark": feedback.interpersonal_skills_rating_remark,
+                "leadership_skills_rating_remark": feedback.leadership_skills_rating_remark,
+                "learning_agility_rating_remark": feedback.learning_agility_rating_remark,
+                "problem_solving_critical_thinking_decision_making_rating_remark": feedback.problem_solving_critical_thinking_decision_making_rating_remark,
+                "business_acumen_industry_understanding_rating_remark": feedback.business_acumen_industry_understanding_rating_remark,
+                "ownership_accountibility_rating_remark": feedback.ownership_accountibility_rating_remark,
+
+                # --- Candidate / HR Details ---
                 "qualification": feedback.qualification,
                 "current_organization": feedback.current_organization,
                 "current_organization_location": feedback.current_organization_location,
@@ -896,18 +923,28 @@ def build_candidate_history(email, exclude_application_id=None):
                 "current_ctc": feedback.current_ctc,
                 "expected_ctc": feedback.expected_ctc,
                 "bond": feedback.bond,
+                "current_designation": feedback.current_designation,
+                "current_location": feedback.current_location,
+                "work_mode": feedback.work_mode,
 
-                # Qualitative feedback
+                # --- Behavioral & Qualitative ---
                 "role_responsibility": feedback.role_responsibility,
                 "strengths": feedback.strengths,
+                "areas_of_improvement": feedback.areas_of_improvement,
+                "strength_areas_of_improvement": feedback.strength_areas_of_improvement,
                 "goals": feedback.goals,
+                "goals_development_plan": feedback.goals_development_plan,
                 "behavioral_cultural_fit": feedback.behavioral_cultural_fit,
                 "behavioral": feedback.behavioral,
+                "motivation_for_change_career_aspirations": feedback.motivation_for_change_career_aspirations,
+                "achievement_orientation_impact": feedback.achievement_orientation_impact,
+                "satbility_reliability_commitment": feedback.satbility_reliability_commitment,
                 "personal_background": feedback.personal_background,
                 "hometown": feedback.hometown,
                 "preferred_location": feedback.preferred_location,
                 "comments": feedback.comments,
 
+                # --- Meta ---
                 "created_at": feedback.created_at.isoformat(),
             })
         history.append({
@@ -916,9 +953,13 @@ def build_candidate_history(email, exclude_application_id=None):
             "job_title": app.job.job_title if app.job else None,
             "status": app.status,
             "match_score": float(app.match_score) if app.match_score else None,
+            "consolidated_feedback_avg": app.consolidated_feedback_avg,
             "created_at": app.created_at.isoformat(),
             "source": app.source,
             "is_duplicate": app.is_duplicate,
+            "is_selected": app.is_selected,
+            "is_approved": app.is_approved,
+            "is_rejected": app.is_rejected,
             "interview_feedbacks": feedbacks
         })
 
