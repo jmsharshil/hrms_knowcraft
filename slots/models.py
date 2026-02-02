@@ -117,3 +117,16 @@ class InterviewFeedback(models.Model):
 
     def __str__(self):
         return f"{self.job_application} - {self.interview_round}"
+    
+    def get_round_avg(self):
+        round_field_map = {
+            "hr_round": self.hr_round_avg_rating,
+            "technical_round": self.tech_round_avg_rating,
+            "case_study_round": self.case_study_round_avg_rating,
+            "final_round": self.final_round_avg_rating,
+            "management_client_round": self.management_client_round_rating,
+        }
+
+        avg = round_field_map.get(self.interview_round)
+        return avg if avg and avg > 0 else None
+

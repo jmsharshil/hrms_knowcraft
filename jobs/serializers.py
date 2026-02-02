@@ -340,13 +340,13 @@ class JobApplicationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'job', 'job_title', 'department_name', 'candidate_name',
             'candidate_email', 'candidate_phone', 'resume', 'resume_url',
-            'original_filename', 'file_size', 'file_size_mb', 'cover_letter',
+            'original_filename', 'file_size', 'file_size_mb', 'cover_letter',"rejection_reason",
             'experience_years','relevant_experience_years', 'current_ctc', 'expected_ctc', 'notice_period',
             'linkedin_url', 'portfolio_url','skill','education','location','current_employer','match_score', 'status', 'status_display',
             'source', 'source_display', 'platform_name', 'application_link','is_duplicate',"referral_name","referral_email",
-            "referral_emp_code","referral_designation","referral_department","is_shortlisted",
+            "referral_emp_code","referral_designation","referral_department","is_shortlisted","consolidated_feedback_avg",
             'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report','slot_link','candidate_history',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at','is_selected','is_approved','is_rejected'
         ]
     
     def get_platform_name(self, obj):

@@ -335,6 +335,7 @@ class JobApplication(models.Model):
     ("interview_done_management_client", "Management / Client Interview Completed"),
     ("interview_rejected_management_client", "Rejected After Management / Client Interview"),
     # Approval Stage
+    ("consolidated_result_review","Under HR Review"),
     ("selected", "Selected by Interview Panel"),
     ("approval_pending", "Approval Pending (Sent to Hiring Manager)"),
     ("approved", "Approved by Hiring Manager"),
@@ -486,9 +487,15 @@ class JobApplication(models.Model):
 
     is_duplicate = models.BooleanField(default=False)
     is_shortlisted = models.BooleanField(default=False)
+    is_selected = models.BooleanField(default=False)
+    is_approved = models.BooleanField(default=False)
+    is_rejected = models.BooleanField(default=False)
 
     slot_link = models.URLField(null=True,blank=True)
     candidate_history = models.JSONField(null=True,blank=True,default=list)
+
+    consolidated_feedback_avg = models.FloatField(default=0)
+    rejection_reason = models.TextField(null=True,blank=True)
     
     referral_name = models.CharField(null=True,blank=True)
     referral_email = models.CharField(null=True,blank=True)

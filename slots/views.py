@@ -159,7 +159,7 @@ class InterviewFeedbackListCreateAPIView(APIView):
                 elif application.job.mrf.interviewer_email_management_client:
                     new_status = 'interview_next_management_client'
                 else:
-                    new_status = 'selected'
+                    new_status = 'consolidated_result_review'
             elif new_status == 'interview_done_2':
                 if application.job.mrf.interviewer_email_3:
                     new_status = 'interview_next_3'
@@ -168,21 +168,21 @@ class InterviewFeedbackListCreateAPIView(APIView):
                 elif application.job.mrf.interviewer_email_management_client:
                     new_status = 'interview_next_management_client'
                 else:
-                    new_status = 'selected'
+                    new_status = 'consolidated_result_review'
             elif new_status == 'interview_done_3':
                 if application.job.mrf.interviewer_email_final:
                     new_status = 'interview_next_final'
                 elif application.job.mrf.interviewer_email_management_client:
                     new_status = 'interview_next_management_client'
                 else:
-                    new_status = 'selected'
+                    new_status = 'consolidated_result_review'
             elif new_status == 'interview_done_final':
                 if application.job.mrf.interviewer_email_management_client:
                     new_status = 'interview_next_management_client'
                 else:
-                    new_status = 'selected'
+                    new_status = 'consolidated_result_review'
             elif new_status == 'interview_done_management_client':
-                    new_status = 'selected'
+                    new_status = 'consolidated_result_review'
         else:
             # If not selected, move to rejected
             reject_mapping = {
@@ -276,7 +276,7 @@ class InterviewFeedbackDetailAPIView(APIView):
                 elif application.job.mrf.interviewer_email_management_client:
                     return 'interview_next_management_client'
                 else:
-                    return 'selected'
+                    return 'consolidated_result_review'
             elif current_status in ['interview_done_2', 'interview_rejected_2']:
                 if application.job.mrf.interviewer_email_3:
                     return 'interview_next_3'
@@ -285,21 +285,21 @@ class InterviewFeedbackDetailAPIView(APIView):
                 elif application.job.mrf.interviewer_email_management_client:
                     return 'interview_next_management_client'
                 else:
-                    return 'selected'
+                    return 'consolidated_result_review'
             elif current_status in ['interview_done_3', 'interview_rejected_3']:
                 if application.job.mrf.interviewer_email_final:
                     return 'interview_next_final'
                 elif application.job.mrf.interviewer_email_management_client:
                     return 'interview_next_management_client'
                 else:
-                    return 'selected'
+                    return 'consolidated_result_review'
             elif current_status in ['interview_done_final', 'interview_rejected_final']:
                 if application.job.mrf.interviewer_email_management_client:
                     return 'interview_next_management_client'
                 else:
-                    return 'selected'
+                    return 'consolidated_result_review'
             elif current_status in ['interview_done_management_client', 'interview_rejected_management_client']:
-                return 'selected'
+                return 'consolidated_result_review'
         else:
             # Not selected
             mapping = {
@@ -313,5 +313,6 @@ class InterviewFeedbackDetailAPIView(APIView):
                 'interview_next_final': 'interview_rejected_3',
                 'interview_next_management_client': 'interview_rejected_final',
                 'selected': 'interview_rejected_final',
+                'consolidated_result_review': 'interview_rejected_final',
             }
             return mapping.get(current_status, current_status)
