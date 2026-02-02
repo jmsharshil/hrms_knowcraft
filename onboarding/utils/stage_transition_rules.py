@@ -113,7 +113,7 @@ AUTO_NEXT = {
     "offer_accepted": "resignation_pending",
     "resignation_approved": "docs_pending",
     "docs_approved": "joining_pending",
-    "selected":"approval_pending",
+    # "selected":"approval_pending",
     "resignation_uploaded":"resignation_review",
     "docs_uploaded":"review_docs",
     "docs_incomplete":"docs_pending",
