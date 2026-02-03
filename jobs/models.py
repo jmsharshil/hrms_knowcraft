@@ -336,8 +336,8 @@ class JobApplication(models.Model):
     ("interview_rejected_management_client", "Rejected After Management / Client Interview"),
     # Approval Stage
     ("consolidated_result_review","Under HR Review"),
-    ("selected", "Selected by Interview Panel"),
-    ("approval_pending", "Approval Pending (Sent to Hiring Manager)"),
+    ("selected", "Selected"),
+    ("approval_pending", "Approval Pending (Sent For Approval)"),
     ("approved", "Approved by Hiring Manager"),
     ("approval_rejected", "Rejected During Approval"),
     # SALARY DOCUMENT FLOW

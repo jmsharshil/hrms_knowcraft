@@ -42,7 +42,7 @@ ALLOWED_TRANSITIONS = {
     "offer_pending": ["offer_sent"],
     "offer_sent": ["offer_accepted", "offer_rejected"],
     # AFTER OFFER ACCEPTANCE → RESIGNATION FLOW
-    "offer_accepted": ["resignation_pending"],
+    "offer_accepted": ["resignation_pending","docs_pending"],
     "resignation_pending": ["resignation_uploaded"],
     "resignation_uploaded":["resignation_review"],
     "resignation_review": ["resignation_approved", "resignation_rejected"],
