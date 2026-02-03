@@ -3,8 +3,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status,permissions
 from django.shortcuts import get_object_or_404
+from django.template import Template, Context
 from .models import JobApplicationDocument
 from onboarding.utils.engine import automation_engine
+from .utils.sender import send_email
 from .serializers import JobApplicationDocumentSerializer
 import logging
 from jobs.models import JobApplication
@@ -134,3 +136,137 @@ class UploadJobApplicationDocumentAPI(APIView):
             "message": "Documents uploaded successfully.",
             "documents": saved_docs
         }, status=201)
+
+class SendApprovalNoteAPIView(APIView):
+    """
+    Sends approval note email to manager for candidate hiring
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    def post(self, request):
+        data = request.data  # DRF parses JSON automatically
+
+        # --- Fetch candidate ---
+        candidate = get_object_or_404(
+            JobApplication,
+            id=data.get("candidate_id")
+        )
+
+        # --- Resolve relations ---
+        mrf = candidate.job.mrf
+        department = mrf.department
+        designation = mrf.designation
+        manager = mrf.requested_by
+        hr = request.user
+
+        # --- HTML Template ---
+        html_content = """
+        <html>
+        <body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+            <h2 style="color:#2c3e50;">Approval Required – Candidate Hiring</h2>
+
+            <p>Dear <strong>{{ manager_name }}</strong>,</p>
+
+            <p>
+            Sharing the formal approval note regarding 
+            <strong>{{ candidate_name }}</strong> shortlisted as 
+            <strong>{{ designation }}</strong> – <strong>{{ department }}</strong>.
+            </p>
+
+            <table style="border-collapse: collapse; width:100%; margin-top:15px;">
+                <tr><td><strong>Name of Candidate</strong></td><td>{{ candidate_name }}</td></tr>
+                <tr><td><strong>Designation</strong></td><td>{{ designation }}</td></tr>
+                <tr><td><strong>Experience</strong></td><td>{{ experience }}</td></tr>
+                <tr><td><strong>Qualification</strong></td><td>{{ qualification }}</td></tr>
+                <tr><td><strong>Last Organization</strong></td><td>{{ last_organization }}</td></tr>
+
+                <tr><td colspan="2"><br><strong>Interviewers</strong></td></tr>
+                <tr><td>HR Round</td><td>{{ hr_interviewer }}</td></tr>
+                <tr><td>Technical Round</td><td>{{ tech_interviewer }}</td></tr>
+                <tr><td>Final Round</td><td>{{ final_interviewer }}</td></tr>
+
+                <tr><td colspan="2"><br><strong>Scores</strong></td></tr>
+                <tr><td>HR Round</td><td>{{ hr_score }}</td></tr>
+                <tr><td>Technical Round</td><td>{{ tech_score }}</td></tr>
+                <tr><td>Final Round</td><td>{{ final_score }}</td></tr>
+
+                <tr><td><strong>Current / Last Drawn CTC</strong></td><td>{{ current_ctc }}</td></tr>
+                <tr><td><strong>Expected CTC</strong></td><td>{{ expected_ctc }}</td></tr>
+                <tr><td><strong>CTC to be Offered</strong></td><td>{{ offered_ctc }}</td></tr>
+                <tr><td><strong>Notice Period</strong></td><td>{{ notice_period }}</td></tr>
+                <tr><td><strong>Office Location</strong></td><td>{{ office_location }}</td></tr>
+                <tr><td><strong>Source</strong></td><td>{{ source }}</td></tr>
+                <tr><td><strong>MRF</strong></td><td>{{ mrf }}</td></tr>
+                <tr><td><strong>New / Replacement</strong></td><td>{{ hiring_type }}</td></tr>
+
+                {% if remarks %}
+                <tr><td><strong>Remarks</strong></td><td>{{ remarks }}</td></tr>
+                {% endif %}
+            </table>
+
+            <p style="margin-top:20px;">
+                Request you to review the same and share your feedback, if any.
+            </p>
+
+            <p>
+                Regards,<br>
+                <strong>{{ hr_name }}</strong><br>
+                Recruitment Team
+            </p>
+        </body>
+        </html>
+        """
+
+        # --- Context ---
+        context = {
+            "manager_name": manager.name,
+            "hr_name": hr.name,
+
+            "candidate_name": candidate.candidate_name,
+            "designation": designation.name,
+            "department": department.name,
+
+            "experience": data.get("experience"),
+            "qualification": data.get("qualification"),
+            "last_organization": data.get("last_organization"),
+
+            "hr_interviewer": data.get("hr_interviewer"),
+            "tech_interviewer": data.get("tech_interviewer"),
+            "final_interviewer": data.get("final_interviewer"),
+
+            "hr_score": data.get("hr_score"),
+            "tech_score": data.get("tech_score"),
+            "final_score": data.get("final_score"),
+
+            "current_ctc": data.get("current_ctc"),
+            "expected_ctc": data.get("expected_ctc"),
+            "offered_ctc": data.get("offered_ctc"),
+
+            "notice_period": data.get("notice_period"),
+            "office_location": data.get("office_location"),
+
+            "source": candidate.source,
+            "mrf": mrf.mrf_name,
+            "hiring_type": data.get("hiring_type"),
+
+            "remarks": data.get("remarks"),
+        }
+
+        # --- Render email ---
+        template = Template(html_content)
+        html_rendered = template.render(Context(context))
+
+        # --- Trigger workflow ---
+        automation_engine(candidate, candidate.status, "approval_pending")
+
+        # --- Send email ---
+        send_email(
+            subject="Approval Required – Candidate Hiring",
+            text="Approval required. Please view this email in HTML format.",
+            to=manager.email,
+            template=html_rendered
+        )
+
+        return Response(
+            {"status": "Approval note sent successfully"},
+            status=status.HTTP_200_OK
+        )
