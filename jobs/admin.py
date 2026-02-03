@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Job, JobAssignmentHistory, JobApplication
+from .models import Job, JobAssignmentHistory, JobApplication, ReferralApplication
 
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
@@ -125,3 +125,40 @@ class JobApplicationAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related(
             'job', 'job__department', 'submitted_by'
         )
+    
+@admin.register(ReferralApplication)
+class ReferralApplicationAdmin(admin.ModelAdmin):
+    list_display = [
+        'referral_name', 'referral_email', 'referral_emp_code',
+        'position_title', 'created_at'
+    ]
+    list_filter = ['created_at', 'referral_department', 'referral_designation']
+    search_fields = [
+        'referral_name', 'referral_email', 'referral_emp_code',
+        'position_title', 'notes'
+    ]
+    readonly_fields = ['id', 'created_at', 'updated_at', 'file_size', 'original_filename']
+    
+    fieldsets = (
+        ('Referral Information', {
+            'fields': (
+                'id', 'referral_name', 'referral_email', 'referral_emp_code',
+                'referral_designation', 'referral_department'
+            )
+        }),
+        ('Position Details', {
+            'fields': (
+                'position_title',
+            )
+        }),
+        ('Resume', {
+            'fields': (
+                'resume', 'original_filename', 'file_size'
+            )
+        }),
+        ('Additional Notes', {
+            'fields': (
+                'notes', 'created_at', 'updated_at'
+            )
+        }),
+    )
