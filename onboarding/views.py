@@ -180,14 +180,18 @@ class SendApprovalNoteAPIView(APIView):
                 <tr><td><strong>Last Organization</strong></td><td>{{ last_organization }}</td></tr>
 
                 <tr><td colspan="2"><br><strong>Interviewers</strong></td></tr>
-                <tr><td>HR Round</td><td>{{ hr_interviewer }}</td></tr>
-                <tr><td>Technical Round</td><td>{{ tech_interviewer }}</td></tr>
-                <tr><td>Final Round</td><td>{{ final_interviewer }}</td></tr>
+                <tr><td>HR Round</td><td>{{ hr_round_interviewer }}</td></tr>
+                <tr><td>Technical Round</td><td>{{ tech_round_interviewer }}</td></tr>
+                <tr><td>Case Study Round</td><td>{{ case_study_round_interviewer }}</td></tr>
+                <tr><td>Final Round</td><td>{{ final_round_interviewer }}</td></tr>
+                <tr><td>Management/Client Round</td><td>{{ management_client_round_interviewer }}</td></tr>
 
                 <tr><td colspan="2"><br><strong>Scores</strong></td></tr>
-                <tr><td>HR Round</td><td>{{ hr_score }}</td></tr>
-                <tr><td>Technical Round</td><td>{{ tech_score }}</td></tr>
-                <tr><td>Final Round</td><td>{{ final_score }}</td></tr>
+                <tr><td>HR Round</td><td>{{ hr_round_score }}</td></tr>
+                <tr><td>Technical Round</td><td>{{ tech_round_score }}</td></tr>
+                <tr><td>Case Study Round</td><td>{{ case_study_round_score }}</td></tr>
+                <tr><td>Final Round</td><td>{{ final_round_score }}</td></tr>
+                <tr><td>Management/Client Round</td><td>{{ management_client_round_score }}</td></tr>
 
                 <tr><td><strong>Current / Last Drawn CTC</strong></td><td>{{ current_ctc }}</td></tr>
                 <tr><td><strong>Expected CTC</strong></td><td>{{ expected_ctc }}</td></tr>
@@ -229,13 +233,17 @@ class SendApprovalNoteAPIView(APIView):
             "qualification": data.get("qualification"),
             "last_organization": data.get("last_organization"),
 
-            "hr_interviewer": data.get("hr_interviewer"),
-            "tech_interviewer": data.get("tech_interviewer"),
-            "final_interviewer": data.get("final_interviewer"),
+            "hr_round_interviewer": data.get("hr_round_interviewer"),
+            "tech_round_interviewer": data.get("tech_round_interviewer"),
+            "case_study_round_interviewer": data.get("case_study_round_interviewer"),
+            "final_round_interviewer": data.get("final_round_interviewer"),
+            "management_client_round_interviewer": data.get("management_client_round_interviewer"),
 
-            "hr_score": data.get("hr_score"),
-            "tech_score": data.get("tech_score"),
-            "final_score": data.get("final_score"),
+            "hr_round_score": data.get("hr_round_score"),
+            "tech_round_score": data.get("tech_round_score"),
+            "case_study_round_score": data.get("case_study_round_score"),
+            "final_round_score": data.get("final_round_score"),
+            "management_client_round_score": data.get("management_client_round_score"),
 
             "current_ctc": data.get("current_ctc"),
             "expected_ctc": data.get("expected_ctc"),
@@ -256,15 +264,19 @@ class SendApprovalNoteAPIView(APIView):
         html_rendered = template.render(Context(context))
 
         # --- Trigger workflow ---
-        automation_engine(candidate, candidate.status, "approval_pending")
+        try:
+            ok,reason = automation_engine(candidate, candidate.status, "approval_pending")
+            if ok:
+                # --- Send email ---
+                send_email(
+                    subject="Approval Required – Candidate Hiring",
+                    text="Approval required. Please view this email in HTML format.",
+                    to=manager.email,
+                    template=html_rendered
+                )
 
-        # --- Send email ---
-        send_email(
-            subject="Approval Required – Candidate Hiring",
-            text="Approval required. Please view this email in HTML format.",
-            to=manager.email,
-            template=html_rendered
-        )
+        except Exception as e:
+            print(f"Unable to send the Approval Note:{e}")
 
         return Response(
             {"status": "Approval note sent successfully"},
@@ -276,16 +288,20 @@ def aggregate_interview_feedback(job_application):
 
     result = {
         # Interviewers
-        "hr_interviewer": None,
-        "tech_interviewer": None,
-        "final_interviewer": None,
+        "hr_round_interviewer": None,
+        "tech_round_interviewer": None,
+        "case_study_round_interviewer": None,
+        "final_round_interviewer": None,
+        "management_client_round_interviewer": None,
 
-        # Scores
-        "hr_score": None,
-        "tech_score": None,
-        "final_score": None,
+        # ---- Scores ----
+        "hr_round_score": None,
+        "tech_round_score": None,
+        "case_study_round_score": None,
+        "final_round_score": None,
+        "management_client_round_score": None,
 
-        # Common fields
+        # ---- Common fields ----
         "qualification": None,
         "last_organization": None,
         "notice_period": None,
@@ -295,20 +311,28 @@ def aggregate_interview_feedback(job_application):
     }
 
     for fb in feedbacks:
-        # ---- Interviewer names ----
+        # ---- Round-wise mapping ----
         if fb.interview_round == "hr_round":
-            result["hr_interviewer"] = fb.interviewer_name
-            result["hr_score"] = fb.get_round_avg()
+            result["hr_round_interviewer"] = fb.interviewer_name
+            result["hr_round_score"] = fb.get_round_avg()
 
         elif fb.interview_round == "technical_round":
-            result["tech_interviewer"] = fb.interviewer_name
-            result["tech_score"] = fb.get_round_avg()
+            result["tech_round_interviewer"] = fb.interviewer_name
+            result["tech_round_score"] = fb.get_round_avg()
+
+        elif fb.interview_round == "case_study_round":
+            result["case_study_round_interviewer"] = fb.interviewer_name
+            result["case_study_round_score"] = fb.get_round_avg()
 
         elif fb.interview_round == "final_round":
-            result["final_interviewer"] = fb.interviewer_name
-            result["final_score"] = fb.get_round_avg()
+            result["final_round_interviewer"] = fb.interviewer_name
+            result["final_round_score"] = fb.get_round_avg()
 
-        # ---- Common fields (pick first non-null) ----
+        elif fb.interview_round == "management_client_round":
+            result["management_client_round_interviewer"] = fb.interviewer_name
+            result["management_client_round_score"] = fb.get_round_avg()
+
+        # ---- Common fields (first non-null wins) ----
         result["qualification"] = result["qualification"] or fb.qualification
         result["last_organization"] = result["last_organization"] or fb.current_organization
         result["notice_period"] = result["notice_period"] or fb.notice_period
@@ -329,6 +353,7 @@ class CandidateInterviewSummaryAPIView(APIView):
         response = {
             "candidate_id": str(candidate.id),
             "candidate_name": candidate.candidate_name,
+            "experience": candidate.experience_years,
 
             "designation": candidate.job.mrf.designation.name,
             "department": candidate.job.mrf.department.name,
