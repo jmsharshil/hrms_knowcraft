@@ -293,6 +293,9 @@ def schedule_mrf_reminder(mrf_id):
 
                 approver = workflow.approver
 
+                if not approver.is_active or approver.company_id != mrf.company_id:
+                    return
+
                 if approver:
                     template = email_templates["mrf_reminder"].format(
                         manager_name=approver.name,

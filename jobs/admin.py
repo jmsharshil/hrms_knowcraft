@@ -48,11 +48,11 @@ class JobAdmin(admin.ModelAdmin):
                 'assigned_to_consultancy', 'assigned_at', 'assigned_by'
             )
         }),
-        ('Closure Details', {
-            'fields': (
-                'filled_by', 'filled_at', 'filled_by_user', 'closure_notes'
-            )
-        }),
+        # ('Closure Details', {
+        #     'fields': (
+        #         'filled_by', 'filled_at', 'filled_by_user', 'closure_notes'
+        #     )
+        # }),
         ('Tracking', {
             'fields': (
                 'posted_by', 'company', 'created_at', 'updated_at'

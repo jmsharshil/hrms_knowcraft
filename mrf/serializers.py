@@ -22,12 +22,22 @@ class DesignationSerializer(serializers.ModelSerializer):
                 ]
         read_only_fields = ['id','code', 'created_at', 'updated_at']
 
+    def create(self, validated_data):
+        user = self.context['request'].user
+        validated_data['company'] = user.company
+        return super().create(validated_data)
+
 class DepartmentSerializer(serializers.ModelSerializer):
     designations = DesignationSerializer(many=True, read_only=True)
     class Meta:
         model = Department
         fields = ['id', 'name', 'code', 'is_active', 'designations', 'created_at', 'updated_at']
         read_only_fields = ['id','code', 'created_at', 'updated_at']
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        validated_data['company'] = user.company
+        return super().create(validated_data)
 
 class ApprovalWorkflowSerializer(serializers.ModelSerializer):
     template_name = serializers.CharField(source='template.name', read_only=True)
@@ -72,6 +82,12 @@ class ApprovalWorkflowCreateSerializer(serializers.ModelSerializer):
         if value < 1:
             raise serializers.ValidationError("level must be >= 1")
         return value
+    
+    def validate_approver(self, value):
+        user = self.context['request'].user
+        if value.company != user.company:
+            raise serializers.ValidationError("Approver does not belong to your company")
+        return value
 
 class WorkflowTemplateSerializer(serializers.ModelSerializer):
     # Accept nested levels (writable on create)
@@ -113,7 +129,8 @@ class WorkflowTemplateSerializer(serializers.ModelSerializer):
         is only for template creation (POST /workflow-templates/).
         """
         levels_data = validated_data.pop('levels', [])
-
+        user = self.context['request'].user
+        validated_data['company'] = user.company
         # Create the template (this will execute WorkflowTemplate.save() logic which
         # ensures only one default template exists)
         template = super().create(validated_data)
@@ -349,6 +366,7 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         validated_data['requested_by'] = user
         validated_data['requested_by_name'] = user.name
         validated_data['requested_by_designation'] = user.role
+        validated_data['company'] = user.company
         from .utils import get_auto_salary_range,get_expected_date_of_joining,mrf_fields_auto_fill
         salary_range = get_auto_salary_range(validated_data['department'],validated_data['designation'])
         if salary_range:
@@ -428,13 +446,56 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         
         instance.save()
         return instance
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request', None)
+        user = getattr(request, 'user', None)
+        
+        if user and hasattr(user, 'company'):
+            if 'department' in self.fields:
+                self.fields['department'].queryset = Department.objects.filter(company=user.company)
+            if 'position_department' in self.fields:
+                self.fields['position_department'].queryset = Department.objects.filter(company=user.company)
+            if 'designation' in self.fields:
+                self.fields['designation'].queryset = Designation.objects.filter(company=user.company)
+            if 'workflow_template' in self.fields:
+                self.fields['workflow_template'].queryset = WorkflowTemplate.objects.filter(company=user.company, is_active=True)
+            if 'approver' in self.fields:
+                self.fields['approver'].queryset = User.objects.filter(company=user.company, is_active=True)
+    
+    # In MRFCreateUpdateSerializer
+    def validate_department(self, value):
+        user = self.context['request'].user
+        if value.company != user.company:
+            raise serializers.ValidationError("Department does not belong to your company")
+        return value
 
+    def validate_designation(self, value):
+        user = self.context['request'].user
+        if value.company != user.company:
+            raise serializers.ValidationError("Designation does not belong to your company")
+        return value
+
+    def validate_workflow_template(self, value):
+        user = self.context['request'].user
+        if value.company != user.company:
+            raise serializers.ValidationError("Workflow template does not belong to your company")
+        return value
+
+    def validate_approver(self, value):
+        user = self.context['request'].user
+        if value.company != user.company:
+            raise serializers.ValidationError("Approver does not belong to your company")
+        return value
 
 class MRFSubmitSerializer(serializers.Serializer):
     """Serializer for submitting MRF for approval"""
     def submit(self):
         mrf = self.context['mrf']   # mrf instance passed from view
         user = self.context['request'].user
+        if mrf.company != user.company:
+            raise serializers.ValidationError("Cannot submit MRF outside your company")
         from onboarding.utils.sender import send_email
         subject = f'Requisition Raised for {mrf.designation} Position'
         # manager_name = User.objects.filter(role="hr_manager").first().name
@@ -481,8 +542,16 @@ class MRFApproveRejectSerializer(serializers.Serializer):
     rejection_reason = serializers.CharField(required=False, allow_blank=True)
     
     def validate(self, data):
+        mrf = self.context.get('mrf')
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+
         if data['action'] == 'reject' and not data.get('rejection_reason'):
             raise serializers.ValidationError({
                 'rejection_reason': 'Rejection reason is required when rejecting an MRF'
             })
+        if not mrf or not user:
+            return data
+        if mrf.company != user.company:
+            raise serializers.ValidationError("Cannot approve/reject MRF outside your company")
         return data

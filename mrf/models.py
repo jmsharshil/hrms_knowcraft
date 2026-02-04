@@ -1,7 +1,7 @@
 from django.db import models,transaction
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-from accounts.models import User
+from accounts.models import User,Company
 import uuid
 from datetime import datetime, time, timedelta
 from django.db.models import Q, UniqueConstraint,Max
@@ -10,31 +10,43 @@ from django.db.models import Q, UniqueConstraint,Max
 class Department(models.Model):
     """Department master - easily add/modify/delete"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=255, unique=True)
-    code = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=255)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE,null=True,blank=True)
+    code = models.CharField(max_length=50)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         ordering = ['name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['company', 'name'],
+                name='uniq_department_name_per_company'
+            ),
+            models.UniqueConstraint(
+                fields=['company', 'code'],
+                name='uniq_department_code_per_company'
+            ),
+        ]
     
     def save(self, *args, **kwargs):
         if not self.code:
-            last_code = (
-                Department.objects
-                .filter(code__startswith='DEP')
-                .aggregate(max_code=Max('code'))
-                ['max_code']
-            )
+            with transaction.atomic():
+                last_code = (
+                    Department.objects
+                    .filter(company=self.company,code__startswith='DEP')
+                    .aggregate(max_code=Max('code'))
+                    ['max_code']
+                )
 
-            if last_code:
-                last_number = int(last_code.replace('DEP', ''))
-                new_number = last_number + 1
-            else:
-                new_number = 1
+                if last_code:
+                    last_number = int(last_code.replace('DEP', ''))
+                    new_number = last_number + 1
+                else:
+                    new_number = 1
 
-            self.code = f"DEP{new_number:03d}"
+                self.code = f"DEP{new_number:03d}"
 
         super().save(*args, **kwargs)
 
@@ -46,7 +58,8 @@ class Designation(models.Model):
     """Designation master - easily add/modify/delete"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
-    code = models.CharField(max_length=50, unique=True,blank=True, null=True)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE,null=True,blank=True)
+    code = models.CharField(max_length=50, blank=True, null=True)
     tat_days = models.IntegerField(null=True,blank=True)
     department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='designations', blank=True, null=True)
     key_responsibility = models.TextField(null=True,blank=True)
@@ -59,6 +72,12 @@ class Designation(models.Model):
     
     class Meta:
         ordering = ['name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['company', 'code'],
+                name='uniq_designation_code_per_company'
+            ),
+        ]
     
     def save(self, *args, **kwargs):
         if not self.department:
@@ -70,7 +89,7 @@ class Designation(models.Model):
                 last_code = (
                     Designation.objects
                     .select_for_update()
-                    .filter(department=self.department)
+                    .filter(company=self.company,department=self.department)
                     .aggregate(max_code=Max('code'))
                     ['max_code']
                 )
@@ -92,6 +111,7 @@ class WorkflowTemplate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255, help_text="e.g., 'HR First Workflow', 'Admin First Workflow'")
     description = models.TextField(blank=True, help_text="Description of this workflow")
+    company = models.ForeignKey(Company, on_delete=models.CASCADE,null=True,blank=True)
     is_active = models.BooleanField(default=True, help_text="Set to False to disable this workflow")
     is_default = models.BooleanField(default=False, help_text="Use this as default for new MRFs")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -106,8 +126,8 @@ class WorkflowTemplate(models.Model):
     
     def save(self, *args, **kwargs):
         # If this is set as default, remove default from others
-        if self.is_default:
-            WorkflowTemplate.objects.filter(is_default=True).update(is_default=False)
+        if self.is_default and self.company:
+            WorkflowTemplate.objects.filter(company=self.company, is_default=True).update(is_default=False)
         super().save(*args, **kwargs)
     
     def get_levels(self):
@@ -118,6 +138,7 @@ class WorkflowTemplate(models.Model):
 class ApprovalWorkflow(models.Model):
     """Individual approval level in a workflow template"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE,null=True,blank=True)
     template = models.ForeignKey(WorkflowTemplate, on_delete=models.CASCADE, related_name='levels')
     level = models.IntegerField(help_text="Approval level (1, 2, 3, etc.)")
     required_role = models.CharField(max_length=20, help_text="Role required for this level")
@@ -168,7 +189,8 @@ class MRF(models.Model):
 
     # Primary Key
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    
+    company = models.ForeignKey(Company, on_delete=models.CASCADE,null=True,blank=True)
+
     # Workflow Assignment - IMPORTANT: Links MRF to specific workflow
     workflow_template = models.ForeignKey(
         WorkflowTemplate, 
@@ -225,7 +247,7 @@ class MRF(models.Model):
     interviewer_email_final = models.EmailField(max_length=50, blank=True, null=True, help_text="Email of final interviewer")
     interviewer_email_management_client = models.EmailField(max_length=50, blank=True, null=True, help_text="Interviewer email of management client interview")
     # HR Use Only
-    requisition_no = models.CharField(max_length=255, unique=True, blank=True, null=True)
+    requisition_no = models.CharField(max_length=255, blank=True, null=True)
     date_received = models.DateField(blank=True, null=True)
     
     # Workflow State
@@ -247,12 +269,21 @@ class MRF(models.Model):
         ordering = ['-created_at']
         verbose_name = 'MRF'
         verbose_name_plural = 'MRFs'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['company', 'requisition_no'],
+                name='uniq_mrf_requisition_no_per_company'
+            ),
+        ]
     
     def __str__(self):
         return f"MRF-{self.requisition_no or self.id} - {self.department.name} ({self.workflow_template.name})"
     
     def save(self, *args, **kwargs):
         # Auto-generate requisition number after final approval
+        if not self.company:
+            raise ValidationError("Company is required to generate department code")
+        
         if self.status == 'approved' and not self.requisition_no:
             self.requisition_no = self.generate_requisition_no()
             self.date_received = self.calculate_date_received()
@@ -265,9 +296,10 @@ class MRF(models.Model):
         date = timezone.now().date()
         designation = self.designation
         department = self.department
-        count = MRF.objects.filter(
-            requisition_no__startswith=f'MRF_{designation}_{department}'
-        ).count() + 1
+        with transaction.atomic():
+            count = MRF.objects.filter(company=self.company,
+                requisition_no__startswith=f'MRF_{designation}_{department}'
+            ).count() + 1
         return f'MRF_{designation}_{department}_{count:05d}_{date}'
     
     def calculate_date_received(self):
@@ -342,6 +374,7 @@ class MRFApproval(models.Model):
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE,null=True,blank=True)
     mrf = models.ForeignKey(MRF, on_delete=models.CASCADE, related_name='approvals')
     level = models.IntegerField()
     approver = models.ForeignKey(User, on_delete=models.PROTECT, related_name='mrf_approvals')
@@ -360,6 +393,7 @@ class MRFApproval(models.Model):
 class MRFRevision(models.Model):
     """Track MRF revisions"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE,null=True,blank=True)
     mrf = models.ForeignKey(MRF, on_delete=models.CASCADE, related_name='revisions')
     revised_by = models.ForeignKey(User, on_delete=models.PROTECT)
     revision_notes = models.TextField()

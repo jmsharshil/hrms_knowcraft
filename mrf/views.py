@@ -43,8 +43,17 @@ class DepartmentViewSet(viewsets.ModelViewSet):
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
         
+        user = self.request.user
+        if hasattr(user, 'company'):
+            queryset = queryset.filter(company=user.company)
         return queryset
-
+    
+    def perform_create(self, serializer):
+        user = self.request.user
+        if hasattr(user, 'company'):
+            serializer.save(company=user.company)
+        else:
+            serializer.save()
 
 class DesignationViewSet(viewsets.ModelViewSet):
     """ViewSet for managing designations"""
@@ -67,7 +76,17 @@ class DesignationViewSet(viewsets.ModelViewSet):
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
         
+        user = self.request.user
+        if hasattr(user, 'company'):
+            queryset = queryset.filter(company=user.company)
         return queryset
+    
+    def perform_create(self, serializer):
+        user = self.request.user
+        if hasattr(user, 'company'):
+            serializer.save(company=user.company)
+        else:
+            serializer.save()
 
 class WorkflowTemplateViewSet(viewsets.ModelViewSet):
     """ViewSet for managing workflow templates"""
@@ -98,7 +117,10 @@ class WorkflowTemplateViewSet(viewsets.ModelViewSet):
         is_default = self.request.query_params.get('is_default')
         if is_default is not None:
             queryset = queryset.filter(is_default=is_default.lower() == 'true')
-
+        
+        user = self.request.user
+        if hasattr(user, 'company'):
+            queryset = queryset.filter(company=user.company)
         return queryset
 
     # optional: explicit list override to clarify behavior / ensure ordering/pagination is used
@@ -116,7 +138,7 @@ class WorkflowTemplateViewSet(viewsets.ModelViewSet):
         workflow = self.get_object()
 
         # Remove default from all others
-        WorkflowTemplate.objects.filter(is_default=True).update(is_default=False)
+        WorkflowTemplate.objects.filter(company=workflow.company,is_default=True).update(is_default=False)
 
         # Set this as default
         workflow.is_default = True
@@ -128,6 +150,12 @@ class WorkflowTemplateViewSet(viewsets.ModelViewSet):
             'data': serializer.data
         }, status=status.HTTP_200_OK)
 
+    def perform_create(self, serializer):
+        user = self.request.user
+        if hasattr(user, 'company'):
+            serializer.save(company=user.company)
+        else:
+            serializer.save()
 
 # class WorkflowTemplateViewSet(viewsets.ModelViewSet):
 #     """ViewSet for managing workflow templates"""
@@ -188,8 +216,17 @@ class ApprovalWorkflowViewSet(viewsets.ModelViewSet):
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
         
+        user = self.request.user
+        if hasattr(user, 'company'):
+            queryset = queryset.filter(template__company=user.company)
         return queryset
 
+    def perform_create(self, serializer):
+        user = self.request.user
+        if hasattr(user, 'company'):
+            serializer.save(company=user.company)
+        else:
+            serializer.save()
 
 class MRFViewSet(viewsets.ModelViewSet):
     """ViewSet for managing MRFs"""
@@ -229,7 +266,8 @@ class MRFViewSet(viewsets.ModelViewSet):
         if user.role == 'department_head':
             approval_workflows = ApprovalWorkflow.objects.filter(
                 approver=user,
-                is_active=True
+                is_active=True,
+                template__company=user.company
             ).values_list('template_id', 'level')
 
             approval_q = Q()
@@ -273,7 +311,8 @@ class MRFViewSet(viewsets.ModelViewSet):
             # Find workflow levels where user's role matches
             workflow_levels = ApprovalWorkflow.objects.filter(
                 required_role=user.role,
-                is_active=True
+                is_active=True,
+                template__company=user.company
             ).values_list('template_id', 'level')
             
             # Build query for MRFs at those levels
@@ -288,6 +327,8 @@ class MRFViewSet(viewsets.ModelViewSet):
                 status__in=['pending_level_1', 'pending_level_2', 'pending_level_3']
             )
         
+        if hasattr(user, 'company'):
+            queryset = queryset.filter(company=user.company)
         return queryset
     
     @action(detail=True, methods=['get'], url_path='interviewers')
@@ -344,6 +385,12 @@ class MRFViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        if mrf.company != getattr(request.user, 'company', None):
+            return Response(
+                {'error': 'You cannot modify MRFs from another company.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         # Get first approval level from MRF's workflow
         first_workflow = mrf.workflow_template.levels.filter(
             level=1,
@@ -378,6 +425,12 @@ class MRFViewSet(viewsets.ModelViewSet):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
+        if mrf.company != getattr(request.user, 'company', None):
+            return Response(
+                {'error': 'You cannot modify MRFs from another company.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         action_type = serializer.validated_data['action']
         comments = serializer.validated_data.get('comments', '')
         rejection_reason = serializer.validated_data.get('rejection_reason', '')
@@ -467,7 +520,7 @@ class MRFViewSet(viewsets.ModelViewSet):
         if user.role == 'department_head':
             queryset = MRF.objects.filter(requested_by=user)
         else:
-            queryset = MRF.objects.all()
+            queryset = MRF.objects.filter(company=getattr(user, 'company', None))
         
         stats = {
             'total': queryset.count(),
@@ -483,7 +536,8 @@ class MRFViewSet(viewsets.ModelViewSet):
         # Pending approval count for current user
         workflow_levels = ApprovalWorkflow.objects.filter(
             required_role=user.role,
-            is_active=True
+            is_active=True,
+            template__company=getattr(user, 'company', None)
         ).values_list('template_id', 'level')
         
         q_objects = Q()
@@ -502,3 +556,10 @@ class MRFViewSet(viewsets.ModelViewSet):
             stats['pending_my_approval'] = 0
         
         return Response(stats, status=status.HTTP_200_OK)
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if hasattr(user, 'company'):
+            serializer.save(company=user.company)
+        else:
+            serializer.save()
