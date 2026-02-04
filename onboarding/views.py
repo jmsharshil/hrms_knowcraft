@@ -362,7 +362,7 @@ class CandidateInterviewSummaryAPIView(APIView):
             "manager_email": manager.email,
             "hiring_type": hiring_type,
             "offered_ctc": "",
-            "office_location": candidate.job.mrf.location,
+            "office_location": "",
             "source": candidate.source,
             "mrf": mrf.mrf_name,
             **feedback_data
