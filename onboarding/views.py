@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status,permissions
 from django.shortcuts import get_object_or_404
 from django.template import Template, Context
-from .models import JobApplicationDocument
+from .models import JobApplicationDocument,ApprovalNote
 from onboarding.utils.engine import automation_engine
 from .utils.sender import send_email
 from .serializers import JobApplicationDocumentSerializer
@@ -137,11 +137,53 @@ class UploadJobApplicationDocumentAPI(APIView):
             "documents": saved_docs
         }, status=201)
 
+
+from decimal import Decimal
+from datetime import date, datetime
+from uuid import UUID
+
+def make_json_safe(value):
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, UUID):
+        return str(value)
+    return value
+
 class SendApprovalNoteAPIView(APIView):
     """
     Sends approval note email to manager for candidate hiring
     """
     permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        approval_notes = ApprovalNote.objects.filter(
+            manager=user,
+            status="approval_pending"
+        ).select_related("candidate")
+
+        results = []
+
+        for note in approval_notes:
+            results.append({
+                "approval_note_id": str(note.id),
+                "candidate_id": str(note.candidate.id),
+                "status": note.status,
+                "created_at": note.created_at,
+                "data": note.payload
+            })
+
+        return Response(
+            {
+                "count": len(results),
+                "approval_notes": results
+            },
+            status=status.HTTP_200_OK
+        )
+
     def post(self, request):
         data = request.data  # DRF parses JSON automatically
 
@@ -268,6 +310,17 @@ class SendApprovalNoteAPIView(APIView):
         try:
             ok,reason = automation_engine(candidate, candidate.status, "approval_pending")
             if ok:
+                json_safe_context = {
+                    key: make_json_safe(value)
+                    for key, value in context.items()
+                }
+
+                approval_note = ApprovalNote.objects.create(
+                    candidate=candidate,
+                    manager=manager,
+                    created_by=request.user,
+                    payload=json_safe_context
+                )
                 # --- Send email ---
                 send_email(
                     subject="Approval Required – Candidate Hiring",

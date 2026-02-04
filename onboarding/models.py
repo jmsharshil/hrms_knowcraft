@@ -1,7 +1,7 @@
 from django.db import models
 import uuid
 from jobs.models import Job,JobApplication
-
+from accounts.models import User
 # class Job(models.Model):
 #     DEPARTMENT_CHOICES = [('sales',"Sales"),("marketing","Marketing"),("hr","HR"),("finance","Finance"),("engineering","Engineering")]
 #     JOB_CHOICES = [("full-time","Full-time"),("part-time","Part-time"),("intern","Intern"),("contract","Contract")]
@@ -116,3 +116,38 @@ class JobApplicationDocument(models.Model):
     file = models.FileField(upload_to=application_upload_path)
     doc_type = models.CharField(max_length=100, blank=True, null=True) # e.g. "Aadhaar", "PAN"
     uploaded_at = models.DateTimeField(auto_now_add=True)
+
+class ApprovalNote(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    candidate = models.ForeignKey(
+        "jobs.JobApplication",
+        on_delete=models.CASCADE,
+        related_name="approval_notes"
+    )
+
+    manager = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="approval_notes"
+    )
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="created_approval_notes"
+    )
+
+    # 🔹 Snapshot JSON (EMAIL = UI)
+    payload = models.JSONField()
+
+    status = models.CharField(
+        max_length=30,
+        default="approval_pending"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
