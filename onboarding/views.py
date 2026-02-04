@@ -225,7 +225,7 @@ class SendApprovalNoteAPIView(APIView):
             "designation": designation.name,
             "department": department.name,
 
-            "experience": data.get("experience"),
+            "experience": candidate.experience_years,
             "qualification": data.get("qualification"),
             "last_organization": data.get("last_organization"),
 
@@ -242,7 +242,7 @@ class SendApprovalNoteAPIView(APIView):
             "offered_ctc": data.get("offered_ctc"),
 
             "notice_period": data.get("notice_period"),
-            "office_location": data.get("office_location"),
+            "office_location": candidate.job.mrf.location,
 
             "source": candidate.source,
             "mrf": mrf.mrf_name,
@@ -270,3 +270,70 @@ class SendApprovalNoteAPIView(APIView):
             {"status": "Approval note sent successfully"},
             status=status.HTTP_200_OK
         )
+
+def aggregate_interview_feedback(job_application):
+    feedbacks = job_application.interview_feedbacks.all()
+
+    result = {
+        # Interviewers
+        "hr_interviewer": None,
+        "tech_interviewer": None,
+        "final_interviewer": None,
+
+        # Scores
+        "hr_score": None,
+        "tech_score": None,
+        "final_score": None,
+
+        # Common fields
+        "qualification": None,
+        "last_organization": None,
+        "notice_period": None,
+        "current_ctc": None,
+        "expected_ctc": None,
+        "remarks": None,
+    }
+
+    for fb in feedbacks:
+        # ---- Interviewer names ----
+        if fb.interview_round == "hr_round":
+            result["hr_interviewer"] = fb.interviewer_name
+            result["hr_score"] = fb.get_round_avg()
+
+        elif fb.interview_round == "technical_round":
+            result["tech_interviewer"] = fb.interviewer_name
+            result["tech_score"] = fb.get_round_avg()
+
+        elif fb.interview_round == "final_round":
+            result["final_interviewer"] = fb.interviewer_name
+            result["final_score"] = fb.get_round_avg()
+
+        # ---- Common fields (pick first non-null) ----
+        result["qualification"] = result["qualification"] or fb.qualification
+        result["last_organization"] = result["last_organization"] or fb.current_organization
+        result["notice_period"] = result["notice_period"] or fb.notice_period
+        result["current_ctc"] = result["current_ctc"] or fb.current_ctc
+        result["expected_ctc"] = result["expected_ctc"] or fb.expected_ctc
+        result["remarks"] = result["remarks"] or fb.comments
+
+    return result
+
+class CandidateInterviewSummaryAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, candidate_id):
+        candidate = get_object_or_404(JobApplication, id=candidate_id)
+
+        feedback_data = aggregate_interview_feedback(candidate)
+
+        response = {
+            "candidate_id": str(candidate.id),
+            "candidate_name": candidate.candidate_name,
+
+            "designation": candidate.job.mrf.designation.name,
+            "department": candidate.job.mrf.department.name,
+
+            **feedback_data
+        }
+
+        return Response(response, status=status.HTTP_200_OK)
