@@ -1,4 +1,4 @@
-name: Deploy Python app to Azure (direct) - demp-hrms
+name: Deploy Python app to Azure (direct, OIDC) - demp-hrms
 
 on:
   push:
@@ -12,29 +12,23 @@ jobs:
       group: demp-hrms-deploy
       cancel-in-progress: true
 
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # Optional: pip cache (small but free speedup)
-      - name: Cache pip wheels
-        uses: actions/cache@v4
+      - name: Login to Azure (OIDC)
+        uses: azure/login@v2
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      # Optional sanity check
-      - name: Lightweight checks
-        run: |
-          python -V
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_7E719720A087436088E3243C386B8C03 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_AE4CC7EC3B5D415FBBCB8FD7A2511B00 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_0E2EA575BDF940E884CCBC82CFD69935 }}
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'demp-hrms'
-          slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_DEMP_HRMS }}
+          app-name: demp-hrms
+          slot-name: Production
