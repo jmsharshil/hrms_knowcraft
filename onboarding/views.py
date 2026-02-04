@@ -223,13 +223,14 @@ class SendApprovalNoteAPIView(APIView):
         # --- Context ---
         context = {
             "manager_name": manager.name,
+            "manager_email": manager.email,
             "hr_name": hr.name,
 
             "candidate_name": candidate.candidate_name,
             "designation": designation.name,
             "department": department.name,
 
-            "experience": candidate.experience_years,
+            "experience": data.get("experience") or candidate.experience_years,
             "qualification": data.get("qualification"),
             "last_organization": data.get("last_organization"),
 
@@ -250,9 +251,9 @@ class SendApprovalNoteAPIView(APIView):
             "offered_ctc": data.get("offered_ctc"),
 
             "notice_period": data.get("notice_period"),
-            "office_location": candidate.job.mrf.location,
+            "office_location": data.get("office_location") or candidate.job.mrf.location,
 
-            "source": candidate.source,
+            "source": data.get("source") or candidate.source,
             "mrf": mrf.mrf_name,
             "hiring_type": data.get("hiring_type"),
 
@@ -347,17 +348,23 @@ class CandidateInterviewSummaryAPIView(APIView):
 
     def get(self, request, candidate_id):
         candidate = get_object_or_404(JobApplication, id=candidate_id)
-
+        mrf = candidate.job.mrf
+        manager = mrf.requested_by
         feedback_data = aggregate_interview_feedback(candidate)
-
+        hiring_type = "Replacement" if mrf.resigned_crafter_name else "New Position"
         response = {
             "candidate_id": str(candidate.id),
             "candidate_name": candidate.candidate_name,
             "experience": candidate.experience_years,
-
             "designation": candidate.job.mrf.designation.name,
             "department": candidate.job.mrf.department.name,
-
+            "manager_name": manager.name,
+            "manager_email": manager.email,
+            "hiring_type": hiring_type,
+            "offered_ctc": "",
+            "office_location": candidate.job.mrf.location,
+            "source": candidate.source,
+            "mrf": mrf.mrf_name,
             **feedback_data
         }
 

@@ -94,7 +94,7 @@ NOTIFY_INTERNAL_STATES = {
     # "interview_done_management_client",
     "interview_rejected_management_client",
     # Approval Flow
-    "approval_pending",        # Send approval request to HR Manager
+    # "approval_pending",        # Send approval request to HR Manager
     "approved",                # Notify HR
     "approval_rejected",       # Notify HR
     # Salary Documents Flow

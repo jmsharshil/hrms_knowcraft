@@ -740,7 +740,7 @@ NOTIFY_INTERNAL_MAP = {
         "sms": "Candidate rejected in management/client interview.",
     },
     "approval_pending": {
-        "receivers": ["hr_manager"],
+        "receivers": ["department_head"],
         "subject": "Approval Required for Candidate",
         "body": "Candidate is pending managerial approval.",
         "sms": "Candidate approval required.",
