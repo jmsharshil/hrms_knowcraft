@@ -650,7 +650,7 @@ class JobApplicationLinkViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
         
         if hasattr(user, 'company'):
-            queryset = queryset.filter(company=user.company)
+            queryset = queryset.filter(job__company=user.company)
         return queryset
     
     @action(detail=True, methods=['post'])
