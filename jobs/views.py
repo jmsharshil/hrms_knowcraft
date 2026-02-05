@@ -753,12 +753,17 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         return JobApplicationSerializer
     
     def get_permissions(self):
+        # 🔓 Public GET access
+        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return [AllowAny()]
+
         if self.action == 'public_apply':
             return [AllowAny()]
         elif self.action == 'create':
             return [IsAuthenticated(), CanSubmitApplications()]
         elif self.action in ['update', 'partial_update', 'destroy']:
             return [IsAuthenticated(), CanManageApplications()]
+
         return [IsAuthenticated(), CanViewApplications()]
     
     def get_queryset(self):
@@ -766,7 +771,11 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         queryset = JobApplication.objects.select_related(
             'job', 'job__department', 'submitted_by', 'application_link'
         )
-        
+        if not user.is_authenticated:
+            return queryset.order_by(
+                F('match_score').desc(nulls_last=True),
+                '-created_at'
+            )
         # Filter based on user role
         if user.role in ['admin', 'hr_manager']:
             # Can see all applications
