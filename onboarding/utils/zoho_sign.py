@@ -1,6 +1,7 @@
 import requests, json
 from django.conf import settings
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
 ZOHO_SIGN_URL = "https://sign.zoho.com/api/v1"
 
@@ -218,3 +219,95 @@ def send_offer_letter_doc(candidate_name, candidate_email, pdf_path):
         "draft": draft,
         "sent": sent_response
     }
+
+def send_offer_letter_autofill(
+    template_id,
+    candidate_data
+):
+    """
+    candidate_data example:
+    {
+        "name": "Anand Shah",
+        "email": "anand@email.com",
+        "address": "Ahmedabad",
+        "designation": "Software Engineer",
+        "department": "Engineering",
+        "location": "Ahmedabad",
+        "doj": "01-Apr-2026",
+        "ctc": "600000"
+    }
+    """
+
+    access_token = get_access_token()
+
+    url = f"https://sign.zoho.in/api/v1/templates/{template_id}/createdocument"
+
+    headers = {
+        "Authorization": f"Zoho-oauthtoken {access_token}"
+    }
+
+    payload = {
+        "data": json.dumps({
+            "templates": {
+                "request_name": f"Offer Letter - {candidate_data['name']}",
+
+                # 👤 Recipient
+                "actions": [
+                    {
+                        "role": "candidate",
+                        "recipient_name": candidate_data["name"],
+                        "recipient_email": candidate_data["email"],
+                        "action_type": "SIGN"
+                    }
+                ],
+
+                # 🧠 AUTO-FILL DATA
+                "field_data": {
+                    "field_text_data": {
+                        "CandidateName": candidate_data["name"],
+                        "CandidateAddress": candidate_data["address"],
+                        "Designation": candidate_data["designation"],
+                        "Department": candidate_data["department"],
+                        "Location": candidate_data["location"],
+                        "CTC": candidate_data["ctc"]
+                    },
+                    "field_date_data": {
+                        "DateOfJoining": candidate_data["doj"]
+                    }
+                }
+            }
+        }),
+        "is_quicksend": True
+    }
+
+    resp = requests.post(url, headers=headers, data=payload)
+    resp.raise_for_status()
+
+    return resp.json()
+
+@csrf_exempt
+def zoho_sign_webhook(request):
+    """
+    Receives Zoho Sign webhook events
+    """
+    payload = json.loads(request.body.decode("utf-8"))
+
+    event_type = payload.get("event_type")
+    request_id = payload.get("request", {}).get("request_id")
+    document_status = payload.get("request", {}).get("request_status")
+
+    # 🔍 LOG EVERYTHING FIRST
+    print("Zoho Event:", event_type, request_id, document_status)
+
+    # ✅ When candidate has signed
+    if event_type == "request.signed":
+        # mark partially signed
+        pass
+
+    # 🎉 When ALL parties signed
+    if event_type == "request.completed":
+        # Update DB → OFFER ACCEPTED
+        # Trigger email / onboarding / HR notification
+        pass
+
+    return JsonResponse({"status": "ok"})
