@@ -288,26 +288,10 @@ def schedule_mrf_reminder(mrf_id):
                     is_active=True
                 ).select_related('approver').first()
 
-                # if not workflow or not workflow.approver:
-                #     return
-
-                # approver = workflow.approver
-                if not workflow:
+                if not workflow or not workflow.approver:
                     return
 
-                # 1️⃣ Preferred: explicit approver (existing behavior)
                 approver = workflow.approver
-
-                # 2️⃣ Fallback: role-based approver (ONLY if approver is not set)
-                if not approver:
-                    approver = User.objects.filter(
-                        role=workflow.required_role,
-                        company_id=mrf.company_id,
-                        is_active=True
-                    ).first()
-
-                if not approver:
-                    return
 
                 if not approver.is_active or approver.company_id != mrf.company_id:
                     return

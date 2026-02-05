@@ -483,6 +483,51 @@ class MRFViewSet(viewsets.ModelViewSet):
             mrf.save()
             if mrf.status.startswith("pending"):
                 from .utils import schedule_mrf_reminder
+                from onboarding.utils.sender import send_email
+                from .utils import email_templates, alt_text
+                from accounts.models import User
+
+                # Send email to NEXT approver only
+                next_level = mrf.current_approval_level + 1
+
+                next_workflow = mrf.workflow_template.levels.filter(
+                    level=next_level,
+                    is_active=True
+                ).select_related('approver').first()
+
+                if next_workflow:
+                    print("OOOOOOOOOOOOOOOOOOOO")
+                    approver = next_workflow.approver or User.objects.filter(
+                        role=next_workflow.required_role,
+                        company=mrf.company,
+                        is_active=True
+                    ).first()
+
+                    if approver:
+                        print("PPPPPPPPPPPPPPP")
+                        subject = f"Requisition Pending Approval – {mrf.designation.name}"
+
+                        template = email_templates['mrf_submit_new'].format(
+                            manager_name=approver.name,
+                            hod_name=mrf.requested_by.name,
+                            designation=mrf.designation.name,
+                            date=mrf.created_at.strftime("%B %d, %Y")
+                        )
+
+                        text = alt_text['mrf_submit_new'].format(
+                            manager_name=approver.name,
+                            hod_name=mrf.requested_by.name,
+                            designation=mrf.designation.name,
+                            date=mrf.created_at.strftime("%B %d, %Y")
+                        )
+
+                        send_email(
+                            to=approver.email,
+                            subject=subject,
+                            template=template,
+                            text=text
+                        )
+                        print("Done................")
                 schedule_mrf_reminder(mrf.id)
             message = 'MRF approved successfully'
             if mrf.status == 'approved':
