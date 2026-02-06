@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, date
 from zoneinfo import ZoneInfo
 from .graph import get_interviewer_busy_slots
 from .availability import generate_free_slots_for_day
-from .serializers import FreeSlotSerializer,InterviewerCreateSerializer,InterviewFeedbackCreateSerializer,InterviewFeedbackUpdateSerializer,InterviewFeedbackDetailSerializer,InterviewFeedbackListSerializer
+from .serializers import FreeSlotSerializer,InterviewerSerializer,InterviewFeedbackCreateSerializer,InterviewFeedbackUpdateSerializer,InterviewFeedbackDetailSerializer,InterviewFeedbackListSerializer
 from slots.models import Interviewer,InterviewFeedback
 from rest_framework import permissions
 from rest_framework import status
@@ -67,9 +67,9 @@ class AvailableSlotsForInterviewerView(APIView):
 
 
 
-class InterviewerCreateView(APIView):
+class InterviewerView(APIView):
     def post(self, request):
-        serializer = InterviewerCreateSerializer(data=request.data)
+        serializer = InterviewerSerializer(data=request.data)
         if serializer.is_valid():
             interviewer = serializer.save()
             return Response({
@@ -77,6 +77,49 @@ class InterviewerCreateView(APIView):
                 "interviewer": serializer.data
             }, status=201)
         return Response(serializer.errors, status=400)
+
+    def get(self, request, pk):
+        interviewer = get_object_or_404(Interviewer, pk=pk)
+        serializer = InterviewerSerializer(interviewer)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request, pk):
+        interviewer = get_object_or_404(Interviewer, pk=pk)
+        serializer = InterviewerSerializer(
+            interviewer, data=request.data
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {
+                    "message": "Interviewer updated successfully",
+                    "interviewer": serializer.data
+                },
+                status=status.HTTP_200_OK
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, pk):
+        interviewer = get_object_or_404(Interviewer, pk=pk)
+        serializer = InterviewerSerializer(
+            interviewer, data=request.data, partial=True
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {
+                    "message": "Interviewer partially updated successfully",
+                    "interviewer": serializer.data
+                },
+                status=status.HTTP_200_OK
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class InterviewerListView(APIView):
+    def get(self, request):
+        interviewers = Interviewer.objects.all()
+        serializer = InterviewerSerializer(interviewers, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class InterviewFeedbackListCreateAPIView(APIView):
     permission_classes = [permissions.AllowAny]
