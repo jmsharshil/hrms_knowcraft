@@ -496,7 +496,6 @@ class MRFViewSet(viewsets.ModelViewSet):
                 ).select_related('approver').first()
 
                 if next_workflow:
-                    print("OOOOOOOOOOOOOOOOOOOO")
                     approver = next_workflow.approver or User.objects.filter(
                         role=next_workflow.required_role,
                         company=mrf.company,
@@ -504,7 +503,6 @@ class MRFViewSet(viewsets.ModelViewSet):
                     ).first()
 
                     if approver:
-                        print("PPPPPPPPPPPPPPP")
                         subject = f"Requisition Pending Approval – {mrf.designation.name}"
 
                         template = email_templates['mrf_submit_new'].format(
@@ -527,7 +525,6 @@ class MRFViewSet(viewsets.ModelViewSet):
                             template=template,
                             text=text
                         )
-                        print("Done................")
                 schedule_mrf_reminder(mrf.id)
             message = 'MRF approved successfully'
             if mrf.status == 'approved':
