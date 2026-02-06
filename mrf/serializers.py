@@ -209,6 +209,22 @@ class MRFListSerializer(serializers.ModelSerializer):
     workflow_name = serializers.CharField(source='workflow_template.name', read_only=True)
     job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
+    hr_interviewer = serializers.PrimaryKeyRelatedField(
+        queryset=Interviewer.objects.all(), required=False, allow_null=True
+    )
+    technical_interviewers = serializers.PrimaryKeyRelatedField(
+        queryset=Interviewer.objects.all(), required=False, allow_null=True,many=True
+    )
+    case_study_interviewer = serializers.PrimaryKeyRelatedField(
+        queryset=Interviewer.objects.all(), required=False, allow_null=True
+    )
+    final_interviewer = serializers.PrimaryKeyRelatedField(
+        queryset=Interviewer.objects.all(), required=False, allow_null=True
+    )
+    management_client_interviewer = serializers.PrimaryKeyRelatedField(
+        queryset=Interviewer.objects.all(), required=False, allow_null=True
+    )
+
     class Meta:
         model = MRF
         fields = [
@@ -216,7 +232,8 @@ class MRFListSerializer(serializers.ModelSerializer):
             'id', 'requisition_no', 'department_name', 'designation_name', 
             'no_of_vacancies', 'location', 'job_type', 'job_type_display','priority_display','status', 'status_display',
             'requested_by_name', 'workflow_name', 'date_of_request', 
-            'created_at', 'updated_at'
+            'created_at', 'updated_at','hr_interviewer', 'technical_interviewers', 'case_study_interviewer',
+            'final_interviewer', 'management_client_interviewer',
         ]
 
 
@@ -241,6 +258,22 @@ class MRFDetailSerializer(serializers.ModelSerializer):
     next_approvers = serializers.SerializerMethodField()
     can_approve = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
+
+    hr_interviewer = serializers.PrimaryKeyRelatedField(
+        queryset=Interviewer.objects.all(), required=False, allow_null=True
+    )
+    technical_interviewers = serializers.PrimaryKeyRelatedField(
+        queryset=Interviewer.objects.all(), required=False, allow_null=True,many=True
+    )
+    case_study_interviewer = serializers.PrimaryKeyRelatedField(
+        queryset=Interviewer.objects.all(), required=False, allow_null=True
+    )
+    final_interviewer = serializers.PrimaryKeyRelatedField(
+        queryset=Interviewer.objects.all(), required=False, allow_null=True
+    )
+    management_client_interviewer = serializers.PrimaryKeyRelatedField(
+        queryset=Interviewer.objects.all(), required=False, allow_null=True
+    )
     
     class Meta:
         model = MRF
@@ -272,7 +305,7 @@ class MRFDetailSerializer(serializers.ModelSerializer):
             return False
         user = request.user
         # Only creator can edit in draft or revision_required status
-        return obj.requested_by == user and obj.status in ['draft', 'revision_required']
+        return obj.requested_by == user and obj.status in ['draft', 'revision_required','approved']
     
     def get_interviewers(self, obj):
         emails = [
@@ -306,6 +339,21 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
     )
     job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
+    hr_interviewer = serializers.PrimaryKeyRelatedField(
+        queryset=Interviewer.objects.all(), required=False, allow_null=True
+    )
+    technical_interviewers = serializers.PrimaryKeyRelatedField(
+        queryset=Interviewer.objects.all(), required=False, allow_null=True, many=True
+    )
+    case_study_interviewer = serializers.PrimaryKeyRelatedField(
+        queryset=Interviewer.objects.all(), required=False, allow_null=True
+    )
+    final_interviewer = serializers.PrimaryKeyRelatedField(
+        queryset=Interviewer.objects.all(), required=False, allow_null=True
+    )
+    management_client_interviewer = serializers.PrimaryKeyRelatedField(
+        queryset=Interviewer.objects.all(), required=False, allow_null=True
+    )
     class Meta:
         model = MRF
         fields = [
@@ -314,9 +362,8 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
             'no_of_vacancies', 'location', 'resigned_crafter_name', 'resigned_crafter_ecode',
             'resigned_crafter_designation', 'experience_range',
             'business_justification','job_type', 'job_type_display','priority','priority_display',
-            'case_study_required', 'technical_interview_1',
-            'technical_interview_2', 'final_interview','interviewer_email_management_client',
-            'interviewer_email_1','interviewer_email_2','interviewer_email_3','interviewer_email_final'
+            'case_study_required', 'hr_interviewer', 'technical_interviewers', 'case_study_interviewer',
+            'final_interviewer', 'management_client_interviewer'
         ]
     
     def validate(self, data):
@@ -408,7 +455,10 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         validated_data['skills_competencies'] = (
             validated_data.get('skills_competencies') or "Not Specified"
         )
+        technical_interviewers = validated_data.pop('technical_interviewers', [])
         mrf = MRF.objects.create(**validated_data)
+        if technical_interviewers:
+            mrf.technical_interviewers.set(technical_interviewers)
         return mrf
     
     def update(self, instance, validated_data):
@@ -444,7 +494,10 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         
+        technical_interviewers = validated_data.pop('technical_interviewers', None)
         instance.save()
+        if technical_interviewers is not None:
+            instance.technical_interviewers.set(technical_interviewers)
         return instance
     
     def __init__(self, *args, **kwargs):

@@ -749,7 +749,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
     "interview_pending_2": f"""
     <html>
     <body style="font-family: Arial; color:#333;">
-        <h2>Interview Scheduled (Technical Round 1)</h2>
+        <h2>Interview Scheduled (Technical Round)</h2>
         <p>Dear,</p>
         <p>The second round of interview slot of candidate <strong>{{candidate.candidate_name}}</strong> is scheduled.</p>
         <p>Fill the interview feedback on this link: {{feedback_link}}</p>
@@ -761,7 +761,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
     "interview_pending_3": f"""
     <html>
     <body style="font-family: Arial; color:#333;">
-        <h2>Interview Scheduled (Technical Round 2)</h2>
+        <h2>Interview Scheduled (Case Study Round)</h2>
         <p>Dear,</p>
         <p>The second round of interview slot of candidate <strong>{{candidate.candidate_name}}</strong> is scheduled.</p>
         <p>Fill the interview feedback on this link: {{feedback_link}}</p>
@@ -929,7 +929,54 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
     </body>
     </html>
     """,
-
+    "interview_next_2": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Candidate Shortlisted</h2>
+        <p>Dear HR Team,</p>
+        <p>The candidate <strong>{{candidate.candidate_name}}</strong> has passed HR Round.</p>
+        <p>Please proceed with the next steps in the hiring process.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+    "interview_next_3": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Candidate Shortlisted</h2>
+        <p>Dear HR Team,</p>
+        <p>The candidate <strong>{{candidate.candidate_name}}</strong> has passed Technical Round.</p>
+        <p>Please proceed with the next steps in the hiring process.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+    "interview_next_final": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Candidate Shortlisted</h2>
+        <p>Dear HR Team,</p>
+        <p>The candidate <strong>{{candidate.candidate_name}}</strong> has passed Case Study Round.</p>
+        <p>Please proceed with the next steps in the hiring process.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
+    "interview_next_management_client": f"""
+    <html>
+    <body style="font-family: Arial; color:#333;">
+        <h2>Candidate Shortlisted</h2>
+        <p>Dear HR Team,</p>
+        <p>The candidate <strong>{{candidate.candidate_name}}</strong> has passed Final Round.</p>
+        <p>Please proceed with the next steps in the hiring process.</p>
+        <br>
+        <p>Regards,<br>Recruitment System</p>
+    </body>
+    </html>
+    """,
     "approval_pending": f"""
     <html>
     <body style="font-family: Arial; color:#333;">

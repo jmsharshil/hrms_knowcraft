@@ -5,7 +5,7 @@ from accounts.models import User,Company
 import uuid
 from datetime import datetime, time, timedelta
 from django.db.models import Q, UniqueConstraint,Max
-
+from slots.models import Interviewer
 
 class Department(models.Model):
     """Department master - easily add/modify/delete"""
@@ -241,11 +241,49 @@ class MRF(models.Model):
     technical_interview_2 = models.CharField(max_length=255, blank=True, null=True, help_text="Optional")
     final_interview = models.CharField(max_length=255, help_text="Name of final interviewer", blank=True, null=True)
 
-    interviewer_email_1 = models.EmailField(max_length=50, help_text="Email of interviewer")
-    interviewer_email_2 = models.EmailField(max_length=50, blank=True, null=True, help_text="Optional")
-    interviewer_email_3 = models.EmailField(max_length=50, blank=True, null=True, help_text="Optional")
-    interviewer_email_final = models.EmailField(max_length=50, blank=True, null=True, help_text="Email of final interviewer")
+    interviewer_email_1 = models.EmailField(max_length=50, blank=True, null=True, help_text="Email of HR round interviewer")
+    interviewer_email_2 = models.EmailField(max_length=50, blank=True, null=True, help_text="Email of Technical round interviewer")
+    interviewer_email_3 = models.EmailField(max_length=50, blank=True, null=True, help_text="Email of Case study round interviewer")
+    interviewer_email_final = models.EmailField(max_length=50, blank=True, null=True, help_text="Email of final round interviewer")
     interviewer_email_management_client = models.EmailField(max_length=50, blank=True, null=True, help_text="Interviewer email of management client interview")
+
+    technical_interviewers = models.ManyToManyField(
+        Interviewer,
+        blank=True,
+        related_name="technical_mrfs"
+    )
+
+    hr_interviewer = models.ForeignKey(
+        Interviewer,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="hr_mrfs"
+    )
+
+    case_study_interviewer = models.ForeignKey(
+        Interviewer,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="case_study_mrfs"
+    )
+
+    final_interviewer = models.ForeignKey(
+        Interviewer,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="final_mrfs"
+    )
+
+    management_client_interviewer = models.ForeignKey(
+        Interviewer,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="management_client_mrfs"
+    )
     # HR Use Only
     requisition_no = models.CharField(max_length=255, blank=True, null=True)
     date_received = models.DateField(blank=True, null=True)
@@ -280,6 +318,17 @@ class MRF(models.Model):
         return f"MRF-{self.requisition_no or self.id} - {self.department.name} ({self.workflow_template.name})"
     
     def save(self, *args, **kwargs):
+        self.interviewer_email_1 = self.hr_interviewer.email if self.hr_interviewer else None
+        self.interviewer_email_3 = self.case_study_interviewer.email if self.case_study_interviewer else None
+        self.interviewer_email_final = self.final_interviewer.email if self.final_interviewer else None
+        self.interviewer_email_management_client = (
+            self.management_client_interviewer.email if self.management_client_interviewer else None
+        )
+
+        # For technical interviewers, pick the first one if exists
+        first_technical = self.technical_interviewers.first()
+        self.interviewer_email_2 = first_technical.email if first_technical else None
+
         # Auto-generate requisition number after final approval
         if not self.company:
             raise ValidationError("Company is required to generate department code")

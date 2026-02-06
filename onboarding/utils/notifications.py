@@ -938,16 +938,16 @@ def notify_internal(candidate: Any, stage: str,cc:list) -> bool:
                     round = "hr_round"
                     feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/hr-feedback-form/"
                 if stage == 'interview_pending_2':
-                    round = "technical_round_1"
+                    round = "technical_round"
                     feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/technical-feedback-form-one/"
                 if stage == 'interview_pending_3':
-                    round = "technical_round_2"
+                    round = "case_study_round"
                     feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/technical-feedback-form-two/"
                 if stage == 'interview_pending_final':
                     round = "final_round"
                     feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/final-feedback-form/"
                 if stage == 'interview_pending_management_client':
-                    round = "management_round"
+                    round = "management_client_round"
                     feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/management-feedback-form/"
                 feedback_link = f"{feedback_link_base}?interview_round={round}&job_application={candidate.id}"
             template = template.format(candidate=candidate,feedback_link=feedback_link)

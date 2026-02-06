@@ -16,7 +16,7 @@ from slots.graph import get_graph_token,fetch_meeting_recording,fetch_meeting_tr
 from jobs.serializers import JobApplicationSerializer
 from jobs.models import JobApplication
 from rest_framework import permissions
-
+from onboarding.utils.sender import send_email
 
 IST = ZoneInfo("Asia/Kolkata")
 
@@ -252,7 +252,29 @@ class CandidateBookSlotView(APIView):
 
         elif candidate.status in ['interview_next_2', 'interview_pending_2']:
             round = "technical_round"
-            round_name = "Technical Round 1"
+            round_name = "Technical Round"
+            if candidate.job.mrf.technical_interviewers.exists():
+                for interviewer in candidate.job.mrf.technical_interviewers.all():
+                    if str(interviewer.id) == str(interviewer_id):
+                        continue
+                    send_email(
+                        subject="New Interview Scheduled",
+                        text=f"Hello {interviewer.name},\nYou have an interview with {candidate.candidate_name} at {start_str}.\nJoin link: {meeting_link}",
+                        template=f"""
+                        <html>
+                        <body style="font-family: Arial; color:#333;">
+                            <h2>Interview Scheduled ({round_name})</h2>
+                            <p>Dear {interviewer.name},</p>
+                            <p>You have an interview with {candidate.candidate_name} at {start_str}.</p>
+                            <p>Join link: {meeting_link}</p>
+                            <br>
+                            <p>Regards,
+                            <br>
+                            Recruitment System</p>
+                            </body>
+                        </html>""",
+                        to=interviewer.email,
+                    )
 
         elif candidate.status in ['interview_next_3', 'interview_pending_3']:
             round = "case_study_round"
@@ -274,7 +296,6 @@ class CandidateBookSlotView(APIView):
             f"?interview_round={round}&job_application={candidate.id}"
         )
 
-        from onboarding.utils.sender import send_email
         send_email(
             subject="New Interview Scheduled",
             text=f"Hello {interviewer.name},\nYou have an interview with {candidate.candidate_name} at {start_str}.\nJoin link: {meeting_link}\n Feedback link: {feedback_link}",

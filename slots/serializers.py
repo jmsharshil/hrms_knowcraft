@@ -7,10 +7,18 @@ class FreeSlotSerializer(serializers.Serializer):
     start = serializers.DateTimeField()
     end = serializers.DateTimeField()
 
-class InterviewerCreateSerializer(serializers.ModelSerializer):
+class InterviewerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Interviewer
         fields = ["id", "name", "email"]
+
+    def validate_email(self, value):
+        interviewer_id = self.instance.id if self.instance else None
+
+        if Interviewer.objects.filter(email=value).exclude(id=interviewer_id).exists():
+            raise serializers.ValidationError("Email already exists")
+
+        return value
 
 class InterviewFeedbackCreateSerializer(serializers.ModelSerializer):
 
