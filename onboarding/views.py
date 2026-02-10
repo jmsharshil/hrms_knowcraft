@@ -2,14 +2,17 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status,permissions
+from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.template import Template, Context
-from .models import JobApplicationDocument,ApprovalNote
+from .models import JobApplicationDocument,ApprovalNote,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent
 from onboarding.utils.engine import automation_engine
 from .utils.sender import send_email
-from .serializers import JobApplicationDocumentSerializer
+from .serializers import JobApplicationDocumentSerializer,SalaryAnnexureSerializer,SalaryAnnexureHistorySerializer
 import logging
 from jobs.models import JobApplication
+from rest_framework.viewsets import ModelViewSet,ReadOnlyModelViewSet
+from .utils.annexure_history import log_salary_annexure_history
 logger = logging.getLogger(__name__)
 
 
@@ -422,3 +425,217 @@ class CandidateInterviewSummaryAPIView(APIView):
         }
 
         return Response(response, status=status.HTTP_200_OK)
+
+class SalaryAnnexureViewSet(ModelViewSet):
+    queryset = SalaryAnnexure.objects.select_related("job_application")
+    serializer_class = SalaryAnnexureSerializer
+
+    def perform_create(self, serializer):
+        annexure = serializer.save(prepared_by=self.request.user)
+        log_salary_annexure_history(
+            annexure,
+            action="created",
+            user=self.request.user
+        )
+
+    @action(detail=True, methods=["post"])
+    def send(self, request, pk=None):
+        annexure = self.get_object()
+
+        if annexure.status in ["rejected", "approved", "sent"]:
+            return Response(
+                {"error": f"Cannot sent annexure in '{annexure.status}' state"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        annexure.status = "sent"
+        annexure.rejection_reason = ""
+        annexure.save(update_fields=["status", "rejection_reason"])
+
+        app = annexure.job_application
+        automation_engine(app, app.status, "salary_annexure_sent")
+        log_salary_annexure_history(
+            annexure,
+            action="sent",
+            user=request.user
+        )
+
+        return Response({"message": "Salary annexure sent for approval"})
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        annexure = self.get_object()
+        
+        if annexure.status == "draft":
+            return Response(
+                {"error": f"Can't approve annexure.Annexure is not sent for approval."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        annexure.status = "approved"
+        annexure.reviewed_by = request.user
+        annexure.save(update_fields=["status", "reviewed_by"])
+
+        app = annexure.job_application
+        automation_engine(app, app.status, "approved_annexure")
+        log_salary_annexure_history(
+            annexure,
+            action="approved",
+            user=request.user
+        )
+
+        return Response({"message": "Salary annexure approved"})
+
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        reason = request.data.get("reason")
+        if not reason:
+            return Response(
+                {"error": "Rejection reason is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        annexure = self.get_object()
+
+        if annexure.status == "approved":
+            return Response(
+                {"error": "Approved annexure cannot be rejected"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # allow revision only after rejection or draft
+        if annexure.status == "rejected":
+            return Response(
+                {"error": f"Annexure is already rejected"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if annexure.status == "draft":
+            return Response(
+                {"error": f"Can't reject annexure.Annexure is not sent for approval."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        annexure.status = "rejected"
+        annexure.reviewed_by = request.user
+        annexure.rejection_reason = reason
+        annexure.save(update_fields=[
+            "status",
+            "reviewed_by",
+            "rejection_reason",
+            "revision_count"
+        ])
+
+        app = annexure.job_application
+        automation_engine(app, app.status, "rejected_annexure")
+        log_salary_annexure_history(
+            annexure,
+            action="rejected",
+            user=request.user,
+            remarks=annexure.rejection_reason
+        )
+
+        return Response({"message": "Salary annexure rejected"})
+
+    @action(detail=True, methods=["post"])
+    def revise(self, request, pk=None):
+        annexure = self.get_object()
+
+        # ❌ Cannot revise an approved annexure
+        if annexure.status == "approved":
+            return Response(
+                {"error": "Approved annexure cannot be revised"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Optional: only allow revision after rejection
+        if annexure.status not in ["rejected", "draft"]:
+            return Response(
+                {"error": f"Cannot revise annexure in '{annexure.status}' state"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Update editable fields
+        editable_fields = [
+            "designation",
+            "effective_from",
+            "gross_monthly",
+            "ctc_annual",
+            "net_monthly",
+            "notes",
+        ]
+
+        updated = False
+        for field in editable_fields:
+            if field in request.data:
+                setattr(annexure, field, request.data[field])
+                updated = True
+
+        if not updated:
+            return Response(
+                {"error": "No valid fields provided for revision"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Reset review metadata
+        annexure.status = "draft"
+        annexure.rejection_reason = None
+        annexure.reviewed_by = None
+        annexure.revision_count += 1
+        annexure.prepared_by = request.user
+        
+        components_data = request.data.get("components")
+
+        if components_data is not None:
+            annexure.components.all().delete()  # simple & safe
+
+            for comp in components_data:
+                comp.pop("id", None)
+                SalaryComponent.objects.create(
+                    annexure=annexure,
+                    **comp
+                )
+
+        annexure.save()
+
+        # 🔁 Move workflow back to salary_annexure_prep
+        app = annexure.job_application
+        automation_engine(app, app.status, "salary_annexure_prep")
+        log_salary_annexure_history(
+            annexure,
+            action="revised",
+            user=request.user,
+            remarks=annexure.notes
+        )
+
+        return Response(
+            {
+                "message": "Salary annexure revised successfully",
+                "revision_count": annexure.revision_count
+            },
+            status=status.HTTP_200_OK
+        )
+    
+class SalaryAnnexureHistoryViewSet(ReadOnlyModelViewSet):
+    serializer_class = SalaryAnnexureHistorySerializer
+
+    def get_queryset(self):
+        """
+        Filter by annexure or job application
+        """
+        qs = SalaryAnnexureHistory.objects.select_related(
+            "annexure",
+            "performed_by"
+        )
+
+        annexure_id = self.request.query_params.get("annexure_id")
+        job_application_id = self.request.query_params.get("job_application_id")
+
+        if annexure_id:
+            qs = qs.filter(annexure_id=annexure_id)
+
+        if job_application_id:
+            qs = qs.filter(
+                annexure__job_application_id=job_application_id
+            )
+
+        return qs.order_by("created_at")

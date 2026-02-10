@@ -1,6 +1,6 @@
 from rest_framework import serializers
-from .models import JobApplicationDocument
-
+from .models import JobApplicationDocument,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent
+from jobs.models import JobApplication
 # class CandidateSerializer(serializers.ModelSerializer):
 #     class Meta:
 #         model = Candidate
@@ -41,3 +41,73 @@ class JobApplicationDocumentSerializer(serializers.ModelSerializer):
     #     validated_data['job_code'] = f"JOB-{last:05d}"
 
     #     return super().create(validated_data)
+class SalaryComponentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SalaryComponent
+        exclude = ("annexure",)
+
+class SalaryAnnexureSerializer(serializers.ModelSerializer):
+    job_application_id = serializers.UUIDField(write_only=True)
+    components = SalaryComponentSerializer(many=True, required=False)
+
+    class Meta:
+        model = SalaryAnnexure
+        fields = [
+            "id","job_application","designation","effective_from","gross_monthly",
+            "ctc_annual","net_monthly","notes","status","revision_count",
+            "components","created_at","updated_at","job_application_id","components"
+        ]
+        read_only_fields = [
+            "id",
+            "job_application",
+            "status",
+            "reviewed_by",
+            "revision_count",
+            "created_at",
+            "updated_at",
+        ]
+
+    def create(self, validated_data):
+        job_app_id = validated_data.pop("job_application_id")
+        components = validated_data.pop("components", [])
+        job_app = JobApplication.objects.filter(id=job_app_id).first()
+        if not job_app:
+            raise serializers.ValidationError(
+                f"Job Application with id '{job_app_id}' doesn't exist."
+            )
+        annexure, created = SalaryAnnexure.objects.get_or_create(
+            job_application=job_app,
+            defaults=validated_data
+        )
+        for comp in components:
+            SalaryComponent.objects.create(
+                annexure=annexure,
+                **comp
+            )
+        if not created:
+            raise serializers.ValidationError(
+                "Salary Annexure already exists for this Job Application."
+            )
+
+        return annexure
+
+class SalaryAnnexureHistorySerializer(serializers.ModelSerializer):
+    performed_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SalaryAnnexureHistory
+        fields = [
+            "id",
+            "action",
+            "performed_by",
+            "performed_by_name",
+            "remarks",
+            "snapshot",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+    def get_performed_by_name(self, obj):
+        if obj.performed_by:
+            return obj.performed_by.name
+        return None

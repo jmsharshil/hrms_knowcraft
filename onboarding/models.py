@@ -151,3 +151,126 @@ class ApprovalNote(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+
+class SalaryAnnexure(models.Model):
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("sent", "Sent for Approval"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    job_application = models.OneToOneField(
+        JobApplication,
+        on_delete=models.CASCADE,
+        related_name="salary_annexure"
+    )
+
+    prepared_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="prepared_annexures"
+    )
+
+    reviewed_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_annexures"
+    )
+
+    designation = models.CharField(max_length=255)
+    effective_from = models.DateField()
+
+    gross_monthly = models.DecimalField(max_digits=12, decimal_places=2)
+    ctc_annual = models.DecimalField(max_digits=14, decimal_places=2)
+    net_monthly = models.DecimalField(max_digits=12, decimal_places=2)
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="draft"
+    )
+
+    rejection_reason = models.TextField(blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+
+    revision_count = models.PositiveIntegerField(default=0)
+
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.job_application} | Salary Annexure"
+
+class SalaryComponent(models.Model):
+    COMPONENT_TYPE = [
+        ("earning", "Earning"),
+        ("employer_contribution", "Employer Contribution"),
+        ("employee_contribution", "Employee Contribution"),
+    ]
+
+    annexure = models.ForeignKey(
+        SalaryAnnexure,
+        on_delete=models.CASCADE,
+        related_name="components"
+    )
+
+    name = models.CharField(max_length=255)
+    component_type = models.CharField(max_length=30, choices=COMPONENT_TYPE)
+
+    monthly_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    annual_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+
+    is_statutory = models.BooleanField(default=False)
+
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["order"]
+
+    def __str__(self):
+        return self.name
+
+class SalaryAnnexureHistory(models.Model):
+    ACTION_CHOICES = [
+        ("created", "Created"),
+        ("sent", "Sent for Approval"),
+        ("revised", "Revised"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    annexure = models.ForeignKey(
+        SalaryAnnexure,
+        on_delete=models.CASCADE,
+        related_name="history"
+    )
+
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+
+    performed_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True
+    )
+
+    remarks = models.TextField(blank=True, null=True)
+
+    snapshot = models.JSONField(
+        help_text="Snapshot of salary annexure at the time of action"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.annexure} - {self.action}"
