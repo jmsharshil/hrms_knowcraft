@@ -10,15 +10,29 @@ class FreeSlotSerializer(serializers.Serializer):
 class InterviewerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Interviewer
-        fields = ["id", "name", "email"]
+        fields = ["id", "name", "email", "company"]
 
-    def validate_email(self, value):
-        interviewer_id = self.instance.id if self.instance else None
+    def validate(self, attrs):
+        request = self.context.get("request")
+        company = None
 
-        if Interviewer.objects.filter(email=value).exclude(id=interviewer_id).exists():
-            raise serializers.ValidationError("Email already exists")
+        if request and request.user.is_authenticated:
+            company = getattr(request.user, "company", None)
+        else:
+            company = attrs.get("company")
 
-        return value
+        email = attrs.get("email")
+
+        qs = Interviewer.objects.filter(company=company, email=email)
+        if self.instance:
+            qs = qs.exclude(id=self.instance.id)
+
+        if qs.exists():
+            raise serializers.ValidationError(
+                {"email": "This email already exists for this company."}
+            )
+
+        return attrs
 
 class InterviewFeedbackCreateSerializer(serializers.ModelSerializer):
 

@@ -1,12 +1,23 @@
 from django.db import models
 from jobs.models import JobApplication
+from accounts.models import Company
 import uuid
 
 
 class Interviewer(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
-    email = models.EmailField(unique=True)
+    email = models.EmailField()
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
+
+    class Meta:
+        ordering = ['email']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['company', 'email'],
+                name='uniq_interviewer_email_per_company'
+            ),
+        ]
 
     def __str__(self):
         return self.name

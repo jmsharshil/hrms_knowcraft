@@ -71,7 +71,7 @@ class InterviewerView(APIView):
     def post(self, request):
         serializer = InterviewerSerializer(data=request.data)
         if serializer.is_valid():
-            interviewer = serializer.save()
+            interviewer = serializer.save(company=request.user.company)
             return Response({
                 "message": "Interviewer added successfully",
                 "interviewer": serializer.data
@@ -118,6 +118,8 @@ class InterviewerView(APIView):
 class InterviewerListView(APIView):
     def get(self, request):
         interviewers = Interviewer.objects.all()
+        if request.user.is_authenticated:
+            interviewers = interviewers.filter(company=request.user.company)
         serializer = InterviewerSerializer(interviewers, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
