@@ -18,7 +18,11 @@ from jobs.models import JobApplication
 class JobApplicationDocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobApplicationDocument
-        fields = ["id", "file", "doc_type", "uploaded_at"]
+        fields = "__all__"
+        read_only_fields = (
+            "id","job_application","salary_status",
+            "joining_docs_status","resignation_status","created_at","updated_at",
+        )
 
 # class JobCreateSerializer(serializers.ModelSerializer):
 #     class Meta:

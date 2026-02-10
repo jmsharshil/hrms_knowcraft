@@ -97,49 +97,164 @@ class UpdatestatusAPI(APIView):
 #             "success": False,
 #             "errors": serializer.errors
 #         }, status=status.HTTP_400_BAD_REQUEST)
-    
+def is_section_complete(docs, section):
+    """
+    Section is complete if status == approved
+    """
+    return getattr(docs, f"{section}_status") == "approved"
+
+def is_section_unclear(docs, section):
+    """
+    Section is unclear if status == unclear
+    """
+    return getattr(docs, f"{section}_status") == "unclear"
+
+def is_section_incomplete(docs, section):
+    """
+    Section is incomplete if status == incomplete
+    """
+    return getattr(docs, f"{section}_status") == "incomplete"
+
+
+REQUIRED_SECTIONS = {
+    "salary_docs": ["salary"],
+    "resignation_docs": ["resignation"],
+    "joining_docs": ["personal", "education", "experience"],
+}
+
+def evaluate_documents(application):
+    docs = application.documents
+
+    # Salary stage
+    if application.status in ["salary_docs_uploaded","hr_review_docs","salary_docs_unclear","salary_docs_incomplete"]:
+        if is_section_unclear(docs,"salary"):
+            automation_engine(application, application.status, "salary_docs_unclear")
+        elif is_section_incomplete(docs,"salary"):
+            automation_engine(application, application.status, "salary_docs_incomplete")
+        elif is_section_complete(docs, "salary"):
+            automation_engine(application, application.status, "hr_review_ok")
+
+    # Resignation stage
+    elif application.status in ["resignation_uploaded","resignation_review","resignation_incomplete","resignation_unclear"]:
+        if is_section_unclear(docs,"resignation"):
+            automation_engine(application, application.status, "resignation_unclear")
+        elif is_section_incomplete(docs,"resignation"):
+            automation_engine(application, application.status, "resignation_incomplete")
+        elif is_section_complete(docs, "resignation"):
+            automation_engine(application, application.status, "resignation_approved")
+
+    # Joining documents stage
+    elif application.status in ["docs_uploaded","review_docs","docs_unclear","docs_incomplete"]:
+        if is_section_incomplete(docs, "joining_docs"):
+            automation_engine(application, application.status, "docs_incomplete")
+        elif is_section_unclear(docs, "joining_docs"):
+            automation_engine(application, application.status, "docs_unclear")
+        elif is_section_complete(docs, "joining_docs"):
+            automation_engine(application, application.status, "docs_approved")
 
 class UploadJobApplicationDocumentAPI(APIView):
-    permission_classes = [permissions.AllowAny]  # if public for candidate
-    
-    def post(self, request,id):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, id):
         application = get_object_or_404(JobApplication, id=id)
 
-        files = request.FILES.getlist("files")
-        doc_type = request.data.get("doc_type", None)
+        docs, _ = JobApplicationDocument.objects.get_or_create(
+            job_application=application
+        )
 
-        if not files:
-            return Response({"error": "No file uploaded"}, status=400)
 
-        saved_docs = []
+        SECTION_FIELDS = {
+            "salary": ["salary_slip_1", "salary_slip_2", "salary_slip_3", "bank_statement"],
+            "joining_docs": {
+            "personal": ["aadhaar", "pan", "passport", "photograph", "address_proof"],
+            "education": [
+                "tenth_certificate",
+                "twelfth_certificate",
+                "graduation_certificate",
+                "post_graduation_certificate",
+            ],
+            "experience": [
+                "experience_letter_1",
+                "experience_letter_2",
+                "relieving_letter",
+            ]},
+            "resignation": ["resignation_letter", "resignation_acceptance"],
+        }
 
-        for f in files:
-            doc = JobApplicationDocument.objects.create(
-                job_application=application,
-                file=f,
-                doc_type=doc_type
-            )
-            saved_docs.append(JobApplicationDocumentSerializer(doc).data)
+        for section, fields in SECTION_FIELDS.items():
+            if getattr(docs, f"{section}_status") == "approved":
+                for field in fields:
+                    if field in request.FILES:
+                        return Response(
+                            {"error": f"{section} documents already approved"},
+                            status=400
+                        )
 
-        # OPTIONAL: When first doc uploaded → move to docs_received
-        if application.status == "docs_pending":
-            ok, reason = automation_engine(application, "docs_pending", "docs_uploaded")
-            if not ok:
-                return Response({"error": reason}, status=400)
-        elif application.status == "salary_docs_pending":
-            ok, reason = automation_engine(application, "salary_docs_pending", "salary_docs_uploaded")
-            if not ok:
-                return Response({"error": reason}, status=400)
+        # 🟢 Save uploaded files
+        updated = False
+        for field in request.FILES:
+            if hasattr(docs, field):
+                setattr(docs, field, request.FILES[field])
+                updated = True
+
+        if not updated:
+            return Response({"error": "Invalid document field"}, status=400)
+
+        docs.save()
+
+        if application.status == "salary_docs_pending":
+            automation_engine(application, "salary_docs_pending", "salary_docs_uploaded")
+
         elif application.status == "resignation_pending":
-            ok, reason = automation_engine(application, "resignation_pending", "resignation_uploaded")
-            if not ok:
-                return Response({"error": reason}, status=400)
+            automation_engine(application, "resignation_pending", "resignation_uploaded")
+
+        elif application.status == "docs_pending":
+            automation_engine(application, "docs_pending", "docs_uploaded")
+
+        return Response(
+            {
+                "message": "Documents uploaded successfully",
+                "documents": JobApplicationDocumentSerializer(docs).data,
+            },
+            status=200
+        )
+
+class ReviewJobApplicationDocumentsAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, id):
+        docs = get_object_or_404(
+            JobApplicationDocument,
+            job_application_id=id
+        )
+
+        section = request.data.get("section")
+        status_value = request.data.get("status")
+        remarks = request.data.get("remarks")
+
+        if section not in [
+            "salary", "personal", "education", "experience", "resignation","joining_docs"
+        ]:
+            return Response({"error": "Invalid section"}, status=400)
+
+        # 🔒 Lock rule
+        if getattr(docs, f"{section}_status") == "approved":
+            return Response(
+                {"error": f"{section} already approved"},
+                status=400
+            )
+
+        setattr(docs, f"{section}_status", status_value)
+        setattr(docs, f"{section}_remarks", remarks)
+        docs.save()
+
+        # 🔁 Evaluate partial approval logic
+        evaluate_documents(docs.job_application)
 
         return Response({
-            "message": "Documents uploaded successfully.",
-            "documents": saved_docs
-        }, status=201)
-
+            "message": f"{section} documents updated",
+            "status": status_value
+        })
 
 from decimal import Decimal
 from datetime import date, datetime

@@ -111,11 +111,61 @@ def application_upload_path(instance, filename):
     return f"documents/{instance.job_application.id}/{filename}"
 
 class JobApplicationDocument(models.Model):
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("uploaded", "Uploaded"),
+        ("approved", "Approved"),
+        ("unclear", "Unclear"),
+        ("incomplete",'Incomplete'),
+        ("rejected", "Rejected"),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    job_application = models.ForeignKey(JobApplication, on_delete=models.CASCADE, related_name="documents")
-    file = models.FileField(upload_to=application_upload_path)
-    doc_type = models.CharField(max_length=100, blank=True, null=True) # e.g. "Aadhaar", "PAN"
-    uploaded_at = models.DateTimeField(auto_now_add=True)
+    job_application = models.OneToOneField(
+        JobApplication,
+        on_delete=models.CASCADE,
+        related_name="documents"
+    )
+
+    # Salary
+    salary_slip_1 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    salary_slip_2 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    salary_slip_3 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    bank_statement = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    salary_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    salary_remarks = models.TextField(blank=True, null=True)
+
+    # Resignation
+    resignation_letter = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    resignation_acceptance = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    resignation_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    resignation_remarks = models.TextField(blank=True, null=True)
+
+    # Personal
+    aadhaar = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    pan = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    passport = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    photograph = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    address_proof = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    
+    # Education
+    tenth_certificate = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    twelfth_certificate = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    graduation_certificate = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    post_graduation_certificate = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    
+    # Experience
+    experience_letter_1 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    experience_letter_2 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    relieving_letter = models.FileField(upload_to=application_upload_path, null=True, blank=True)   
+
+    joining_docs_status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default="pending"
+    )
+    joining_docs_remarks = models.TextField(blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 class ApprovalNote(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

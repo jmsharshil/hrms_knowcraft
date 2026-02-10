@@ -29,7 +29,9 @@ ALLOWED_TRANSITIONS = {
     "salary_docs_uploaded": ["hr_review_docs"],
     # HR reviews uploaded documents
     # If rejected → back to upload documents (re-upload)
-    "hr_review_docs": ["hr_review_ok","hr_review_rejected"],
+    "hr_review_docs": ["hr_review_ok","hr_review_rejected","salary_docs_incomplete","salary_docs_unclear"],
+    "salary_docs_incomplete":["salary_docs_pending","hr_review_ok","hr_review_rejected"],
+    "salary_docs_unclear":["salary_docs_pending","hr_review_ok","hr_review_rejected"],
     "hr_review_rejected":["salary_docs_pending","rejected"],
     "hr_review_ok" : ["salary_annexure_prep"],
     # HR prepares salary annexure
@@ -45,7 +47,9 @@ ALLOWED_TRANSITIONS = {
     "offer_accepted": ["resignation_pending","docs_pending"],
     "resignation_pending": ["resignation_uploaded"],
     "resignation_uploaded":["resignation_review"],
-    "resignation_review": ["resignation_approved", "resignation_rejected"],
+    "resignation_review": ["resignation_approved", "resignation_rejected","resignation_unclear","resignation_incomplete"],
+    "resignation_incomplete":["resignation_pending","resignation_approved","resignation_rejected"],
+    "resignation_unclear":["resignation_pending","resignation_approved","resignation_rejected"],
     "resignation_rejected": ["resignation_pending","rejected"],  # retry upload
     # DOCUMENT COLLECTION
     "resignation_approved": ["docs_pending"],
@@ -111,7 +115,7 @@ AUTO_NEXT = {
     # "salary_annexure_prep":"salary_annexure_sent",
     "approved_annexure":"offer_pending",
     # "offer_pending":"offer_sent",
-    "offer_accepted": "resignation_pending",
+    # "offer_accepted": "resignation_pending",
     "resignation_approved": "docs_pending",
     "docs_approved": "joining_pending",
     # "selected":"approval_pending",
