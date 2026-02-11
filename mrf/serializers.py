@@ -224,7 +224,7 @@ class MRFListSerializer(serializers.ModelSerializer):
     management_client_interviewer = serializers.PrimaryKeyRelatedField(
         queryset=Interviewer.objects.all(), required=False, allow_null=True
     )
-    
+
     can_approve = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
 
@@ -322,7 +322,7 @@ class MRFDetailSerializer(serializers.ModelSerializer):
             return False
         user = request.user
         # Only creator can edit in draft or revision_required status
-        return obj.requested_by == user and obj.status in ['draft', 'revision_required','approved']
+        return (obj.requested_by == user or user.role == 'hr_manager') and obj.status in ['draft', 'revision_required','approved']
     
     def get_interviewers(self, obj):
         emails = [
