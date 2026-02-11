@@ -224,6 +224,9 @@ class MRFListSerializer(serializers.ModelSerializer):
     management_client_interviewer = serializers.PrimaryKeyRelatedField(
         queryset=Interviewer.objects.all(), required=False, allow_null=True
     )
+    
+    can_approve = serializers.SerializerMethodField()
+    can_edit = serializers.SerializerMethodField()
 
     class Meta:
         model = MRF
@@ -233,8 +236,22 @@ class MRFListSerializer(serializers.ModelSerializer):
             'no_of_vacancies', 'location', 'job_type', 'job_type_display','priority_display','status', 'status_display',
             'requested_by_name', 'workflow_name', 'date_of_request', 
             'created_at', 'updated_at','hr_interviewer', 'technical_interviewers', 'case_study_interviewer',
-            'final_interviewer', 'management_client_interviewer',
+            'final_interviewer', 'management_client_interviewer','can_approve','can_edit'
         ]
+
+    def get_can_approve(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        return obj.can_user_approve(request.user)
+    
+    def get_can_edit(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        user = request.user
+        # Only creator can edit in draft or revision_required status
+        return obj.requested_by == user and obj.status in ['draft', 'revision_required','approved']
 
 
 class MRFDetailSerializer(serializers.ModelSerializer):
