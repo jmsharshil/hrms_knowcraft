@@ -252,13 +252,13 @@ class MRFListSerializer(serializers.ModelSerializer):
             return False
         user = request.user
         # Only creator can edit in draft or revision_required status
-        return obj.requested_by == user and obj.status in ['draft', 'revision_required','approved']
+        return (obj.requested_by == user or user.role in ['hr_manager','admin']) and obj.status in ['draft', 'revision_required','approved']
 
     def get_can_submit(self, obj):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             return False
-        return obj.status == 'draft'
+        return obj.status in ['draft','revision_required']
     
 class MRFDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for single MRF view"""
@@ -327,7 +327,7 @@ class MRFDetailSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             return False
-        return obj.status == 'draft'
+        return obj.status in ['draft','revision_required']
     
     def get_can_edit(self, obj):
         request = self.context.get('request')
@@ -335,7 +335,7 @@ class MRFDetailSerializer(serializers.ModelSerializer):
             return False
         user = request.user
         # Only creator can edit in draft or revision_required status
-        return (obj.requested_by == user or user.role == 'hr_manager') and obj.status in ['draft', 'revision_required','approved']
+        return (obj.requested_by == user or user.role in ['hr_manager','admin']) and obj.status in ['draft', 'revision_required','approved']
     
     def get_interviewers(self, obj):
         emails = [
