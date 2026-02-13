@@ -978,7 +978,7 @@ email_html_templates = {
                         <td>
                             <h2 style="color: #2c3e50;">New Job Assignment</h2>
                             
-                            <p>Hello <strong>{{ user_name }}</strong>,</p>
+                            <p>Hello <strong>{{user_name}}</strong>,</p>
 
                             <p>
                                 A job has been assigned to you.
@@ -987,19 +987,19 @@ email_html_templates = {
                             <table width="100%" cellpadding="8" cellspacing="0" style="margin-top: 15px; border-collapse: collapse;">
                                 <tr>
                                     <td><strong>Job Title:</strong></td>
-                                    <td>{{ job_title }}</td>
+                                    <td>{{job_title}}</td>
                                 </tr>
                                 <tr>
                                     <td><strong>Department:</strong></td>
-                                    <td>{{ department }}</td>
+                                    <td>{{department}}</td>
                                 </tr>
                                 <tr>
                                     <td><strong>Designation:</strong></td>
-                                    <td>{{ designation }}</td>
+                                    <td>{{designation}}</td>
                                 </tr>
                                 <tr>
                                     <td><strong>Assigned By:</strong></td>
-                                    <td>{{ assigned_by }}</td>
+                                    <td>{{assigned_by}}</td>
                                 </tr>
                             </table>
 
@@ -1024,19 +1024,19 @@ email_html_templates = {
 """
 }
 email_alt_text = {
-    "job_assigned":f"""Hello {{ user_name }},
+    "job_assigned":f"""Hello {{user_name}},
 
 A job has been assigned to you.
 
-Job Title: {{ job_title }}
-Department: {{ department }}
-Designation: {{ designation }}
-Assigned By: {{ assigned_by }}
+Job Title: {{job_title}}
+Department: {{department}}
+Designation: {{designation}}
+Assigned By: {{assigned_by}}
 
 Please log in to your dashboard to review the job details.
 
 Regards,
-{{ company_name }}
+Hiring Team
 """
 }
 
