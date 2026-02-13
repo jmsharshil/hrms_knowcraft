@@ -233,7 +233,7 @@ class CandidateBookSlotView(APIView):
 
         send_mail(
             "Interview Confirmed",
-            f"Hello {candidate.candidate_name},\nYour interview with {interviewer.name} is confirmed at {start_str}.\nJoin link: {meeting_link}",
+            f"Hello {candidate.candidate_name},\nYour interview with {interviewer.name} is confirmed at {start_str}.\nJoin link: {meeting_link}\n Feedback link: {feedback_link}",
             settings.DEFAULT_FROM_EMAIL,
             [candidate.candidate_email],
         )

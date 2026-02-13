@@ -315,8 +315,10 @@ class SendApprovalNoteAPIView(APIView):
         mrf = candidate.job.mrf
         department = mrf.department
         designation = mrf.designation
-        manager = mrf.requested_by
-        hr = request.user
+        approver = mrf.requested_by
+        requested_by_name = request.user.name
+        requested_by_email = request.user.email
+        requested_by_role = request.user.role
 
         # --- HTML Template ---
         html_content = """
@@ -324,7 +326,7 @@ class SendApprovalNoteAPIView(APIView):
         <body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
             <h2 style="color:#2c3e50;">Approval Required – Candidate Hiring</h2>
 
-            <p>Dear <strong>{{ manager_name }}</strong>,</p>
+            <p>Dear <strong>{{ approver_name }}</strong>,</p>
 
             <p>
             Sharing the formal approval note regarding 
@@ -382,9 +384,11 @@ class SendApprovalNoteAPIView(APIView):
 
         # --- Context ---
         context = {
-            "manager_name": manager.name,
-            "manager_email": manager.email,
-            "hr_name": hr.name,
+            "approver_name": approver.name,
+            "approver_email": approver.email,
+            "requested_by_name": requested_by_name,
+            "requested_by_email":requested_by_email,
+            "requested_by_role":requested_by_role,
 
             "candidate_name": candidate.candidate_name,
             "designation": designation.name,
@@ -435,7 +439,7 @@ class SendApprovalNoteAPIView(APIView):
 
                 approval_note = ApprovalNote.objects.create(
                     candidate=candidate,
-                    manager=manager,
+                    manager=approver,
                     created_by=request.user,
                     payload=json_safe_context
                 )
@@ -443,7 +447,7 @@ class SendApprovalNoteAPIView(APIView):
                 send_email(
                     subject="Approval Required – Candidate Hiring",
                     text="Approval required. Please view this email in HTML format.",
-                    to=manager.email,
+                    to=approver.email,
                     template=html_rendered
                 )
 
@@ -533,7 +537,7 @@ class CandidateInterviewSummaryAPIView(APIView):
             "manager_email": manager.email,
             "hiring_type": hiring_type,
             "offered_ctc": "",
-            "office_location": "",
+            "office_location": candidate.job.mrf.location,
             "source": candidate.source,
             "mrf": mrf.mrf_name,
             **feedback_data
