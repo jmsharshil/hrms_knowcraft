@@ -451,6 +451,8 @@ class SendApprovalNoteAPIView(APIView):
                     to=approver.email,
                     template=html_rendered
                 )
+            else:
+                print(reason)
 
         except Exception as e:
             print(f"Unable to send the Approval Note:{e}")

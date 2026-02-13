@@ -908,7 +908,6 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
             if role == "internal_team":
                 #To be written 
                 continue
-        print(emails)
         return list(emails)
     except Exception as e:
         logger.exception("Error finding emails to send:",e)

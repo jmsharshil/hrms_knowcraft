@@ -6,7 +6,7 @@ from django.utils import timezone
 import logging
 
 logger = logging.getLogger(__name__)
-REMINDER_INTERVAL = 7200  # 5 minutes
+REMINDER_INTERVAL = 7200  # 120 minutes
 
 def send_feedback_reminder_email(interviewer_email, interviewer_name, candidate_name, round_name):
     subject = f"Reminder: Interview Feedback Pending ({round_name})"
@@ -52,8 +52,8 @@ def interview_feedback_reminder_task(booking_id):
     # Determine interview round from booking status (adjust according to your logic)
     status_to_round = {
         "interview_pending_1": "hr_round",
-        "interview_pending_2": "technical_round_1",
-        "interview_pending_3": "technical_round_2",
+        "interview_pending_2": "technical_round",
+        "interview_pending_3": "cas_study_round",
         "interview_pending_final": "final_round",
         "interview_pending_management_client": "management_client_round",
     }
@@ -80,7 +80,6 @@ def interview_feedback_reminder_task(booking_id):
 
     # Re-enqueue task to run again after 5 minutes
     def requeue():
-        print("Again.............Untill you die!")
         TASK_QUEUE.enqueue(interview_feedback_reminder_task, booking_id)
 
     import threading
