@@ -219,6 +219,7 @@ class MRFListSerializer(serializers.ModelSerializer):
     can_approve = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
     can_submit = serializers.SerializerMethodField()
+    hr_round_set = serializers.SerializerMethodField()
 
     class Meta:
         model = MRF
@@ -228,7 +229,7 @@ class MRFListSerializer(serializers.ModelSerializer):
             'no_of_vacancies', 'location', 'job_type', 'job_type_display','priority_display','status', 'status_display',
             'requested_by_name', 'workflow_name', 'date_of_request', 
             'created_at', 'updated_at','hr_interviewer', 'technical_interviewers', 'case_study_interviewer',
-            'final_interviewer', 'management_client_interviewer','can_approve','can_edit','can_submit'
+            'final_interviewer', 'management_client_interviewer','can_approve','can_edit','can_submit','hr_round_set'
         ]
 
     def get_can_approve(self, obj):
@@ -250,6 +251,14 @@ class MRFListSerializer(serializers.ModelSerializer):
         if not request or not request.user.is_authenticated:
             return False
         return obj.status in ['draft','revision_required']
+    
+    def get_hr_round_set(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        if obj.interviewer_email_1:
+            return True
+        return False
     
 class MRFDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for single MRF view"""
