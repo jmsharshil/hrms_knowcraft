@@ -238,11 +238,26 @@ email_templates = {
         <p>
             We would like to inform you that MRF for
             <strong>{{designation}}</strong> position was rejected by 
-            <strong>{{approver_name}}</strong> on <strong>{{date}}</strong> 
-            as a <strong>new request</strong>.
+            <strong>{{approver_name}}</strong> on <strong>{{date}}</strong>.
         </p>
         <p>
             We kindly request you to revise the MRF and make the necessary changes at the earliest.
+        </p>
+        <p>Thank you for your support.</p>
+        <p>
+            Best regards,<br>
+            <strong>Team HR</strong>
+        </p>
+    </body>
+    </html>""",
+    "mrf_approved":f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; color: #333;">
+        <p>Dear <strong>{{manager_name}}</strong>,</p>
+        <p>
+            We would like to inform you that MRF for
+            <strong>{{designation}}</strong> position was approved
+            on <strong>{{date}}</strong>.
         </p>
         <p>Thank you for your support.</p>
         <p>
@@ -280,6 +295,13 @@ Team HR
 Dear {{manager_name}},
 We would like to inform you that MRF for an Analyst – {{designation}} position was rejected by {{approver_name}} on {{date}}.
 We kindly request you to revise the MRF and make the necessary changes at the earliest.
+Thank you for your support.
+Best regards,
+Team HR
+""",
+"mrf_approved":f"""
+Dear {{manager_name}},
+We would like to inform you that MRF for an Analyst – {{designation}} position was approved on {{date}}.
 Thank you for your support.
 Best regards,
 Team HR

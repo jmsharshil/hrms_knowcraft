@@ -527,6 +527,26 @@ class MRFViewSet(viewsets.ModelViewSet):
                 schedule_mrf_reminder(mrf.id)
             message = 'MRF approved successfully'
             if mrf.status == 'approved':
+                subject = f"MRF Approved – {mrf.designation.name}"
+
+                template = email_templates['mrf_approved'].format(
+                    manager_name=mrf.requested_by.name,
+                    designation=mrf.designation.name,
+                    date=mrf.approved_at.strftime("%B %d, %Y")
+                )
+
+                text = alt_text['mrf_approved'].format(
+                    manager_name=mrf.requested_by.name,
+                    designation=mrf.designation.name,
+                    date=mrf.approved_at.strftime("%B %d, %Y")
+                )
+
+                send_email(
+                    to=mrf.requested_by.email,
+                    subject=subject,
+                    template=template,
+                    text=text
+                )
                 message = f'MRF fully approved. Requisition No: {mrf.requisition_no}'
         
         else:  # reject
