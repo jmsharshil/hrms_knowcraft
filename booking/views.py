@@ -233,7 +233,7 @@ class CandidateBookSlotView(APIView):
 
         send_mail(
             "Interview Confirmed",
-            f"Hello {candidate.candidate_name},\nYour interview with {interviewer.name} is confirmed at {start_str}.\nJoin link: {meeting_link}\n Feedback link: {feedback_link}",
+            f"Hello {candidate.candidate_name},\nYour interview with {interviewer.name} is confirmed at {start_str}.\nJoin link: {meeting_link}",
             settings.DEFAULT_FROM_EMAIL,
             [candidate.candidate_email],
         )
@@ -257,9 +257,15 @@ class CandidateBookSlotView(APIView):
                 for interviewer in candidate.job.mrf.technical_interviewers.all():
                     if str(interviewer.id) == str(interviewer_id):
                         continue
+                    base_path = FEEDBACK_PATHS.get(round, {}).get(level, "/api/slots/hrfresher/")
+
+                    feedback_link = (
+                        f"{BASE_URL}{base_path}"
+                        f"?interview_round={round}&job_application={candidate.id}"
+                    )
                     send_email(
                         subject="New Interview Scheduled",
-                        text=f"Hello {interviewer.name},\nYou have an interview with {candidate.candidate_name} at {start_str}.\nJoin link: {meeting_link}",
+                        text=f"Hello {interviewer.name},\nYou have an interview with {candidate.candidate_name} at {start_str}.\nJoin link: {meeting_link}\n Feedback link: {feedback_link}",
                         template=f"""
                         <html>
                         <body style="font-family: Arial; color:#333;">
@@ -267,6 +273,7 @@ class CandidateBookSlotView(APIView):
                             <p>Dear {interviewer.name},</p>
                             <p>You have an interview with {candidate.candidate_name} at {start_str}.</p>
                             <p>Join link: {meeting_link}</p>
+                            <p>Feedback link: {feedback_link}</p>
                             <br>
                             <p>Regards,
                             <br>

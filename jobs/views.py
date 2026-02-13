@@ -25,6 +25,7 @@ from accounts.models import User
 from rest_framework.parsers import MultiPartParser, FormParser
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import JobApplicationFilter
+from .utils import send_job_assignment_email
 
 class JobViewSet(viewsets.ModelViewSet):
     """ViewSet for managing Jobs"""
@@ -185,6 +186,7 @@ class JobViewSet(viewsets.ModelViewSet):
             notes=notes
         )
         
+        send_job_assignment_email(job.assigned_to_consultancy,job,request.user)
         serializer = JobDetailSerializer(job, context={'request': request})
         return Response({
             'message': f'Job successfully assigned to {consultancy.name}',
@@ -272,6 +274,7 @@ class JobViewSet(viewsets.ModelViewSet):
             new_value=str(internal_hr.id)
         )
 
+        send_job_assignment_email(job.assigned_to_internal_hr,job,request.user)
         serializer = JobDetailSerializer(job, context={'request': request})
         return Response({
             'message': f'Job successfully assigned to internal HR {internal_hr.name}',
@@ -408,6 +411,8 @@ class JobViewSet(viewsets.ModelViewSet):
             new_value=str(internal_hr.id)
         )
 
+        send_job_assignment_email(job.assigned_to_internal_hr,job,request.user)
+        send_job_assignment_email(job.assigned_to_consultancy,job,request.user)
         job_data = JobDetailSerializer(job, context={'request': request}).data
         return Response(
             {

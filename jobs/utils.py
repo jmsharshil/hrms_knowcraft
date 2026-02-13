@@ -6,6 +6,7 @@ from pathlib import Path
 from openai import AzureOpenAI
 from pydantic import BaseModel
 from django.conf import settings
+from onboarding.utils.sender import send_email
 
 client = AzureOpenAI(api_key=settings.OPENAI_API_KEY,azure_endpoint=settings.ENDPOINT_URL,api_version='2024-05-01-preview')
 
@@ -964,3 +965,101 @@ def build_candidate_history(email, exclude_application_id=None):
         })
 
     return history
+
+email_html_templates = {
+    "job_assigned":f"""<body style="font-family: Arial, sans-serif; background-color: #f4f6f8; padding: 20px;">
+
+    <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="20" cellspacing="0" style="background-color: #ffffff; border-radius: 8px;">
+                    
+                    <tr>
+                        <td>
+                            <h2 style="color: #2c3e50;">New Job Assignment</h2>
+                            
+                            <p>Hello <strong>{{ user_name }}</strong>,</p>
+
+                            <p>
+                                A job has been assigned to you.
+                            </p>
+
+                            <table width="100%" cellpadding="8" cellspacing="0" style="margin-top: 15px; border-collapse: collapse;">
+                                <tr>
+                                    <td><strong>Job Title:</strong></td>
+                                    <td>{{ job_title }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Department:</strong></td>
+                                    <td>{{ department }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Designation:</strong></td>
+                                    <td>{{ designation }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Assigned By:</strong></td>
+                                    <td>{{ assigned_by }}</td>
+                                </tr>
+                            </table>
+
+                            <p style="margin-top: 20px;">
+                                Please log in to your dashboard to review the job details.
+                            </p>
+
+                            <p>
+                                Regards,<br>
+                                <strong>Hiring Team</strong>
+                            </p>
+
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+
+</body>
+"""
+}
+email_alt_text = {
+    "job_assigned":f"""Hello {{ user_name }},
+
+A job has been assigned to you.
+
+Job Title: {{ job_title }}
+Department: {{ department }}
+Designation: {{ designation }}
+Assigned By: {{ assigned_by }}
+
+Please log in to your dashboard to review the job details.
+
+Regards,
+{{ company_name }}
+"""
+}
+
+def send_job_assignment_email(user, job, assigned_by):
+    subject = f"New Job Assigned - {job.job_title}"
+
+    template = email_html_templates['job_assigned'].format(
+            user_name=user.name,
+            assigned_by=assigned_by.name,
+            job_title=job.job_title,
+            department=job.mrf.department.name,
+            designation=job.mrf.designation.name,
+        )
+    text = email_alt_text['job_assigned'].format(
+            user_name=user.name,
+            assigned_by=assigned_by.name,
+            job_title=job.job_title,
+            department=job.mrf.department.name,
+            designation=job.mrf.designation.name,
+        )
+    send_email(
+        to=user.email,
+        subject=subject,
+        template=template,
+        text=text
+    )
