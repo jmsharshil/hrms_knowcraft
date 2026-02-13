@@ -8,6 +8,7 @@ from .models import (
 from accounts.models import User
 from django.db import transaction
 from datetime import datetime
+from slots.serializers import InterviewerSerializer
 
 class DesignationSerializer(serializers.ModelSerializer):
     department = serializers.PrimaryKeyRelatedField(
@@ -209,21 +210,11 @@ class MRFListSerializer(serializers.ModelSerializer):
     workflow_name = serializers.CharField(source='workflow_template.name', read_only=True)
     job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
-    hr_interviewer = serializers.PrimaryKeyRelatedField(
-        queryset=Interviewer.objects.all(), required=False, allow_null=True
-    )
-    technical_interviewers = serializers.PrimaryKeyRelatedField(
-        queryset=Interviewer.objects.all(), required=False, allow_null=True,many=True
-    )
-    case_study_interviewer = serializers.PrimaryKeyRelatedField(
-        queryset=Interviewer.objects.all(), required=False, allow_null=True
-    )
-    final_interviewer = serializers.PrimaryKeyRelatedField(
-        queryset=Interviewer.objects.all(), required=False, allow_null=True
-    )
-    management_client_interviewer = serializers.PrimaryKeyRelatedField(
-        queryset=Interviewer.objects.all(), required=False, allow_null=True
-    )
+    hr_interviewer = InterviewerSerializer(read_only=True)
+    technical_interviewers = InterviewerSerializer(many=True, read_only=True)
+    case_study_interviewer = InterviewerSerializer(read_only=True)
+    final_interviewer = InterviewerSerializer(read_only=True)
+    management_client_interviewer = InterviewerSerializer(read_only=True)
 
     can_approve = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
@@ -283,21 +274,11 @@ class MRFDetailSerializer(serializers.ModelSerializer):
     can_edit = serializers.SerializerMethodField()
     can_submit = serializers.SerializerMethodField()
 
-    hr_interviewer = serializers.PrimaryKeyRelatedField(
-        queryset=Interviewer.objects.all(), required=False, allow_null=True
-    )
-    technical_interviewers = serializers.PrimaryKeyRelatedField(
-        queryset=Interviewer.objects.all(), required=False, allow_null=True,many=True
-    )
-    case_study_interviewer = serializers.PrimaryKeyRelatedField(
-        queryset=Interviewer.objects.all(), required=False, allow_null=True
-    )
-    final_interviewer = serializers.PrimaryKeyRelatedField(
-        queryset=Interviewer.objects.all(), required=False, allow_null=True
-    )
-    management_client_interviewer = serializers.PrimaryKeyRelatedField(
-        queryset=Interviewer.objects.all(), required=False, allow_null=True
-    )
+    hr_interviewer = InterviewerSerializer(read_only=True)
+    technical_interviewers = InterviewerSerializer(many=True, read_only=True)
+    case_study_interviewer = InterviewerSerializer(read_only=True)
+    final_interviewer = InterviewerSerializer(read_only=True)
+    management_client_interviewer = InterviewerSerializer(read_only=True)
     
     class Meta:
         model = MRF
