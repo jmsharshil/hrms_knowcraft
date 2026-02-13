@@ -391,7 +391,7 @@ class SendApprovalNoteAPIView(APIView):
             "requested_by_role":requested_by_role,
 
             "candidate_name": candidate.candidate_name,
-            "candidate_resume_link":candidate.resume,
+            "candidate_resume_link":candidate.resume.url,
             "designation": designation.name,
             "department": department.name,
 
