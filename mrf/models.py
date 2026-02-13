@@ -302,6 +302,7 @@ class MRF(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     submitted_at = models.DateTimeField(blank=True, null=True)
     approved_at = models.DateTimeField(blank=True, null=True)
+    rejected_at = models.DateTimeField(blank=True, null=True)
     
     class Meta:
         ordering = ['-created_at']
@@ -337,6 +338,9 @@ class MRF(models.Model):
             self.requisition_no = self.generate_requisition_no()
             self.date_received = self.calculate_date_received()
             self.approved_at = timezone.now()
+
+        if self.status == 'revision_required':
+            self.rejected_at = timezone.now()
         
         super().save(*args, **kwargs)
     

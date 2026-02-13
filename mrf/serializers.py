@@ -306,7 +306,7 @@ class MRFDetailSerializer(serializers.ModelSerializer):
             'mrf_name',
             'id', 'requisition_no', 'date_received', 'status',
             'current_approval_level', 'created_at', 'updated_at', 
-            'submitted_at', 'approved_at', 'requested_by',
+            'submitted_at', 'approved_at', 'requested_by','rejected_at',
             'requested_by_name', 'requested_by_designation', 'workflow_template'
         ]
     
@@ -511,6 +511,7 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         
         # Don't allow workflow_template change after creation
         validated_data.pop('workflow_template', None)
+        technical_interviewers = validated_data.pop('technical_interviewers', None)
         
         if 'position_department' in validated_data:
             if not validated_data.get('position_department'):
@@ -524,7 +525,6 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         
-        technical_interviewers = validated_data.pop('technical_interviewers', None)
         instance.save()
         if technical_interviewers is not None:
             instance.technical_interviewers.set(technical_interviewers)

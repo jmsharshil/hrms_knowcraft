@@ -20,7 +20,10 @@ from .permissions import (
     CanManageMasterData, CanManageWorkflow, CanViewMRF, CanEditMRF,
     CanApproveMRF, CanSubmitMRF, IsDepartmentHead,CanCreateMRF
 )
-
+from .utils import schedule_mrf_reminder
+from onboarding.utils.sender import send_email
+from .utils import email_templates, alt_text
+from accounts.models import User
 
 class DepartmentViewSet(viewsets.ModelViewSet):
     """ViewSet for managing departments"""
@@ -482,10 +485,6 @@ class MRFViewSet(viewsets.ModelViewSet):
             
             mrf.save()
             if mrf.status.startswith("pending"):
-                from .utils import schedule_mrf_reminder
-                from onboarding.utils.sender import send_email
-                from .utils import email_templates, alt_text
-                from accounts.models import User
 
                 # Send email to NEXT approver only
                 next_level = mrf.current_approval_level + 1
@@ -545,6 +544,28 @@ class MRFViewSet(viewsets.ModelViewSet):
             mrf.current_approval_level = 0
             mrf.save()
             
+            subject = f"MRF Rejected – {mrf.designation.name}"
+
+            template = email_templates['mrf_reject'].format(
+                manager_name=mrf.requested_by.name,
+                approver_name=request.user.name,
+                designation=mrf.designation.name,
+                date=mrf.rejected_at.strftime("%B %d, %Y")
+            )
+
+            text = alt_text['mrf_reject'].format(
+                manager_name=mrf.requested_by.name,
+                approver_name=request.user.name,
+                designation=mrf.designation.name,
+                date=mrf.rejected_at.strftime("%B %d, %Y")
+            )
+
+            send_email(
+                to=mrf.requested_by.email,
+                subject=subject,
+                template=template,
+                text=text
+            )
             message = 'MRF rejected. Department head can revise and resubmit.'
         
         serializer = MRFDetailSerializer(mrf, context={'request': request})
