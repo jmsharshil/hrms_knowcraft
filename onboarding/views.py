@@ -155,6 +155,30 @@ def evaluate_documents(application):
 class UploadJobApplicationDocumentAPI(APIView):
     permission_classes = [permissions.AllowAny]
 
+    def get(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+
+        docs, _ = JobApplicationDocument.objects.get_or_create(
+            job_application=application
+        )
+
+        response_data = JobApplicationDocumentSerializer(docs).data
+
+        # ✅ Add section evaluation flags
+        response_data["salary_complete"] = is_section_complete(docs, "salary")
+        response_data["salary_unclear"] = is_section_unclear(docs, "salary")
+        response_data["salary_incomplete"] = is_section_incomplete(docs, "salary")
+
+        response_data["resignation_complete"] = is_section_complete(docs, "resignation")
+        response_data["resignation_unclear"] = is_section_unclear(docs, "resignation")
+        response_data["resignation_incomplete"] = is_section_incomplete(docs, "resignation")
+
+        response_data["joining_docs_complete"] = is_section_complete(docs, "joining_docs")
+        response_data["joining_docs_unclear"] = is_section_unclear(docs, "joining_docs")
+        response_data["joining_docs_incomplete"] = is_section_incomplete(docs, "joining_docs")
+
+        return Response(response_data, status=200)
+
     def post(self, request, id):
         application = get_object_or_404(JobApplication, id=id)
 
@@ -221,6 +245,21 @@ class UploadJobApplicationDocumentAPI(APIView):
 
 class ReviewJobApplicationDocumentsAPI(APIView):
     permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, id):
+        docs = get_object_or_404(
+            JobApplicationDocument,
+            job_application_id=id
+        )
+
+        data = JobApplicationDocumentSerializer(docs).data
+
+        # Add human-readable status display
+        data["salary_status_display"] = docs.get_salary_status_display()
+        data["resignation_status_display"] = docs.get_resignation_status_display()
+        data["joining_docs_status_display"] = docs.get_joining_docs_status_display()
+
+        return Response(data, status=200)
 
     def post(self, request, id):
         docs = get_object_or_404(
@@ -299,6 +338,7 @@ class SendApprovalNoteAPIView(APIView):
                 "approval_note_id": str(note.id),
                 "candidate_id": str(note.candidate.id),
                 "status": note.status,
+                "status_display": note.get_status_display(),
                 "created_at": note.created_at,
                 "data": note.payload
             })

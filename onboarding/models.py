@@ -168,6 +168,77 @@ class JobApplicationDocument(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 class ApprovalNote(models.Model):
+    STATUS_CHOICES = [
+    # Submission
+    ("received", "Received"),
+    ("duplicate_rejected","Duplicate Rejected"),
+    # Screening & Interview
+    ("shortlisted", "Shortlisted"),
+    ("interview_pending_1", "HR Interview Pending"),
+    ("interview_done_1", "HR Interview Completed"),
+    ("interview_rejected_1", "Rejected After HR Interview"),
+    ("interview_next_2", "Shortlisted For Techninal Round"),
+    ("interview_pending_2", "Technical Interview Pending"),
+    ("interview_done_2", "Technical Interview Completed"),
+    ("interview_rejected_2", "Rejected After technical Interview"),
+    ("interview_next_3", "Shortlisted For Case Study Round"),
+    ("interview_pending_3", "Case Study Interview Pending"),
+    ("interview_done_3", "Case Study Interview Completed"),
+    ("interview_rejected_3", "Rejected After Case Study Interview"),
+    ("interview_next_final", "Shortlisted For Final Round"),
+    ("interview_pending_final", "Final Interview Pending"),
+    ("interview_done_final", "Final Round Of Interview Completed"),
+    ("interview_rejected_final", "Rejected After Final Interview"),
+    ("interview_next_management_client", "Shortlisted For Management / Client Interview"),
+    ("interview_pending_management_client", "Management / Client Interview Pending"),
+    ("interview_done_management_client", "Management / Client Interview Completed"),
+    ("interview_rejected_management_client", "Rejected After Management / Client Interview"),
+    # Approval Stage
+    ("consolidated_result_review","Under HR Review"),
+    ("selected", "Selected"),
+    ("approval_pending", "Approval Pending (Sent For Approval)"),
+    ("approved", "Approved by Hiring Manager"),
+    ("approval_rejected", "Rejected During Approval"),
+    # SALARY DOCUMENT FLOW
+    ("salary_docs_pending", "Salary Documents Pending"),
+    ("salary_docs_uploaded", "Salary Documents Uploaded"),
+    ("hr_review_docs", "HR Reviewing Salary Documents"),
+    ("hr_review_ok", "HR Review Completed"),
+    ("hr_review_rejected", "HR Rejected Salary Documents"),
+    ("salary_docs_incomplete","Salary Documents Incomplete"),
+    ("salary_docs_unclear","Salary Documents Unclear"),
+    # SALARY ANNEXURE FLOW
+    ("salary_annexure_prep", "Salary Annexure Under Preparation"),
+    ("salary_annexure_sent", "Salary Annexure Sent to HR Head"),
+    ("approved_annexure", "Salary Annexure Approved"),
+    ("rejected_annexure", "Salary Annexure Rejected"),
+    # Offer Stage
+    ("offer_pending", "Offer Preparation Pending"),
+    ("offer_sent", "Offer Sent"),
+    ("offer_accepted", "Offer Accepted"),
+    ("offer_rejected", "Offer Rejected by Candidate"),
+    # RESIGNATION FLOW
+    ("resignation_pending", "Resignation Docs Pending (Upload Required)"),
+    ("resignation_uploaded", "Resignation Docs Uploaded"),
+    ("resignation_review", "Resignation Docs Under Review"),
+    ("resignation_approved", "Resignation Docs Approved"),
+    ("resignation_rejected", "Resignation Docs Rejected"),
+    ("resignation_incomplete","Resignation Docs Incomplete"),
+    ("resignation_unclear","Resignation Docs Unclear"),
+    # JOINING DOCUMENT FLOW
+    ("docs_pending", "Joining Documents Pending"),
+    ("docs_uploaded", "Joining Documents Uploaded"),
+    ("review_docs", "Document Review In Progress"),
+    ("docs_approved", "Documents Approved"),
+    ("docs_incomplete", "Documents Incomplete"),
+    ("docs_unclear", "Documents Unclear"),
+    # JOINING FLOW
+    ("joining_pending", "Joining Pending"),
+    ("joining_poned", "Joining Postponed"),
+    ("joined", "Joined"),
+    # General Rejection (fallback)
+    ("rejected", "Rejected"),
+]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     candidate = models.ForeignKey(
@@ -193,8 +264,9 @@ class ApprovalNote(models.Model):
     payload = models.JSONField()
 
     status = models.CharField(
-        max_length=30,
-        default="approval_pending"
+        max_length=255,
+        default="approval_pending",
+        choices=STATUS_CHOICES
     )
     
     created_at = models.DateTimeField(auto_now_add=True)
