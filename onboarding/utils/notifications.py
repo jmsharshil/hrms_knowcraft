@@ -587,8 +587,16 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
                 print(e)
         try:
             html_template = HTML_TEMPLATES[stage]
-            if stage == 'docs_pending' or stage == "resignation_pending" or stage == "salary_docs_pending":
-                link = f"https://9bd6882f3e08.ngrok-free.app/api/candidates/{candidate.id}/documents/upload/"
+            if stage == "salary_docs_pending":
+                link = f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/application/documents/upload/salary-bank/{candidate.id}"
+                email_cfg["text"].format(link=link)
+                sms_text.format(link=link)
+            if stage == 'docs_pending':
+                link = f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/application/documents/upload/docs/{candidate.id}"
+                email_cfg["text"].format(link=link)
+                sms_text.format(link=link)
+            if stage == "resignation_pending":
+                link = f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/application/documents/upload/resignation/{candidate.id}"
                 email_cfg["text"].format(link=link)
                 sms_text.format(link=link)
             send_email(
