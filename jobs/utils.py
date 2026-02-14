@@ -7,6 +7,7 @@ from openai import AzureOpenAI
 from pydantic import BaseModel
 from django.conf import settings
 from onboarding.utils.sender import send_email
+import base64
 
 client = AzureOpenAI(api_key=settings.OPENAI_API_KEY,azure_endpoint=settings.ENDPOINT_URL,api_version='2024-05-01-preview')
 
@@ -445,289 +446,204 @@ def render_beautiful_report(parsed, job, overall_score):
     )
 
     score = max(0, min(100, int(overall_score or 0)))
-    reason = format_reason(parsed.get("reason"))
+    reason = esc(parsed.get("match_reason") or "")
     skills = parsed.get("skills", [])
     education = parsed.get("education", [])
     experience = parsed.get("experience", [])
     projects = parsed.get("projects", [])
     certifications = parsed.get("certifications", [])
     achievements = parsed.get("achievements", [])
+    logo_url = "https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png"
+    def list_section(items):
+        if not items:
+            return "<p>Not Provided</p>"
+        html = "<ul>"
+        for item in items:
+            if isinstance(item, dict):
+                html += "<li>" + esc(" - ".join(str(v) for v in item.values() if v)) + "</li>"
+            else:
+                html += "<li>" + esc(item) + "</li>"
+        html += "</ul>"
+        return html
+    def skills_section(items):
+        if not items:
+            return "<p>Not Provided</p>"
+
+        html = "<div class='skills'>"
+        for skill in items:
+            if isinstance(skill, dict):
+                skill = " ".join(str(v) for v in skill.values() if v)
+            html += f"<span class='skill-badge'>{esc(str(skill))}</span>&nbsp;"
+        html += "</div>"
+        return html
     html = f"""
-<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
+
 <style>
-  body {{
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    background: #ffffff;
-    color: #333333;
-    padding: 20px;
-    font-size: 14px;
-    line-height: 1.5;
-  }}
-  .container {{
-    max-width: 1200px;
-    margin: 0 auto;
-    background: #ffffff;
-  }}
-  .header {{
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-  }}
-  .logo {{
-    font-size: 24px;
-    font-weight: bold;
-    color: #007bff;
-  }}
-  .website {{
-    font-size: 12px;
-    color: #007bff;
-  }}
-  .name-title {{
-    text-align: center;
-    margin-bottom: 30px;
-  }}
-  .name {{
-    font-size: 28px;
-    font-weight: bold;
-    color: #2c3e50;
-    margin: 0;
-  }}
-  .title {{
-    font-size: 18px;
-    color: #7f8c8d;
-    margin-top: 5px;
-  }}
-  .main-content {{
-    display: flex;
-    justify-content: space-between;
-    gap: 20px;
-  }}
-  .left-column {{
-    flex: 1;
-  }}
-  .middle-column {{
-    flex: 1;
-    text-align: center;
-  }}
-  .right-column {{
-    flex: 1;
-  }}
-  .section-title {{
-    font-size: 18px;
-    font-weight: 600;
-    color: #34495e;
-    margin-bottom: 10px;
-  }}
-  .skills-matching {{
-    display: flex;
-    align-items: center;
-    margin-bottom: 20px;
-  }}
-  .circle {{
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: conic-gradient(#e74c3c 0% 20%, #ecf0f1 20% 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #ffffff;
-    font-size: 24px;
-    font-weight: bold;
-    margin-right: 15px;
-  }}
-  .reason-fit {{
+
+body {{
+    font-family: Arial, Helvetica, sans-serif;
     font-size: 13px;
-    color: #555555;
-  }}
-  .skills-category {{
-    background: #3498db;
-    color: #ffffff;
-    padding: 5px 10px;
-    border-radius: 4px;
-    margin-bottom: 10px;
-    font-weight: bold;
-  }}
-  .skills-list {{
-    list-style-type: none;
-    padding: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-  }}
-  .skill-item {{
-    background: #3498db;
-    color: #ffffff;
-    padding: 5px 10px;
-    border-radius: 4px;
-    font-size: 12px;
-  }}
-  .illustration {{
-    max-width: 200px;
-    margin: 20px auto;
-  }}
-  .behavioral-traits {{
-    list-style-type: none;
-    padding: 0;
-  }}
-  .trait-item {{
-    font-size: 14px;
-    margin-bottom: 10px;
-    color: #2980b9;
-  }}
-  .tenure {{
-    display: flex;
-    justify-content: space-around;
-    margin: 20px 0;
-  }}
-  .tenure-item {{
-    text-align: center;
-  }}
-  .tenure-circle {{
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: #8e44ad;
-    color: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    font-weight: bold;
-    margin: 0 auto 5px;
-  }}
-  .tenure-desc {{
-    font-size: 12px;
-    color: #555555;
-  }}
-  .projects-list {{
-    list-style-type: none;
-    padding: 0;
-  }}
-  .project-item {{
-    margin-bottom: 15px;
-  }}
-  .project-title {{
-    font-weight: bold;
-  }}
-  .project-industry {{
-    font-style: italic;
-    color: #7f8c8d;
-  }}
-  .achievements {{
-    margin-top: 20px;
-  }}
-  .questions-section {{
-    margin-top: 40px;
-    display: flex;
-    justify-content: space-between;
-    gap: 20px;
-  }}
-  .questions-column {{
-    flex: 1;
-  }}
-  .questions-list {{
-    list-style-type: disc;
-    padding-left: 20px;
-  }}
-  .task {{
-    margin-top: 20px;
-    font-style: italic;
-  }}
-  .contact {{
+    color: #1a1a1a;
+    margin: 30px;
+}}
+
+.primary {{
+    color: #0B3D91;
+}}
+
+.header-table {{
+    width: 100%;
+    border-bottom: 2px solid #0B3D91;
     margin-bottom: 20px;
-  }}
-  .contact-item {{
-    margin-bottom: 5px;
-  }}
-  .certifications-list {{
-  list-style-type: none;
-  padding: 0;
 }}
-.certification-item {{
-  margin-bottom: 8px;
-  font-size: 13px;
+
+.logo {{
+    height: 70px;
 }}
+
+h1 {{
+    margin: 0;
+    font-size: 22px;
+}}
+
+h2 {{
+    font-size: 16px;
+    color: #0B3D91;
+    margin-top: 25px;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+}}
+
+.card {{
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 12px;
+    margin-top: 10px;
+}}
+
+table.info {{
+    width: 100%;
+    border-collapse: collapse;
+}}
+
+table.info td {{
+    padding: 6px;
+}}
+
+.label {{
+    font-weight: bold;
+    width: 30%;
+}}
+
+.score {{
+    background: #0B3D91;
+    color: white;
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-weight: bold;
+    display: inline-block;
+    font-size: 14px;
+}}
+
+ul {{
+    margin: 6px 0 0 18px;
+}}
+
+li {{
+    margin-bottom: 4px;
+}}
+
+.skills {{
+    margin-top: 6px;
+}}
+
+.skill-badge {{
+    display: inline-block;
+    background: #E8F0FE;
+    color: #0B3D91;
+    padding: 5px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    margin: 3px;
+    border: 1px solid #c6d6f5;
+}}
+
 </style>
 </head>
+
 <body>
 
-<div class="container">
+<table class="header-table">
+    <tr>
+        <td>
+            <h1 class="primary">{name}</h1>
+            <div><strong>Applied For:</strong> {job_title}</div>
+        </td>
+        <td align="right">
+            <img src="{logo_url}" class="logo">
+        </td>
+    </tr>
+</table>
 
-  <div class="header">
-    <div class="logo">KA</div>
-    <div class="website">https://www.knowcraftanalytics.com/</div>
-  </div>
 
-  <div class="name-title">
-    <h1 class="name">{name}</h1>
-    <p class="title">{job_title}</p>
-  </div>
-
-  <div class="main-content">
-
-    <!-- LEFT COLUMN -->
-    <div class="left-column">
-
-      <div class="contact">
-        <div class="section-title">Contact Information</div>
-        {format_contact(email, phone, linkedin)}
-      </div>
-
-      <div class="section-title">Skills Matching</div>
-      <div class="skills-matching">
-        <div class="circle">{score}%</div>
-        <div class="reason-fit">{reason}</div>
-      </div>
-
-      <div class="section-title">Skills</div>
-      {format_skills_tags(skills)}
-
-    </div>
-
-    <!-- MIDDLE COLUMN -->
-    <div class="middle-column">
-
-      <img class="illustration"
-        src="https://thumbs.dreamstime.com/b/young-smiling-man-james-working-laptop-writing-code-create-software-engineering-web-development-programming-coding-concept-403198904.jpg">
-
-      <div class="section-title">Profile Summary</div>
-      <p>🎯 Role: {job_title}</p>
-
-    </div>
-
-    <!-- RIGHT COLUMN -->
-    <div class="right-column">
-
-      <div class="section-title">Projects</div>
-      {format_skills_tags(projects)}
-
-      <div class="section-title">Education</div>
-      {format_education_right(education)}
-
-      <div class="section-title">Experience</div>
-      {format_experience_right(experience)}
-
-      <div class="section-title">Certifications</div>
-      {format_certifications(certifications)}
-
-    </div>
-
-  </div>
-
-  <div class="achievements">
-    <div class="section-title">Achievements</div>
-    {format_skills_tags(achievements)}
-  </div>
-
+<h2>Contact Information</h2>
+<div class="card">
+<table class="info">
+<tr><td class="label">Email:</td><td>{email or "Not Provided"}</td></tr>
+<tr><td class="label">Phone:</td><td>{phone or "Not Provided"}</td></tr>
+<tr><td class="label">LinkedIn:</td><td>{linkedin or "Not Provided"}</td></tr>
+</table>
 </div>
+
+
+<h2>Skill Match</h2>
+<div class="card">
+<div class="score">{score}% Match</div>
+<p><strong>Reason:</strong> {reason or "Not Provided"}</p>
+</div>
+
+
+<h2>Skills</h2>
+<div class="card">
+{skills_section(skills)}
+</div>
+
+
+<h2>Experience</h2>
+<div class="card">
+{list_section(experience)}
+</div>
+
+
+<h2>Education</h2>
+<div class="card">
+{list_section(education)}
+</div>
+
+
+<h2>Projects</h2>
+<div class="card">
+{list_section(projects)}
+</div>
+
+
+<h2>Certifications</h2>
+<div class="card">
+{list_section(certifications)}
+</div>
+
+
+<h2>Achievements</h2>
+<div class="card">
+{list_section(achievements)}
+</div>
+
+
 </body>
-</html>
-"""
+</html>"""
     return html
 
 def create_resume_report_html(parsed_resume, job):
