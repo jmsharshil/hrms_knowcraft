@@ -278,10 +278,19 @@ class SendApprovalNoteAPIView(APIView):
     def get(self, request):
         user = request.user
 
-        approval_notes = ApprovalNote.objects.filter(
-            manager=user,
-            status="approval_pending"
-        ).select_related("candidate")
+        if user.role in ["hr_manager", "admin"]:
+            # See all approval notes
+            approval_notes = ApprovalNote.objects.all()
+
+        elif user.role == "hr":
+            # HR sees only notes created by them
+            approval_notes = ApprovalNote.objects.filter(created_by=user)
+
+        else:
+            # Default: manager sees notes assigned to them
+            approval_notes = ApprovalNote.objects.filter(manager=user)
+
+        approval_notes = approval_notes.select_related("candidate")
 
         results = []
 
