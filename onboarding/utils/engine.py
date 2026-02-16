@@ -105,7 +105,7 @@ NOTIFY_INTERNAL_STATES = {
     "salary_docs_uploaded",    # Notify HR for review
     # Salary Annexure Flow
     "salary_annexure_prep",    # Notify HR to prepare annexure
-    "salary_annexure_sent",    # Notify HR manager
+    # "salary_annexure_sent",    # Notify HR manager
     "approved_annexure",       # Notify HR
     "rejected_annexure",       # Notify HR
     # Offer Flow (Internal Steps)

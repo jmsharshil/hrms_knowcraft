@@ -495,12 +495,13 @@ class SendApprovalNoteAPIView(APIView):
                     payload=json_safe_context
                 )
                 # --- Send email ---
-                send_email(
-                    subject="Approval Required – Candidate Hiring",
-                    text="Approval required. Please view this email in HTML format.",
-                    to=approver.email,
-                    template=html_rendered
-                )
+                if approval_note:
+                    send_email(
+                        subject="Approval Required – Candidate Hiring",
+                        text="Approval required. Please view this email in HTML format.",
+                        to=approver.email,
+                        template=html_rendered
+                    )
             else:
                 print(reason)
 
@@ -602,6 +603,16 @@ class SalaryAnnexureViewSet(ModelViewSet):
     queryset = SalaryAnnexure.objects.select_related("job_application")
     serializer_class = SalaryAnnexureSerializer
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+
+        candidate_id = self.request.query_params.get("candidate_id")
+
+        if candidate_id:
+            qs = qs.filter(job_application_id=candidate_id)
+
+        return qs
+
     def perform_create(self, serializer):
         annexure = serializer.save(prepared_by=self.request.user)
         log_salary_annexure_history(
@@ -609,6 +620,24 @@ class SalaryAnnexureViewSet(ModelViewSet):
             action="created",
             user=self.request.user
         )
+
+        #Send directly after create
+        annexure.status = "sent"
+        annexure.rejection_reason = ""
+        annexure.save(update_fields=["status", "rejection_reason"])
+
+        app = annexure.job_application
+        ok,reason = automation_engine(app, app.status, "salary_annexure_sent")
+        if ok:
+            log_salary_annexure_history(
+                annexure,
+                action="sent",
+                user=self.request.user
+            )
+
+            return Response({"message": "Salary annexure sent for approval"})
+        else:
+            return Response({"error": reason})
     
     def perform_update(self, serializer):
         annexure = serializer.save()
@@ -635,14 +664,17 @@ class SalaryAnnexureViewSet(ModelViewSet):
         annexure.save(update_fields=["status", "rejection_reason"])
 
         app = annexure.job_application
-        automation_engine(app, app.status, "salary_annexure_sent")
-        log_salary_annexure_history(
-            annexure,
-            action="sent",
-            user=request.user
-        )
+        ok,reason = automation_engine(app, app.status, "salary_annexure_sent")
+        if ok:
+            log_salary_annexure_history(
+                annexure,
+                action="sent",
+                user=request.user
+            )
 
-        return Response({"message": "Salary annexure sent for approval"})
+            return Response({"message": "Salary annexure sent for approval"})
+        else:
+            return Response({"error": reason})
 
     @action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
@@ -659,14 +691,17 @@ class SalaryAnnexureViewSet(ModelViewSet):
         annexure.save(update_fields=["status", "reviewed_by"])
 
         app = annexure.job_application
-        automation_engine(app, app.status, "approved_annexure")
-        log_salary_annexure_history(
-            annexure,
-            action="approved",
-            user=request.user
-        )
+        ok,reason = automation_engine(app, app.status, "approved_annexure")
+        if ok:
+            log_salary_annexure_history(
+                annexure,
+                action="approved",
+                user=request.user
+            )
 
-        return Response({"message": "Salary annexure approved"})
+            return Response({"message": "Salary annexure approved"})
+        else:
+            return Response({"error": reason})
 
     @action(detail=True, methods=["post"])
     def reject(self, request, pk=None):
@@ -708,15 +743,18 @@ class SalaryAnnexureViewSet(ModelViewSet):
         ])
 
         app = annexure.job_application
-        automation_engine(app, app.status, "rejected_annexure")
-        log_salary_annexure_history(
-            annexure,
-            action="rejected",
-            user=request.user,
-            remarks=annexure.rejection_reason
-        )
+        ok,reason = automation_engine(app, app.status, "rejected_annexure")
+        if ok:
+            log_salary_annexure_history(
+                annexure,
+                action="rejected",
+                user=request.user,
+                remarks=annexure.rejection_reason
+            )
 
-        return Response({"message": "Salary annexure rejected"})
+            return Response({"message": "Salary annexure rejected"})
+        else:
+            return Response({"error": reason})
 
     @action(detail=True, methods=["post"])
     def revise(self, request, pk=None):
@@ -781,21 +819,37 @@ class SalaryAnnexureViewSet(ModelViewSet):
 
         # 🔁 Move workflow back to salary_annexure_prep
         app = annexure.job_application
-        automation_engine(app, app.status, "salary_annexure_prep")
-        log_salary_annexure_history(
-            annexure,
-            action="revised",
-            user=request.user,
-            remarks=annexure.notes
-        )
+        ok,reason = automation_engine(app, app.status, "salary_annexure_prep")
+        if ok:
+            log_salary_annexure_history(
+                annexure,
+                action="revised",
+                user=request.user,
+                remarks=annexure.notes
+            )
 
-        return Response(
-            {
-                "message": "Salary annexure revised successfully",
-                "revision_count": annexure.revision_count
-            },
-            status=status.HTTP_200_OK
-        )
+            #Send directly after revise
+            annexure.status = "sent"
+            annexure.rejection_reason = ""
+            annexure.save(update_fields=["status", "rejection_reason"])
+
+            app = annexure.job_application
+            ok,reason = automation_engine(app, app.status, "salary_annexure_sent")
+            if ok:
+                log_salary_annexure_history(
+                    annexure,
+                    action="sent",
+                    user=self.request.user
+                )
+            return Response(
+                {
+                    "message": "Salary annexure revised successfully",
+                    "revision_count": annexure.revision_count
+                },
+                status=status.HTTP_200_OK
+            )
+        else:
+            return Response({"error": reason})
     
 class SalaryAnnexureHistoryViewSet(ReadOnlyModelViewSet):
     serializer_class = SalaryAnnexureHistorySerializer
