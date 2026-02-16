@@ -425,3 +425,39 @@ class SalaryAnnexureHistory(models.Model):
 
     def __str__(self):
         return f"{self.annexure} - {self.action}"
+
+class OfferDocument(models.Model):
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("sent", "Sent"),
+        ("viewed", "Viewed"),
+        ("signed", "Signed"),
+        ("completed", "Completed"),
+        ("declined", "Declined"),
+        ("expired", "Expired"),
+        ("cancelled", "Cancelled"),
+        ("failed", "Failed"),
+    ]
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    application = models.ForeignKey(JobApplication, on_delete=models.CASCADE)
+    zoho_request_id = models.CharField(max_length=255)
+    status = models.CharField(
+        max_length=50,
+        choices=STATUS_CHOICES,
+        default="draft"
+    )
+    sent_at = models.DateTimeField(null=True, blank=True)
+    signed_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    signed_file = models.FileField(upload_to="signed_docs/", null=True, blank=True)
+    raw_response = models.JSONField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "offer_documents"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.application.candidate_name

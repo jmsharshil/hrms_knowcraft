@@ -52,12 +52,13 @@ class SalaryComponentSerializer(serializers.ModelSerializer):
 
 class SalaryAnnexureSerializer(serializers.ModelSerializer):
     candidate_id = serializers.UUIDField(write_only=True)
+    annexure_id = serializers.UUIDField(source="id", read_only=True)
     components = SalaryComponentSerializer(many=True, required=False)
 
     class Meta:
         model = SalaryAnnexure
         fields = [
-            "id","job_application","designation","effective_from","gross_monthly",
+            "annexure_id","job_application","designation","effective_from","gross_monthly",
             "ctc_annual","net_monthly","notes","status","revision_count",
             "components","created_at","updated_at","candidate_id","components",
             "basic_da","basket_allowances","hra","medical_allowance","leave_travel_allowance",
@@ -68,7 +69,7 @@ class SalaryAnnexureSerializer(serializers.ModelSerializer):
             "employee_esic","employee_total"
         ]
         read_only_fields = [
-            "id",
+            "annexure_id",
             "job_application",
             "status",
             "reviewed_by",
