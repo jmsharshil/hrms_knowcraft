@@ -13,6 +13,7 @@ import logging
 from jobs.models import JobApplication
 from rest_framework.viewsets import ModelViewSet,ReadOnlyModelViewSet
 from .utils.annexure_history import log_salary_annexure_history
+from .utils.send_annexure import send_salary_annexure_email
 logger = logging.getLogger(__name__)
 
 
@@ -634,6 +635,7 @@ class SalaryAnnexureViewSet(ModelViewSet):
                 action="sent",
                 user=self.request.user
             )
+            send_salary_annexure_email(annexure, self.request.user)
 
             return Response({"message": "Salary annexure sent for approval"})
         else:
@@ -671,6 +673,7 @@ class SalaryAnnexureViewSet(ModelViewSet):
                 action="sent",
                 user=request.user
             )
+            send_salary_annexure_email(annexure, self.request.user)
 
             return Response({"message": "Salary annexure sent for approval"})
         else:
@@ -841,6 +844,7 @@ class SalaryAnnexureViewSet(ModelViewSet):
                     action="sent",
                     user=self.request.user
                 )
+                send_salary_annexure_email(annexure, self.request.user)
             return Response(
                 {
                     "message": "Salary annexure revised successfully",
