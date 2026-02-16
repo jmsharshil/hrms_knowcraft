@@ -323,6 +323,35 @@ class SalaryAnnexure(models.Model):
 
     revision_count = models.PositiveIntegerField(default=0)
 
+    basic_da = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    basket_allowances = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    hra = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    medical_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    leave_travel_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    telephone_internet_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    books_periodicals = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    uniform_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    driver_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    car_maintenance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    meals_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    special_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    children_education_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    conveyance_allowance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    employer_pf = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    employer_insurance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    employer_variable_component = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    employer_gratuity = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    employer_esic = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    employer_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    employee_pf = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    employee_pt = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    employee_esic = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    employee_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
     updated_at = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

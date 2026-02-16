@@ -51,7 +51,7 @@ class SalaryComponentSerializer(serializers.ModelSerializer):
         exclude = ("annexure",)
 
 class SalaryAnnexureSerializer(serializers.ModelSerializer):
-    job_application_id = serializers.UUIDField(write_only=True)
+    candidate_id = serializers.UUIDField(write_only=True)
     components = SalaryComponentSerializer(many=True, required=False)
 
     class Meta:
@@ -59,7 +59,13 @@ class SalaryAnnexureSerializer(serializers.ModelSerializer):
         fields = [
             "id","job_application","designation","effective_from","gross_monthly",
             "ctc_annual","net_monthly","notes","status","revision_count",
-            "components","created_at","updated_at","job_application_id","components"
+            "components","created_at","updated_at","candidate_id","components",
+            "basic_da","basket_allowances","hra","medical_allowance","leave_travel_allowance",
+            "telephone_internet_allowance","books_periodicals","uniform_allowance","driver_salary",
+            "car_maintenance","meals_allowance","special_allowance","children_education_allowance",
+            "conveyance_allowance","employer_pf","employer_insurance","employer_variable_component",
+            "employer_gratuity","employer_esic","employer_total","employee_pf","employee_pt",
+            "employee_esic","employee_total"
         ]
         read_only_fields = [
             "id",
@@ -72,7 +78,7 @@ class SalaryAnnexureSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        job_app_id = validated_data.pop("job_application_id")
+        job_app_id = validated_data.pop("candidate_id")
         components = validated_data.pop("components", [])
         job_app = JobApplication.objects.filter(id=job_app_id).first()
         if not job_app:

@@ -420,6 +420,7 @@ class SendApprovalNoteAPIView(APIView):
 
             <p style="margin-top:20px;">
                 Request you to review the same and share your feedback, if any.
+                Link: <a href='https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/onboarding'>View Candidate</a>
             </p>
 
             <p>
