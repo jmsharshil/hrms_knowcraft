@@ -100,6 +100,31 @@ class SalaryAnnexureSerializer(serializers.ModelSerializer):
             )
 
         return annexure
+    
+    def update(self, instance, validated_data):
+
+        if instance.status != "draft":
+            raise serializers.ValidationError("Only draft annexure can be updated. Use revise after rejection.")
+        
+        components = validated_data.pop("components", None)
+
+        # update annexure fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+
+        # update components if provided
+        if components is not None:
+            instance.components.all().delete()
+
+            for comp in components:
+                SalaryComponent.objects.create(
+                    annexure=instance,
+                    **comp
+                )
+
+        return instance
 
 class SalaryAnnexureHistorySerializer(serializers.ModelSerializer):
     performed_by_name = serializers.SerializerMethodField()

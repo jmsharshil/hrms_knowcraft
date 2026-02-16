@@ -609,6 +609,16 @@ class SalaryAnnexureViewSet(ModelViewSet):
             action="created",
             user=self.request.user
         )
+    
+    def perform_update(self, serializer):
+        annexure = serializer.save()
+
+        log_salary_annexure_history(
+            annexure,
+            action="updated",
+            user=self.request.user,
+            remarks="Annexure updated"
+        )
 
     @action(detail=True, methods=["post"])
     def send(self, request, pk=None):
