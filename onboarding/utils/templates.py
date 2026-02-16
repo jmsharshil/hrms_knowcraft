@@ -485,7 +485,7 @@ HTML_TEMPLATES = {
     <body style='font-family: Arial; color:#333;'>
         <h2>Upload Salary Documents</h2>
         <p>Dear {{candidate.candidate_name}},</p>
-        <p>Please upload your latest salary slip and bank statement using this link https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/application/documents/upload/salary-bank/{{candidate.id}}.</p>
+        <p>Please upload your latest salary slip and bank statement using this link https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/application/documents/upload/salary-bank/{{candidate.id}}</p>
         <p>This is required to proceed with your offer process.</p>
         <br>
         <p>Regards,<br>HR Team</p>

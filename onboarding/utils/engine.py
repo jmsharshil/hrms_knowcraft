@@ -36,6 +36,8 @@ NOTIFY_STATES = {
     # "approval_rejected",
     # Salary Docs
     "salary_docs_pending",
+    "salary_docs_unclear",
+    "salary_docs_incomplete",
     # "salary_docs_uploaded",
     # "hr_review_docs",
     # "hr_review_ok",
@@ -55,6 +57,8 @@ NOTIFY_STATES = {
     # "resignation_uploaded",
     # "resignation_review",
     # "resignation_approved",
+    "resignation_incomplete",
+    "resignation_unclear",
     "resignation_rejected",
     # Documents
     "docs_pending",
