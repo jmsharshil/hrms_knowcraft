@@ -15,6 +15,7 @@ from rest_framework.viewsets import ModelViewSet,ReadOnlyModelViewSet
 from .utils.annexure_history import log_salary_annexure_history
 from .utils.send_annexure import send_salary_annexure_email
 from accounts.models import User
+from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
@@ -904,3 +905,47 @@ class SalaryAnnexureHistoryViewSet(ReadOnlyModelViewSet):
             )
 
         return qs.order_by("created_at")
+    
+class SendForOfferLetterEmailAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, id):
+        job_application = get_object_or_404(JobApplication, id=id)
+
+        recipient_email = request.data.get("email")
+
+        if not recipient_email:
+            return Response(
+                {"error": "Email is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 🔗 Build review link
+        review_link = f"{settings.FRONTEND_URL}/review-documents/{id}"
+
+        subject = "Document Review Required - Offer Letter Creation"
+
+        message = f"""
+Hello,
+
+You have been requested to review the documents for the candidate:
+{job_application.candidate_name}
+
+Please review the documents using the link below:
+{review_link}
+
+After reviewing, kindly generate and upload the offer letter.
+
+Thank you.
+"""
+
+        send_email(
+            subject=subject,
+            text=message,
+            to=recipient_email,
+        )
+        automation_engine(job_application,job_application.status,"offer_pending")
+        return Response(
+            {"message": "Review email sent successfully!"},
+            status=status.HTTP_200_OK
+        )
