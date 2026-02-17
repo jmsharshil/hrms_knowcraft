@@ -231,16 +231,6 @@ class CandidateBookSlotView(APIView):
         # 9) Email notifications
         start_str = start_dt.astimezone(IST).strftime("%d/%m/%Y %I:%M %p")
 
-        send_mail(
-            f"Interview Scheduled – {candidate.job.mrf.designation.name} at Knowcraft Analytics Private Limited",
-            f"""Hello {candidate.candidate_name},\nWe are pleased to inform you that your {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled for.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
-\nWe look forward to speaking with you.
-\nBest regards,
-\nTeam-HR
-\nKnowcraft Analytics Private Limited""",
-            settings.DEFAULT_FROM_EMAIL,
-            [candidate.candidate_email],
-        )
         round = None
         round_name = ""
 
@@ -308,6 +298,16 @@ class CandidateBookSlotView(APIView):
             f"?interview_round={round}&job_application={candidate.id}"
         )
 
+        send_mail(
+            f"Interview Scheduled – {candidate.job.mrf.designation.name} at Knowcraft Analytics Private Limited",
+            f"""Hello {candidate.candidate_name},\nWe are pleased to inform you that your {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled for.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
+\nWe look forward to speaking with you.
+\nBest regards,
+\nTeam-HR
+\nKnowcraft Analytics Private Limited""",
+            settings.DEFAULT_FROM_EMAIL,
+            [candidate.candidate_email],
+        )
         send_email(
             subject=f"Interview Scheduled - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
             text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}",
