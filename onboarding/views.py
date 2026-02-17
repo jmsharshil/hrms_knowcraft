@@ -251,7 +251,11 @@ class UploadJobApplicationDocumentAPI(APIView):
         )
 
 class ReviewJobApplicationDocumentsAPI(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
 
     def get(self, request, id):
         docs = get_object_or_404(

@@ -398,13 +398,79 @@ HTML_TEMPLATES = {
     # -----------------------------------------------------------
     "docs_pending": f"""
     <html>
-    <body style='font-family: Arial; color:#333;'>
-        <h2>Document Submission Required</h2>
-        <p>Dear {{candidate.candidate_name}},</p>
-        <p>Please upload your documents through this link https://9bd6882f3e08.ngrok-free.app/api/candidates/{{candidate.id}}/documents/upload/</p>
-        <p>Please upload your onboarding documents at the earliest so we can proceed.</p>
+    <body style='font-family: Arial, sans-serif; color:#333; line-height:1.6;'>
+
+        <p>Hi {{candidate.candidate_name}},</p>
+
+        <p>Greetings of the day!</p>
+
+        <p>
+            Congratulations on being selected to work with Knowcraft Analytics! 
+            We’re excited about the potential of working together.
+        </p>
+
+        <p>
+            To proceed further with your candidature, we kindly request you to upload 
+            the required documents as mentioned below using the link provided.
+        </p>
+
+        <p>
+            <b>Upload Link:</b><br>
+            <a href="https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/application/documents/upload/{{candidate.id}}">
+                Upload Documents
+            </a>
+        </p>
+
         <br>
-        <p>Regards,<br>HR Team</p>
+
+        <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width:100%;">
+            <tr style="background-color:#f2f2f2;">
+                <th>S. No</th>
+                <th>Documents Required</th>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>Certificates and Marksheets till Highest Qualification (Mandatory)</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td>
+                    Last Organization Documents (if applicable):
+                    <ul>
+                        <li>Offer Letter / Appointment Letter</li>
+                        <li>Experience & Relieving Letter</li>
+                        <li>Increment Letter</li>
+                        <li>Last 3 Months Salary Slips</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td>Aadhar Card (Mandatory)</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td>PAN Card (Mandatory)</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td>Passport Sized Photograph (Mandatory)</td>
+            </tr>
+        </table>
+
+        <br>
+
+        <p>Please upload your onboarding documents at the earliest so we can proceed further.</p>
+
+        <p>Let us know in case of any queries.</p>
+
+        <br>
+
+        <p>
+            Regards,<br>
+            Team – HR
+        </p>
+
     </body>
     </html>
     """,
