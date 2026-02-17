@@ -14,6 +14,7 @@ from jobs.models import JobApplication
 from rest_framework.viewsets import ModelViewSet,ReadOnlyModelViewSet
 from .utils.annexure_history import log_salary_annexure_history
 from .utils.send_annexure import send_salary_annexure_email
+from accounts.models import User
 logger = logging.getLogger(__name__)
 
 
@@ -126,26 +127,26 @@ REQUIRED_SECTIONS = {
 def evaluate_documents(application):
     docs = application.documents
 
-    # Salary stage
-    if application.status in ["salary_docs_uploaded","hr_review_docs","salary_docs_unclear","salary_docs_incomplete"]:
-        if is_section_unclear(docs,"salary"):
-            automation_engine(application, application.status, "salary_docs_unclear")
-        elif is_section_incomplete(docs,"salary"):
-            automation_engine(application, application.status, "salary_docs_incomplete")
-        elif is_section_complete(docs, "salary"):
-            automation_engine(application, application.status, "hr_review_ok")
+    # # Salary stage
+    # if application.status in ["salary_docs_uploaded","hr_review_docs","salary_docs_unclear","salary_docs_incomplete"]:
+    #     if is_section_unclear(docs,"salary"):
+    #         automation_engine(application, application.status, "salary_docs_unclear")
+    #     elif is_section_incomplete(docs,"salary"):
+    #         automation_engine(application, application.status, "salary_docs_incomplete")
+    #     elif is_section_complete(docs, "salary"):
+    #         automation_engine(application, application.status, "hr_review_ok")
 
-    # Resignation stage
-    elif application.status in ["resignation_uploaded","resignation_review","resignation_incomplete","resignation_unclear"]:
-        if is_section_unclear(docs,"resignation"):
-            automation_engine(application, application.status, "resignation_unclear")
-        elif is_section_incomplete(docs,"resignation"):
-            automation_engine(application, application.status, "resignation_incomplete")
-        elif is_section_complete(docs, "resignation"):
-            automation_engine(application, application.status, "resignation_approved")
+    # # Resignation stage
+    # elif application.status in ["resignation_uploaded","resignation_review","resignation_incomplete","resignation_unclear"]:
+    #     if is_section_unclear(docs,"resignation"):
+    #         automation_engine(application, application.status, "resignation_unclear")
+    #     elif is_section_incomplete(docs,"resignation"):
+    #         automation_engine(application, application.status, "resignation_incomplete")
+    #     elif is_section_complete(docs, "resignation"):
+    #         automation_engine(application, application.status, "resignation_approved")
 
     # Joining documents stage
-    elif application.status in ["docs_uploaded","review_docs","docs_unclear","docs_incomplete"]:
+    if application.status in ["docs_uploaded","review_docs","docs_unclear","docs_incomplete"]:
         if is_section_incomplete(docs, "joining_docs"):
             automation_engine(application, application.status, "docs_incomplete")
         elif is_section_unclear(docs, "joining_docs"):
@@ -166,13 +167,13 @@ class UploadJobApplicationDocumentAPI(APIView):
         response_data = JobApplicationDocumentSerializer(docs).data
 
         # ✅ Add section evaluation flags
-        response_data["salary_complete"] = is_section_complete(docs, "salary")
-        response_data["salary_unclear"] = is_section_unclear(docs, "salary")
-        response_data["salary_incomplete"] = is_section_incomplete(docs, "salary")
+        # response_data["salary_complete"] = is_section_complete(docs, "salary")
+        # response_data["salary_unclear"] = is_section_unclear(docs, "salary")
+        # response_data["salary_incomplete"] = is_section_incomplete(docs, "salary")
 
-        response_data["resignation_complete"] = is_section_complete(docs, "resignation")
-        response_data["resignation_unclear"] = is_section_unclear(docs, "resignation")
-        response_data["resignation_incomplete"] = is_section_incomplete(docs, "resignation")
+        # response_data["resignation_complete"] = is_section_complete(docs, "resignation")
+        # response_data["resignation_unclear"] = is_section_unclear(docs, "resignation")
+        # response_data["resignation_incomplete"] = is_section_incomplete(docs, "resignation")
 
         response_data["joining_docs_complete"] = is_section_complete(docs, "joining_docs")
         response_data["joining_docs_unclear"] = is_section_unclear(docs, "joining_docs")
@@ -188,32 +189,37 @@ class UploadJobApplicationDocumentAPI(APIView):
         )
 
 
-        SECTION_FIELDS = {
-            "salary": ["salary_slip_1", "salary_slip_2", "salary_slip_3", "bank_statement"],
-            "joining_docs": {
-            "personal": ["aadhaar", "pan", "passport", "photograph", "address_proof"],
-            "education": [
-                "tenth_certificate",
-                "twelfth_certificate",
-                "graduation_certificate",
-                "post_graduation_certificate",
-            ],
-            "experience": [
-                "experience_letter_1",
-                "experience_letter_2",
-                "relieving_letter",
-            ]},
-            "resignation": ["resignation_letter", "resignation_acceptance"],
-        }
+        # SECTION_FIELDS = {
+        #     "salary": ["salary_slip_1", "salary_slip_2", "salary_slip_3", "bank_statement"],
+        #     "joining_docs": {
+        #     "personal": ["aadhaar", "pan", "passport", "photograph", "address_proof"],
+        #     "education": [
+        #         "tenth_certificate",
+        #         "twelfth_certificate",
+        #         "graduation_certificate",
+        #         "post_graduation_certificate",
+        #     ],
+        #     "experience": [
+        #         "experience_letter_1",
+        #         "experience_letter_2",
+        #         "relieving_letter",
+        #     ]},
+        #     "resignation": ["resignation_letter", "resignation_acceptance"],
+        # }
 
-        for section, fields in SECTION_FIELDS.items():
-            if getattr(docs, f"{section}_status") == "approved":
-                for field in fields:
-                    if field in request.FILES:
-                        return Response(
-                            {"error": f"{section} documents already approved"},
-                            status=400
-                        )
+        # for section, fields in SECTION_FIELDS.items():
+        #     if getattr(docs, f"{section}_status") == "approved":
+        #         for field in fields:
+        #             if field in request.FILES:
+        #                 return Response(
+        #                     {"error": f"{section} documents already approved"},
+        #                     status=400
+        #                 )
+        if getattr(docs,'joining_docs_status') == 'approved':
+            return Response(
+                {"error": f"Documents already approved!"},
+                status=400
+            )
 
         # 🟢 Save uploaded files
         updated = False
@@ -227,13 +233,13 @@ class UploadJobApplicationDocumentAPI(APIView):
 
         docs.save()
 
-        if application.status == "salary_docs_pending":
-            automation_engine(application, "salary_docs_pending", "salary_docs_uploaded")
+        # if application.status == "salary_docs_pending":
+        #     automation_engine(application, "salary_docs_pending", "salary_docs_uploaded")
 
-        elif application.status == "resignation_pending":
-            automation_engine(application, "resignation_pending", "resignation_uploaded")
+        # elif application.status == "resignation_pending":
+        #     automation_engine(application, "resignation_pending", "resignation_uploaded")
 
-        elif application.status == "docs_pending":
+        if application.status == "docs_pending":
             automation_engine(application, "docs_pending", "docs_uploaded")
 
         return Response(
@@ -256,8 +262,8 @@ class ReviewJobApplicationDocumentsAPI(APIView):
         data = JobApplicationDocumentSerializer(docs).data
 
         # Add human-readable status display
-        data["salary_status_display"] = docs.get_salary_status_display()
-        data["resignation_status_display"] = docs.get_resignation_status_display()
+        # data["salary_status_display"] = docs.get_salary_status_display()
+        # data["resignation_status_display"] = docs.get_resignation_status_display()
         data["joining_docs_status_display"] = docs.get_joining_docs_status_display()
 
         return Response(data, status=200)
@@ -268,31 +274,31 @@ class ReviewJobApplicationDocumentsAPI(APIView):
             job_application_id=id
         )
 
-        section = request.data.get("section")
+        # section = request.data.get("section")
         status_value = request.data.get("status")
         remarks = request.data.get("remarks")
 
-        if section not in [
-            "salary", "personal", "education", "experience", "resignation","joining_docs"
-        ]:
-            return Response({"error": "Invalid section"}, status=400)
+        # if section not in [
+        #     "salary", "personal", "education", "experience", "resignation","joining_docs"
+        # ]:
+        #     return Response({"error": "Invalid section"}, status=400)
 
         # 🔒 Lock rule
-        if getattr(docs, f"{section}_status") == "approved":
+        if getattr(docs, "joining_docs_status") == "approved":
             return Response(
-                {"error": f"{section} already approved"},
+                {"error": f"Documents already approved!"},
                 status=400
             )
 
-        setattr(docs, f"{section}_status", status_value)
-        setattr(docs, f"{section}_remarks", remarks)
+        setattr(docs, f"joining_docs_status", status_value)
+        setattr(docs, f"joining_docs_remarks", remarks)
         docs.save()
 
         # 🔁 Evaluate partial approval logic
         evaluate_documents(docs.job_application)
 
         return Response({
-            "message": f"{section} documents updated",
+            "message": f"Documents has been updated!",
             "status": status_value
         })
 
@@ -330,14 +336,29 @@ class SendApprovalNoteAPIView(APIView):
             # Default: manager sees notes assigned to them
             approval_notes = ApprovalNote.objects.filter(manager=user)
 
+        candidate_id = request.query_params.get("candidate_id")
+        if candidate_id:
+            approval_notes = approval_notes.filter(candidate_id=candidate_id)
+
+        approver_id = request.query_params.get("approver_id")
+        if approver_id:
+            approval_notes = approval_notes.filter(manager_id=approver_id)
+
         approval_notes = approval_notes.select_related("candidate")
 
         results = []
 
         for note in approval_notes:
+            can_approve = (
+                note.manager == request.user
+                and note.status == "approval_pending"
+            )
+
             results.append({
                 "approval_note_id": str(note.id),
                 "candidate_id": str(note.candidate.id),
+                "can_approve": can_approve,
+                "approver_id": str(note.manager.id),
                 "status": note.status,
                 "status_display": note.get_status_display(),
                 "created_at": note.created_at,
@@ -360,12 +381,12 @@ class SendApprovalNoteAPIView(APIView):
             JobApplication,
             id=data.get("candidate_id")
         )
-
+        approver = get_object_or_404(User,id = data.get("approver_id"))
         # --- Resolve relations ---
         mrf = candidate.job.mrf
         department = mrf.department
         designation = mrf.designation
-        approver = mrf.requested_by
+        approver = approver or mrf.requested_by
         requested_by_name = request.user.name
         requested_by_email = request.user.email
         requested_by_role = request.user.role

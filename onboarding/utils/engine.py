@@ -32,12 +32,8 @@ NOTIFY_STATES = {
     # "interview_done_management_client",
     "interview_rejected_management_client",
     # Approval
-    "approved",
+    # "approved",
     # "approval_rejected",
-    # Salary Docs
-    "salary_docs_pending",
-    "salary_docs_unclear",
-    "salary_docs_incomplete",
     # "salary_docs_uploaded",
     # "hr_review_docs",
     # "hr_review_ok",
@@ -52,14 +48,6 @@ NOTIFY_STATES = {
     "offer_sent",
     "offer_accepted",
     "offer_rejected",
-    # Resignation
-    "resignation_pending",
-    # "resignation_uploaded",
-    # "resignation_review",
-    # "resignation_approved",
-    "resignation_incomplete",
-    "resignation_unclear",
-    "resignation_rejected",
     # Documents
     "docs_pending",
     # "docs_uploaded",
@@ -101,18 +89,14 @@ NOTIFY_INTERNAL_STATES = {
     # "approval_pending",        # Send approval request to HR Manager
     "approved",                # Notify HR
     "approval_rejected",       # Notify HR
-    # Salary Documents Flow
-    "salary_docs_uploaded",    # Notify HR for review
     # Salary Annexure Flow
-    "salary_annexure_prep",    # Notify HR to prepare annexure
+    # "salary_annexure_prep",    # Notify HR to prepare annexure
     # "salary_annexure_sent",    # Notify HR manager
-    "approved_annexure",       # Notify HR
-    "rejected_annexure",       # Notify HR
+    # "approved_annexure",       # Notify HR
+    # "rejected_annexure",       # Notify HR
     # Offer Flow (Internal Steps)
-    "offer_pending",           # Notify HR to prepare offer
+    # "offer_pending",           # Notify HR to prepare offer
     "offer_rejected",
-    # Resignation Collection
-    "resignation_uploaded",    # HR reviews
     # Document Verification
     "docs_uploaded",           # HR reviews
     # Joining

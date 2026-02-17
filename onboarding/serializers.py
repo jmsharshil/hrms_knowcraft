@@ -17,12 +17,20 @@ from jobs.models import JobApplication
 
 class JobApplicationDocumentSerializer(serializers.ModelSerializer):
     class Meta:
+        offer_letter_uploaded = serializers.SerializerMethodField()
         model = JobApplicationDocument
         fields = "__all__"
         read_only_fields = (
-            "id","job_application","salary_status",
-            "joining_docs_status","resignation_status","created_at","updated_at",
+            "id","job_application"
+            "joining_docs_status","created_at","updated_at","offer_letter_uploaded"
         )
+
+    def get_offer_letter_uploaded(self,obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+
+        return obj.created_offer_letter is not None
 
 # class JobCreateSerializer(serializers.ModelSerializer):
 #     class Meta:

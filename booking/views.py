@@ -232,8 +232,12 @@ class CandidateBookSlotView(APIView):
         start_str = start_dt.astimezone(IST).strftime("%d/%m/%Y %I:%M %p")
 
         send_mail(
-            "Interview Confirmed",
-            f"Hello {candidate.candidate_name},\nYour interview with {interviewer.name} is confirmed at {start_str}.\nJoin link: {meeting_link}",
+            f"Interview Scheduled – {candidate.job.mrf.designation.name} at Knowcraft Analytics Private Limited",
+            f"""Hello {candidate.candidate_name},\nWe are pleased to inform you that your {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled for.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
+\nWe look forward to speaking with you.
+\nBest regards,
+\nTeam-HR
+\nKnowcraft Analytics Private Limited""",
             settings.DEFAULT_FROM_EMAIL,
             [candidate.candidate_email],
         )
@@ -264,23 +268,24 @@ class CandidateBookSlotView(APIView):
                         f"?interview_round={round}&job_application={candidate.id}"
                     )
                     send_email(
-                        subject="New Interview Scheduled",
-                        text=f"Hello {interviewer.name},\nYou have an interview with {candidate.candidate_name} at {start_str}.\nJoin link: {meeting_link}\n Feedback link: {feedback_link}",
+                        subject=f"Interview Scheduled - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
+                        text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}",
                         template=f"""
                         <html>
                         <body style="font-family: Arial; color:#333;">
                             <h2>Interview Scheduled ({round_name})</h2>
                             <p>Dear {interviewer.name},</p>
-                            <p>You have an interview with {candidate.candidate_name} at {start_str}.</p>
+                            <p>This is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.</p>
+                            <p>Please find below the MS Teams link and attached candidate’s details.</p>
                             <p>Join link: {meeting_link}</p>
                             <p>Feedback link: {feedback_link}</p>
                             <br>
                             <p>Regards,
                             <br>
-                            Recruitment System</p>
+                            Team HR</p>
                             </body>
                         </html>""",
-                        to=interviewer.email,
+                        to=interviewer.email
                     )
 
         elif candidate.status in ['interview_next_3', 'interview_pending_3']:
@@ -304,23 +309,24 @@ class CandidateBookSlotView(APIView):
         )
 
         send_email(
-            subject="New Interview Scheduled",
-            text=f"Hello {interviewer.name},\nYou have an interview with {candidate.candidate_name} at {start_str}.\nJoin link: {meeting_link}\n Feedback link: {feedback_link}",
+            subject=f"Interview Scheduled - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
+            text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}",
             template=f"""
             <html>
             <body style="font-family: Arial; color:#333;">
                 <h2>Interview Scheduled ({round_name})</h2>
                 <p>Dear {interviewer.name},</p>
-                <p>You have an interview with {candidate.candidate_name} at {start_str}.</p>
+                <p>This is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.</p>
+                <p>Please find below the MS Teams link and attached candidate’s details.</p>
                 <p>Join link: {meeting_link}</p>
                 <p>Feedback link: {feedback_link}</p>
                 <br>
                 <p>Regards,
                 <br>
-                Recruitment System</p>
+                Team HR</p>
                 </body>
             </html>""",
-            to=interviewer.email,
+            to=interviewer.email
         )
 
         from onboarding.utils.engine import automation_engine

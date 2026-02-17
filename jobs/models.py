@@ -340,14 +340,6 @@ class JobApplication(models.Model):
     ("approval_pending", "Approval Pending (Sent For Approval)"),
     ("approved", "Approved by Hiring Manager"),
     ("approval_rejected", "Rejected During Approval"),
-    # SALARY DOCUMENT FLOW
-    ("salary_docs_pending", "Salary Documents Pending"),
-    ("salary_docs_uploaded", "Salary Documents Uploaded"),
-    ("hr_review_docs", "HR Reviewing Salary Documents"),
-    ("hr_review_ok", "HR Review Completed"),
-    ("hr_review_rejected", "HR Rejected Salary Documents"),
-    ("salary_docs_incomplete","Salary Documents Incomplete"),
-    ("salary_docs_unclear","Salary Documents Unclear"),
     # SALARY ANNEXURE FLOW
     ("salary_annexure_prep", "Salary Annexure Under Preparation"),
     ("salary_annexure_sent", "Salary Annexure Sent to HR Manager"),
@@ -358,14 +350,6 @@ class JobApplication(models.Model):
     ("offer_sent", "Offer Sent"),
     ("offer_accepted", "Offer Accepted"),
     ("offer_rejected", "Offer Rejected by Candidate"),
-    # RESIGNATION FLOW
-    ("resignation_pending", "Resignation Docs Pending (Upload Required)"),
-    ("resignation_uploaded", "Resignation Docs Uploaded"),
-    ("resignation_review", "Resignation Docs Under Review"),
-    ("resignation_approved", "Resignation Docs Approved"),
-    ("resignation_rejected", "Resignation Docs Rejected"),
-    ("resignation_incomplete","Resignation Docs Incomplete"),
-    ("resignation_unclear","Resignation Docs Unclear"),
     # JOINING DOCUMENT FLOW
     ("docs_pending", "Joining Documents Pending"),
     ("docs_uploaded", "Joining Documents Uploaded"),

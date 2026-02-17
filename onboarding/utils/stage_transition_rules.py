@@ -1,7 +1,6 @@
 ALLOWED_TRANSITIONS = {
     # APPLICATION
     "received": ["duplicate_rejected", "shortlisted"],
-    # "duplicate_rejected": ["applied"],
     # SHORTLISTING & INTERVIEW
     "shortlisted": ["interview_pending_1"],
     "interview_pending_1": ["interview_done_1"],
@@ -23,19 +22,15 @@ ALLOWED_TRANSITIONS = {
     "selected": ["approval_pending"],
     "approval_pending": ["approved", "approval_rejected"],
     # OFFER FLOW
-    "approved": ["salary_docs_pending"],
-    "salary_docs_pending": ["salary_docs_uploaded"],
-    # Candidate uploads Salary Slip + Bank Statement
-    "salary_docs_uploaded": ["hr_review_docs"],
-    # HR reviews uploaded documents
-    # If rejected → back to upload documents (re-upload)
-    "hr_review_docs": ["hr_review_ok","hr_review_rejected","salary_docs_incomplete","salary_docs_unclear"],
-    "salary_docs_incomplete":["salary_docs_pending","hr_review_ok","hr_review_rejected"],
-    "salary_docs_unclear":["salary_docs_pending","hr_review_ok","hr_review_rejected"],
-    "hr_review_rejected":["salary_docs_pending","rejected"],
-    "hr_review_ok" : ["salary_annexure_prep"],
+    "approved": ["docs_pending"],
+    "docs_pending": ["docs_uploaded"],
+    "docs_uploaded":["review_docs"],
+    "review_docs": ["docs_approved", "docs_incomplete","docs_unclear"],
+    "docs_incomplete": ["docs_pending","docs_approved"],  # reupload
+    "docs_unclear": ["docs_pending","docs_approved"],  # reupload
+    "docs_approved": ["salary_annexure_prep","offer_pending"],
     # HR prepares salary annexure
-    "salary_annexure_prep": ["salary_annexure_sent"],
+    "salary_annexure_prep": ["salary_annexure_sent","offer_sent"],
     "salary_annexure_sent":["approved_annexure","rejected_annexure"],
     "rejected_annexure":["salary_annexure_prep"],
     # HR head approves salary annexure
@@ -43,23 +38,9 @@ ALLOWED_TRANSITIONS = {
     "approved_annexure": ["offer_pending"],
     "offer_pending": ["offer_sent"],
     "offer_sent": ["offer_accepted", "offer_rejected"],
-    # AFTER OFFER ACCEPTANCE → RESIGNATION FLOW
-    "offer_accepted": ["resignation_pending","docs_pending"],
-    "resignation_pending": ["resignation_uploaded"],
-    "resignation_uploaded":["resignation_review"],
-    "resignation_review": ["resignation_approved", "resignation_rejected","resignation_unclear","resignation_incomplete"],
-    "resignation_incomplete":["resignation_pending","resignation_approved","resignation_rejected"],
-    "resignation_unclear":["resignation_pending","resignation_approved","resignation_rejected"],
-    "resignation_rejected": ["resignation_pending","rejected"],  # retry upload
-    # DOCUMENT COLLECTION
-    "resignation_approved": ["docs_pending"],
-    "docs_pending": ["docs_uploaded"],
-    "docs_uploaded":["review_docs"],
-    "review_docs": ["docs_approved", "docs_incomplete","docs_unclear"],
-    "docs_incomplete": ["docs_pending"],  # reupload
-    "docs_unclear": ["docs_pending"],  # reupload
+    # AFTER OFFER ACCEPTANCE
+    "offer_accepted": ["joining_pending"],
     # JOINING
-    "docs_approved": ["joining_pending"],
     "joining_pending": ["joined","rejected","joining_poned"],
     "joining_poned":["joined","joining_pending","rejected"],
     # TERMINAL
@@ -107,22 +88,11 @@ def validate_transition(old, new):
 
 
 AUTO_NEXT = {
-
-    # "shortlisted":"interview_pending",
-    "approved": "salary_docs_pending",
-    "salary_docs_uploaded": "hr_review_docs",
-    "hr_review_ok": "salary_annexure_prep",
-    # "salary_annexure_prep":"salary_annexure_sent",
-    "approved_annexure":"offer_pending",
-    # "offer_pending":"offer_sent",
-    # "offer_accepted": "resignation_pending",
-    "resignation_approved": "docs_pending",
-    "docs_approved": "joining_pending",
-    # "selected":"approval_pending",
+    "approved": "docs_pending",
+    # "docs_approved": "salary_annexure_prep",
     "resignation_uploaded":"resignation_review",
     "docs_uploaded":"review_docs",
-    "docs_incomplete":"docs_pending",
-    "docs_unclear": "docs_pending",
+    "offer_accepted": "joining_pending"
     # "joining_postponed": "joining_pending",
 }
 

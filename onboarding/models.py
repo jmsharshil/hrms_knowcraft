@@ -132,14 +132,14 @@ class JobApplicationDocument(models.Model):
     salary_slip_2 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
     salary_slip_3 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
     bank_statement = models.FileField(upload_to=application_upload_path, null=True, blank=True)
-    salary_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
-    salary_remarks = models.TextField(blank=True, null=True)
+    # salary_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    # salary_remarks = models.TextField(blank=True, null=True)
 
     # Resignation
     resignation_letter = models.FileField(upload_to=application_upload_path, null=True, blank=True)
     resignation_acceptance = models.FileField(upload_to=application_upload_path, null=True, blank=True)
-    resignation_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
-    resignation_remarks = models.TextField(blank=True, null=True)
+    # resignation_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    # resignation_remarks = models.TextField(blank=True, null=True)
 
     # Personal
     aadhaar = models.FileField(upload_to=application_upload_path, null=True, blank=True)
@@ -153,16 +153,24 @@ class JobApplicationDocument(models.Model):
     twelfth_certificate = models.FileField(upload_to=application_upload_path, null=True, blank=True)
     graduation_certificate = models.FileField(upload_to=application_upload_path, null=True, blank=True)
     post_graduation_certificate = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    additional_certificate_1 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    additional_certificate_2 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    additional_certificate_3 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+
     
     # Experience
     experience_letter_1 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
     experience_letter_2 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
-    relieving_letter = models.FileField(upload_to=application_upload_path, null=True, blank=True)   
+    offer_letter_1 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    offer_letter_2 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    relieving_letter = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    increment_letter = models.FileField(upload_to=application_upload_path, null=True, blank=True)   
 
     joining_docs_status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default="pending"
     )
     joining_docs_remarks = models.TextField(blank=True, null=True)
+    created_offer_letter = models.FileField(upload_to=application_upload_path, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -199,14 +207,6 @@ class ApprovalNote(models.Model):
     ("approval_pending", "Approval Pending (Sent For Approval)"),
     ("approved", "Approved by Hiring Manager"),
     ("approval_rejected", "Rejected During Approval"),
-    # SALARY DOCUMENT FLOW
-    ("salary_docs_pending", "Salary Documents Pending"),
-    ("salary_docs_uploaded", "Salary Documents Uploaded"),
-    ("hr_review_docs", "HR Reviewing Salary Documents"),
-    ("hr_review_ok", "HR Review Completed"),
-    ("hr_review_rejected", "HR Rejected Salary Documents"),
-    ("salary_docs_incomplete","Salary Documents Incomplete"),
-    ("salary_docs_unclear","Salary Documents Unclear"),
     # SALARY ANNEXURE FLOW
     ("salary_annexure_prep", "Salary Annexure Under Preparation"),
     ("salary_annexure_sent", "Salary Annexure Sent to HR Manager"),
@@ -217,14 +217,6 @@ class ApprovalNote(models.Model):
     ("offer_sent", "Offer Sent"),
     ("offer_accepted", "Offer Accepted"),
     ("offer_rejected", "Offer Rejected by Candidate"),
-    # RESIGNATION FLOW
-    ("resignation_pending", "Resignation Docs Pending (Upload Required)"),
-    ("resignation_uploaded", "Resignation Docs Uploaded"),
-    ("resignation_review", "Resignation Docs Under Review"),
-    ("resignation_approved", "Resignation Docs Approved"),
-    ("resignation_rejected", "Resignation Docs Rejected"),
-    ("resignation_incomplete","Resignation Docs Incomplete"),
-    ("resignation_unclear","Resignation Docs Unclear"),
     # JOINING DOCUMENT FLOW
     ("docs_pending", "Joining Documents Pending"),
     ("docs_uploaded", "Joining Documents Uploaded"),
