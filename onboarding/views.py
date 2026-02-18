@@ -179,6 +179,7 @@ class UploadJobApplicationDocumentAPI(APIView):
         response_data["joining_docs_complete"] = is_section_complete(docs, "joining_docs")
         response_data["joining_docs_unclear"] = is_section_unclear(docs, "joining_docs")
         response_data["joining_docs_incomplete"] = is_section_incomplete(docs, "joining_docs")
+        response_data['candidate_name'] = docs.job_application.candidate_name
 
         return Response(response_data, status=200)
 
@@ -216,7 +217,7 @@ class UploadJobApplicationDocumentAPI(APIView):
         #                     {"error": f"{section} documents already approved"},
         #                     status=400
         #                 )
-        if getattr(docs,'joining_docs_status') == 'approved':
+        if getattr(docs,'joining_docs_status') == 'approved' and docs.created_offer_letter:
             return Response(
                 {"error": f"Documents already approved!"},
                 status=400
@@ -270,6 +271,7 @@ class ReviewJobApplicationDocumentsAPI(APIView):
         # data["salary_status_display"] = docs.get_salary_status_display()
         # data["resignation_status_display"] = docs.get_resignation_status_display()
         data["joining_docs_status_display"] = docs.get_joining_docs_status_display()
+        data['candidate_name'] = docs.job_application.candidate_name
 
         return Response(data, status=200)
 
@@ -362,10 +364,12 @@ class SendApprovalNoteAPIView(APIView):
             results.append({
                 "approval_note_id": str(note.id),
                 "candidate_id": str(note.candidate.id),
+                "candidate_name": str(note.candidate.candidate_name),
                 "can_approve": can_approve,
                 "approver_id": str(note.manager.id),
                 "status": note.status,
                 "status_display": note.get_status_display(),
+                "joining_date": note.candidate.joining_date,
                 "created_at": note.created_at,
                 "data": note.payload
             })
@@ -500,6 +504,7 @@ class SendApprovalNoteAPIView(APIView):
             "hiring_type": data.get("hiring_type"),
 
             "remarks": data.get("remarks"),
+            "joining_date": data.get("joining_date")
         }
 
         # --- Render email ---
@@ -508,6 +513,8 @@ class SendApprovalNoteAPIView(APIView):
 
         # --- Trigger workflow ---
         try:
+            candidate.joining_date = data.get("joining_date")
+            candidate.save()
             ok,reason = automation_engine(candidate, candidate.status, "approval_pending")
             if ok:
                 json_safe_context = {
@@ -913,6 +920,10 @@ class SendForOfferLetterEmailAPI(APIView):
         job_application = get_object_or_404(JobApplication, id=id)
 
         recipient_email = request.data.get("email")
+        current_ctc = request.data.get("current_ctc")
+        expected_ctc = request.data.get("expected_ctc")
+        offered_ctc = request.data.get("offered_ctc")
+        joining_date = request.data.get("joining_date") or job_application.joining_date
 
         if not recipient_email:
             return Response(
@@ -923,16 +934,24 @@ class SendForOfferLetterEmailAPI(APIView):
         # 🔗 Build review link
         review_link = f"{settings.FRONTEND_URL}/review-documents/{id}"
 
-        subject = "Document Review Required - Offer Letter Creation"
+        subject = "Document View Required - Offer Letter Creation"
 
         message = f"""
 Hello,
 
-You have been requested to review the documents for the candidate:
+You have been requested to view the documents for the candidate:
 {job_application.candidate_name}
 
-Please review the documents using the link below:
+Please view the documents using the link below:
 {review_link}
+
+Current CTC: {current_ctc}
+
+Expected CTC: {expected_ctc}
+
+Offered CTC: {offered_ctc}
+
+Joining Date: {joining_date}
 
 After reviewing, kindly generate and upload the offer letter.
 

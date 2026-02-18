@@ -391,3 +391,211 @@ def zoho_sign_webhook(request):
     doc.save()
 
     return JsonResponse({"status": "ok"})
+
+def send_to_zoho_sign(candidate, file_stream, filename,other_signers=[]):
+    import os
+
+    access_token = get_access_token()
+
+    print(access_token)
+
+    url = "https://sign.zoho.com/api/v1/requests"
+
+    headers = {
+        "Authorization": f"Zoho-oauthtoken {access_token}"
+    }
+
+    actions = [
+        {
+            "recipient_name": candidate.candidate_name,
+            "recipient_email": candidate.candidate_email,
+            "action_type": "SIGN",
+            "signing_order": 1
+        }
+    ]
+
+    # Add other authorized signers (signing order sequentially)
+    for idx, signer in enumerate(other_signers, start=2):
+        actions.append({
+            "recipient_name": signer["name"],
+            "recipient_email": signer["email"],
+            "action_type": "SIGN",
+            "signing_order": idx  # sequential signing
+        })
+
+    payload = {
+        "data": json.dumps({
+            "requests": {
+                "request_name": f"Offer Letter - {candidate.candidate_name}",
+                "is_sequential": True,  # True → signers sign in order
+                "actions": actions
+            }
+        })
+    }
+
+
+    files = {
+        "file": (filename, file_stream, "application/pdf")
+    }
+    try:
+        response = requests.post(url, headers=headers, data=payload, files=files)
+
+        data = response.json()
+        print("data:",data)
+        request_id = data["requests"]["request_id"]
+
+        # ✅ Create OfferDocument
+        offer= OfferDocument.objects.create(
+            application=candidate,
+            zoho_request_id=request_id,
+            status="sent",
+            sent_at=timezone.now(),
+            raw_response=data
+        )
+        if offer:
+            automation_engine(candidate,candidate.status,'offer_sent')
+
+        print("done....................")
+        return data
+
+    except requests.exceptions.RequestException as e:
+        print("HTTP request failed:", e)
+
+    except KeyError:
+        print("Unexpected Zoho response:", response.text)
+
+    except Exception as e:
+        print("Unable to send the offer letter:",e)
+
+def process_offer_letter(application_document):
+    file_field = application_document.created_offer_letter
+
+    if not file_field:
+        return
+
+    application = application_document.job_application
+
+    if OfferDocument.objects.filter(application=application).exists():
+        return
+
+    with file_field.open("rb") as f:
+        filename = file_field.name.split("/")[-1]
+        send_to_zoho_sign(application, f, filename)
+        print("send to zoho.............")
+
+def aggregate_details_from_feedback(job_application):
+    feedbacks = job_application.interview_feedbacks.all()
+
+    result = {
+        # ---- Common fields ----
+        "notice_period": None,
+        "current_ctc": None,
+        "expected_ctc": None,
+        "remarks": None,
+        "bond": None,
+        "work_mode": None,
+        "preferred_location": None
+    }
+
+    for fb in feedbacks:
+        # ---- Common fields (first non-null wins) ----
+        result["notice_period"] = result["notice_period"] or fb.notice_period
+        result["current_ctc"] = result["current_ctc"] or fb.current_ctc
+        result["expected_ctc"] = result["expected_ctc"] or fb.expected_ctc
+        result["remarks"] = result["remarks"] or fb.comments
+        result["bond"] = result["bond"] or fb.bond
+        result["work_mode"] = result["work_mode"] or fb.work_mode
+        result["preferred_location"] = result['preferred_location'] or fb.preferred_location
+
+    return result
+
+def send_offer_letter_email(candidate):
+    from .sender import send_email
+    from django.template import Template, Context
+    bond_section = ""
+    feedback = aggregate_details_from_feedback(candidate)
+    if feedback.get("bond") and str(feedback.get("bond")).lower() not in ['no','na','n/a','-']:
+        bond_section = """
+        <p><b>Bond:</b></p>
+        <p>
+        There will be a twelve-month (12 months) bond, which would be applicable 
+        from the Date of Joining.
+        </p>
+        """
+
+    # ---------------- HTML Template ----------------
+    html_template = """
+    <html>
+    <body style='font-family: Arial, sans-serif; color:#333; line-height:1.6;'>
+        <p>Hi {{candidate_name}},</p>
+        <p>
+            We are pleased to offer you the position of 
+            <b>{{designation}}</b> and we believe that your knowledge, skills, 
+            and experience would be an ideal fit for our 
+            <b>{{department}}</b> team.
+        </p>
+        <p>
+            We hope you will enjoy your role and make a significant contribution 
+            to the overall success of Knowcraft Analytics Private Limited.
+        </p>
+        <p>
+            Kindly find your enclosed Offer Letter. It includes important details 
+            about your compensation, benefits, and the terms and conditions of your 
+            anticipated employment.
+        </p>
+        <p>
+            On acceptance of the offer, kindly send us the signed offer letter along 
+            with the last page of the offer letter signed by you which mentions the 
+            compensation package by <b>{{acceptance_deadline}}</b>, after this the 
+            offer shall be revoked automatically.
+        </p>
+        <h4>General Policies</h4>
+        <p><b>Leave:</b></p>
+        <ul>
+            <li>We provide 24 earned leaves in a year.</li>
+            <li>10–11 national holidays.</li>
+        </ul>
+        <p><b>Background Check:</b></p>
+        <p>
+            There will be a detailed background check by a third party as part of the 
+            company policy and client requirement.
+        </p>
+        {{bond_section|safe}}
+        <p><b>Work Mode:</b> {{work_mode}}</p>
+        <p>
+            <b>Date of Joining:</b> {{joining_date}} (Reporting time 10:30 AM)
+        </p>
+        <p><b>Address:</b> {{office_address}}</p
+        <p>
+            We look forward to welcoming you to the Knowcraft team.<br>
+            Let us know if you have any queries.
+        </p>
+        <br>
+        <p>
+            Regards,<br>
+            Team – HR
+        </p>
+    </body>
+    </html>
+    """
+
+    # ---------------- Context ----------------
+    context = {
+        "candidate_name": candidate.candidate_name,
+        "designation": candidate.job.mrf.designation.name,
+        "department": candidate.job.mrf.department.name,
+        "acceptance_deadline": "48 hours",
+        "joining_date": candidate.joining_date,
+        "office_address": feedback.get('preferred_location') or candidate.job.mrf.location,
+        "work_mode": feedback.get("work_mode") or "Work From Office",
+        "bond_section": bond_section,
+    }
+
+    template = Template(html_template)
+    html_rendered = template.render(Context(context))
+
+    send_email(
+        to=candidate.candidate_email,
+        template=html_rendered,
+        text=''
+    )

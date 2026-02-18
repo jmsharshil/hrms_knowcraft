@@ -45,7 +45,7 @@ NOTIFY_STATES = {
     # "rejected_annexure",
     # Offer
     # "offer_pending",
-    "offer_sent",
+    # "offer_sent",
     "offer_accepted",
     "offer_rejected",
     # Documents
