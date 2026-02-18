@@ -56,7 +56,7 @@ NOTIFY_STATES = {
     "docs_incomplete",
     "docs_unclear",
     # Joining
-    "joining_pending",
+    # "joining_pending",
     # "joining_poned",
     "joined",
     # Final rejections

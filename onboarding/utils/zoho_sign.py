@@ -421,7 +421,7 @@ def send_to_zoho_sign(candidate, file_stream, filename,other_signers=[]):
         {
             "recipient_name": "Hr",
             "recipient_email": "hr@knowcraft.in",
-            "action_type": "SIGN",
+            "action_type": "VIEW",
             "signing_order": 3  # sequential signing
         }
     ]
