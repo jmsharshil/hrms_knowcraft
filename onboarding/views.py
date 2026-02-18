@@ -260,10 +260,12 @@ class ReviewJobApplicationDocumentsAPI(APIView):
         return [permissions.AllowAny()]
 
     def get(self, request, id):
-        docs = get_object_or_404(
-            JobApplicationDocument,
+        docs = JobApplicationDocument.objects.filter(
             job_application_id=id
-        )
+        ).first()
+
+        if not docs:
+            return Response([], status=200)
 
         data = JobApplicationDocumentSerializer(docs).data
 

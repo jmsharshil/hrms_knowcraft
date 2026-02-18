@@ -399,7 +399,7 @@ def send_to_zoho_sign(candidate, file_stream, filename,other_signers=[]):
 
     print(access_token)
 
-    url = "https://sign.zoho.com/api/v1/requests"
+    url = "https://sign.zoho.in/api/v1/requests"
 
     headers = {
         "Authorization": f"Zoho-oauthtoken {access_token}"
@@ -407,15 +407,27 @@ def send_to_zoho_sign(candidate, file_stream, filename,other_signers=[]):
 
     actions = [
         {
+            "recipient_name": "Nikita Kulabker",
+            "recipient_email": "nkulabker@knowcraft.in",
+            "action_type": "SIGN",
+            "signing_order": 1  # sequential signing
+        },
+        {
             "recipient_name": candidate.candidate_name,
             "recipient_email": candidate.candidate_email,
             "action_type": "SIGN",
-            "signing_order": 1
+            "signing_order": 2
+        },
+        {
+            "recipient_name": "Hr",
+            "recipient_email": "hr@knowcraft.in",
+            "action_type": "SIGN",
+            "signing_order": 3  # sequential signing
         }
     ]
 
     # Add other authorized signers (signing order sequentially)
-    for idx, signer in enumerate(other_signers, start=2):
+    for idx, signer in enumerate(other_signers, start=4):
         actions.append({
             "recipient_name": signer["name"],
             "recipient_email": signer["email"],
@@ -454,6 +466,7 @@ def send_to_zoho_sign(candidate, file_stream, filename,other_signers=[]):
         )
         if offer:
             automation_engine(candidate,candidate.status,'offer_sent')
+            send_offer_letter_email(candidate)
 
         print("done....................")
         return data
@@ -585,7 +598,7 @@ def send_offer_letter_email(candidate):
         "designation": candidate.job.mrf.designation.name,
         "department": candidate.job.mrf.department.name,
         "acceptance_deadline": "48 hours",
-        "joining_date": candidate.joining_date,
+        "joining_date": candidate.joining_date.strftime('%d-%m-%Y') if candidate.joining_date else '',
         "office_address": feedback.get('preferred_location') or candidate.job.mrf.location,
         "work_mode": feedback.get("work_mode") or "Work From Office",
         "bond_section": bond_section,
@@ -596,6 +609,7 @@ def send_offer_letter_email(candidate):
 
     send_email(
         to=candidate.candidate_email,
+        subject=f"Offer Letter - {candidate.candidate_name}",
         template=html_rendered,
         text=''
     )
