@@ -7,6 +7,9 @@ from .templates import HTML_TEMPLATES
 from .opensign import send_to_opensign_and_get_link
 from accounts.models import User
 logger = logging.getLogger(__name__)
+from django.conf import settings
+
+FRONTEND_URL = getattr(settings,"FRONTEND_URL")
 
 # ----------------------------------------------------------------------
 # Mapping: stage → notification configuration
@@ -578,7 +581,7 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
                 else:
                     interviewer_id = None
                 schedule_link = (
-                        f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/available/"
+                        f"{FRONTEND_URL}/api/slots/available/"
                         f"?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
                     )
                 email_cfg["text"] = email_cfg["text"].format(schedule_link=schedule_link)
@@ -588,15 +591,15 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
         try:
             html_template = HTML_TEMPLATES[stage]
             if stage == "salary_docs_pending":
-                link = f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/application/documents/upload/salary-bank/{candidate.id}"
+                link = f"{FRONTEND_URL}/api/application/documents/upload/salary-bank/{candidate.id}"
                 email_cfg["text"].format(link=link)
                 sms_text.format(link=link)
             if stage == 'docs_pending':
-                link = f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/application/documents/upload/docs/{candidate.id}"
+                link = f"{FRONTEND_URL}/api/application/documents/upload/docs/{candidate.id}"
                 email_cfg["text"].format(link=link)
                 sms_text.format(link=link)
             if stage == "resignation_pending":
-                link = f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/application/documents/upload/resignation/{candidate.id}"
+                link = f"{FRONTEND_URL}/api/application/documents/upload/resignation/{candidate.id}"
                 email_cfg["text"].format(link=link)
                 sms_text.format(link=link)
             send_email(
@@ -944,19 +947,19 @@ def notify_internal(candidate: Any, stage: str,cc:list) -> bool:
             if stage in ['interview_pending_1','interview_pending_2', "interview_pending_3","interview_pending_final","interview_pending_management_client"]:
                 if stage == 'interview_pending_1':
                     round = "hr_round"
-                    feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/hr-feedback-form/"
+                    feedback_link_base = f"{FRONTEND_URL}/api/slots/hr-feedback-form/"
                 if stage == 'interview_pending_2':
                     round = "technical_round"
-                    feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/technical-feedback-form-one/"
+                    feedback_link_base = f"{FRONTEND_URL}/api/slots/technical-feedback-form-one/"
                 if stage == 'interview_pending_3':
                     round = "case_study_round"
-                    feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/technical-feedback-form-two/"
+                    feedback_link_base = f"{FRONTEND_URL}/api/slots/technical-feedback-form-two/"
                 if stage == 'interview_pending_final':
                     round = "final_round"
-                    feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/final-feedback-form/"
+                    feedback_link_base = f"{FRONTEND_URL}/api/slots/final-feedback-form/"
                 if stage == 'interview_pending_management_client':
                     round = "management_client_round"
-                    feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/management-feedback-form/"
+                    feedback_link_base = f"{FRONTEND_URL}/api/slots/management-feedback-form/"
                 feedback_link = f"{feedback_link_base}?interview_round={round}&job_application={candidate.id}"
             if stage == 'docs_uploaded':
                 if candidate.job and candidate.job.assigned_to_internal_hr:

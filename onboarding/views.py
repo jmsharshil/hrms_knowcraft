@@ -18,6 +18,7 @@ from accounts.models import User
 from django.conf import settings
 logger = logging.getLogger(__name__)
 
+FRONTEND_URL = getattr(settings,"FRONTEND_URL")
 
 class UpdatestatusAPI(APIView):
     permission_classes = [permissions.AllowAny] 
@@ -58,7 +59,7 @@ class UpdatestatusAPI(APIView):
                 )
             if interviewer:
                 interviewer_id = interviewer.id
-                application.slot_link = f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/available/?candidate_id={application.id}&interviewer_id={interviewer_id}"
+                application.slot_link = f"{FRONTEND_URL}/api/slots/available/?candidate_id={application.id}&interviewer_id={interviewer_id}"
             else:
                 interviewer_id = None
                 application.slot_link = ""
@@ -453,7 +454,7 @@ class SendApprovalNoteAPIView(APIView):
 
             <p style="margin-top:20px;">
                 Request you to review the same and share your feedback, if any.
-                Link: <a href='https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/onboarding'>View Candidate</a>
+                Link: <a href='{{FRONTEND_URL}}/onboarding'>View Candidate</a>
             </p>
 
             <p>

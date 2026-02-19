@@ -3,6 +3,9 @@ from django.utils import timezone
 import uuid
 import secrets
 from django.db.models import Q, UniqueConstraint
+from django.conf import settings
+
+FRONTEND_URL = getattr(settings,"FRONTEND_URL")
 
 class Job(models.Model):
     """Job model created from approved MRFs"""
@@ -268,10 +271,10 @@ class JobApplicationLink(models.Model):
         # return f"{base_url}/apply/{self.unique_token}"
         if self.platform == 'referral':
         # If it's a referral, add 'referral' in the URL path
-            return f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/referral/{self.unique_token}"
+            return f"{FRONTEND_URL}/referral/{self.unique_token}"
     
     # For other platforms, keep the URL format the same
-        return f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/apply/{self.unique_token}"
+        return f"{FRONTEND_URL}/apply/{self.unique_token}"
         # return f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/apply/{self.unique_token}"
     
     def is_expired(self):

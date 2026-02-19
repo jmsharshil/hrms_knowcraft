@@ -4,7 +4,9 @@ from .stage_transition_rules import get_auto_next, validate_transition
 from .notifications import notify_candidate,notify_internal
 from .cc_rules import get_cc_for_stage
 logger = logging.getLogger(__name__)
+from django.conf import settings
 
+FRONTEND_URL = getattr(settings,"FRONTEND_URL")
 
 # ------------------------------
 # Notification rules for ALL STATES
@@ -174,7 +176,7 @@ def automation_engine(candidate, old, new):
     interviewer_id = interviewer.id if interviewer else None
     if interviewer_id:
         candidate.slot_link = (
-            f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/available/?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
+            f"{FRONTEND_URL}/api/slots/available/?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
         )
     else:
         candidate.slot_link = ""

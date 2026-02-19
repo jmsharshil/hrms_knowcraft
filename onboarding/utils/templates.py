@@ -1,3 +1,7 @@
+from django.conf import settings
+
+FRONTEND_URL = getattr(settings,"FRONTEND_URL")
+
 HTML_TEMPLATES = {
 
     # -----------------------------------------------------------
@@ -437,7 +441,7 @@ HTML_TEMPLATES = {
         </p>
         <p>
             <b>Upload Link:</b><br>
-            <a href="https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/application/documents/upload/{{candidate.id}}">
+            <a href="{{FRONTEND_URL}}/api/application/documents/upload/{{candidate.id}}">
                 Upload Documents
             </a>
         </p>
@@ -570,7 +574,7 @@ HTML_TEMPLATES = {
     # <body style='font-family: Arial; color:#333;'>
     #     <h2>Upload Salary Documents</h2>
     #     <p>Dear {{candidate.candidate_name}},</p>
-    #     <p>Please upload your latest salary slip and bank statement using this link https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/application/documents/upload/salary-bank/{{candidate.id}}</p>
+    #     <p>Please upload your latest salary slip and bank statement using this link {{FRONTEND_URL}}/api/application/documents/upload/salary-bank/{{candidate.id}}</p>
     #     <p>This is required to proceed with your offer process.</p>
     #     <br>
     #     <p>Regards,<br>HR Team</p>
