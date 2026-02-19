@@ -300,9 +300,10 @@ class CandidateBookSlotView(APIView):
 
         send_mail(
             f"Interview Scheduled – {candidate.job.mrf.designation.name} at Knowcraft Analytics Private Limited",
-            f"""Hello {candidate.candidate_name},\nWe are pleased to inform you that your {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled for.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
+            f"""Dear {candidate.candidate_name},\nWe are pleased to inform you have been shortlisted for {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled at {start_str}.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
 \nWe look forward to speaking with you.
-\nBest regards,
+\nPlease feel free to reach out if you have any questions or require further assistance.
+\nWarm regards,
 \nTeam-HR
 \nKnowcraft Analytics Private Limited""",
             settings.DEFAULT_FROM_EMAIL,

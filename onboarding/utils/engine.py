@@ -37,7 +37,7 @@ NOTIFY_STATES = {
     # "salary_docs_uploaded",
     # "hr_review_docs",
     # "hr_review_ok",
-    "hr_review_rejected",
+    # "hr_review_rejected",
     # Salary Annexure
     # "salary_annexure_prep",
     # "salary_annexure_sent",
@@ -46,19 +46,19 @@ NOTIFY_STATES = {
     # Offer
     # "offer_pending",
     # "offer_sent",
-    "offer_accepted",
-    "offer_rejected",
+    # "offer_accepted",
+    # "offer_rejected",
     # Documents
     "docs_pending",
     # "docs_uploaded",
     # "review_docs",
-    "docs_approved",
+    # "docs_approved",
     "docs_incomplete",
     "docs_unclear",
     # Joining
-    # "joining_pending",
+    "joining_pending",
     # "joining_poned",
-    "joined",
+    # "joined",
     # Final rejections
     "duplicate_rejected",
     "rejected",
@@ -96,11 +96,12 @@ NOTIFY_INTERNAL_STATES = {
     # "rejected_annexure",       # Notify HR
     # Offer Flow (Internal Steps)
     # "offer_pending",           # Notify HR to prepare offer
+    "offer_accepted"
     "offer_rejected",
     # Document Verification
     "docs_uploaded",           # HR reviews
     # Joining
-    "joining_pending",         # Notify HR/IT/Admin internally
+    # "joining_pending",         # Notify HR/IT/Admin internally
     "joining_poned",           # Internal delay notice
     "joined",                  # Broadcast to departments
     # Duplicate or general rejection internal notices

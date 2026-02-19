@@ -639,30 +639,30 @@ NOTIFY_INTERNAL_MAP = {
     #     "body": "A new candidate has applied and requires initial review.",
     #     "sms": "New candidate applied. Please review.",
     # },
-    "interview_pending_1": {
-        "receivers": ["interviewer"],
-        "subject": "Interview Pending",
-        "body": "The candidate is ready for interview scheduling.",
-        "sms": "Interview pending for assigned candidate.",
-    },
-    "interview_pending_2": {
-        "receivers": ["interviewer"],
-        "subject": "Interview Pending",
-        "body": "The candidate is ready for interview scheduling.",
-        "sms": "Interview pending for assigned candidate.",
-    },
-    "interview_pending_3": {
-        "receivers": ["interviewer"],
-        "subject": "Interview Pending",
-        "body": "The candidate is ready for interview scheduling.",
-        "sms": "Interview pending for assigned candidate.",
-    },
-    "interview_pending_final": {
-        "receivers": ["interviewer"],
-        "subject": "Interview Pending",
-        "body": "The candidate is ready for interview scheduling.",
-        "sms": "Interview pending for assigned candidate.",
-    },
+    # "interview_pending_1": {
+    #     "receivers": ["interviewer"],
+    #     "subject": "Interview Pending",
+    #     "body": "The candidate is ready for interview scheduling.",
+    #     "sms": "Interview pending for assigned candidate.",
+    # },
+    # "interview_pending_2": {
+    #     "receivers": ["interviewer"],
+    #     "subject": "Interview Pending",
+    #     "body": "The candidate is ready for interview scheduling.",
+    #     "sms": "Interview pending for assigned candidate.",
+    # },
+    # "interview_pending_3": {
+    #     "receivers": ["interviewer"],
+    #     "subject": "Interview Pending",
+    #     "body": "The candidate is ready for interview scheduling.",
+    #     "sms": "Interview pending for assigned candidate.",
+    # },
+    # "interview_pending_final": {
+    #     "receivers": ["interviewer"],
+    #     "subject": "Interview Pending",
+    #     "body": "The candidate is ready for interview scheduling.",
+    #     "sms": "Interview pending for assigned candidate.",
+    # },
     # "interview_done_1": {
     #     "receivers": ["interviewer"],
     #     "subject": "Interview Pending",
@@ -765,36 +765,36 @@ NOTIFY_INTERNAL_MAP = {
         "body": "Approval manager has rejected the candidate’s profile.",
         "sms": "Candidate approval rejected.",
     },
-    "salary_docs_uploaded": {
-        "receivers": ["hr"],
-        "subject": "Salary Documents Uploaded",
-        "body": "Salary documents have been uploaded. Review required.",
-        "sms": "Candidate salary documents uploaded.",
-    },
-    "salary_annexure_prep": {
-        "receivers": ["hr"],
-        "subject": "Prepare Salary Annexure",
-        "body": "Start preparing the salary annexure for the candidate.",
-        "sms": "Prepare salary annexure.",
-    },
-    "salary_annexure_sent": {
-        "receivers": ["hr_manager"],
-        "subject": "Salary Annexure Sent for Approval",
-        "body": "Salary annexure has been sent for managerial approval.",
-        "sms": "Salary annexure approval pending.",
-    },
-    "approved_annexure": {
-        "receivers": ["hr"],
-        "subject": "Salary Annexure Approved",
-        "body": "Salary annexure has been approved.",
-        "sms": "Salary annexure approved.",
-    },
-    "rejected_annexure": {
-        "receivers": ["hr"],
-        "subject": "Salary Annexure Rejected",
-        "body": "Salary annexure has been rejected. Further action required.",
-        "sms": "Salary annexure rejected.",
-    },
+    # "salary_docs_uploaded": {
+    #     "receivers": ["hr"],
+    #     "subject": "Salary Documents Uploaded",
+    #     "body": "Salary documents have been uploaded. Review required.",
+    #     "sms": "Candidate salary documents uploaded.",
+    # },
+    # "salary_annexure_prep": {
+    #     "receivers": ["hr"],
+    #     "subject": "Prepare Salary Annexure",
+    #     "body": "Start preparing the salary annexure for the candidate.",
+    #     "sms": "Prepare salary annexure.",
+    # },
+    # "salary_annexure_sent": {
+    #     "receivers": ["hr_manager"],
+    #     "subject": "Salary Annexure Sent for Approval",
+    #     "body": "Salary annexure has been sent for managerial approval.",
+    #     "sms": "Salary annexure approval pending.",
+    # },
+    # "approved_annexure": {
+    #     "receivers": ["hr"],
+    #     "subject": "Salary Annexure Approved",
+    #     "body": "Salary annexure has been approved.",
+    #     "sms": "Salary annexure approved.",
+    # },
+    # "rejected_annexure": {
+    #     "receivers": ["hr"],
+    #     "subject": "Salary Annexure Rejected",
+    #     "body": "Salary annexure has been rejected. Further action required.",
+    #     "sms": "Salary annexure rejected.",
+    # },
     "offer_pending": {
         "receivers": ["hr"],
         "subject": "Offer Letter Pending",
@@ -808,17 +808,17 @@ NOTIFY_INTERNAL_MAP = {
     #     "sms": "Candidate accepted the offer.",
     # },
     "offer_rejected": {
-        "receivers": ["consultancy"],
+        "receivers": ["consultancy","hr","hr_manager"],
         "subject": "Offer Rejected",
         "body": "Candidate has rejected the offer.",
         "sms": "Candidate rejected the offer.",
     },
-    "resignation_uploaded": {
-        "receivers": ["hr"],
-        "subject": "Resignation Uploaded",
-        "body": "Candidate's resignation has been uploaded.",
-        "sms": "Resignation document uploaded.",
-    },
+    # "resignation_uploaded": {
+    #     "receivers": ["hr"],
+    #     "subject": "Resignation Uploaded",
+    #     "body": "Candidate's resignation has been uploaded.",
+    #     "sms": "Resignation document uploaded.",
+    # },
     "docs_uploaded": {
         "receivers": ["hr"],
         "subject": "Documents Uploaded",
@@ -826,7 +826,7 @@ NOTIFY_INTERNAL_MAP = {
         "sms": "Candidate uploaded joining documents.",
     },
     "joining_pending": {
-        "receivers": ["hr", "iternal_team", "admin", "department_head"],
+        "receivers": ["hr", "internal_team", "admin", "department_head"],
         "subject": "Joining Pending",
         "body": "Candidate is pending joining. Prepare required steps.",
         "sms": "Candidate joining pending.",
@@ -838,7 +838,7 @@ NOTIFY_INTERNAL_MAP = {
         "sms": "Candidate postponed joining.",
     },
     "joined": {
-        "receivers": ["hr", "iternal_team", "admin", "department_head", "consultancy", "referer"],
+        "receivers": ["hr", "internal_team", "admin", "department_head", "consultancy", "referer"],
         "subject": "Candidate Joined",
         "body": "Candidate has joined successfully.",
         "sms": "Candidate joined.",
@@ -924,7 +924,7 @@ def notify_internal(candidate: Any, stage: str,cc:list) -> bool:
     recievers = NOTIFY_INTERNAL_MAP[stage]['receivers']
     subject = NOTIFY_INTERNAL_MAP[stage]['subject']
     body = NOTIFY_INTERNAL_MAP[stage]['body']
-    sms_text = NOTIFY_INTERNAL_MAP[stage]['sms']
+    # sms_text = NOTIFY_INTERNAL_MAP[stage]['sms']
 
     if not recievers:
         logger.warning("No notification recievers for stage '%s'", stage)
@@ -940,6 +940,7 @@ def notify_internal(candidate: Any, stage: str,cc:list) -> bool:
             template = NOTIFY_INTERNAL_HTML_TEMPLATES[stage]
             feedback_link = ""
             feedback_link_base=""
+            reciever_name=""
             if stage in ['interview_pending_1','interview_pending_2', "interview_pending_3","interview_pending_final","interview_pending_management_client"]:
                 if stage == 'interview_pending_1':
                     round = "hr_round"
@@ -957,7 +958,10 @@ def notify_internal(candidate: Any, stage: str,cc:list) -> bool:
                     round = "management_client_round"
                     feedback_link_base = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/management-feedback-form/"
                 feedback_link = f"{feedback_link_base}?interview_round={round}&job_application={candidate.id}"
-            template = template.format(candidate=candidate,feedback_link=feedback_link)
+            if stage == 'docs_uploaded':
+                if candidate.job and candidate.job.assigned_to_internal_hr:
+                    reciever_name = candidate.job.assigned_to_internal_hr.name
+            template = template.format(candidate=candidate,feedback_link=feedback_link,reciever_name=reciever_name)
             send_email(email,subject=subject,text=body,template=template)
         logger.info(
             f"Internal notification sent for {candidate.candidate_name} at stage '{stage}' to {to_emails}"

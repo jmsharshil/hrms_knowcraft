@@ -9,19 +9,24 @@ logger = logging.getLogger(__name__)
 REMINDER_INTERVAL = 7200  # 120 minutes
 
 def send_feedback_reminder_email(interviewer_email, interviewer_name, candidate_name, round_name):
-    subject = f"Reminder: Interview Feedback Pending ({round_name})"
+    subject = f"Gentle Reminder: Interview Feedback Form Pending ({round_name})"
 
     text = f"""
 Hi {interviewer_name},
 
-This is a reminder to submit your interview feedback.
+I hope you are doing well.
 
-Candidate: {candidate_name}
-Interview Round: {round_name}
+This is a gentle reminder to kindly complete the Interview Feedback Form for the candidate {candidate_name} you recently interacted with.
 
-Please submit the feedback at the earliest.
+The feedback is essential for us to proceed with the next steps in the evaluation process.
 
-Thank you,
+Request you to please fill out the form at your earliest convenience.
+
+Please let me know if you require any assistance.
+
+Thank you for your support.
+
+Warm regards,
 HR Team
 """
     send_email(
