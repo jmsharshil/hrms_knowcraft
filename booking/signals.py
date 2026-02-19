@@ -10,5 +10,4 @@ from django.utils import timezone
 def schedule_feedback_reminder(sender, instance, created, **kwargs):
     # Only enqueue if interview end time is passed
     if instance.end and instance.end >= timezone.now():
-        print("consistant.......................Torture!!!! haha haha........")
         TASK_QUEUE.enqueue(interview_feedback_reminder_task, instance.id)

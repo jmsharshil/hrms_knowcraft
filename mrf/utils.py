@@ -230,7 +230,42 @@ email_templates = {
         <strong>Team HR</strong></p>
     </body>
     </html>
-    """
+    """,
+    "mrf_reject":f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; color: #333;">
+        <p>Dear <strong>{{manager_name}}</strong>,</p>
+        <p>
+            We would like to inform you that MRF for
+            <strong>{{designation}}</strong> position was rejected by 
+            <strong>{{approver_name}}</strong> on <strong>{{date}}</strong>.
+        </p>
+        <p>
+            We kindly request you to revise the MRF and make the necessary changes at the earliest.
+        </p>
+        <p>Thank you for your support.</p>
+        <p>
+            Best regards,<br>
+            <strong>Team HR</strong>
+        </p>
+    </body>
+    </html>""",
+    "mrf_approved":f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; color: #333;">
+        <p>Dear <strong>{{manager_name}}</strong>,</p>
+        <p>
+            We would like to inform you that MRF for
+            <strong>{{designation}}</strong> position was approved
+            on <strong>{{date}}</strong>.
+        </p>
+        <p>Thank you for your support.</p>
+        <p>
+            Best regards,<br>
+            <strong>Team HR</strong>
+        </p>
+    </body>
+    </html>"""
 }
 
 alt_text = {
@@ -253,6 +288,21 @@ Team HR
 This is a gentle reminder that a requisition for an {{position}} position was raised on {{requisition_date}}.
 Kindly review the requisition and take the necessary action at the earliest.
 Thank you.
+Best regards,
+Team HR
+""",
+"mrf_reject":f"""
+Dear {{manager_name}},
+We would like to inform you that MRF for an Analyst – {{designation}} position was rejected by {{approver_name}} on {{date}}.
+We kindly request you to revise the MRF and make the necessary changes at the earliest.
+Thank you for your support.
+Best regards,
+Team HR
+""",
+"mrf_approved":f"""
+Dear {{manager_name}},
+We would like to inform you that MRF for an Analyst – {{designation}} position was approved on {{date}}.
+Thank you for your support.
 Best regards,
 Team HR
 """
@@ -292,6 +342,9 @@ def schedule_mrf_reminder(mrf_id):
                     return
 
                 approver = workflow.approver
+
+                if not approver.is_active or approver.company_id != mrf.company_id:
+                    return
 
                 if approver:
                     template = email_templates["mrf_reminder"].format(

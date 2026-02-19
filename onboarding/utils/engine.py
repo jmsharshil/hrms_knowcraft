@@ -4,7 +4,9 @@ from .stage_transition_rules import get_auto_next, validate_transition
 from .notifications import notify_candidate,notify_internal
 from .cc_rules import get_cc_for_stage
 logger = logging.getLogger(__name__)
+from django.conf import settings
 
+FRONTEND_URL = getattr(settings,"FRONTEND_URL")
 
 # ------------------------------
 # Notification rules for ALL STATES
@@ -32,14 +34,12 @@ NOTIFY_STATES = {
     # "interview_done_management_client",
     "interview_rejected_management_client",
     # Approval
-    "approved",
+    # "approved",
     # "approval_rejected",
-    # Salary Docs
-    "salary_docs_pending",
     # "salary_docs_uploaded",
     # "hr_review_docs",
     # "hr_review_ok",
-    "hr_review_rejected",
+    # "hr_review_rejected",
     # Salary Annexure
     # "salary_annexure_prep",
     # "salary_annexure_sent",
@@ -47,26 +47,20 @@ NOTIFY_STATES = {
     # "rejected_annexure",
     # Offer
     # "offer_pending",
-    "offer_sent",
-    "offer_accepted",
-    "offer_rejected",
-    # Resignation
-    "resignation_pending",
-    # "resignation_uploaded",
-    # "resignation_review",
-    # "resignation_approved",
-    "resignation_rejected",
+    # "offer_sent",
+    # "offer_accepted",
+    # "offer_rejected",
     # Documents
     "docs_pending",
     # "docs_uploaded",
     # "review_docs",
-    "docs_approved",
+    # "docs_approved",
     "docs_incomplete",
     "docs_unclear",
     # Joining
     "joining_pending",
     # "joining_poned",
-    "joined",
+    # "joined",
     # Final rejections
     "duplicate_rejected",
     "rejected",
@@ -94,25 +88,22 @@ NOTIFY_INTERNAL_STATES = {
     # "interview_done_management_client",
     "interview_rejected_management_client",
     # Approval Flow
-    "approval_pending",        # Send approval request to HR Manager
-    "approved",                # Notify HR
+    # "approval_pending",        # Send approval request to HR Manager
+    # "approved",                # Notify HR
     "approval_rejected",       # Notify HR
-    # Salary Documents Flow
-    "salary_docs_uploaded",    # Notify HR for review
     # Salary Annexure Flow
-    "salary_annexure_prep",    # Notify HR to prepare annexure
-    "salary_annexure_sent",    # Notify HR manager
-    "approved_annexure",       # Notify HR
-    "rejected_annexure",       # Notify HR
+    # "salary_annexure_prep",    # Notify HR to prepare annexure
+    # "salary_annexure_sent",    # Notify HR manager
+    # "approved_annexure",       # Notify HR
+    # "rejected_annexure",       # Notify HR
     # Offer Flow (Internal Steps)
-    "offer_pending",           # Notify HR to prepare offer
+    # "offer_pending",           # Notify HR to prepare offer
+    "offer_accepted"
     "offer_rejected",
-    # Resignation Collection
-    "resignation_uploaded",    # HR reviews
     # Document Verification
     "docs_uploaded",           # HR reviews
     # Joining
-    "joining_pending",         # Notify HR/IT/Admin internally
+    # "joining_pending",         # Notify HR/IT/Admin internally
     "joining_poned",           # Internal delay notice
     "joined",                  # Broadcast to departments
     # Duplicate or general rejection internal notices
@@ -185,7 +176,7 @@ def automation_engine(candidate, old, new):
     interviewer_id = interviewer.id if interviewer else None
     if interviewer_id:
         candidate.slot_link = (
-            f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/api/slots/available/?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
+            f"{FRONTEND_URL}/api/slots/available/?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
         )
     else:
         candidate.slot_link = ""

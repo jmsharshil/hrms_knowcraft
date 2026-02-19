@@ -56,7 +56,7 @@ class MRFAdmin(admin.ModelAdmin):
     search_fields = ['requisition_no', 'requested_by__name', 'requested_by__email']
     readonly_fields = [
         'requisition_no', 'date_received', 'created_at', 'updated_at', 
-        'submitted_at', 'approved_at', 'workflow_template'
+        'submitted_at', 'approved_at', 'workflow_template', 'rejected_at'
     ]
     
     fieldsets = (

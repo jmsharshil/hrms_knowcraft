@@ -3,6 +3,9 @@ from django.utils import timezone
 import uuid
 import secrets
 from django.db.models import Q, UniqueConstraint
+from django.conf import settings
+
+FRONTEND_URL = getattr(settings,"FRONTEND_URL")
 
 class Job(models.Model):
     """Job model created from approved MRFs"""
@@ -268,10 +271,10 @@ class JobApplicationLink(models.Model):
         # return f"{base_url}/apply/{self.unique_token}"
         if self.platform == 'referral':
         # If it's a referral, add 'referral' in the URL path
-            return f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/referral/{self.unique_token}"
+            return f"{FRONTEND_URL}/referral/{self.unique_token}"
     
     # For other platforms, keep the URL format the same
-        return f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/apply/{self.unique_token}"
+        return f"{FRONTEND_URL}/apply/{self.unique_token}"
         # return f"https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net/apply/{self.unique_token}"
     
     def is_expired(self):
@@ -340,28 +343,16 @@ class JobApplication(models.Model):
     ("approval_pending", "Approval Pending (Sent For Approval)"),
     ("approved", "Approved by Hiring Manager"),
     ("approval_rejected", "Rejected During Approval"),
-    # SALARY DOCUMENT FLOW
-    ("salary_docs_pending", "Salary Documents Pending"),
-    ("salary_docs_uploaded", "Salary Documents Uploaded"),
-    ("hr_review_docs", "HR Reviewing Salary Documents"),
-    ("hr_review_ok", "HR Review Completed"),
-    ("hr_review_rejected", "HR Rejected Salary Documents"),
     # SALARY ANNEXURE FLOW
     ("salary_annexure_prep", "Salary Annexure Under Preparation"),
-    ("salary_annexure_sent", "Salary Annexure Sent to HR Head"),
+    ("salary_annexure_sent", "Salary Annexure Sent to HR Manager"),
     ("approved_annexure", "Salary Annexure Approved"),
     ("rejected_annexure", "Salary Annexure Rejected"),
     # Offer Stage
     ("offer_pending", "Offer Preparation Pending"),
-    ("offer_sent", "Offer Sent"),
+    ("offer_sent", "Offer Drafted to Zoho Sign"),
     ("offer_accepted", "Offer Accepted"),
     ("offer_rejected", "Offer Rejected by Candidate"),
-    # RESIGNATION FLOW
-    ("resignation_pending", "Resignation Pending (Upload Required)"),
-    ("resignation_uploaded", "Resignation Uploaded"),
-    ("resignation_review", "Resignation Under Review"),
-    ("resignation_approved", "Resignation Approved"),
-    ("resignation_rejected", "Resignation Rejected"),
     # JOINING DOCUMENT FLOW
     ("docs_pending", "Joining Documents Pending"),
     ("docs_uploaded", "Joining Documents Uploaded"),

@@ -92,6 +92,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     class Meta:
         ordering = ['-created_at']
         unique_together = ['email', 'company']
+        indexes = [
+            models.Index(fields=['company']),
+        ]
     
     def __str__(self):
         return f"{self.name} ({self.email}) - {self.get_role_display()}"

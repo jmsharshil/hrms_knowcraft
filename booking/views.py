@@ -16,7 +16,7 @@ from slots.graph import get_graph_token,fetch_meeting_recording,fetch_meeting_tr
 from jobs.serializers import JobApplicationSerializer
 from jobs.models import JobApplication
 from rest_framework import permissions
-
+from onboarding.utils.sender import send_email
 
 IST = ZoneInfo("Asia/Kolkata")
 
@@ -231,12 +231,6 @@ class CandidateBookSlotView(APIView):
         # 9) Email notifications
         start_str = start_dt.astimezone(IST).strftime("%d/%m/%Y %I:%M %p")
 
-        send_mail(
-            "Interview Confirmed",
-            f"Hello {candidate.candidate_name},\nYour interview with {interviewer.name} is confirmed at {start_str}.\nJoin link: {meeting_link}",
-            settings.DEFAULT_FROM_EMAIL,
-            [candidate.candidate_email],
-        )
         round = None
         round_name = ""
 
@@ -252,7 +246,37 @@ class CandidateBookSlotView(APIView):
 
         elif candidate.status in ['interview_next_2', 'interview_pending_2']:
             round = "technical_round"
-            round_name = "Technical Round 1"
+            round_name = "Technical Round"
+            if candidate.job.mrf.technical_interviewers.exists():
+                for interviewer in candidate.job.mrf.technical_interviewers.all():
+                    if str(interviewer.id) == str(interviewer_id):
+                        continue
+                    base_path = FEEDBACK_PATHS.get(round, {}).get(level, "/api/slots/hrfresher/")
+
+                    feedback_link = (
+                        f"{BASE_URL}{base_path}"
+                        f"?interview_round={round}&job_application={candidate.id}"
+                    )
+                    send_email(
+                        subject=f"Interview Scheduled - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
+                        text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}",
+                        template=f"""
+                        <html>
+                        <body style="font-family: Arial; color:#333;">
+                            <h2>Interview Scheduled ({round_name})</h2>
+                            <p>Dear {interviewer.name},</p>
+                            <p>This is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.</p>
+                            <p>Please find below the MS Teams link and attached candidate’s details.</p>
+                            <p>Join link: {meeting_link}</p>
+                            <p>Feedback link: {feedback_link}</p>
+                            <br>
+                            <p>Regards,
+                            <br>
+                            Team HR</p>
+                            </body>
+                        </html>""",
+                        to=interviewer.email
+                    )
 
         elif candidate.status in ['interview_next_3', 'interview_pending_3']:
             round = "case_study_round"
@@ -274,25 +298,36 @@ class CandidateBookSlotView(APIView):
             f"?interview_round={round}&job_application={candidate.id}"
         )
 
-        from onboarding.utils.sender import send_email
+        send_mail(
+            f"Interview Scheduled – {candidate.job.mrf.designation.name} at Knowcraft Analytics Private Limited",
+            f"""Dear {candidate.candidate_name},\nWe are pleased to inform you have been shortlisted for {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled at {start_str}.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
+\nWe look forward to speaking with you.
+\nPlease feel free to reach out if you have any questions or require further assistance.
+\nWarm regards,
+\nTeam-HR
+\nKnowcraft Analytics Private Limited""",
+            settings.DEFAULT_FROM_EMAIL,
+            [candidate.candidate_email],
+        )
         send_email(
-            subject="New Interview Scheduled",
-            text=f"Hello {interviewer.name},\nYou have an interview with {candidate.candidate_name} at {start_str}.\nJoin link: {meeting_link}\n Feedback link: {feedback_link}",
+            subject=f"Interview Scheduled - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
+            text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}",
             template=f"""
             <html>
             <body style="font-family: Arial; color:#333;">
                 <h2>Interview Scheduled ({round_name})</h2>
                 <p>Dear {interviewer.name},</p>
-                <p>You have an interview with {candidate.candidate_name} at {start_str}.</p>
+                <p>This is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.</p>
+                <p>Please find below the MS Teams link and attached candidate’s details.</p>
                 <p>Join link: {meeting_link}</p>
                 <p>Feedback link: {feedback_link}</p>
                 <br>
                 <p>Regards,
                 <br>
-                Recruitment System</p>
+                Team HR</p>
                 </body>
             </html>""",
-            to=interviewer.email,
+            to=interviewer.email
         )
 
         from onboarding.utils.engine import automation_engine

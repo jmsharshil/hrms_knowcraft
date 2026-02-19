@@ -120,7 +120,11 @@ def get_emails_for_role(candidate, roles):
             emails.add(candidate.job.mrf.interviewer_email_1)
 
         if role == "interviewer_2":
-            emails.add(candidate.job.mrf.interviewer_email_2)
+            # emails.add(candidate.job.mrf.interviewer_email_2)
+            if candidate.job.mrf.technical_interviewers.exists():
+                for interviewer in candidate.job.mrf.technical_interviewers.all():
+                    if interviewer.email:
+                        emails.add(interviewer.email)
 
         if role == "interviewer_3":
             emails.add(candidate.job.mrf.interviewer_email_3)

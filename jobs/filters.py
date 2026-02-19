@@ -88,6 +88,13 @@ class JobApplicationFilter(django_filters.FilterSet):
         model = JobApplication
         fields = []
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = getattr(self, 'request', None)
+        if request and hasattr(request.user, 'company'):
+            # Filter the base queryset to only include this company
+            self.queryset = self.queryset.filter(job__company=request.user.company)
+
     def filter_search(self, queryset, name, value):
         return queryset.filter(
             Q(candidate_name__icontains=value) |

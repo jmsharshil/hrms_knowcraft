@@ -25,6 +25,7 @@ from accounts.models import User
 from rest_framework.parsers import MultiPartParser, FormParser
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import JobApplicationFilter
+from .utils import send_job_assignment_email
 
 class JobViewSet(viewsets.ModelViewSet):
     """ViewSet for managing Jobs"""
@@ -124,10 +125,16 @@ class JobViewSet(viewsets.ModelViewSet):
                 Q(location__icontains=search)
             )
         
+        if hasattr(user, 'company'):
+            queryset = queryset.filter(company=user.company)
         return queryset
     
     def perform_create(self, serializer):
-        serializer.save()
+        user = self.request.user
+        if hasattr(user, 'company'):
+            serializer.save(company=user.company)
+        else:
+            serializer.save()
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanAssignToConsultancy])
     def assign_to_consultancy(self, request, pk=None):
@@ -143,7 +150,7 @@ class JobViewSet(viewsets.ModelViewSet):
         
         # Get consultancy user
         try:
-            consultancy = User.objects.get(id=consultancy_id, role='consultancy', is_active=True)
+            consultancy = User.objects.get(id=consultancy_id, role='consultancy', is_active=True,company=request.user.company)
         except User.DoesNotExist:
             return Response(
                 {'error': 'Consultancy user not found'},
@@ -179,6 +186,7 @@ class JobViewSet(viewsets.ModelViewSet):
             notes=notes
         )
         
+        send_job_assignment_email(job.assigned_to_consultancy,job,request.user)
         serializer = JobDetailSerializer(job, context={'request': request})
         return Response({
             'message': f'Job successfully assigned to {consultancy.name}',
@@ -234,7 +242,7 @@ class JobViewSet(viewsets.ModelViewSet):
 
         # get user
         try:
-            internal_hr = User.objects.get(id=internal_hr_id, is_active=True)
+            internal_hr = User.objects.get(id=internal_hr_id, is_active=True,company=request.user.company)
         except User.DoesNotExist:
             return Response({'error': 'Internal HR user not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -266,6 +274,7 @@ class JobViewSet(viewsets.ModelViewSet):
             new_value=str(internal_hr.id)
         )
 
+        send_job_assignment_email(job.assigned_to_internal_hr,job,request.user)
         serializer = JobDetailSerializer(job, context={'request': request})
         return Response({
             'message': f'Job successfully assigned to internal HR {internal_hr.name}',
@@ -323,6 +332,7 @@ class JobViewSet(viewsets.ModelViewSet):
             consultancy = User.objects.get(
                 id=consultancy_id,
                 role='consultancy',
+                company=request.user.company,
                 is_active=True
             )
         except User.DoesNotExist:
@@ -336,6 +346,7 @@ class JobViewSet(viewsets.ModelViewSet):
             internal_hr = User.objects.get(
                 id=internal_hr_id,
                 role__in=['hr', 'hr_manager'],
+                company=request.user.company,
                 is_active=True
             )
         except User.DoesNotExist:
@@ -400,6 +411,8 @@ class JobViewSet(viewsets.ModelViewSet):
             new_value=str(internal_hr.id)
         )
 
+        send_job_assignment_email(job.assigned_to_internal_hr,job,request.user)
+        send_job_assignment_email(job.assigned_to_consultancy,job,request.user)
         job_data = JobDetailSerializer(job, context={'request': request}).data
         return Response(
             {
@@ -553,6 +566,9 @@ class JobViewSet(viewsets.ModelViewSet):
         else:
             queryset = Job.objects.none()
         
+        if hasattr(user, 'company'):
+            queryset = queryset.filter(company=user.company)
+        
         stats = {
             'total': queryset.count(),
             'open': queryset.filter(status='open').count(),
@@ -590,7 +606,8 @@ class JobViewSet(viewsets.ModelViewSet):
         
         consultancies = User.objects.filter(
             role='consultancy',
-            is_active=True
+            is_active=True,
+            company=request.user.company
         ).values('id', 'full_name', 'email', 'phone')
         
         return Response(list(consultancies), status=status.HTTP_200_OK)
@@ -637,6 +654,8 @@ class JobApplicationLinkViewSet(viewsets.ModelViewSet):
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
         
+        if hasattr(user, 'company'):
+            queryset = queryset.filter(job__company=user.company)
         return queryset
     
     @action(detail=True, methods=['post'])
