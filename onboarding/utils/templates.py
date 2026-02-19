@@ -24,7 +24,10 @@ HTML_TEMPLATES = {
         <p>Our records indicate that you recently applied for a position. Due to our duplicate application policy, we are unable to process this application.</p>
         <p>You may reapply at a later date.</p>
         <br>
-        <p>Regards,<br>HR Team</p>
+        <p>Warm regards,<br>
+        Team-HR <br>
+        Knowcraft Analytics Private Limited
+        </p>
     </body>
     </html>
     """,
@@ -1221,7 +1224,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
     <body style="font-family: Arial, sans-serif; color:#333;">
     <p>Hi {{reciever_name}},</p>
     <p>This is to inform you that the candidate <b>{{candidate.candidate_name}}</b> has successfully uploaded all required documents.</p>
-    <p>You may proceed with the next steps of evaluation and onboarding.</p>
+    <p>You may review documents and proceed with the next steps of evaluation and onboarding.</p>
     <p>Please let me know if any additional information is needed.</p>
     <br>
     <p>Warm regards,<br>

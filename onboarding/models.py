@@ -214,7 +214,7 @@ class ApprovalNote(models.Model):
     ("rejected_annexure", "Salary Annexure Rejected"),
     # Offer Stage
     ("offer_pending", "Offer Preparation Pending"),
-    ("offer_sent", "Offer Sent"),
+    ("offer_sent", "Offer Drafted to Zoho Sign"),
     ("offer_accepted", "Offer Accepted"),
     ("offer_rejected", "Offer Rejected by Candidate"),
     # JOINING DOCUMENT FLOW

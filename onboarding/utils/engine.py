@@ -87,7 +87,7 @@ NOTIFY_INTERNAL_STATES = {
     "interview_rejected_management_client",
     # Approval Flow
     # "approval_pending",        # Send approval request to HR Manager
-    "approved",                # Notify HR
+    # "approved",                # Notify HR
     "approval_rejected",       # Notify HR
     # Salary Annexure Flow
     # "salary_annexure_prep",    # Notify HR to prepare annexure

@@ -416,7 +416,7 @@ class SendApprovalNoteAPIView(APIView):
             <strong>{{ designation }}</strong> – <strong>{{ department }}</strong>.
             </p>
 
-            <table style="border-collapse: collapse; width:100%; margin-top:15px;">
+            <table style="border-collapse: collapse; width:100%; margin-top:15px;" border="1">
                 <tr><td><strong>Name of Candidate</strong></td><td>{{ candidate_name }}</td></tr>
                 <tr><td><strong>Designation</strong></td><td>{{ designation }}</td></tr>
                 <tr><td><strong>Experience</strong></td><td>{{ experience }}</td></tr>
@@ -953,7 +953,7 @@ Expected CTC: {expected_ctc}
 
 Offered CTC: {offered_ctc}
 
-Joining Date: {joining_date}
+Joining Date: {joining_date.strftime("%d-%m-%Y") if joining_date else ""}
 
 After reviewing, kindly generate and upload the offer letter.
 
