@@ -221,7 +221,7 @@ class CreateUserView(APIView):
 
 class UserListView(generics.ListAPIView):
     """List all users in the company"""
-    permission_classes = [permissions.IsAuthenticated, IsAdminOrHRManager | IsDepartmentHead]
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrHRManager | IsDepartmentHead | IsHR]
     serializer_class = UserSerializer
     
     def get_queryset(self):
@@ -231,7 +231,7 @@ class UserListView(generics.ListAPIView):
 
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     """Get, update, or delete a user"""
-    permission_classes = [permissions.IsAuthenticated, (IsAdminOrHRManager | IsHR)]
+    permission_classes = [permissions.IsAuthenticated, IsAdminOrHRManager]
     serializer_class = UserSerializer
     
     def get_queryset(self):

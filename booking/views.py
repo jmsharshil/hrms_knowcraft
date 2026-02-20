@@ -268,7 +268,6 @@ class CandidateBookSlotView(APIView):
                             <p>This is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.</p>
                             <p>Please find below the MS Teams link and attached candidate’s details.</p>
                             <p>Join link: {meeting_link}</p>
-                            <p>Feedback link: {feedback_link}</p>
                             <br>
                             <p>Regards,
                             <br>

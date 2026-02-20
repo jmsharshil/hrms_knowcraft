@@ -34,6 +34,7 @@ NOTIFY_STATES = {
     # "interview_done_management_client",
     "interview_rejected_management_client",
     # Approval
+    "selected",
     # "approved",
     # "approval_rejected",
     # "salary_docs_uploaded",
