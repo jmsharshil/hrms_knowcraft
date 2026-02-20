@@ -5,6 +5,9 @@ from jobs.models import JobApplication
 from onboarding.models import JobApplicationDocument,OfferDocument
 from .utils.zoho_sign import process_offer_letter
 from django.db import transaction
+from mrf.models import MRF
+from slots.models import Interviewer
+from django.conf import settings
 
 @receiver(post_save, sender=JobApplication)
 def update_approval_note_status(sender, instance, created, **kwargs):
@@ -58,3 +61,53 @@ def auto_send_offer_to_zoho(sender, instance, created, **kwargs):
     # Case 2: File added later
     if not old_file and new_file:
         transaction.on_commit(lambda: process_offer_letter(instance))
+
+@receiver(post_save, sender=MRF)
+def update_slot_links_when_interviewer_assigned(sender, instance, **kwargs):
+    """
+    When interviewer fields are updated in MRF,
+    update slot links for all candidates in interview stages.
+    """
+    candidates = JobApplication.objects.filter(
+        job__mrf=instance,
+        status__in=[
+            "shortlisted",
+            "interview_next_2",
+            "interview_next_3",
+            "interview_next_final",
+            "interview_next_management_client",
+        ],
+    )
+    print(candidates)
+    for candidate in candidates:
+        update_candidate_slot_link(candidate)
+
+def update_candidate_slot_link(candidate):
+    interviewer_email = None
+
+    status = candidate.status
+
+    if status == 'shortlisted':
+        interviewer_email = candidate.job.mrf.interviewer_email_1
+    elif status == "interview_next_2":
+        interviewer_email = candidate.job.mrf.interviewer_email_2
+    elif status == "interview_next_3":
+        interviewer_email = candidate.job.mrf.interviewer_email_3
+    elif status == "interview_next_final":
+        interviewer_email = candidate.job.mrf.interviewer_email_final
+    elif status == "interview_next_management_client":
+        interviewer_email = candidate.job.mrf.interviewer_email_management_client
+
+    interviewer = None
+    if interviewer_email:
+        interviewer = Interviewer.objects.filter(email=interviewer_email).first()
+
+    if interviewer:
+        candidate.slot_link = (
+            f"{settings.FRONTEND_URL}/api/slots/available/"
+            f"?candidate_id={candidate.id}&interviewer_id={interviewer.id}"
+        )
+    else:
+        candidate.slot_link = ""
+
+    candidate.save(update_fields=["slot_link"])

@@ -260,7 +260,8 @@ CORS_ALLOWED_ORIGINS = [
     "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net",
     "https://demp-hrms-hzdme4brg0dgfxa3.centralindia-01.azurewebsites.net",
     "https://hrms.hirewithjms.com",
-    "http://hireproui-gmfbf9hucjbqd2e6.centralindia-01.azurewebsites.net"
+    "http://hireproui-gmfbf9hucjbqd2e6.centralindia-01.azurewebsites.net",
+    'https://knowcraft.recruitsmart.co'
 ]
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -323,7 +324,8 @@ ENDPOINT_URL = os.getenv("ENDPOINT_URL")
 CSRF_TRUSTED_ORIGINS = [
     'https://hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net',
     'https://demp-hrms-hzdme4brg0dgfxa3.centralindia-01.azurewebsites.net',
-    'https://hireproknowcraft-crhacdc8dxd7dfhh.centralindia-01.azurewebsites.net'
+    'https://hireproknowcraft-crhacdc8dxd7dfhh.centralindia-01.azurewebsites.net',
+    'https://knowcraft.recruitsmart.co'
 ]
 
 MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID")

@@ -381,7 +381,7 @@ class JobApplicationCreateSerializer(serializers.ModelSerializer):
         if not value.is_active:
             raise serializers.ValidationError("This job is no longer active")
         
-        if value.status not in ['open', 'assigned_to_consultancy', 'in_progress','assigned_to_both']:
+        if value.status not in ['open', 'assigned_to_consultancy', 'in_progress','assigned_to_both', 'assigned_to_internal_hr']:
             raise serializers.ValidationError("This job is not accepting applications")
         
         return value
@@ -454,6 +454,7 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
             allowed_statuses = [
                 'open',
                 'assigned_to_consultancy',
+                'assigned_to_internal_hr',
                 'assigned_to_both',
             ]
 
