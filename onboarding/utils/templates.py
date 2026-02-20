@@ -310,18 +310,23 @@ HTML_TEMPLATES = {
     # -----------------------------------------------------------
     # 2. SELECTION & APPROVAL
     # -----------------------------------------------------------
-    # "selected": f"""
-    # <html>
-    # <body style='font-family: Arial; color:#333;'>
-    #     <h2>Congratulations – You’ve Been Selected!</h2>
-    #     <p>Dear {{candidate.candidate_name}},</p>
-    #     <p>We are pleased to inform you that the interview panel has selected you for the next stage.</p>
-    #     <p>Your profile will now be sent for approval.</p>
-    #     <br>
-    #     <p>Regards,<br>Recruitment Team</p>
-    # </body>
-    # </html>
-    # """,
+    "selected": f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; color:#333;">
+    <p>Dear {{candidate.candidate_name}},</p>
+    <p>We are pleased to inform you that you have been selected for the position of 
+    <b>{{candidate.job.mrf.designation.name}}</b> after successfully completing all interview rounds.</p>
+    <p>The team was impressed with your skills and performance.
+    We look forward to having you onboard.</p>
+    <p>We will reach out shortly with offer details and next steps.</p>
+    <p>Congratulations once again!</p>
+    <br>
+    <p>Warm Regards,<br>
+    Team-HR <br>
+    Knowcraft Analytics Private Limited</p>
+    </body>
+    </html>
+    """,
 
     # "approval_pending": f"""
     # <html>
