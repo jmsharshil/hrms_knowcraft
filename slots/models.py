@@ -139,5 +139,5 @@ class InterviewFeedback(models.Model):
         }
 
         avg = round_field_map.get(self.interview_round)
-        return avg if avg and avg > 0 else 0
+        return avg if avg is not None else 0
 
