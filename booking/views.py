@@ -17,6 +17,7 @@ from jobs.serializers import JobApplicationSerializer
 from jobs.models import JobApplication
 from rest_framework import permissions
 from onboarding.utils.sender import send_email
+from onboarding.utils.resume_attachment import get_resume_attachment
 
 IST = ZoneInfo("Asia/Kolkata")
 
@@ -237,8 +238,8 @@ class CandidateBookSlotView(APIView):
         designation = candidate.job.mrf.designation.name
         level = get_experience_level(designation)
 
-        BASE_URL = "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net"
-
+        BASE_URL = getattr(settings, 'FRONTEND_URL', 'https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net')
+        resume_attachment = get_resume_attachment(candidate)
         # Determine round
         if candidate.status in ['shortlisted', 'interview_pending_1']:
             round = "hr_round"
@@ -275,7 +276,8 @@ class CandidateBookSlotView(APIView):
                             Team HR</p>
                             </body>
                         </html>""",
-                        to=interviewer.email
+                        to=interviewer.email,
+                        attachments=[resume_attachment] if resume_attachment else None
                     )
 
         elif candidate.status in ['interview_next_3', 'interview_pending_3']:
@@ -329,7 +331,8 @@ class CandidateBookSlotView(APIView):
                 Team HR</p>
                 </body>
             </html>""",
-            to=interviewer.email
+            to=interviewer.email,
+            attachments=[resume_attachment] if resume_attachment else None
         )
 
         from onboarding.utils.engine import automation_engine
