@@ -30,7 +30,7 @@ SECRET_KEY = 'django-insecure-0(s=ka%+mzk+5n3*t-h8l0#6yh7$bnt*y)=a!zy!7_q192j%$t
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net','127.0.0.1','localhost','373cf8796eac.ngrok-free.app','demp-hrms-hzdme4brg0dgfxa3.centralindia-01.azurewebsites.net','7655-2405-201-2005-1965-b1e1-664b-f66b-3656.ngrok-free.app']
+ALLOWED_HOSTS = ['hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net','127.0.0.1','localhost','373cf8796eac.ngrok-free.app','demp-hrms-hzdme4brg0dgfxa3.centralindia-01.azurewebsites.net','hireproknowcraft-crhacdc8dxd7dfhh.centralindia-01.azurewebsites.net','7655-2405-201-2005-1965-b1e1-664b-f66b-3656.ngrok-free.app']
 
 AUTH_USER_MODEL = 'accounts.User'
 # Application definition
@@ -321,7 +321,8 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 ENDPOINT_URL = os.getenv("ENDPOINT_URL")
 CSRF_TRUSTED_ORIGINS = [
     'https://hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net',
-    'https://demp-hrms-hzdme4brg0dgfxa3.centralindia-01.azurewebsites.net'
+    'https://demp-hrms-hzdme4brg0dgfxa3.centralindia-01.azurewebsites.net',
+    'https://hireproknowcraft-crhacdc8dxd7dfhh.centralindia-01.azurewebsites.net'
 ]
 
 MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID")

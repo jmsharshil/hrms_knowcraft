@@ -65,7 +65,7 @@ class MRFAdmin(admin.ModelAdmin):
         }),
         ('Basic Details', {
             'fields': ('department', 'date_of_request', 'requested_by', 
-                      'requested_by_name', 'requested_by_designation')
+                      'requested_by_name', 'requested_by_designation', 'company')
         }),
         ('Position Details', {
             'fields': ('designation', 'team', 'position_department', 
