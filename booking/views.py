@@ -309,6 +309,7 @@ class CandidateBookSlotView(APIView):
             settings.DEFAULT_FROM_EMAIL,
             [candidate.candidate_email],
         )
+        interviewer = Interviewer.objects.get_or_create(id=interviewer_id)
         send_email(
             subject=f"Interview Scheduled - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
             text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}",
