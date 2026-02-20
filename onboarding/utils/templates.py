@@ -446,7 +446,7 @@ HTML_TEMPLATES = {
         </p>
         <p>
             <b>Upload Link:</b><br>
-            <a href="{{FRONTEND_URL}}/api/application/documents/upload/{{candidate.id}}">
+            <a href="{FRONTEND_URL}/api/application/documents/upload/{{candidate.id}}">
                 Upload Documents
             </a>
         </p>
