@@ -397,8 +397,6 @@ def send_to_zoho_sign(candidate, file_stream, filename,other_signers=[]):
 
     access_token = get_access_token()
 
-    print(access_token)
-
     url = "https://sign.zoho.in/api/v1/requests"
 
     headers = {
@@ -468,7 +466,6 @@ def send_to_zoho_sign(candidate, file_stream, filename,other_signers=[]):
             automation_engine(candidate,candidate.status,'offer_sent')
             send_offer_letter_email(candidate)
 
-        print("done....................")
         return data
 
     except requests.exceptions.RequestException as e:
@@ -494,7 +491,6 @@ def process_offer_letter(application_document):
     with file_field.open("rb") as f:
         filename = file_field.name.split("/")[-1]
         send_to_zoho_sign(application, f, filename)
-        print("send to zoho.............")
 
 def aggregate_details_from_feedback(job_application):
     feedbacks = job_application.interview_feedbacks.all()
