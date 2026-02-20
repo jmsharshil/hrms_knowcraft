@@ -324,6 +324,7 @@ CSRF_TRUSTED_ORIGINS = [
     'https://hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net',
     'https://demp-hrms-hzdme4brg0dgfxa3.centralindia-01.azurewebsites.net',
     'https://hireproknowcraft-crhacdc8dxd7dfhh.centralindia-01.azurewebsites.net'
+    'https://knowcraft.recruitsmart.co'
 ]
 
 MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID")
