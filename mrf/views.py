@@ -377,7 +377,7 @@ class MRFViewSet(viewsets.ModelViewSet):
             "interviewers": interviewer_list
         }, status=200)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanSubmitMRF])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def submit(self, request, pk=None):
         """Submit MRF for approval"""
         mrf = self.get_object()
