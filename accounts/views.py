@@ -10,7 +10,7 @@ from .serializers import (
     CompanySignupSerializer, UserSerializer, CreateUserSerializer, UpdateMyProfileSerializer,
     SetPinSerializer, PinLoginSerializer, MagicLinkSerializer
 )
-from .permissions import IsAdmin, IsAdminOrHRManager,IsDepartmentHead
+from .permissions import IsAdmin, IsAdminOrHRManager,IsDepartmentHead,IsHR
 from django.http import HttpResponse
 from django.utils import timezone
 
@@ -231,7 +231,7 @@ class UserListView(generics.ListAPIView):
 
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     """Get, update, or delete a user"""
-    permission_classes = [permissions.IsAuthenticated, IsAdminOrHRManager]
+    permission_classes = [permissions.IsAuthenticated, (IsAdminOrHRManager | IsHR)]
     serializer_class = UserSerializer
     
     def get_queryset(self):
