@@ -259,7 +259,8 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:8000',
     "https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net",
     "https://demp-hrms-hzdme4brg0dgfxa3.centralindia-01.azurewebsites.net",
-    "https://hrms.hirewithjms.com"
+    "https://hrms.hirewithjms.com",
+    "http://hireproui-gmfbf9hucjbqd2e6.centralindia-01.azurewebsites.net"
 ]
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

@@ -48,7 +48,6 @@ def auto_send_offer_to_zoho(sender, instance, created, **kwargs):
     if OfferDocument.objects.filter(
         application=instance.job_application
     ).exists():
-        print("duplicate....................")
         return
 
     # Case 1: Object just created with file
@@ -59,4 +58,3 @@ def auto_send_offer_to_zoho(sender, instance, created, **kwargs):
     # Case 2: File added later
     if not old_file and new_file:
         transaction.on_commit(lambda: process_offer_letter(instance))
-        print("sucess...............")
