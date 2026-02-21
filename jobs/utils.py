@@ -9,6 +9,8 @@ from django.conf import settings
 from onboarding.utils.sender import send_email
 import base64
 
+FRONTEND_URL = getattr(settings,"FRONTEND_URL")
+
 client = AzureOpenAI(api_key=settings.OPENAI_API_KEY,azure_endpoint=settings.ENDPOINT_URL,api_version='2024-05-01-preview')
 
 def extract_text(file_path):
@@ -921,6 +923,7 @@ email_html_templates = {
 
                             <p style="margin-top: 20px;">
                                 Please log in to your dashboard to review the job details.
+                                Dashboard: <a href='{FRONTEND_URL}/onboarding'></a>
                             </p>
 
                             <p>

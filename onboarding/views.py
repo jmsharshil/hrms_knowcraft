@@ -248,6 +248,7 @@ class UploadJobApplicationDocumentAPI(APIView):
                     <p>This is to inform you that the candidate <b>{candidate_name}</b> has re-uploaded the documents.</p>
                     <p>You may review documents and proceed with the next steps of evaluation and onboarding.</p>
                     <p>Please let me know if any additional information is needed.</p>
+                    <p>Review:<a href='{FRONTEND_URL}/onboarding/documents/{docs.job_application.id}'>Review Documents</a></p>
                     <br>
                     <p>Warm regards,<br>
                     Team - HR <br>
@@ -255,7 +256,6 @@ class UploadJobApplicationDocumentAPI(APIView):
                     </body>
                     </html>
                     """
-                from .utils.sender import send_email
                 send_email(to=reciever_email,template=template,subject='Documents Re-uploaded')
 
         docs.save()
@@ -268,6 +268,11 @@ class UploadJobApplicationDocumentAPI(APIView):
 
         if application.status == "docs_pending":
             automation_engine(application, "docs_pending", "docs_uploaded")
+
+        from utils.docs_reupload import get_pending_documents
+        pending_docs = get_pending_documents(docs)
+        docs.reupload_docuemnts = ' '.join(pending_docs)
+        docs.save()
 
         return Response(
             {

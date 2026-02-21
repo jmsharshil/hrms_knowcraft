@@ -603,16 +603,16 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
                 link = f"{FRONTEND_URL}/api/application/documents/upload/resignation/{candidate.id}"
                 email_cfg["text"].format(link=link)
                 sms_text.format(link=link)
-            if stage in ['docs_unclear','docs_incomplete','']:
-                from onboarding.utils.docs_reupload import get_pending_documents
-                pending_docs = get_pending_documents(candidate.documents)
-                pending_docs_html = "<ul>" + "".join(f"<li>{doc}</li>" for doc in pending_docs) + "</ul>"
+            # if stage in ['docs_unclear','docs_incomplete','']:
+            #     from onboarding.utils.docs_reupload import get_pending_documents
+            #     pending_docs = get_pending_documents(candidate.documents)
+            #     pending_docs_html = "<ul>" + "".join(f"<li>{doc}</li>" for doc in pending_docs) + "</ul>"
             send_email(
                 to=candidate.candidate_email,
                 subject=email_cfg["subject"],
                 text=email_cfg["text"],
                 cc= cc,
-                template=html_template.format(candidate=candidate,sign_url=sign_url,schedule_link=schedule_link,pending_docs_html=pending_docs_html),
+                template=html_template.format(candidate=candidate,sign_url=sign_url,schedule_link=schedule_link),
                 attachments=attachments,
             )
         except Exception as exc:

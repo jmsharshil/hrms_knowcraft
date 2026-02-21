@@ -792,8 +792,7 @@ HTML_TEMPLATES = {
     <p>Greetings from Knowcraft Analytics!</p>
     <p>Thank you for submitting your documents as part of the recruitment process.</p>
     <p>Upon review, we noticed that some documents are incomplete or unclear.
-    Kindly re-upload the documents following documents:</p>
-    {{pending_docs_html}}
+    Kindly re-upload the documents.</p>
     <p>
         <b>Upload Link:</b><br>
         <a href="{FRONTEND_URL}/api/application/documents/upload/{{candidate.id}}">

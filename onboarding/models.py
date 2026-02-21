@@ -198,6 +198,7 @@ class JobApplicationDocument(models.Model):
     salary_annexure_approved = models.BooleanField(default=False)
     created_offer_letter = models.FileField(upload_to=application_upload_path, null=True, blank=True)
     created_offer_letter_approved = models.BooleanField(default=False)
+    reupload_docuemnts = models.TextField(null=True,blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
