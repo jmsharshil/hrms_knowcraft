@@ -769,7 +769,7 @@ def parse_resume_task(application,resume_file,job):
         from onboarding.utils.engine import automation_engine
         
         automation_engine(application,application.status,'duplicate_rejected')
-    if application.match_score >= 75:
+    elif application.match_score >= 75:
         automation_engine(application,application.status,'shortlisted')
 
 def build_candidate_history(email, exclude_application_id=None):

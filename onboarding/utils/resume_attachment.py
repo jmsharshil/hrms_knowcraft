@@ -12,7 +12,6 @@ def get_resume_attachment(candidate):
                 file_content,
                 "application/pdf"  # or detect dynamically
             )
-            print(resume_attachment)
             candidate.resume.close()
 
         except Exception as e:

@@ -113,7 +113,7 @@ def get_emails_for_role(candidate, roles):
         # Consultant for consultancy agencies
         # ---------------------------
         if role == "consultancy":
-            if getattr(candidate, "job", None) and getattr(candidate.job,'assigned_to_consultancy',None) and getattr(candidate.job.assigned_to_consultancy,'email',None):
+            if getattr(candidate, "job", None) and getattr(candidate.job,'assigned_to_consultancy',None) and getattr(candidate.job.assigned_to_consultancy,'email',None) and candidate.source == 'consultancy':
                 emails.add(candidate.job.assigned_to_consultancy.email)
 
         if role == "interviewer_1":

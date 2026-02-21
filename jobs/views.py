@@ -185,7 +185,7 @@ class JobViewSet(viewsets.ModelViewSet):
             performed_by=request.user,
             notes=notes
         )
-        
+        self._create_consultancy_link(job, consultancy)
         send_job_assignment_email(job.assigned_to_consultancy,job,request.user)
         serializer = JobDetailSerializer(job, context={'request': request})
         return Response({
@@ -410,7 +410,7 @@ class JobViewSet(viewsets.ModelViewSet):
             old_value='',
             new_value=str(internal_hr.id)
         )
-
+        self._create_consultancy_link(job, consultancy)
         send_job_assignment_email(job.assigned_to_internal_hr,job,request.user)
         send_job_assignment_email(job.assigned_to_consultancy,job,request.user)
         job_data = JobDetailSerializer(job, context={'request': request}).data
@@ -611,6 +611,30 @@ class JobViewSet(viewsets.ModelViewSet):
         ).values('id', 'full_name', 'email', 'phone')
         
         return Response(list(consultancies), status=status.HTTP_200_OK)
+    
+    def _create_consultancy_link(self, job, consultancy_user):
+        """
+        Auto-create JobApplicationLink for consultancy assignment.
+        If already exists and active, do nothing.
+        """
+
+        # Avoid duplicate active link for same consultancy & job
+        existing_link = JobApplicationLink.objects.filter(
+            job=job,
+            created_by=consultancy_user,
+            is_active=True
+        ).first()
+
+        if existing_link:
+            return existing_link
+
+        return JobApplicationLink.objects.create(
+            job=job,
+            created_by=consultancy_user,
+            title=consultancy_user.name,
+            platform="consultancy",   # adjust if you have choices
+            is_active=True
+        )
 
 
 class JobApplicationLinkViewSet(viewsets.ModelViewSet):

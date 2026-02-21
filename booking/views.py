@@ -334,7 +334,10 @@ class CandidateBookSlotView(APIView):
             to=interviewer.email,
             attachments=[resume_attachment] if resume_attachment else None
         )
-
+        candidate.interview_link = meeting_link
+        candidate.interviewer_name = interviewer.name
+        candidate.interview_scheduled_at = start_dt
+        candidate.save()
         from onboarding.utils.engine import automation_engine
         if candidate.status == 'shortlisted':
             automation_engine(candidate,candidate.status,'interview_pending_1')

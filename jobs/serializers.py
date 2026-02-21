@@ -346,7 +346,8 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'source', 'source_display', 'platform_name', 'application_link','is_duplicate',"referral_name","referral_email",
             "referral_emp_code","referral_designation","referral_department","is_shortlisted","consolidated_feedback_avg",
             'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report','slot_link','candidate_history',
-            'created_at', 'updated_at','is_selected','is_approved','is_rejected'
+            'created_at', 'updated_at','is_selected','is_approved','is_rejected',
+            'interview_scheduled_at','interviewer_name','interview_link'
         ]
     
     def get_platform_name(self, obj):

@@ -78,7 +78,6 @@ def update_slot_links_when_interviewer_assigned(sender, instance, **kwargs):
             "interview_next_management_client",
         ],
     )
-    print(candidates)
     for candidate in candidates:
         update_candidate_slot_link(candidate)
 
