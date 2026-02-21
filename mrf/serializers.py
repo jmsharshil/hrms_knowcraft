@@ -19,9 +19,9 @@ class DesignationSerializer(serializers.ModelSerializer):
         model = Designation
         fields = ['id', 'name','code', 'tat_days', 'is_active', 'created_at', 'updated_at',
                 "key_responsibility","required_qualifications","skills_competencies",
-                "salary_range","department"
+                "salary_range","department","expirience"
                 ]
-        read_only_fields = ['id','code', 'created_at', 'updated_at']
+        read_only_fields = ['id','code', 'expirience','created_at', 'updated_at']
 
     def create(self, validated_data):
         user = self.context['request'].user
@@ -398,7 +398,7 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
             'mrf_name',
             'workflow_template', 'department', 'designation', 'team', 'position_department',
             'no_of_vacancies', 'location', 'resigned_crafter_name', 'resigned_crafter_ecode',
-            'resigned_crafter_designation', 'experience_range',
+            'resigned_crafter_designation',
             'business_justification','job_type', 'job_type_display','priority','priority_display',
             'case_study_required', 'hr_interviewer', 'technical_interviewers', 'case_study_interviewer',
             'final_interviewer', 'management_client_interviewer'
@@ -479,6 +479,11 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
             validated_data['salary_range'] = (
                 validated_data.get('salary_range')
                 or designation.salary_range
+            )
+
+            validated_data['experience_range'] = (
+                validated_data.get('experience_range')
+                or designation.expirience or designation.skills_competencies
             )
 
         # -----------------------------

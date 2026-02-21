@@ -66,6 +66,7 @@ class Designation(models.Model):
     required_qualifications = models.TextField(null=True,blank=True)
     skills_competencies = models.TextField(null=True,blank=True)
     salary_range = models.CharField(max_length=100, help_text="e.g., '5-8 LPA'",blank=True,null=True)
+    expirience = models.CharField(max_length=100, help_text="e.g., '1-3 years'",blank=True,null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -100,6 +101,15 @@ class Designation(models.Model):
 
                 self.code = f"{dept_code}-DSG{next_number:03d}"
 
+        if not self.expirience and self.skills_competencies:
+            try:
+                from .utils import parse_expirience
+                extracted = parse_expirience(self.skills_competencies)
+                print(extracted)
+                if extracted:
+                    self.expirience = extracted[:100]  # safety for max_length
+            except Exception as e:
+                print("GPT parsing failed:", e)  
         super().save(*args, **kwargs)
         
     def __str__(self):
