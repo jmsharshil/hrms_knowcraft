@@ -459,8 +459,8 @@ class SendApprovalNoteAPIView(APIView):
 
             <p>
                 Regards,<br>
-                <strong>{{ hr_name }}</strong><br>
-                Recruitment Team
+                Team – HR <br>
+                Knowcraft Analytics Private Limited
             </p>
         </body>
         </html>
@@ -507,7 +507,8 @@ class SendApprovalNoteAPIView(APIView):
             "hiring_type": data.get("hiring_type"),
 
             "remarks": data.get("remarks"),
-            "joining_date": data.get("joining_date")
+            "joining_date": data.get("joining_date"),
+            "FRONTEND_URL": getattr(settings,'FRONTEND_URL','https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net')
         }
 
         # --- Render email ---
@@ -531,13 +532,16 @@ class SendApprovalNoteAPIView(APIView):
                     created_by=request.user,
                     payload=json_safe_context
                 )
+                from .utils.resume_attachment import get_resume_attachment
+                resume_attachment = get_resume_attachment(candidate)
                 # --- Send email ---
                 if approval_note:
                     send_email(
                         subject="Approval Required – Candidate Hiring",
                         text="Approval required. Please view this email in HTML format.",
                         to=approver.email,
-                        template=html_rendered
+                        template=html_rendered,
+                        attachments=[resume_attachment] if resume_attachment else None
                     )
             else:
                 print(reason)
