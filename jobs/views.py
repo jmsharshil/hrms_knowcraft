@@ -1,3 +1,4 @@
+from datetime import timedelta
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -633,7 +634,8 @@ class JobViewSet(viewsets.ModelViewSet):
             created_by=consultancy_user,
             title=consultancy_user.name,
             platform="consultancy",   # adjust if you have choices
-            is_active=True
+            is_active=True,
+            expires_at=timezone.now() + timedelta(days=60)
         )
 
 

@@ -158,6 +158,20 @@ def automation_engine(candidate, old, new):
         candidate.is_rejected = True
     if new == 'approved':
         candidate.is_approved = True
+
+    PENDING_STATES = [
+        "interview_pending_1",
+        "interview_pending_2",
+        "interview_pending_3",
+        "interview_pending_final",
+        "interview_pending_management_client",
+        ]
+    # If leaving a pending state → clear interview details
+    if old in PENDING_STATES and new not in PENDING_STATES:
+        candidate.interview_link = None
+        candidate.interviewer_name = None
+        candidate.interview_scheduled_at = None
+
     candidate.save()
 
     from slots.models import Interviewer
