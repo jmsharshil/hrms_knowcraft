@@ -1028,7 +1028,7 @@ class SendForSalaryAnnexureEmailAPI(APIView):
             )
 
         # 🔗 Build review link
-        review_link = f"{settings.FRONTEND_URL}/review-documents/{id}"
+        review_link = f"{settings.FRONTEND_URL}/upload-salary-annexure/{id}"
 
         subject = "Document View Required - Salary Annexure Upload"
 
