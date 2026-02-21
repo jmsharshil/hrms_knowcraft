@@ -927,8 +927,49 @@ class SendForOfferLetterEmailAPI(APIView):
         job_application = get_object_or_404(JobApplication, id=id)
 
         recipient_email = request.data.get("email")
-        current_ctc = request.data.get("current_ctc")
-        expected_ctc = request.data.get("expected_ctc")
+        joining_date = request.data.get("joining_date") or job_application.joining_date
+
+        if not recipient_email:
+            return Response(
+                {"error": "Email is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        subject = "Document View Required - Offer Letter Creation"
+
+        message = f"""
+Hello,
+
+You have been requested to view the salary annexure for the candidate:
+{job_application.candidate_name}
+
+Joining Date: {joining_date.strftime("%d-%m-%Y") if joining_date else ""}
+
+After reviewing, kindly generate and upload the offer letter.
+
+Thank you.
+"""
+        from .utils.annexure_attachment import get_annexure_attachment
+        annexure_attachment = get_annexure_attachment(job_application)
+        send_email(
+            subject=subject,
+            text=message,
+            to=recipient_email,
+            attachments=[annexure_attachment] if annexure_attachment else None
+        )
+        automation_engine(job_application,job_application.status,"offer_pending")
+        return Response(
+            {"message": "Review email sent successfully!"},
+            status=status.HTTP_200_OK
+        )
+
+class SendForSalaryAnnexureEmailAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, id):
+        job_application = get_object_or_404(JobApplication, id=id)
+
+        recipient_email = request.data.get("email")
         offered_ctc = request.data.get("offered_ctc")
         joining_date = request.data.get("joining_date") or job_application.joining_date
 
@@ -941,7 +982,7 @@ class SendForOfferLetterEmailAPI(APIView):
         # 🔗 Build review link
         review_link = f"{settings.FRONTEND_URL}/review-documents/{id}"
 
-        subject = "Document View Required - Offer Letter Creation"
+        subject = "Document View Required - Salary Annexure Upload"
 
         message = f"""
 Hello,
@@ -949,18 +990,14 @@ Hello,
 You have been requested to view the documents for the candidate:
 {job_application.candidate_name}
 
-Please view the documents using the link below:
+Please review the documents and upload the Salary Annexure using the link below:
 {review_link}
-
-Current CTC: {current_ctc}
-
-Expected CTC: {expected_ctc}
 
 Offered CTC: {offered_ctc}
 
 Joining Date: {joining_date.strftime("%d-%m-%Y") if joining_date else ""}
 
-After reviewing, kindly generate and upload the offer letter.
+After reviewing, kindly generate and upload the salary annexure.
 
 Thank you.
 """
@@ -972,8 +1009,8 @@ Thank you.
             to=recipient_email,
             attachments=[resume_attachment] if resume_attachment else None
         )
-        automation_engine(job_application,job_application.status,"offer_pending")
+        automation_engine(job_application, job_application.status, "salary_annexure_prep")
         return Response(
-            {"message": "Review email sent successfully!"},
+            {"message": "Salary Annexure review email sent successfully!"},
             status=status.HTTP_200_OK
         )

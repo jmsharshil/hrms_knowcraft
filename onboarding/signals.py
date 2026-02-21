@@ -19,6 +19,58 @@ def update_approval_note_status(sender, instance, created, **kwargs):
     ).update(status=instance.status)
 
 @receiver(pre_save, sender=JobApplicationDocument)
+def store_old_annexure(sender, instance, **kwargs):
+    """
+    Store old salary_annexure before saving, to detect new upload.
+    """
+    if not instance.pk:
+        instance._old_annexure = None
+        return
+
+    try:
+        old_instance = JobApplicationDocument.objects.get(pk=instance.pk)
+        instance._old_annexure = old_instance.salary_annexure
+    except JobApplicationDocument.DoesNotExist:
+        instance._old_annexure = None
+
+@receiver(post_save, sender=JobApplicationDocument)
+def auto_stage_on_annexure(sender, instance, created, **kwargs):
+    """
+    Trigger stage change when salary_annexure is newly uploaded.
+    """
+
+    new_file = instance.salary_annexure
+    old_file = getattr(instance, "_old_annexure", None)
+
+    # No file uploaded → do nothing
+    if not new_file:
+        return
+
+    # Prevent duplicate triggers
+    if instance.job_application.salary_annexure_uploaded:
+        return
+
+    # Case 1: Object just created with file
+    if created and new_file:
+        transaction.on_commit(lambda: change_stage_for_annexure(instance))
+        return
+
+    # Case 2: File added later
+    if not old_file and new_file:
+        transaction.on_commit(lambda: change_stage_for_annexure(instance))
+
+def change_stage_for_annexure(document):
+    """
+    Custom logic to change the JobApplication stage once annexure is uploaded.
+    """
+    app = document.job_application
+    # Example: move from docs_pending → docs_approved
+    from .utils.engine import automation_engine
+    ok,reason = automation_engine(app,app.status,'salary_annexure_sent')
+    if not ok:
+        print(reason)
+
+@receiver(pre_save, sender=JobApplicationDocument)
 def store_old_file(sender, instance, **kwargs):
     """
     Store old file value before saving.

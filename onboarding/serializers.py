@@ -18,6 +18,7 @@ from jobs.models import JobApplication
 class JobApplicationDocumentSerializer(serializers.ModelSerializer):
     class Meta:
         offer_letter_uploaded = serializers.SerializerMethodField()
+        salary_annexure_uploaded = serializers.SerializerMethodField()
         model = JobApplicationDocument
         fields = "__all__"
         read_only_fields = (
@@ -25,6 +26,13 @@ class JobApplicationDocumentSerializer(serializers.ModelSerializer):
             "joining_docs_status","created_at","updated_at","offer_letter_uploaded"
         )
 
+    def get_salary_annexure_uploaded(self,obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+
+        return obj.salary_annexure is not None
+    
     def get_offer_letter_uploaded(self,obj):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:

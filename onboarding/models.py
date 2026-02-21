@@ -170,6 +170,7 @@ class JobApplicationDocument(models.Model):
         max_length=20, choices=STATUS_CHOICES, default="pending"
     )
     joining_docs_remarks = models.TextField(blank=True, null=True)
+    salary_annexure = models.FileField(upload_to=application_upload_path, null=True, blank=True)
     created_offer_letter = models.FileField(upload_to=application_upload_path, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)

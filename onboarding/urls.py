@@ -1,6 +1,6 @@
 from django.urls import path,include
 from rest_framework.routers import DefaultRouter
-from .views import UploadJobApplicationDocumentAPI,UpdatestatusAPI,SendApprovalNoteAPIView,CandidateInterviewSummaryAPIView,SalaryAnnexureHistoryViewSet,SalaryAnnexureViewSet,ReviewJobApplicationDocumentsAPI,SendForOfferLetterEmailAPI
+from .views import UploadJobApplicationDocumentAPI,UpdatestatusAPI,SendApprovalNoteAPIView,CandidateInterviewSummaryAPIView,SalaryAnnexureHistoryViewSet,SalaryAnnexureViewSet,ReviewJobApplicationDocumentsAPI,SendForOfferLetterEmailAPI,SendForSalaryAnnexureEmailAPI
 from .utils.opensign import opensign_webhook
 from .utils.zoho_sign import zoho_sign_webhook
 
@@ -18,6 +18,7 @@ urlpatterns = [
     path("candidates/<uuid:candidate_id>/interview-summary/",CandidateInterviewSummaryAPIView.as_view(),name="candidate-interview-summary"),
     # path('opensign/webhook/',opensign_webhook,name="opensign-webhook"),
     path('zohosign/webhook/',zoho_sign_webhook,name="zohosign-webhook"),
-    path('send-for-offer-letter/<str:id>/',SendForOfferLetterEmailAPI.as_view(),name='send-for-offer-letter')
+    path('send-for-offer-letter/<str:id>/',SendForOfferLetterEmailAPI.as_view(),name='send-for-offer-letter'),
+    path('send-for-salary-annexure/<str:id>/',SendForSalaryAnnexureEmailAPI.as_view(),name='send-for-salary-annexure')
     # path("", include(router.urls)),
 ]
