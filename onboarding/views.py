@@ -227,12 +227,36 @@ class UploadJobApplicationDocumentAPI(APIView):
         # 🟢 Save uploaded files
         updated = False
         for field in request.FILES:
+            approved_field = f"{field}_approved"
             if hasattr(docs, field):
+                # Skip file if it's already approved
+                if hasattr(docs, approved_field) and getattr(docs, approved_field):
+                    continue
                 setattr(docs, field, request.FILES[field])
                 updated = True
 
         if not updated:
             return Response({"error": "Invalid document field"}, status=400)
+        else:
+            if docs.job_application.job.assigned_to_internal_hr:
+                reciever_name = docs.job_application.job.assigned_to_internal_hr.name
+                reciever_email = docs.job_application.job.assigned_to_internal_hr.email
+                candidate_name = docs.job_application.candidate_name
+                template = f"""<html>
+                    <body style="font-family: Arial, sans-serif; color:#333;">
+                    <p>Hi {reciever_name},</p>
+                    <p>This is to inform you that the candidate <b>{candidate_name}</b> has re-uploaded the documents.</p>
+                    <p>You may review documents and proceed with the next steps of evaluation and onboarding.</p>
+                    <p>Please let me know if any additional information is needed.</p>
+                    <br>
+                    <p>Warm regards,<br>
+                    Team - HR <br>
+                    Knowcraft Analytics Private Limited</p>
+                    </body>
+                    </html>
+                    """
+                from .utils.sender import send_email
+                send_email(to=reciever_email,template=template,subject='Documents Re-uploaded')
 
         docs.save()
 
@@ -302,6 +326,24 @@ class ReviewJobApplicationDocumentsAPI(APIView):
 
         setattr(docs, f"joining_docs_status", status_value)
         setattr(docs, f"joining_docs_remarks", remarks)
+
+        updates = request.data.get("documents", {})
+
+        if not updates:
+            return Response({"error": "No document review data provided"}, status=400)
+
+        for field, approved in updates.items():
+            approved_field = f"{field}_approved"
+            if hasattr(docs, approved_field):
+                setattr(docs, approved_field, bool(approved))
+
+                # 🔹 Remove file if not approved
+                if not approved and hasattr(docs, field):
+                    file_field = getattr(docs, field)
+                    if file_field:
+                        file_field.delete(save=False)  # deletes from storage
+                        setattr(docs, field, None)
+
         docs.save()
 
         # 🔁 Evaluate partial approval logic
@@ -309,7 +351,8 @@ class ReviewJobApplicationDocumentsAPI(APIView):
 
         return Response({
             "message": f"Documents has been updated!",
-            "status": status_value
+            "status": status_value,
+            "documents": JobApplicationDocumentSerializer(docs).data
         })
 
 from decimal import Decimal
