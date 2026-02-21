@@ -237,26 +237,26 @@ class UploadJobApplicationDocumentAPI(APIView):
 
         if not updated:
             return Response({"error": "Invalid document field"}, status=400)
-        else:
-            if docs.job_application.job.assigned_to_internal_hr:
-                reciever_name = docs.job_application.job.assigned_to_internal_hr.name
-                reciever_email = docs.job_application.job.assigned_to_internal_hr.email
-                candidate_name = docs.job_application.candidate_name
-                template = f"""<html>
-                    <body style="font-family: Arial, sans-serif; color:#333;">
-                    <p>Hi {reciever_name},</p>
-                    <p>This is to inform you that the candidate <b>{candidate_name}</b> has re-uploaded the documents.</p>
-                    <p>You may review documents and proceed with the next steps of evaluation and onboarding.</p>
-                    <p>Please let me know if any additional information is needed.</p>
-                    <p>Review:<a href='{FRONTEND_URL}/onboarding/documents/{docs.job_application.id}'>Review Documents</a></p>
-                    <br>
-                    <p>Warm regards,<br>
-                    Team - HR <br>
-                    Knowcraft Analytics Private Limited</p>
-                    </body>
-                    </html>
-                    """
-                send_email(to=reciever_email,template=template,subject='Documents Re-uploaded')
+        # else:
+        #     if docs.job_application.job.assigned_to_internal_hr:
+        #         reciever_name = docs.job_application.job.assigned_to_internal_hr.name
+        #         reciever_email = docs.job_application.job.assigned_to_internal_hr.email
+        #         candidate_name = docs.job_application.candidate_name
+        #         template = f"""<html>
+        #             <body style="font-family: Arial, sans-serif; color:#333;">
+        #             <p>Hi {reciever_name},</p>
+        #             <p>This is to inform you that the candidate <b>{candidate_name}</b> has re-uploaded the documents.</p>
+        #             <p>You may review documents and proceed with the next steps of evaluation and onboarding.</p>
+        #             <p>Please let me know if any additional information is needed.</p>
+        #             <p>Review:<a href='{FRONTEND_URL}/onboarding/documents/{docs.job_application.id}'>Review Documents</a></p>
+        #             <br>
+        #             <p>Warm regards,<br>
+        #             Team - HR <br>
+        #             Knowcraft Analytics Private Limited</p>
+        #             </body>
+        #             </html>
+        #             """
+        #         send_email(to=reciever_email,template=template,subject='Documents Re-uploaded')
 
         docs.save()
 
@@ -269,7 +269,7 @@ class UploadJobApplicationDocumentAPI(APIView):
         if application.status == "docs_pending":
             automation_engine(application, "docs_pending", "docs_uploaded")
 
-        from utils.docs_reupload import get_pending_documents
+        from onboarding.utils.docs_reupload import get_pending_documents
         pending_docs = get_pending_documents(docs)
         docs.reupload_docuemnts = ' '.join(pending_docs)
         docs.save()
