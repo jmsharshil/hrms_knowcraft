@@ -964,11 +964,13 @@ After reviewing, kindly generate and upload the offer letter.
 
 Thank you.
 """
-
+        from .utils.resume_attachment import get_resume_attachment
+        resume_attachment = get_resume_attachment(job_application)
         send_email(
             subject=subject,
             text=message,
             to=recipient_email,
+            attachments=[resume_attachment] if resume_attachment else None
         )
         automation_engine(job_application,job_application.status,"offer_pending")
         return Response(
