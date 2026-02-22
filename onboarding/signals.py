@@ -47,8 +47,8 @@ def auto_stage_on_annexure(sender, instance, created, **kwargs):
         return
 
     # Prevent duplicate triggers
-    if instance.job_application.salary_annexure_uploaded:
-        return
+    # if instance.job_application.salary_annexure_uploaded:
+    #     return
 
     # Case 1: Object just created with file
     if created and new_file:
