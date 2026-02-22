@@ -268,6 +268,10 @@ class UploadJobApplicationDocumentAPI(APIView):
 
         if application.status == "docs_pending":
             automation_engine(application, "docs_pending", "docs_uploaded")
+        elif application.status == "salary_annexure_sent" and getattr(docs,'joining_docs_status') == 'approved':
+            automation_engine(application, "salary_annexure_sent", "approved_annexure")
+        elif application.status == "salary_annexure_sent" and getattr(docs,'joining_docs_status') not in  ['approved','pending']:
+            automation_engine(application, "salary_annexure_sent", "rejected_annexure")
 
         from onboarding.utils.docs_reupload import get_pending_documents
         pending_docs = get_pending_documents(docs)

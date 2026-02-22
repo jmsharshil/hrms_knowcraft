@@ -67,6 +67,8 @@ def change_stage_for_annexure(document):
     # Example: move from docs_pending → docs_approved
     from .utils.engine import automation_engine
     ok,reason = automation_engine(app,app.status,'salary_annexure_sent')
+    document.joining_docs_status = 'pending'
+    document.save()
     if not ok:
         print(reason)
 

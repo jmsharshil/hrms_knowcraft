@@ -22,14 +22,19 @@ HTML_TEMPLATES = {
 
     "duplicate_rejected": f"""
     <html>
-    <body style='font-family: Arial; color:#333;'>
-        <h2>Application Status</h2>
+    <body style='font-family: Arial, sans-serif; color:#333; line-height:1.6;'>
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
+        <h2>Application Status Update</h2>
         <p>Dear {{candidate.candidate_name}},</p>
-        <p>Our records indicate that you recently applied for a position. Due to our duplicate application policy, we are unable to process this application.</p>
-        <p>You may reapply at a later date.</p>
+        <p>Thank you for your interest in opportunities with Knowcraft Analytics.</p>
+        <p>Our records indicate that a recent application has already been received from you. 
+        As per our duplicate application policy, we are unable to process this submission further at this time.</p>
+        <p>You are welcome to apply again in the future after a reasonable period.</p>
         <br>
         <p>Warm regards,<br>
-        Team-HR <br>
+        <strong>Team – HR</strong><br>
         Knowcraft Analytics Private Limited
         </p>
     </body>
@@ -78,18 +83,21 @@ HTML_TEMPLATES = {
 
     "interview_rejected_1": f"""
     <html>
-    <body style="font-family: Arial, sans-serif; color:#333;">
-    <p>Dear {{candidate.candidate_name}},</p>
-    <p>Greetings from Knowcraft Analytics!</p>
-    <p>Thank you for taking the time to participate in the HR Round of our interview process.</p>
-    <p>After careful consideration, we regret to inform you that you have not been selected to proceed further.
-    While we were impressed with your background, we will not be moving ahead at this stage.</p>
-    <p>We truly appreciate your interest and wish you the very best in your future endeavors.</p>
-    <br>
-    <p>Warm regards,<br>
-    Team-HR <br>
-    Knowcraft Analytics Private Limited
-    </p>
+    <body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Greetings from Knowcraft Analytics!</p>
+        <p>Thank you for taking the time to participate in the HR round of our interview process.</p>
+        <p>After careful consideration, we regret to inform you that we will not be proceeding with your application further at this stage. 
+        While we were impressed with your profile, we had to make a difficult decision based on current requirements.</p>
+        <p>We sincerely appreciate your interest in joining our organization and wish you every success in your future endeavors.</p>
+        <br>
+        <p>Warm regards,<br>
+        <strong>Team – HR</strong><br>
+        Knowcraft Analytics Private Limited
+        </p>
     </body>
     </html>
     """,
@@ -132,16 +140,21 @@ HTML_TEMPLATES = {
 
     "interview_rejected_2": f"""
     <html>
-    <body style="font-family: Arial, sans-serif; color:#333;">
-    <p>Dear {{candidate.candidate_name}},</p>
-    <p>Greetings from Knowcraft Analytics!</p>
-    <p>Thank you for taking the time to participate in the <b>Technical Round</b> of our interview process.</p>
-    <p>After a thorough evaluation, we regret to inform you that you have not been selected to move forward.
-    We sincerely value your effort and encourage you to apply again in the future.</p>
-    <p>Wishing you success in your career ahead.</p><br>
-    <p>Warm regards,<br>
-    Team-HR <br>
-    Knowcraft Analytics Private Limited</p>
+    <body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Greetings from Knowcraft Analytics!</p>
+        <p>Thank you for participating in the <b>Technical Round</b> of our interview process.</p>
+        <p>Following a thorough evaluation, we regret to inform you that we will not be moving forward with your application. 
+        We truly value the time and effort you invested in the process.</p>
+        <p>We encourage you to explore future opportunities with us and wish you continued success in your career.</p>
+        <br>
+        <p>Warm regards,<br>
+        <strong>Team – HR</strong><br>
+        Knowcraft Analytics Private Limited
+        </p>
     </body>
     </html>
     """,
@@ -184,16 +197,21 @@ HTML_TEMPLATES = {
 
     "interview_rejected_3": f"""
     <html>
-    <body style="font-family: Arial, sans-serif; color:#333;">
-    <p>Dear {{candidate.candidate_name}},</p>
-    <p>Greetings from Knowcraft Analytics!</p>
-    <p>Thank you for taking the time to participate in the <b>Case Study Round</b> of our interview process.</p>
-    <p>After a thorough evaluation, we regret to inform you that you have not been selected to move forward.
-    We sincerely value your effort and encourage you to apply again in the future.</p>
-    <p>Wishing you success in your career ahead.</p><br>
-    <p>Warm regards,<br>
-    Team-HR <br>
-    Knowcraft Analytics Private Limited</p>
+    <body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Greetings from Knowcraft Analytics!</p>
+        <p>Thank you for participating in the <b>Case Study Round</b> of our interview process.</p>
+        <p>After careful consideration, we regret to inform you that we will not be proceeding further with your application. 
+        We sincerely appreciate your effort and interest in our organization.</p>
+        <p>We wish you the very best for your professional journey ahead.</p>
+        <br>
+        <p>Warm regards,<br>
+        <strong>Team – HR</strong><br>
+        Knowcraft Analytics Private Limited
+        </p>
     </body>
     </html>
     """,
@@ -236,16 +254,21 @@ HTML_TEMPLATES = {
 
     "interview_rejected_final": f"""
     <html>
-    <body style="font-family: Arial, sans-serif; color:#333;">
-    <p>Dear {{candidate.candidate_name}},</p>
-    <p>Greetings from Knowcraft Analytics!</p>
-    <p>Thank you for taking the time to participate in the <b>Final Round</b> of our interview process.</p>
-    <p>After a thorough evaluation, we regret to inform you that you have not been selected to move forward.
-    We sincerely value your effort and encourage you to apply again in the future.</p>
-    <p>Wishing you success in your career ahead.</p><br>
-    <p>Warm regards,<br>
-    Team-HR <br>
-    Knowcraft Analytics Private Limited</p>
+    <body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Greetings from Knowcraft Analytics!</p>
+        <p>Thank you for taking the time to participate in the <b>Final Round</b> of our selection process.</p>
+        <p>After comprehensive evaluation, we regret to inform you that we will not be moving forward with your application. 
+        This was a competitive process, and we appreciate your interest and engagement throughout.</p>
+        <p>We wish you success in all your future endeavors.</p>
+        <br>
+        <p>Warm regards,<br>
+        <strong>Team – HR</strong><br>
+        Knowcraft Analytics Private Limited
+        </p>
     </body>
     </html>
     """,
@@ -291,39 +314,49 @@ HTML_TEMPLATES = {
     # </html>
     # """,
 
+    
     "interview_rejected_management_client": f"""
     <html>
-    <body style="font-family: Arial, sans-serif; color:#333;">
-    <p>Dear {{candidate.candidate_name}},</p>
-    <p>Greetings from Knowcraft Analytics!</p>
-    <p>Thank you for taking the time to participate in the <b>Management/Client Round</b> of our interview process.</p>
-    <p>After a thorough evaluation, we regret to inform you that you have not been selected to move forward.
-    We sincerely value your effort and encourage you to apply again in the future.</p>
-    <p>Wishing you success in your career ahead.</p><br>
-    <p>Warm regards,<br>
-    Team-HR <br>
-    Knowcraft Analytics Private Limited</p>
+    <body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Greetings from Knowcraft Analytics!</p>
+        <p>Thank you for participating in the <b>Management / Client Round</b> of our interview process.</p>
+        <p>Following detailed discussions and evaluation, we regret to inform you that we will not be progressing further with your application. 
+        We greatly appreciate the time and effort you invested in meeting with our team.</p>
+        <p>We encourage you to stay connected for future opportunities and wish you continued success.</p>
+        <br>
+        <p>Warm regards,<br>
+        <strong>Team – HR</strong><br>
+        Knowcraft Analytics Private Limited
+        </p>
     </body>
     </html>
     """,
+
 
     # -----------------------------------------------------------
     # 2. SELECTION & APPROVAL
     # -----------------------------------------------------------
     "selected": f"""
     <html>
-    <body style="font-family: Arial, sans-serif; color:#333;">
-    <p>Dear {{candidate.candidate_name}},</p>
-    <p>We are pleased to inform you that you have been selected for the position of 
-    <b>{{candidate.job.mrf.designation.name}}</b> after successfully completing all interview rounds.</p>
-    <p>The team was impressed with your skills and performance.
-    We look forward to having you onboard.</p>
-    <p>We will reach out shortly with offer details and next steps.</p>
-    <p>Congratulations once again!</p>
-    <br>
-    <p>Warm Regards,<br>
-    Team-HR <br>
-    Knowcraft Analytics Private Limited</p>
+    <body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>We are pleased to inform you that you have been selected for the position of 
+        <b>{{candidate.job.mrf.designation.name}}</b> after successfully completing all interview rounds.</p>
+        <p>The team was impressed with your skills and performance, and we look forward to having you onboard.</p>
+        <p>Our HR team will reach out shortly with the offer details and next steps.</p>
+        <p>Congratulations once again, and welcome to Knowcraft Analytics!</p>
+        <br>
+        <p>Warm Regards,<br>
+        <strong>Team – HR</strong><br>
+        Knowcraft Analytics Private Limited
+        </p>
     </body>
     </html>
     """,
@@ -343,33 +376,41 @@ HTML_TEMPLATES = {
 
     "approved": f"""
     <html>
-    <body style="font-family: Arial, sans-serif; color:#333;">
-    <p>Dear {{candidate.candidate_name}},</p>
-    <p>We are pleased to inform you that you have been selected for the position of 
-    <b>{{candidate.job.mrf.designation.name}}</b> after successfully completing all interview rounds.</p>
-    <p>The team was impressed with your skills and performance.
-    We look forward to having you onboard.</p>
-    <p>We will reach out shortly with offer details and next steps.</p>
-    <p>Congratulations once again!</p>
-    <br>
-    <p>Warm Regards,<br>
-    Team-HR <br>
-    Knowcraft Analytics Private Limited</p>
+    <body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>We are pleased to inform you that you have been selected for the position of 
+        <b>{{candidate.job.mrf.designation.name}}</b> after successfully completing all interview rounds.</p>
+        <p>The team was impressed with your skills and performance, and we look forward to having you onboard.</p>
+        <p>Our HR team will connect with you shortly regarding the offer details and further formalities.</p>
+        <p>Congratulations and welcome aboard!</p>
+        <br>
+        <p>Warm Regards,<br>
+        <strong>Team – HR</strong><br>
+        Knowcraft Analytics Private Limited
+        </p>
     </body>
     </html>
     """,
 
     "approval_rejected": f"""
     <html>
-    <body style='font-family: Arial; color:#333;'>
+    <body style='font-family: Arial, sans-serif; color:#333; line-height:1.6;'>
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
         <h2>Application Update</h2>
         <p>Dear {{candidate.candidate_name}},</p>
-        <p>After careful review, the hiring manager has decided not to proceed with your profile.</p>
-        <p>We wish you great success in your future endeavors.</p>
+        <p>Thank you for your interest in opportunities with Knowcraft Analytics.</p>
+        <p>After careful review, the hiring team has decided not to proceed with your profile at this stage.</p>
+        <p>We appreciate the time and effort you invested during the process and wish you continued success in your career.</p>
         <br>
         <p>Warm Regards,<br>
-        Team-HR <br>
-        Knowcraft Analytics Private Limited</p>
+        <strong>Team – HR</strong><br>
+        Knowcraft Analytics Private Limited
+        </p>
     </body>
     </html>
     """,
@@ -434,15 +475,16 @@ HTML_TEMPLATES = {
     "docs_pending": f"""
     <html>
     <body style='font-family: Arial, sans-serif; color:#333; line-height:1.6;'>
-        <p>Hi {{candidate.candidate_name}},</p>
-        <p>Greetings of the day!</p>
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Greetings from Knowcraft Analytics!</p>
         <p>
-            Congratulations on being selected to work with Knowcraft Analytics! 
-            We’re excited about the potential of working together.
+            Congratulations on being selected to join our organization. We are excited about the opportunity to work together.
         </p>
         <p>
-            To proceed further with your candidature, we kindly request you to upload 
-            the required documents as mentioned below using the link provided.
+            To proceed further with your onboarding process, we kindly request you to upload the required documents using the link provided below.
         </p>
         <p>
             <b>Upload Link:</b><br>
@@ -486,15 +528,14 @@ HTML_TEMPLATES = {
             </tr>
         </table>
         <br>
-        <p>Please upload your onboarding documents at the earliest so we can proceed further.</p>
-        <p>Let us know in case of any queries.</p>
+        <p>Please upload the documents at your earliest convenience so we can proceed with the next steps.</p>
+        <p>Feel free to reach out in case of any questions or assistance.</p>
         <br>
         <p>
             Regards,<br>
-            Team – HR <br>
+            <strong>Team – HR</strong><br>
             Knowcraft Analytics Private Limited
         </p>
-
     </body>
     </html>
     """,
@@ -516,14 +557,20 @@ HTML_TEMPLATES = {
     # -----------------------------------------------------------
     "joining_pending": f"""
     <html>
-    <body style='font-family: Arial; color:#333;'>
+    <body style='font-family: Arial, sans-serif; color:#333; line-height:1.6;'>
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
         <h2>Joining Process Initiated</h2>
         <p>Dear {{candidate.candidate_name}},</p>
-        <p>Your joining process has begun. HR will share additional details soon.</p>
+        <p>We are pleased to inform you that your joining process has been initiated.</p>
+        <p>Our HR team will be sharing further details and next steps with you shortly.</p>
+        <p>We look forward to welcoming you to Knowcraft Analytics.</p>
         <br>
         <p>Warm Regards,<br>
-        Team-HR <br>
-        Knowcraft Analytics Private Limited</p>
+        <strong>Team – HR</strong><br>
+        Knowcraft Analytics Private Limited
+        </p>
     </body>
     </html>
     """,
@@ -558,15 +605,20 @@ HTML_TEMPLATES = {
     # -----------------------------------------------------------
     "rejected": f"""
     <html>
-    <body style='font-family: Arial; color:#333;'>
+    <body style='font-family: Arial, sans-serif; color:#333; line-height:1.6;'>
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
         <h2>Application Update</h2>
         <p>Dear {{candidate.candidate_name}},</p>
-        <p>We regret to inform you that your application has been closed.</p>
-        <p>We wish you success in your future opportunities.</p>
+        <p>Thank you for your interest in opportunities with Knowcraft Analytics.</p>
+        <p>We regret to inform you that your application has been closed at this stage.</p>
+        <p>We appreciate the time you invested and wish you success in your future opportunities.</p>
         <br>
         <p>Warm Regards,<br>
-        Team-HR <br>
-        Knowcraft Analytics Private Limited</p>
+        <strong>Team – HR</strong><br>
+        Knowcraft Analytics Private Limited
+        </p>
     </body>
     </html>
     """,
@@ -787,48 +839,55 @@ HTML_TEMPLATES = {
 
     "docs_incomplete": f"""
     <html>
-    <body style="font-family: Arial, sans-serif; color:#333;">
-    <p>Dear {{candidate.candidate_name}},</p>
-    <p>Greetings from Knowcraft Analytics!</p>
-    <p>Thank you for submitting your documents as part of the recruitment process.</p>
-    <p>Upon review, we noticed that some documents are incomplete or unclear.
-    Kindly re-upload the documents.</p>
-    <p>
-        <b>Upload Link:</b><br>
-        <a href="{FRONTEND_URL}/api/application/documents/upload/{{candidate.id}}">
-            Upload Documents
-        </a>
-    </p>
-    <p>Please ensure files are properly scanned and all information is visible.</p>
-    <p>If you need any assistance, feel free to reach out.</p>
-    <br>
-    <p>Warm regards,<br>
-    Team – HR <br>
-    Knowcraft Analytics Private Limited</p>
+    <body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Greetings from Knowcraft Analytics!</p>
+        <p>Thank you for submitting your documents as part of the recruitment process.</p>
+        <p>Upon review, we noticed that some of the submitted documents are incomplete or unclear. 
+        We kindly request you to re-upload the required documents.</p>
+        <p>
+            <b>Upload Link:</b><br>
+            <a href="{FRONTEND_URL}/api/application/documents/upload/{{candidate.id}}">
+                Upload Documents
+            </a>
+        </p>
+        <p>Please ensure that the files are properly scanned and all information is clearly visible.</p>
+        <p>If you need any assistance, please feel free to reach out to us.</p>
+        <br>
+        <p>Warm regards,<br>
+        <strong>Team – HR</strong><br>
+        Knowcraft Analytics Private Limited
+        </p>
     </body>
     </html>
     """,
         "docs_unclear": f"""
     <html>
-    <body style="font-family: Arial, sans-serif; color:#333;">
-    <p>Dear {{candidate.candidate_name}},</p>
-    <p>Greetings from Knowcraft Analytics!</p>
-    <p>Thank you for submitting your documents as part of the recruitment process.</p>
-    <p>Upon review, we noticed that some documents are incomplete or unclear.
-    Kindly re-upload the documents following documents:</p>
-    {{pending_docs_html}}
-    <p>
-        <b>Upload Link:</b><br>
-        <a href="{FRONTEND_URL}/api/application/documents/upload/{{candidate.id}}">
-            Upload Documents
-        </a>
-    </p>
-    <p>Please ensure files are properly scanned and all information is visible.</p>
-    <p>If you need any assistance, feel free to reach out.</p>
-    <br>
-    <p>Warm regards,<br>
-    Team – HR <br>
-    Knowcraft Analytics Private Limited</p>
+    <body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
+        <p>Dear {{candidate.candidate_name}},</p>
+        <p>Greetings from Knowcraft Analytics!</p>
+        <p>Thank you for submitting your documents as part of the recruitment process.</p>
+        <p>Upon review, we noticed that some documents are incomplete or unclear. 
+        We kindly request you to re-upload the required documents.</p>
+        <p>
+            <b>Upload Link:</b><br>
+            <a href="{FRONTEND_URL}/api/application/documents/upload/{{candidate.id}}">
+                Upload Documents
+            </a>
+        </p>
+        <p>Please ensure the files are properly scanned and all information is clearly visible.</p>
+        <p>If you need any assistance, please feel free to reach out to us.</p>
+        <br>
+        <p>Warm regards,<br>
+        <strong>Team – HR</strong><br>
+        Knowcraft Analytics Private Limited
+        </p>
     </body>
     </html>
     """,
@@ -939,13 +998,16 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
 
     "interview_rejected_1": f"""
     <html>
-    <body style="font-family: Arial; color:#333;">
-        <h2>Candidate Rejected (HR Interview)</h2>
+    <body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
+        <h2>Candidate Rejected — HR Interview</h2>
         <p>Dear Team,</p>
-        <p>The candidate <strong>{{candidate.candidate_name}}</strong> was rejected after the HR interview.</p>
+        <p>The candidate <strong>{{candidate.candidate_name}}</strong> has been rejected following the HR interview round.</p>
         <br>
         <p>Warm Regards,<br>
-        Team-HR <br>
+        <strong>Team – HR</strong><br>
         Knowcraft Analytics Private Limited</p>
     </body>
     </html>
@@ -966,13 +1028,16 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
 
     "interview_rejected_2": f"""
     <html>
-    <body style="font-family: Arial; color:#333;">
-        <h2>Candidate Rejected (Technical Interview)</h2>
+    <body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
+        <h2>Candidate Rejected — Technical Interview</h2>
         <p>Dear Team,</p>
-        <p>The candidate <strong>{{candidate.candidate_name}}</strong> was rejected after the technical interview.</p>
+        <p>The candidate <strong>{{candidate.candidate_name}}</strong> has been rejected following the technical interview round.</p>
         <br>
         <p>Warm Regards,<br>
-        Team-HR <br>
+        <strong>Team – HR</strong><br>
         Knowcraft Analytics Private Limited</p>
     </body>
     </html>
@@ -993,13 +1058,16 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
 
     "interview_rejected_3": f"""
     <html>
-    <body style="font-family: Arial; color:#333;">
-        <h2>Candidate Rejected (Case Study Interview)</h2>
+    <body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
+        <h2>Candidate Rejected — Case Study Interview</h2>
         <p>Dear Team,</p>
-        <p>The candidate <strong>{{candidate.candidate_name}}</strong> was rejected after the case study interview.</p>
+        <p>The candidate <strong>{{candidate.candidate_name}}</strong> has been rejected following the case study interview round.</p>
         <br>
         <p>Warm Regards,<br>
-        Team-HR <br>
+        <strong>Team – HR</strong><br>
         Knowcraft Analytics Private Limited</p>
     </body>
     </html>
@@ -1019,146 +1087,252 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
     # """,
 
     "interview_rejected_final": f"""
-    <html>
-    <body style="font-family: Arial; color:#333;">
-        <h2>Candidate Rejected (Final Interview)</h2>
-        <p>Dear Team,</p>
-        <p>The candidate <strong>{{candidate.candidate_name}}</strong> was rejected after the final interview.</p>
-        <br>
-        <p>Warm Regards,<br>
-        Team-HR <br>
-        Knowcraft Analytics Private Limited</p>
-    </body>
-    </html>
-    """,
+<html>
+<body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+
+    <div style="text-align:center; margin-bottom:20px;">
+        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+    </div>
+
+    <h2>Candidate Rejected — Final Interview</h2>
+
+    <p>Dear Team,</p>
+
+    <p>The candidate <strong>{{candidate.candidate_name}}</strong> has been rejected following the final interview round.</p>
+
+    <br>
+
+    <p>Warm Regards,<br>
+    <strong>Team – HR</strong><br>
+    Knowcraft Analytics Private Limited</p>
+
+</body>
+</html>
+""",
     "interview_rejected_management_client": f"""
-    <html>
-    <body style="font-family: Arial; color:#333;">
-        <h2>Candidate Rejected (Management / Client Interview)</h2>
-        <p>Dear Team,</p>
-        <p>The candidate <strong>{{candidate.candidate_name}}</strong> was rejected after the Management / Client interview.</p>
-        <br>
-        <p>Warm Regards,<br>
-        Team-HR <br>
-        Knowcraft Analytics Private Limited</p>
-    </body>
-    </html>
-    """,
+<html>
+<body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+
+    <div style="text-align:center; margin-bottom:20px;">
+        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+    </div>
+
+    <h2>Candidate Rejected — Management / Client Interview</h2>
+
+    <p>Dear Team,</p>
+
+    <p>The candidate <strong>{{candidate.candidate_name}}</strong> has been rejected following the Management / Client interview round.</p>
+
+    <br>
+
+    <p>Warm Regards,<br>
+    <strong>Team – HR</strong><br>
+    Knowcraft Analytics Private Limited</p>
+
+</body>
+</html>
+""",
     "shortlisted": f"""
-    <html>
-    <body style="font-family: Arial; color:#333;">
-        <h2>Candidate Shortlisted</h2>
-        <p>Dear HR Team,</p>
-        <p>The candidate <strong>{{candidate.candidate_name}}</strong> has been shortlisted.</p>
-        <p>Please proceed with the next steps in the hiring process.</p>
-        <br>
-        <p>Warm Regards,<br>
-        Team-HR <br>
-        Knowcraft Analytics Private Limited</p>
-    </body>
-    </html>
-    """,
+<html>
+<body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+
+    <div style="text-align:center; margin-bottom:20px;">
+        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+    </div>
+
+    <h2>Candidate Shortlisted</h2>
+
+    <p>Dear HR Team,</p>
+
+    <p>The candidate <strong>{{candidate.candidate_name}}</strong> has been shortlisted.</p>
+
+    <p>Please proceed with the next steps in the hiring process.</p>
+
+    <br>
+
+    <p>Warm Regards,<br>
+    <strong>Team – HR</strong><br>
+    Knowcraft Analytics Private Limited</p>
+
+</body>
+</html>
+""",
     "interview_next_2": f"""
-    <html>
-    <body style="font-family: Arial; color:#333;">
-        <h2>Candidate Shortlisted</h2>
-        <p>Dear HR Team,</p>
-        <p>The candidate <strong>{{candidate.candidate_name}}</strong> has passed HR Round.</p>
-        <p>Please proceed with the next steps in the hiring process.</p>
-        <br>
-        <p>Warm Regards,<br>
-        Team-HR <br>
-        Knowcraft Analytics Private Limited</p>
-    </body>
-    </html>
-    """,
+<html>
+<body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+
+    <div style="text-align:center; margin-bottom:20px;">
+        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+    </div>
+
+    <h2>Candidate Progress Update</h2>
+
+    <p>Dear HR Team,</p>
+
+    <p>The candidate <strong>{{candidate.candidate_name}}</strong> has successfully cleared the HR round.</p>
+
+    <p>Please proceed with the next stage of the hiring process.</p>
+
+    <br>
+
+    <p>Warm Regards,<br>
+    <strong>Team – HR</strong><br>
+    Knowcraft Analytics Private Limited</p>
+
+</body>
+</html>
+""",
     "interview_next_3": f"""
-    <html>
-    <body style="font-family: Arial; color:#333;">
-        <h2>Candidate Shortlisted</h2>
-        <p>Dear HR Team,</p>
-        <p>The candidate <strong>{{candidate.candidate_name}}</strong> has passed Technical Round.</p>
-        <p>Please proceed with the next steps in the hiring process.</p>
-        <br>
-        <p>Warm Regards,<br>
-        Team-HR <br>
-        Knowcraft Analytics Private Limited</p>
-    </body>
-    </html>
-    """,
+<html>
+<body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+
+    <div style="text-align:center; margin-bottom:20px;">
+        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+    </div>
+
+    <h2>Candidate Progress Update</h2>
+
+    <p>Dear HR Team,</p>
+
+    <p>The candidate <strong>{{candidate.candidate_name}}</strong> has successfully cleared the Technical round.</p>
+
+    <p>Please proceed with the next stage.</p>
+
+    <br>
+
+    <p>Warm Regards,<br>
+    <strong>Team – HR</strong><br>
+    Knowcraft Analytics Private Limited</p>
+
+</body>
+</html>
+""",
     "interview_next_final": f"""
-    <html>
-    <body style="font-family: Arial; color:#333;">
-        <h2>Candidate Shortlisted</h2>
-        <p>Dear HR Team,</p>
-        <p>The candidate <strong>{{candidate.candidate_name}}</strong> has passed Case Study Round.</p>
-        <p>Please proceed with the next steps in the hiring process.</p>
-        <br>
-        <p>Warm Regards,<br>
-        Team-HR <br>
-        Knowcraft Analytics Private Limited</p>
-    </body>
-    </html>
-    """,
+<html>
+<body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+
+    <div style="text-align:center; margin-bottom:20px;">
+        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+    </div>
+
+    <h2>Candidate Progress Update</h2>
+
+    <p>Dear HR Team,</p>
+
+    <p>The candidate <strong>{{candidate.candidate_name}}</strong> has successfully cleared the Case Study round.</p>
+
+    <p>Please proceed with the next stage.</p>
+
+    <br>
+
+    <p>Warm Regards,<br>
+    <strong>Team – HR</strong><br>
+    Knowcraft Analytics Private Limited</p>
+
+</body>
+</html>
+""",
     "interview_next_management_client": f"""
-    <html>
-    <body style="font-family: Arial; color:#333;">
-        <h2>Candidate Shortlisted</h2>
-        <p>Dear HR Team,</p>
-        <p>The candidate <strong>{{candidate.candidate_name}}</strong> has passed Final Round.</p>
-        <p>Please proceed with the next steps in the hiring process.</p>
-        <br>
-        <p>Warm Regards,<br>
-        Team-HR <br>
-        Knowcraft Analytics Private Limited</p>
-    </body>
-    </html>
-    """,
+<html>
+<body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+
+    <div style="text-align:center; margin-bottom:20px;">
+        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+    </div>
+
+    <h2>Candidate Progress Update</h2>
+
+    <p>Dear HR Team,</p>
+
+    <p>The candidate <strong>{{candidate.candidate_name}}</strong> has successfully cleared the Final round.</p>
+
+    <p>Please proceed with the next stage.</p>
+
+    <br>
+
+    <p>Warm Regards,<br>
+    <strong>Team – HR</strong><br>
+    Knowcraft Analytics Private Limited</p>
+
+</body>
+</html>
+""",
     "approval_pending": f"""
-    <html>
-    <body style="font-family: Arial; color:#333;">
-        <h2>Approval Required</h2>
-        <p>Dear Manager,</p>
-        <p>The candidate <strong>{{candidate.candidate_name}}</strong> is pending your approval.</p>
-        <p>Please review the profile and provide your decision.</p>
-        <br>
-        <p>Warm Regards,<br>
-        Team-HR <br>
-        Knowcraft Analytics Private Limited</p>
-    </body>
-    </html>
-    """,
+<html>
+<body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+
+    <div style="text-align:center; margin-bottom:20px;">
+        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+    </div>
+
+    <h2>Approval Required</h2>
+
+    <p>Dear Manager,</p>
+
+    <p>The candidate <strong>{{candidate.candidate_name}}</strong> is pending your approval.</p>
+
+    <p>Kindly review the profile and provide your decision to proceed further.</p>
+
+    <br>
+
+    <p>Warm Regards,<br>
+    <strong>Team – HR</strong><br>
+    Knowcraft Analytics Private Limited</p>
+
+</body>
+</html>
+""",
 
     "approved": f"""
-    <html>
-    <body style="font-family: Arial; color:#333;">
-        <h2>Candidate Approved</h2>
-        <p>Dear HR Team,</p>
-        <p>The candidate <strong>{{candidate.candidate_name}}</strong> has been approved.</p>
-        <p>Please continue with salary and offer formalities.</p>
-        <br>
-        <p>Warm Regards,<br>
-        Team-HR <br>
-        Knowcraft Analytics Private Limited</p>
-    </body>
-    </html>
-    """,
+<html>
+<body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
 
+    <div style="text-align:center; margin-bottom:20px;">
+        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+    </div>
+
+    <h2>Candidate Approved</h2>
+
+    <p>Dear HR Team,</p>
+
+    <p>The candidate <strong>{{candidate.candidate_name}}</strong> has been approved.</p>
+
+    <p>Please proceed with salary discussion and offer letter formalities.</p>
+
+    <br>
+
+    <p>Warm Regards,<br>
+    <strong>Team – HR</strong><br>
+    Knowcraft Analytics Private Limited</p>
+
+</body>
+</html>
+""",
     "approval_rejected": f"""
-    <html>
-    <body style="font-family: Arial; color:#333;">
-        <h2>Candidate Approval Rejected</h2>
-        <p>Dear HR Team,</p>
-        <p>The candidate <strong>{{candidate.candidate_name}}</strong> was rejected during the approval stage.</p>
-        <p>Please take necessary action.</p>
-        <br>
-        <p>Warm Regards,<br>
-        Team-HR <br>
-        Knowcraft Analytics Private Limited</p>
-    </body>
-    </html>
-    """,
+<html>
+<body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
 
+    <div style="text-align:center; margin-bottom:20px;">
+        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+    </div>
+
+    <h2>Candidate Approval Rejected</h2>
+
+    <p>Dear HR Team,</p>
+
+    <p>The candidate <strong>{{candidate.candidate_name}}</strong> was not approved during the approval stage.</p>
+
+    <p>Please take the necessary action to close the process.</p>
+
+    <br>
+
+    <p>Warm Regards,<br>
+    <strong>Team – HR</strong><br>
+    Knowcraft Analytics Private Limited</p>
+
+</body>
+</html>
+""",
     # "salary_docs_uploaded": f"""
     # <html>
     # <body style="font-family: Arial; color:#333;">
@@ -1174,49 +1348,94 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
 
     "offer_pending": f"""
     <html>
-    <body style="font-family: Arial; color:#333;">
+    <body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
         <h2>Offer Letter Pending</h2>
         <p>Dear HR Team,</p>
-        <p>The offer letter for <strong>{{candidate.candidate_name}}</strong> is pending.</p>
-        <p>Please prepare and send the offer.</p>
+        <p>The offer letter for <strong>{{candidate.candidate_name}}</strong> is currently pending.</p>
+        <p>Please prepare and share the offer at the earliest.</p>
         <br>
         <p>Warm Regards,<br>
-        Team-HR <br>
+        <strong>Team – HR</strong><br>
         Knowcraft Analytics Private Limited</p>
     </body>
     </html>
     """,
-
     "joined": f"""
     <html>
-    <body style="font-family: Arial; color:#333;">
+    <body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+        </div>
         <h2>Candidate Joined Successfully</h2>
         <p>Dear Team,</p>
-        <p>We are pleased to inform you that <strong>{{candidate.candidate_name}}</strong> has joined the organization.</p>
-        <p>Welcome aboard!</p>
+        <p>We are pleased to inform you that <strong>{{candidate.candidate_name}}</strong> has successfully joined the organization.</p>
+        <p>We wish them a successful journey with Knowcraft Analytics.</p>
         <br>
         <p>Warm Regards,<br>
-        Team-HR <br>
+        <strong>Team – HR</strong><br>
         Knowcraft Analytics Private Limited</p>
     </body>
     </html>
     """,
-
     "rejected": f"""
-    <html>
-    <body style="font-family: Arial; color:#333;">
-        <h2>Candidate Rejected</h2>
-        <p>Dear Team,</p>
-        <p>The candidate <strong>{{candidate.candidate_name}}</strong> has been rejected.</p>
-        <p>This concludes the hiring process for this profile.</p>
-        <br>
-        <p>Warm Regards,<br>
-        Team-HR <br>
-        Knowcraft Analytics Private Limited</p>
-    </body>
-    </html>
-    """,
+<html>
+<body style="font-family: Arial, sans-serif; color:#333; margin:0; padding:0;">
 
+    <!-- Header with Logo -->
+    <table width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f8; padding:15px 0;">
+        <tr>
+            <td align="center">
+                <table width="600" cellspacing="0" cellpadding="0" style="background:#ffffff; border-radius:6px;">
+                    <tr>
+                        <td style="padding:15px 20px; border-bottom:1px solid #e0e0e0;">
+                            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" height="45">
+                        </td>
+                    </tr>
+
+                    <!-- Body -->
+                    <tr>
+                        <td style="padding:20px;">
+                            <h2 style="margin-top:0; color:#2c3e50;">Candidate Rejected</h2>
+
+                            <p>Dear Team,</p>
+
+                            <p>
+                                The candidate 
+                                <strong>{{candidate.candidate_name}}</strong> 
+                                has been rejected.
+                            </p>
+
+                            <p>
+                                This concludes the hiring process for this profile.
+                            </p>
+
+                            <br>
+
+                            <p>
+                                Warm Regards,<br>
+                                <strong>Team-HR</strong><br>
+                                Knowcraft Analytics Private Limited
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background:#f4f6f8; padding:12px 20px; font-size:12px; color:#777;">
+                            ©2026 Knowcraft Analytics Private Limited. All rights reserved.
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+""",
     # "resignation_uploaded": f"""
     # <html>
     # <body style="font-family: Arial; color:#333;">
@@ -1242,36 +1461,57 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
     # """,
 
     "docs_uploaded": f"""
-    <html>
-    <body style="font-family: Arial, sans-serif; color:#333;">
-    <p>Hi {{reciever_name}},</p>
-    <p>This is to inform you that the candidate <b>{{candidate.candidate_name}}</b> has successfully uploaded all required documents.</p>
-    <p>You may review documents and proceed with the next steps of evaluation and onboarding.</p>
-    <p>Please let me know if any additional information is needed.</p>
+<html>
+<body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+
+    <div style="text-align:center; margin-bottom:20px;">
+        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+    </div>
+
+    <p>Dear {{reciever_name}},</p>
+
+    <p>This is to inform you that the candidate <strong>{{candidate.candidate_name}}</strong> has successfully uploaded all the required documents.</p>
+
+    <p>You may review the documents and proceed with the next steps of evaluation and onboarding.</p>
+
+    <p>Please let us know if any additional information is required.</p>
+
     <br>
+
     <p>Warm regards,<br>
-    Team - HR <br>
+    <strong>Team – HR</strong><br>
     Knowcraft Analytics Private Limited</p>
-    </body>
-    </html>
-    """,
+
+</body>
+</html>
+""",
 
     "offer_accepted": f"""
-    <html>
-    <body style="font-family: Arial, sans-serif; color:#333;">
+<html>
+<body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
+
+    <div style="text-align:center; margin-bottom:20px;">
+        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:220px;">
+    </div>
+
     <p>Dear {{reciever_name}},</p>
-    <p>This is to inform you that <b>{{candidate.candidate_name}}</b> has formally accepted the offer 
-    for the position of <b>{{candidate.job.mrf.designation.name}}</b>.</p>
+
+    <p>This is to inform you that <strong>{{candidate.candidate_name}}</strong> has formally accepted the offer for the position of 
+    <strong>{{candidate.job.mrf.designation.name}}</strong>.</p>
+
     <p>Please proceed with the next onboarding steps.</p>
-    <p>Kindly let me know if any additional details are required.</p>
+
+    <p>Kindly let us know if any additional details are required.</p>
+
     <br>
-    <p>Thank you.<br><br>
-    Warm regards,<br>
-    Team - HR <br>
+
+    <p>Warm regards,<br>
+    <strong>Team – HR</strong><br>
     Knowcraft Analytics Private Limited</p>
-    </body>
-    </html>
-    """,
+
+</body>
+</html>
+""",
     # "docs_approved": f"""
     # <html>
     # <body style="font-family: Arial; color:#333;">
