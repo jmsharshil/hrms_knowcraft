@@ -493,6 +493,11 @@ class JobApplication(models.Model):
     referral_emp_code = models.CharField(null=True,blank=True)
     referral_designation = models.CharField(null=True,blank=True)
     referral_department = models.CharField(null=True,blank=True)
+
+    #Interview Details
+    interview_scheduled_at = models.DateTimeField(null=True,blank=True)
+    interviewer_name = models.CharField(null=True,blank=True)
+    interview_link = models.TextField(null=True,blank=True)
     
     class Meta:
         db_table = 'job_applications'

@@ -227,12 +227,36 @@ class UploadJobApplicationDocumentAPI(APIView):
         # 🟢 Save uploaded files
         updated = False
         for field in request.FILES:
+            approved_field = f"{field}_approved"
             if hasattr(docs, field):
+                # Skip file if it's already approved
+                if hasattr(docs, approved_field) and getattr(docs, approved_field):
+                    continue
                 setattr(docs, field, request.FILES[field])
                 updated = True
 
         if not updated:
             return Response({"error": "Invalid document field"}, status=400)
+        # else:
+        #     if docs.job_application.job.assigned_to_internal_hr:
+        #         reciever_name = docs.job_application.job.assigned_to_internal_hr.name
+        #         reciever_email = docs.job_application.job.assigned_to_internal_hr.email
+        #         candidate_name = docs.job_application.candidate_name
+        #         template = f"""<html>
+        #             <body style="font-family: Arial, sans-serif; color:#333;">
+        #             <p>Hi {reciever_name},</p>
+        #             <p>This is to inform you that the candidate <b>{candidate_name}</b> has re-uploaded the documents.</p>
+        #             <p>You may review documents and proceed with the next steps of evaluation and onboarding.</p>
+        #             <p>Please let me know if any additional information is needed.</p>
+        #             <p>Review:<a href='{FRONTEND_URL}/onboarding/documents/{docs.job_application.id}'>Review Documents</a></p>
+        #             <br>
+        #             <p>Warm regards,<br>
+        #             Team - HR <br>
+        #             Knowcraft Analytics Private Limited</p>
+        #             </body>
+        #             </html>
+        #             """
+        #         send_email(to=reciever_email,template=template,subject='Documents Re-uploaded')
 
         docs.save()
 
@@ -244,6 +268,11 @@ class UploadJobApplicationDocumentAPI(APIView):
 
         if application.status == "docs_pending":
             automation_engine(application, "docs_pending", "docs_uploaded")
+
+        from onboarding.utils.docs_reupload import get_pending_documents
+        pending_docs = get_pending_documents(docs)
+        docs.reupload_docuemnts = ' '.join(pending_docs)
+        docs.save()
 
         return Response(
             {
@@ -302,6 +331,24 @@ class ReviewJobApplicationDocumentsAPI(APIView):
 
         setattr(docs, f"joining_docs_status", status_value)
         setattr(docs, f"joining_docs_remarks", remarks)
+
+        updates = request.data.get("documents", {})
+
+        if not updates:
+            return Response({"error": "No document review data provided"}, status=400)
+
+        for field, approved in updates.items():
+            approved_field = f"{field}_approved"
+            if hasattr(docs, approved_field):
+                setattr(docs, approved_field, bool(approved))
+
+                # 🔹 Remove file if not approved
+                if not approved and hasattr(docs, field):
+                    file_field = getattr(docs, field)
+                    if file_field:
+                        file_field.delete(save=False)  # deletes from storage
+                        setattr(docs, field, None)
+
         docs.save()
 
         # 🔁 Evaluate partial approval logic
@@ -309,7 +356,8 @@ class ReviewJobApplicationDocumentsAPI(APIView):
 
         return Response({
             "message": f"Documents has been updated!",
-            "status": status_value
+            "status": status_value,
+            "documents": JobApplicationDocumentSerializer(docs).data
         })
 
 from decimal import Decimal
@@ -927,8 +975,49 @@ class SendForOfferLetterEmailAPI(APIView):
         job_application = get_object_or_404(JobApplication, id=id)
 
         recipient_email = request.data.get("email")
-        current_ctc = request.data.get("current_ctc")
-        expected_ctc = request.data.get("expected_ctc")
+        joining_date = request.data.get("joining_date") or job_application.joining_date
+
+        if not recipient_email:
+            return Response(
+                {"error": "Email is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        subject = "Document View Required - Offer Letter Creation"
+
+        message = f"""
+Hello,
+
+You have been requested to view the salary annexure for the candidate:
+{job_application.candidate_name}
+
+Joining Date: {joining_date.strftime("%d-%m-%Y") if joining_date else ""}
+
+After reviewing, kindly generate and upload the offer letter.
+
+Thank you.
+"""
+        from .utils.annexure_attachment import get_annexure_attachment
+        annexure_attachment = get_annexure_attachment(job_application)
+        send_email(
+            subject=subject,
+            text=message,
+            to=recipient_email,
+            attachments=[annexure_attachment] if annexure_attachment else None
+        )
+        automation_engine(job_application,job_application.status,"offer_pending")
+        return Response(
+            {"message": "Review email sent successfully!"},
+            status=status.HTTP_200_OK
+        )
+
+class SendForSalaryAnnexureEmailAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, id):
+        job_application = get_object_or_404(JobApplication, id=id)
+
+        recipient_email = request.data.get("email")
         offered_ctc = request.data.get("offered_ctc")
         joining_date = request.data.get("joining_date") or job_application.joining_date
 
@@ -939,9 +1028,9 @@ class SendForOfferLetterEmailAPI(APIView):
             )
 
         # 🔗 Build review link
-        review_link = f"{settings.FRONTEND_URL}/review-documents/{id}"
+        review_link = f"{settings.FRONTEND_URL}/upload-salary-annexure/{id}"
 
-        subject = "Document View Required - Offer Letter Creation"
+        subject = "Document View Required - Salary Annexure Upload"
 
         message = f"""
 Hello,
@@ -949,18 +1038,14 @@ Hello,
 You have been requested to view the documents for the candidate:
 {job_application.candidate_name}
 
-Please view the documents using the link below:
+Please review the documents and upload the Salary Annexure using the link below:
 {review_link}
-
-Current CTC: {current_ctc}
-
-Expected CTC: {expected_ctc}
 
 Offered CTC: {offered_ctc}
 
 Joining Date: {joining_date.strftime("%d-%m-%Y") if joining_date else ""}
 
-After reviewing, kindly generate and upload the offer letter.
+After reviewing, kindly generate and upload the salary annexure.
 
 Thank you.
 """
@@ -972,8 +1057,8 @@ Thank you.
             to=recipient_email,
             attachments=[resume_attachment] if resume_attachment else None
         )
-        automation_engine(job_application,job_application.status,"offer_pending")
+        automation_engine(job_application, job_application.status, "salary_annexure_prep")
         return Response(
-            {"message": "Review email sent successfully!"},
+            {"message": "Salary Annexure review email sent successfully!"},
             status=status.HTTP_200_OK
         )

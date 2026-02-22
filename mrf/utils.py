@@ -644,3 +644,45 @@ def mrf_fields_auto_fill(department, designation):
     }
 
     return data
+
+from openai import AzureOpenAI
+from django.conf import settings
+import json
+
+client = AzureOpenAI(
+    api_key=settings.OPENAI_API_KEY,
+    azure_endpoint=settings.ENDPOINT_URL,
+    api_version='2024-05-01-preview'
+)
+
+def parse_expirience(text):
+    prompt = f"""
+    You are an expert ATS text parser.
+
+    Extract the experience range from the text below.
+    If not found, return null.
+
+    Text:
+    {text}
+
+    Return JSON like:
+    {{
+        "expirience_range": "1-3 years"
+    }}
+
+    Return VALID JSON ONLY.
+    """
+
+    res = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0,
+        response_format={"type": "json_object"},
+    )
+
+    try:
+        parsed = json.loads(res.choices[0].message.content)
+        return parsed.get("experience_range")
+    except Exception as e:
+        print("Failed to parse the expirience:",e)
+        return None

@@ -129,25 +129,36 @@ class JobApplicationDocument(models.Model):
 
     # Salary
     salary_slip_1 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    salary_slip_1_approved = models.BooleanField(default=False)
     salary_slip_2 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    salary_slip_2_approved = models.BooleanField(default=False)
     salary_slip_3 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    salary_slip_3_approved = models.BooleanField(default=False)   
     bank_statement = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    bank_statement_approved = models.BooleanField(default=False)
     # salary_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     # salary_remarks = models.TextField(blank=True, null=True)
 
     # Resignation
     resignation_letter = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    resignation_letter_approved = models.BooleanField(default=False)
     resignation_acceptance = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    resignation_acceptance_approved = models.BooleanField(default=False)
     # resignation_status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     # resignation_remarks = models.TextField(blank=True, null=True)
 
     # Personal
     aadhaar = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    aadhaar_approved = models.BooleanField(default=False)
     pan = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    pan_approved = models.BooleanField(default=False)
     passport = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    passport_approved = models.BooleanField(default=False)
     photograph = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    photograph_approved = models.BooleanField(default=False)
     address_proof = models.FileField(upload_to=application_upload_path, null=True, blank=True)
-    
+    address_proof_approved = models.BooleanField(default=False)
+
     # Education
     tenth_certificate = models.FileField(upload_to=application_upload_path, null=True, blank=True)
     twelfth_certificate = models.FileField(upload_to=application_upload_path, null=True, blank=True)
@@ -156,21 +167,38 @@ class JobApplicationDocument(models.Model):
     additional_certificate_1 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
     additional_certificate_2 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
     additional_certificate_3 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    tenth_certificate_approved = models.BooleanField(default=False)
+    twelfth_certificate_approved = models.BooleanField(default=False)
+    graduation_certificate_approved = models.BooleanField(default=False)
+    post_graduation_certificate_approved = models.BooleanField(default=False)
+    additional_certificate_1_approved = models.BooleanField(default=False)
+    additional_certificate_2_approved = models.BooleanField(default=False)
+    additional_certificate_3_approved = models.BooleanField(default=False)
 
     
     # Experience
     experience_letter_1 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    experience_letter_1_approved = models.BooleanField(default=False)
     experience_letter_2 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    experience_letter_2_approved = models.BooleanField(default=False)
     offer_letter_1 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    offer_letter_1_approved = models.BooleanField(default=False)
     offer_letter_2 = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    offer_letter_2_approved = models.BooleanField(default=False)
     relieving_letter = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    relieving_letter_approved = models.BooleanField(default=False)
     increment_letter = models.FileField(upload_to=application_upload_path, null=True, blank=True)   
+    increment_letter_approved = models.BooleanField(default=False)
 
     joining_docs_status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default="pending"
     )
     joining_docs_remarks = models.TextField(blank=True, null=True)
+    salary_annexure = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    salary_annexure_approved = models.BooleanField(default=False)
     created_offer_letter = models.FileField(upload_to=application_upload_path, null=True, blank=True)
+    created_offer_letter_approved = models.BooleanField(default=False)
+    reupload_docuemnts = models.TextField(null=True,blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

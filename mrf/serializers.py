@@ -19,9 +19,9 @@ class DesignationSerializer(serializers.ModelSerializer):
         model = Designation
         fields = ['id', 'name','code', 'tat_days', 'is_active', 'created_at', 'updated_at',
                 "key_responsibility","required_qualifications","skills_competencies",
-                "salary_range","department"
+                "salary_range","department","expirience"
                 ]
-        read_only_fields = ['id','code', 'created_at', 'updated_at']
+        read_only_fields = ['id','code', 'expirience','created_at', 'updated_at']
 
     def create(self, validated_data):
         user = self.context['request'].user
@@ -219,6 +219,7 @@ class MRFListSerializer(serializers.ModelSerializer):
     can_approve = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
     can_submit = serializers.SerializerMethodField()
+    can_update_interviewers = serializers.SerializerMethodField()
     hr_round_set = serializers.SerializerMethodField()
 
     class Meta:
@@ -227,7 +228,7 @@ class MRFListSerializer(serializers.ModelSerializer):
             'mrf_name',
             'id', 'requisition_no', 'department_name', 'designation_name', 
             'no_of_vacancies', 'location', 'job_type', 'job_type_display','priority_display','status', 'status_display',
-            'requested_by_name', 'workflow_name', 'date_of_request', 
+            'requested_by_name', 'workflow_name', 'date_of_request', 'can_update_interviewers',
             'created_at', 'updated_at','hr_interviewer', 'technical_interviewers', 'case_study_interviewer',
             'final_interviewer', 'management_client_interviewer','can_approve','can_edit','can_submit','hr_round_set'
         ]
@@ -260,6 +261,14 @@ class MRFListSerializer(serializers.ModelSerializer):
             return True
         return False
     
+    def get_can_update_interviewers(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        user = request.user
+        # Only creator can edit in draft or revision_required status
+        return (obj.requested_by == user or user.role in ['hr_manager','admin']) and obj.status == 'approved'
+    
 class MRFDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for single MRF view"""
     mrf_name = serializers.CharField(read_only=True)
@@ -282,6 +291,7 @@ class MRFDetailSerializer(serializers.ModelSerializer):
     can_approve = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
     can_submit = serializers.SerializerMethodField()
+    can_update_interviewers = serializers.SerializerMethodField()
 
     hr_interviewer = InterviewerSerializer(read_only=True)
     technical_interviewers = InterviewerSerializer(many=True, read_only=True)
@@ -326,6 +336,14 @@ class MRFDetailSerializer(serializers.ModelSerializer):
         user = request.user
         # Only creator can edit in draft or revision_required status
         return (obj.requested_by == user or user.role in ['hr_manager','admin']) and obj.status in ['draft', 'revision_required','approved']
+    
+    def get_can_update_interviewers(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        user = request.user
+        # Only creator can edit in draft or revision_required status
+        return (obj.requested_by == user or user.role in ['hr_manager','admin']) and obj.status == 'approved'
     
     def get_interviewers(self, obj):
         emails = [
@@ -380,7 +398,7 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
             'mrf_name',
             'workflow_template', 'department', 'designation', 'team', 'position_department',
             'no_of_vacancies', 'location', 'resigned_crafter_name', 'resigned_crafter_ecode',
-            'resigned_crafter_designation', 'experience_range',
+            'resigned_crafter_designation',
             'business_justification','job_type', 'job_type_display','priority','priority_display',
             'case_study_required', 'hr_interviewer', 'technical_interviewers', 'case_study_interviewer',
             'final_interviewer', 'management_client_interviewer'
@@ -461,6 +479,11 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
             validated_data['salary_range'] = (
                 validated_data.get('salary_range')
                 or designation.salary_range
+            )
+
+            validated_data['experience_range'] = (
+                validated_data.get('experience_range')
+                or designation.expirience or designation.skills_competencies
             )
 
         # -----------------------------
