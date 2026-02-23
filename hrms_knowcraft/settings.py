@@ -235,7 +235,7 @@ SIMPLE_JWT = {
 
 # Email Configuration (Update with your email settings)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'  # Change to your SMTP server
+EMAIL_HOST = 'smtp.office365.com'  # Change to your SMTP server
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")  # Change to your email
