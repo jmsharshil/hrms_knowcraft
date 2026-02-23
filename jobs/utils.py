@@ -585,7 +585,7 @@ li {{
             <div><strong>Applied For:</strong> {job_title}</div>
         </td>
         <td align="right">
-            <img src="{logo_url}" class="logo">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" class="logo">
         </td>
     </tr>
 </table>
@@ -885,24 +885,36 @@ def build_candidate_history(email, exclude_application_id=None):
     return history
 
 email_html_templates = {
-    "job_assigned":f"""<body style="font-family: Arial, sans-serif; background-color: #f4f6f8; padding: 20px;">
+    "job_assigned":f"""<html>
+<body style="font-family: Arial, sans-serif; background-color: #f4f6f8; margin:0; padding:20px;">
 
     <table width="100%" cellpadding="0" cellspacing="0">
         <tr>
             <td align="center">
-                <table width="600" cellpadding="20" cellspacing="0" style="background-color: #ffffff; border-radius: 8px;">
-                    
+
+                <table width="600" cellpadding="0" cellspacing="0" 
+                       style="background-color: #ffffff; border-radius: 8px; overflow:hidden;">
+
+                    <!-- Header -->
                     <tr>
-                        <td>
-                            <h2 style="color: #2c3e50;">New Job Assignment</h2>
+                        <td style="padding:15px 20px; border-bottom:1px solid #e0e0e0;">
+                            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" height="45">
+                        </td>
+                    </tr>
+
+                    <!-- Body -->
+                    <tr>
+                        <td style="padding:20px;">
+                            <h2 style="color: #2c3e50; margin-top:0;">New Job Assignment</h2>
                             
                             <p>Hello <strong>{{user_name}}</strong>,</p>
 
                             <p>
-                                A job has been assigned to you.
+                                A new job has been assigned to you. Please find the details below:
                             </p>
 
-                            <table width="100%" cellpadding="8" cellspacing="0" style="margin-top: 15px; border-collapse: collapse;">
+                            <table width="100%" cellpadding="8" cellspacing="0" 
+                                   style="margin-top: 15px; border-collapse: collapse;">
                                 <tr>
                                     <td><strong>Job Title:</strong></td>
                                     <td>{{job_title}}</td>
@@ -921,25 +933,38 @@ email_html_templates = {
                                 </tr>
                             </table>
 
-                            <p style="margin-top: 20px;">
-                                Please log in to your dashboard to review the job details.
-                                Dashboard: <a href='{FRONTEND_URL}/onboarding'></a>
+                            <!-- CTA Button -->
+                            <p style="margin-top:25px; text-align:center;">
+                                <a href="{FRONTEND_URL}/onboarding"
+                                   style="background:#2c3e50; color:#ffffff; padding:12px 20px;
+                                          text-decoration:none; border-radius:5px; display:inline-block;">
+                                    View Dashboard
+                                </a>
                             </p>
 
                             <p>
                                 Regards,<br>
-                                <strong>Hiring Team</strong>
+                                <strong>Hiring Team</strong><br>
+                                Knowcraft Analytics Private Limited
                             </p>
+                        </td>
+                    </tr>
 
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background:#f4f6f8; padding:12px 20px; font-size:12px; color:#777;">
+                            © 2026 Knowcraft Analytics Private Limited. All rights reserved.
                         </td>
                     </tr>
 
                 </table>
+
             </td>
         </tr>
     </table>
 
 </body>
+</html>
 """
 }
 email_alt_text = {
