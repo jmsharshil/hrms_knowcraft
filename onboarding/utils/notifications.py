@@ -885,17 +885,17 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
                     continue
 
             if role == "consultancy":
-                if job and job.assigned_to_consultancy and job.assigned_to_consultancy.email:
+                if job and job.assigned_to_consultancy and job.assigned_to_consultancy.email and candidate.source == 'consultancy':
                     emails.add(job.assigned_to_consultancy.email)
                     continue
             
             if role == 'department_head':
-                if job and job.mrf and job.mrf.requested_by and job.mrf.requested_by.email:
+                if job and job.mrf and job.mrf.requested_by and job.mrf.requested_by.email and job.mrf.requested_by.role == 'department_head':
                    emails.add(job.mrf.requested_by.email) 
                 continue
 
             if role == 'hr_manager':
-                if job and job.assigned_by and job.assigned_by.email:
+                if job and job.assigned_by and job.assigned_by.email and job.assigned_by.role =='hr_manager':
                    emails.add(job.assigned_by.email) 
                 continue
 
