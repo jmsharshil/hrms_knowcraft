@@ -1053,6 +1053,7 @@ class SendForOfferLetterEmailAPI(APIView):
 
         recipient_email = request.data.get("email")
         joining_date = request.data.get("joining_date") or job_application.joining_date
+        offer_letter_upload_link = f"{settings.FRONTEND_URL}/upload-offer-letter/{id}"
 
         if not recipient_email:
             return Response(
@@ -1074,12 +1075,54 @@ After reviewing, kindly generate and upload the offer letter.
 
 Thank you.
 """
+        template = f"""
+        <html>
+            <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+                <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+                    <tr>
+                        <td align="center" style="padding:30px 15px;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                                <tr>
+                                    <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                    </td>
+                                </tr>
+                                <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                                <tr>
+                                    <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.5;">
+                                        <p style="margin:0 0 16px 0;">Dear Team,</p>
+                                        <p style="margin:0 0 16px 0;">A request has been raised to review the salary annexure for the following candidate:</p>
+                                        
+                                        <p style="margin:0 0 8px 0;font-weight:600;">Candidate Name: {job_application.candidate_name}</p>
+                                        <p style="margin:0 0 24px 0;font-weight:600;">Proposed Joining Date: {joining_date.strftime("%d-%m-%Y") if joining_date else "TBD"}</p>
+                                        
+                                        <p style="margin:0 0 24px 0;">Kindly review the salary annexure details in the system. Once reviewed, please generate and upload the formal offer letter at your earliest convenience to proceed with the next steps.</p>
+                                        
+                                        <p style="margin:25px 0 30px 0;text-align:center;">
+                                            <a href="{offer_letter_upload_link}" 
+                                            style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">View Annexure & Generate Offer Letter</a>
+                                        </p>
+                                        
+                                        <p style="margin:0 0 16px 0;">If you require any additional information or clarification, please do not hesitate to reach out.</p>
+                                        <br>
+                                        <p style="margin:20px 0 6px 0;color:#555555;">Thank you for your prompt attention to this matter.</p>
+                                        <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                        <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+        </html>"""
         from .utils.annexure_attachment import get_annexure_attachment
         annexure_attachment = get_annexure_attachment(job_application)
         send_email(
             subject=subject,
             text=message,
             to=recipient_email,
+            template=template,
             attachments=[annexure_attachment] if annexure_attachment else None
         )
         automation_engine(job_application,job_application.status,"offer_pending")
@@ -1126,12 +1169,56 @@ After reviewing, kindly generate and upload the salary annexure.
 
 Thank you.
 """
+        template = f"""
+        <html>
+            <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+                <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+                    <tr>
+                        <td align="center" style="padding:30px 15px;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                                <tr>
+                                    <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                    </td>
+                                </tr>
+                                <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                                <tr>
+                                    <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.5;">
+                                        <p style="margin:0 0 16px 0;">Dear Team,</p>
+                                        <p style="margin:0 0 16px 0;">The following candidate has submitted their joining documents for review:</p>
+                                        
+                                        <p style="margin:0 0 8px 0;font-weight:600;">Candidate Name: {job_application.candidate_name}</p>
+                                        <p style="margin:0 0 8px 0;font-weight:600;">Offered CTC: {offered_ctc}</p>
+                                        <p style="margin:0 0 24px 0;font-weight:600;">Proposed Joining Date: {joining_date.strftime("%d-%m-%Y") if joining_date else "TBD"}</p>
+                                        
+                                        <p style="margin:0 0 16px 0;">Please review the uploaded documents thoroughly and upload the finalized Salary Annexure using the link below.</p>
+                                        
+                                        <p style="margin:25px 0 30px 0;text-align:center;">
+                                            <a href="{review_link}" 
+                                            style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">Review Documents & Upload Salary Annexure</a>
+                                        </p>
+                                        
+                                        <p style="margin:0 0 16px 0;">Ensure all details align with the offer terms before proceeding. If any discrepancies or clarifications are needed, please contact the HR team promptly.</p>
+                                        <br>
+                                        <p style="margin:20px 0 6px 0;color:#555555;">Thank you for your support in streamlining the onboarding process.</p>
+                                        <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                        <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+        </html>
+        """
         from .utils.resume_attachment import get_resume_attachment
         resume_attachment = get_resume_attachment(job_application)
         send_email(
             subject=subject,
             text=message,
             to=recipient_email,
+            template=template,
             attachments=[resume_attachment] if resume_attachment else None
         )
         automation_engine(job_application, job_application.status, "salary_annexure_prep")
