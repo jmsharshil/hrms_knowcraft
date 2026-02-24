@@ -78,7 +78,7 @@ class CanEditMRF(permissions.BasePermission):
     def has_object_permission(self, request, view, obj):
         user = request.user
 
-        if user.role in ['hr_manager','admin'] and obj.status == 'approved':
+        if user.role in ['hr_manager','admin']:
             return True
         
         # Only creator can edit
@@ -101,6 +101,9 @@ class CanSubmitMRF(permissions.BasePermission):
     
     def has_object_permission(self, request, view, obj):
         user = request.user
+
+        if user.role in ['hr_manager','admin']:
+            return True
         
         # Only creator can submit
         if obj.requested_by != user:
