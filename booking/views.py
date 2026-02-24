@@ -470,6 +470,7 @@ class CandidateBookSlotView(APIView):
         candidate.interview_link = meeting_link
         candidate.interviewer_name = interviewer.name
         candidate.interview_scheduled_at = start_dt
+        candidate.feedback_link = feedback_link
         candidate.save()
         from onboarding.utils.engine import automation_engine
         if candidate.status == 'shortlisted':
