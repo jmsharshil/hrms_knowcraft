@@ -715,19 +715,19 @@ NOTIFY_INTERNAL_MAP = {
     },
     "interview_rejected_1": {
         "receivers": ["interviewer",'referral'],
-        "subject": "Cnadidate rejection",
+        "subject": "Candidate rejection",
         "body": "The candidate is rejected in First round of interview.",
         "sms": "The Candindate is rejected in First round of interview.",
     },
     "interview_rejected_2": {
         "receivers": ["interviewer",'referral'],
-        "subject": "Cnadidate rejection",
+        "subject": "Candidate rejection",
         "body": "The candidate is rejected in Second round of interview.",
         "sms": "The Candindate is rejected in Second round of interview.",
     },
     "interview_rejected_3": {
         "receivers": ["interviewer",'referral'],
-        "subject": "Cnadidate rejection",
+        "subject": "Candidate rejection",
         "body": "The candidate is rejected in Third round of interview.",
         "sms": "The Candindate is rejected in Third round of interview.",
     },
