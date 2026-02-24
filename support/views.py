@@ -102,7 +102,6 @@ def support_bot(request):
 
             # ⭐ RAG Context Retrieval
             context = retrieve_context(user_message)
-            print(context,history)
 
             # ⭐ Inject context into user message
             rag_prompt = f"""

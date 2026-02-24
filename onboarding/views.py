@@ -153,14 +153,20 @@ def evaluate_documents(application):
             ok,reason = automation_engine(application, application.status, "docs_incomplete")
             if not ok:
                 print(reason)
+            else:
+                print(ok)
         elif is_section_unclear(docs, "joining_docs"):
             ok,reason = automation_engine(application, application.status, "docs_unclear")
             if not ok:
                 print(reason)
+            else:
+                print(ok)
         elif is_section_complete(docs, "joining_docs"):
             ok,reason = automation_engine(application, application.status, "docs_approved")
             if not ok:
                 print(reason)
+            else:
+                print(ok)
 
 class UploadJobApplicationDocumentAPI(APIView):
     permission_classes = [permissions.AllowAny]
