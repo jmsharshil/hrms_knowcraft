@@ -150,11 +150,17 @@ def evaluate_documents(application):
     # Joining documents stage
     if application.status in ["docs_uploaded","review_docs","docs_unclear","docs_incomplete"]:
         if is_section_incomplete(docs, "joining_docs"):
-            automation_engine(application, application.status, "docs_incomplete")
+            ok,reason = automation_engine(application, application.status, "docs_incomplete")
+            if not ok:
+                print(reason)
         elif is_section_unclear(docs, "joining_docs"):
-            automation_engine(application, application.status, "docs_unclear")
+            ok,reason = automation_engine(application, application.status, "docs_unclear")
+            if not ok:
+                print(reason)
         elif is_section_complete(docs, "joining_docs"):
-            automation_engine(application, application.status, "docs_approved")
+            ok,reason = automation_engine(application, application.status, "docs_approved")
+            if not ok:
+                print(reason)
 
 class UploadJobApplicationDocumentAPI(APIView):
     permission_classes = [permissions.AllowAny]
@@ -268,10 +274,10 @@ class UploadJobApplicationDocumentAPI(APIView):
 
         if application.status == "docs_pending":
             automation_engine(application, "docs_pending", "docs_uploaded")
-        elif application.status == "salary_annexure_sent" and getattr(docs,'joining_docs_status') == 'approved':
-            automation_engine(application, "salary_annexure_sent", "approved_annexure")
-        elif application.status == "salary_annexure_sent" and getattr(docs,'joining_docs_status') not in  ['approved','pending']:
-            automation_engine(application, "salary_annexure_sent", "rejected_annexure")
+        elif application.status == "salary_annexure_review" and getattr(docs,'joining_docs_status') == 'approved':
+            automation_engine(application, "salary_annexure_review", "approved_annexure")
+        elif application.status == "salary_annexure_review" and getattr(docs,'joining_docs_status') not in  ['approved','pending']:
+            automation_engine(application, "salary_annexure_review", "rejected_annexure")
 
         from onboarding.utils.docs_reupload import get_pending_documents
         pending_docs = get_pending_documents(docs)
@@ -781,7 +787,7 @@ class SalaryAnnexureViewSet(ModelViewSet):
         annexure.save(update_fields=["status", "rejection_reason"])
 
         app = annexure.job_application
-        ok,reason = automation_engine(app, app.status, "salary_annexure_sent")
+        ok,reason = automation_engine(app, app.status, "salary_annexure_review")
         if ok:
             log_salary_annexure_history(
                 annexure,
@@ -819,7 +825,7 @@ class SalaryAnnexureViewSet(ModelViewSet):
         annexure.save(update_fields=["status", "rejection_reason"])
 
         app = annexure.job_application
-        ok,reason = automation_engine(app, app.status, "salary_annexure_sent")
+        ok,reason = automation_engine(app, app.status, "salary_annexure_review")
         if ok:
             log_salary_annexure_history(
                 annexure,
@@ -990,7 +996,7 @@ class SalaryAnnexureViewSet(ModelViewSet):
             annexure.save(update_fields=["status", "rejection_reason"])
 
             app = annexure.job_application
-            ok,reason = automation_engine(app, app.status, "salary_annexure_sent")
+            ok,reason = automation_engine(app, app.status, "salary_annexure_review")
             if ok:
                 log_salary_annexure_history(
                     annexure,

@@ -43,7 +43,7 @@ NOTIFY_STATES = {
     # "hr_review_rejected",
     # Salary Annexure
     # "salary_annexure_prep",
-    # "salary_annexure_sent",
+    # "salary_annexure_review",
     # "approved_annexure",
     # "rejected_annexure",
     # Offer
@@ -94,7 +94,7 @@ NOTIFY_INTERNAL_STATES = {
     "approval_rejected",       # Notify HR
     # Salary Annexure Flow
     # "salary_annexure_prep",    # Notify HR to prepare annexure
-    # "salary_annexure_sent",    # Notify HR manager
+    # "salary_annexure_review",    # Notify HR manager
     # "approved_annexure",       # Notify HR
     # "rejected_annexure",       # Notify HR
     # Offer Flow (Internal Steps)

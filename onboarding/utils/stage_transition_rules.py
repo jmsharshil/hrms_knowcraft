@@ -30,8 +30,8 @@ ALLOWED_TRANSITIONS = {
     "docs_unclear": ["docs_pending","docs_approved"],  # reupload
     "docs_approved": ["salary_annexure_prep","offer_pending"],
     # HR prepares salary annexure
-    "salary_annexure_prep": ["salary_annexure_sent","offer_sent"],
-    "salary_annexure_sent":["approved_annexure","rejected_annexure"],
+    "salary_annexure_prep": ["salary_annexure_review","offer_sent"],
+    "salary_annexure_review":["approved_annexure","rejected_annexure"],
     "rejected_annexure":["salary_annexure_prep"],
     # HR head approves salary annexure
     # If rejected → back to salary_annexure_preparation

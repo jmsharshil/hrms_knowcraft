@@ -22,21 +22,18 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
     # --------------------------------------------------------------
     "received": {
         "email": {
-            "subject": "Application Received",
-            "text": "Thank you for applying! Your application has been received and is under review.",
+            "subject": "Application Received - Thank You",
+            "text": "Thank you for applying to Knowcraft Analytics. Your application has been successfully received and is now under review by our HR team.",
         },
-        "sms": "Application received. We'll review your profile shortly.",
+        "sms": "Thank you for applying to Knowcraft Analytics. Your application has been received and is under review.",
         "log": "Application acknowledgment sent to {candidate.candidate_email}",
     },
     "duplicate_rejected": {
         "email": {
-            "subject": "Duplicate Application",
-            "text": (
-                "Thank you for your interest. Our records show that you have applied recently, "
-                "so we cannot process this application as per our policy."
-            ),
+            "subject": "Duplicate Application Notification",
+            "text": "Thank you for your interest in Knowcraft Analytics. We have already received a recent application from you. As per our duplicate application policy, this submission cannot be processed further.",
         },
-        "sms": "Your profile already exists in our system.",
+        "sms": "We have already received a recent application from you. Duplicate submissions cannot be processed as per our policy.",
         "log": "Duplicate rejection sent to {candidate.candidate_email}",
     },
 
@@ -45,419 +42,410 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
     # --------------------------------------------------------------
     "shortlisted": {
         "email": {
-            "subject": "You Have Been Shortlisted!",
-            "text": "You have been shortlisted and will move to the interview stage.",
+            "subject": "You Have Been Shortlisted",
+            "text": "We are pleased to inform you that your profile has been shortlisted for the next stage of our selection process.",
         },
-        "sms": "You have been shortlisted!",
+        "sms": "Congratulations! Your profile has been shortlisted for the next stage at Knowcraft Analytics.",
         "log": "Shortlisting notification sent to {candidate.candidate_email}",
-        "schedule_link":True
+        "schedule_link": True
     },
     "interview_pending_1": {
         "email": {
-            "subject": "Interview Scheduled",
-            "text": "Your interview has been scheduled. Check your email for details.",
+            "subject": "HR Interview Scheduled",
+            "text": "Your HR interview has been scheduled. Please check your email for complete details and joining link.",
         },
-        "sms": "Interview scheduled. Check email for timing/link.",
+        "sms": "Your HR interview has been scheduled. Please check your email for date, time and joining link.",
         "log": "Interview pending notification sent to {candidate.candidate_email}",
     },
     "interview_done_1": {
         "email": {
-            "subject": "Thank You for Interviewing",
-            "text": "Thank you for attending the interview. We are reviewing the results.",
+            "subject": "Thank You for Attending the HR Interview",
+            "text": "Thank you for taking the time to attend the HR interview. Our team is currently reviewing all candidates.",
         },
-        "sms": "Thanks for interviewing! You’ll be updated soon.",
+        "sms": "Thank you for attending the HR interview. We will update you shortly on the next steps.",
         "log": "Interview completion message sent to {candidate.candidate_email}",
     },
     "interview_rejected_1": {
         "email": {
-            "subject": "Interview Update",
-            "text": "We appreciate your time. Unfortunately, we will not move ahead at this time.",
+            "subject": "HR Interview Outcome",
+            "text": "Thank you for your participation in the HR interview. After careful consideration, we will not be moving forward with your application at this time.",
         },
-        "sms": "We will not move ahead with your application.",
+        "sms": "Thank you for attending the HR interview. We will not be proceeding with your application at this stage.",
         "log": "Interview round 1 rejection sent to {candidate.candidate_email}",
     },
     "interview_next_2": {
         "email": {
-            "subject": "Interview Second Round",
-            "text": "You have been shortlisted for second round of interview.",
+            "subject": "Technical Round Scheduled",
+            "text": "You have successfully cleared the HR round and have been shortlisted for the Technical Round.",
         },
-        "sms": "You have been shortlisted for second round of interview!",
+        "sms": "You have cleared the HR round and are now shortlisted for the Technical Round.",
         "log": "Round 2 notification sent to {candidate.candidate_email}",
-        "schedule_link":True
+        "schedule_link": True
     },
     "interview_pending_2": {
         "email": {
-            "subject": "Interview Scheduled",
-            "text": "Your interview for round 2 has been scheduled. Check your email for details.",
+            "subject": "Technical Interview Scheduled",
+            "text": "Your Technical interview has been scheduled. Please check your email for details and joining link.",
         },
-        "sms": "Interview for round 2 has been scheduled. Check email for timing/link.",
+        "sms": "Your Technical interview has been scheduled. Please check your email for date, time and link.",
         "log": "Interview round 2 pending notification sent to {candidate.candidate_email}",
     },
     "interview_done_2": {
         "email": {
-            "subject": "Thank You for Interviewing",
-            "text": "Thank you for attending the interview. We are reviewing the results.",
+            "subject": "Thank You for Attending the Technical Interview",
+            "text": "Thank you for attending the Technical interview. Our panel is currently evaluating the results.",
         },
-        "sms": "Thanks for interviewing! You’ll be updated soon.",
+        "sms": "Thank you for attending the Technical interview. We will update you soon.",
         "log": "Interview round 2 completion message sent to {candidate.candidate_email}",
     },
     "interview_rejected_2": {
         "email": {
-            "subject": "Interview Update",
-            "text": "We appreciate your time. Unfortunately, we will not move ahead at this time.",
+            "subject": "Technical Round Outcome",
+            "text": "Thank you for your time and effort in the Technical round. We will not be proceeding further with your application at this stage.",
         },
-        "sms": "We will not move ahead with your application.",
+        "sms": "Thank you for the Technical round. We will not be moving forward with your application.",
         "log": "Interview rejection for round 2 sent to {candidate.candidate_email}",
     },
     "interview_next_3": {
         "email": {
-            "subject": "Interview Third Round",
-            "text": "You have been shortlisted for third round of interview.",
+            "subject": "Case Study Round Scheduled",
+            "text": "You have successfully cleared the Technical round and have been shortlisted for the Case Study Round.",
         },
-        "sms": "You have been shortlisted for third round of interview!",
+        "sms": "You have cleared the Technical round and are now shortlisted for the Case Study Round.",
         "log": "Round 3 notification sent to {candidate.candidate_email}",
-        "schedule_link":True
+        "schedule_link": True
     },
     "interview_pending_3": {
         "email": {
-            "subject": "Interview Scheduled",
-            "text": "Your interview for round 3 has been scheduled. Check your email for details.",
+            "subject": "Case Study Round Scheduled",
+            "text": "Your Case Study round has been scheduled. Please check your email for complete details.",
         },
-        "sms": "Interview for round 3 has been scheduled. Check email for timing/link.",
+        "sms": "Your Case Study round has been scheduled. Please check your email for details.",
         "log": "Interview round 3 pending notification sent to {candidate.candidate_email}",
     },
     "interview_done_3": {
         "email": {
-            "subject": "Thank You for Interviewing",
-            "text": "Thank you for attending the interview. We are reviewing the results.",
+            "subject": "Thank You for Attending the Case Study Round",
+            "text": "Thank you for completing the Case Study round. Our team is now reviewing the submissions.",
         },
-        "sms": "Thanks for interviewing! You’ll be updated soon.",
+        "sms": "Thank you for completing the Case Study round. We will update you shortly.",
         "log": "Interview round 3 completion message sent to {candidate.candidate_email}",
     },
     "interview_rejected_3": {
         "email": {
-            "subject": "Interview Update",
-            "text": "We appreciate your time. Unfortunately, we will not move ahead at this time.",
+            "subject": "Case Study Round Outcome",
+            "text": "Thank you for your participation in the Case Study round. We regret to inform you that we will not be proceeding further.",
         },
-        "sms": "We will not move ahead with your application.",
+        "sms": "Thank you for the Case Study round. We will not be moving forward with your application.",
         "log": "Interview rejection for round 3 sent to {candidate.candidate_email}",
     },
     "interview_next_final": {
         "email": {
-            "subject": "Final Round interview",
-            "text": "You have been shortlisted for final round.",
+            "subject": "Final Round Scheduled",
+            "text": "You have successfully cleared the Case Study round and have been shortlisted for the Final Round.",
         },
-        "sms": "You have been shortlisted for final round!",
+        "sms": "You have cleared the Case Study round and are now shortlisted for the Final Round.",
         "log": "Final Round selection notification sent to {candidate.candidate_email}",
-        "schedule_link":True
+        "schedule_link": True
     },
     "interview_pending_final": {
         "email": {
-            "subject": "Interview Scheduled",
-            "text": "Your interview for round 3 has been scheduled. Check your email for details.",
+            "subject": "Final Interview Scheduled",
+            "text": "Your Final interview has been scheduled. Please check your email for details and joining link.",
         },
-        "sms": "Interview round 3 has been scheduled. Check email for timing/link.",
+        "sms": "Your Final interview has been scheduled. Please check your email for details.",
         "log": "Final Interview pending notification sent to {candidate.candidate_email}",
     },
     "interview_done_final": {
         "email": {
-            "subject": "Thank You for Interviewing",
-            "text": "Thank you for attending the interview. We are reviewing the results.",
+            "subject": "Thank You for Attending the Final Round",
+            "text": "Thank you for attending the Final interview. The panel is now deliberating.",
         },
-        "sms": "Thanks for interviewing! You’ll be updated soon.",
+        "sms": "Thank you for attending the Final round. We will update you soon.",
         "log": "Final Interview completion message sent to {candidate.candidate_email}",
     },
     "interview_rejected_final": {
         "email": {
-            "subject": "Interview Update",
-            "text": "We appreciate your time. Unfortunately, we will not move ahead at this time.",
+            "subject": "Final Round Outcome",
+            "text": "Thank you for your time and effort throughout the final round. We will not be proceeding with your candidature at this stage.",
         },
-        "sms": "We will not move ahead with your application.",
+        "sms": "Thank you for the Final round. We will not be moving forward with your application.",
         "log": "Interview rejection for final round sent to {candidate.candidate_email}",
     },
     "interview_next_management_client": {
         "email": {
-            "subject": "Management/Client Interview Round",
-            "text": "You have been shortlisted for management/client round of interview.",
+            "subject": "Management / Client Round Scheduled",
+            "text": "You have successfully cleared the previous rounds and have been shortlisted for the Management / Client Round.",
         },
-        "sms": "You have been shortlisted for second round of interview!",
+        "sms": "You have been shortlisted for the Management / Client Round.",
         "log": "Management Client Round notification sent to {candidate.candidate_email}",
-        "schedule_link":True
+        "schedule_link": True
     },
     "interview_pending_management_client": {
         "email": {
-            "subject": "Management/Client Interview Scheduled",
-            "text": "Your interview for management/client has been scheduled. Check your email for details.",
+            "subject": "Management / Client Interview Scheduled",
+            "text": "Your Management / Client interview has been scheduled. Please check your email for details.",
         },
-        "sms": "Interview for management/client round has been scheduled. Check email for timing/link.",
+        "sms": "Your Management / Client interview has been scheduled. Please check your email.",
         "log": "Interview management client round pending notification sent to {candidate.candidate_email}",
     },
     "interview_done_management_client": {
         "email": {
-            "subject": "Thank You for Interviewing",
-            "text": "Thank you for attending the interview. We are reviewing the results.",
+            "subject": "Thank You for Attending the Management / Client Round",
+            "text": "Thank you for attending the Management / Client interview. The final decision is under review.",
         },
-        "sms": "Thanks for interviewing! You’ll be updated soon.",
+        "sms": "Thank you for attending the Management / Client round. We will update you shortly.",
         "log": "Interview management client round completion message sent to {candidate.candidate_email}",
     },
     "interview_rejected_management_client": {
         "email": {
-            "subject": "Interview Update",
-            "text": "We appreciate your time. Unfortunately, we will not move ahead at this time.",
+            "subject": "Management / Client Round Outcome",
+            "text": "Thank you for your participation in the Management / Client round. We regret to inform you that we will not be proceeding further.",
         },
-        "sms": "We will not move ahead with your application.",
+        "sms": "Thank you for the Management / Client round. We will not be moving forward with your application.",
         "log": "Interview rejection for management client round sent to {candidate.candidate_email}",
     },
+
     # --------------------------------------------------------------
     # 2. SELECTION & APPROVAL FLOW
     # --------------------------------------------------------------
     "selected": {
         "email": {
-            "subject": "Congratulations – You’re Selected!",
-            "text": "You have been selected by the interview panel. Awaiting approval.",
+            "subject": "You Have Been Selected",
+            "text": "Congratulations! You have been selected by the interview panel. Your profile is now with the approval committee.",
         },
-        "sms": "Congrats! You’ve been selected. Approval process started.",
+        "sms": "Congratulations! You have been selected by the interview panel.",
         "log": "Selection notification sent to {candidate.candidate_email}",
     },
     "approval_pending": {
         "email": {
-            "subject": "Profile Sent for Approval",
-            "text": "Your profile has been sent for approval.",
+            "subject": "Profile Sent for Final Approval",
+            "text": "Your profile has been forwarded for final approval. We will update you as soon as the decision is received.",
         },
-        "sms": "Your profile is under approval.",
+        "sms": "Your profile has been sent for final approval. We will keep you posted.",
         "log": "Approval pending notification sent to {candidate.candidate_email}",
     },
     "approved": {
         "email": {
-            "subject": "Profile Approved",
-            "text": "Your profile has been approved. Offer letter will be prepared.",
+            "subject": "Profile Approved - Next Steps",
+            "text": "Your profile has been officially approved. Our HR team will now prepare your offer letter.",
         },
-        "sms": "Profile approved! Offer preparation started.",
+        "sms": "Your profile has been approved. Offer letter preparation has started.",
         "log": "Approval confirmation sent to {candidate.candidate_email}",
     },
     "approval_rejected": {
         "email": {
             "subject": "Application Update",
-            "text": "Your profile was not approved by the hiring manager.",
+            "text": "After careful review, the hiring manager has decided not to proceed with your profile at this time.",
         },
-        "sms": "Your profile was not approved.",
+        "sms": "We regret to inform you that your profile was not approved at this stage.",
         "log": "Approval rejection sent to {candidate.candidate_email}",
     },
-    
-    # ---------------------------- NEW NOTIFICATION BLOCKS ----------------------------
+
+    # ---------------------------- SALARY & ANNEXURE FLOW ----------------------------
     "salary_docs_pending": {
         "email": {
-            "subject": "Upload Salary Documents",
-            "text": "Please upload your latest salary slip and bank statement.",
+            "subject": "Request to Upload Salary Documents",
+            "text": "To proceed with your offer, please upload your latest salary slips and bank statements using the secure link provided.",
         },
-        "sms": "Please upload your salary slip and bank statement.",
+        "sms": "Please upload your latest salary slips and bank statements using the link sent to your email.",
         "log": "Salary document upload request sent to {candidate.candidate_email}",
     },
-
     "salary_docs_uploaded": {
         "email": {
             "subject": "Salary Documents Received",
-            "text": "We have received your salary slip and bank statement. HR will review them shortly.",
+            "text": "Thank you. We have received your salary documents. Our HR team will review them shortly.",
         },
-        "sms": "Salary documents received.",
+        "sms": "Salary documents received. HR will review them shortly.",
         "log": "Salary documents uploaded confirmation sent to {candidate.candidate_email}",
     },
-
     "hr_review_docs": {
         "email": {
-            "subject": "HR Reviewing Documents",
-            "text": "HR is reviewing your uploaded salary documents.",
+            "subject": "Salary Documents Under Review",
+            "text": "Your salary documents are currently being reviewed by HR.",
         },
-        "sms": "HR is reviewing your salary documents.",
+        "sms": "Your salary documents are under HR review.",
         "log": "HR review of salary documents started for {candidate.candidate_email}",
     },
     "hr_review_ok": {
         "email": {
-            "subject": "Salary Documents Verified",
-            "text": "Your salary documents have been verified successfully. HR will now prepare your salary annexure.",
+            "subject": "Salary Documents Verified Successfully",
+            "text": "Your salary documents have been successfully verified. We are now preparing your salary annexure.",
         },
-        "sms": "Salary documents verified. HR is preparing your salary annexure.",
+        "sms": "Salary documents verified. Salary annexure is being prepared.",
         "log": "HR verified salary documents for {candidate.candidate_email}",
     },
     "hr_review_rejected": {
         "email": {
-            "subject": "Salary Documents Rejected",
-            "text": "Your uploaded salary documents were unclear or incorrect. Please re-upload them.",
+            "subject": "Salary Documents Require Re-upload",
+            "text": "Some of the uploaded salary documents were unclear or incomplete. Please re-upload the required files.",
         },
-        "sms": "Salary documents rejected. Please re-upload.",
+        "sms": "Some salary documents need re-upload. Please check your email for details.",
         "log": "HR rejected salary documents for {candidate.candidate_email}",
     },
     "salary_annexure_prep": {
         "email": {
             "subject": "Salary Annexure Under Preparation",
-            "text": "HR is preparing your salary annexure based on the verified documents.",
+            "text": "We are preparing your salary annexure based on the verified documents.",
         },
-        "sms": "HR is preparing your salary annexure.",
+        "sms": "Your salary annexure is being prepared.",
         "log": "Salary annexure preparation started for {candidate.candidate_email}",
     },
-    "salary_annexure_sent": {
+    "salary_annexure_review": {
         "email": {
             "subject": "Salary Annexure Sent for Approval",
-            "text": "Your salary annexure has been sent to HR Head for approval.",
+            "text": "Your salary annexure has been forwarded to the HR Head for final approval.",
         },
-        "sms": "Salary annexure sent for approval.",
+        "sms": "Salary annexure sent for HR Head approval.",
         "log": "Salary annexure sent for approval for {candidate.candidate_email}",
     },
     "approved_annexure": {
         "email": {
             "subject": "Salary Annexure Approved",
-            "text": "Your salary annexure has been approved by HR Head. Offer letter will be prepared next.",
+            "text": "Your salary annexure has been approved. We will now prepare your formal offer letter.",
         },
-        "sms": "Salary annexure approved. Offer letter preparation started.",
+        "sms": "Salary annexure approved. Offer letter preparation in progress.",
         "log": "Salary annexure approval sent to {candidate.candidate_email}",
     },
     "rejected_annexure": {
         "email": {
-            "subject": "Salary Annexure Rejected",
-            "text": "The HR Head has requested changes. HR will update the annexure and resend.",
+            "subject": "Salary Annexure Requires Revision",
+            "text": "The HR Head has requested some changes to the salary annexure. We will update and resend it shortly.",
         },
-        "sms": "Salary annexure rejected. HR will resend after correction.",
+        "sms": "Salary annexure requires revision. We will update you shortly.",
         "log": "Salary annexure rejected for {candidate.candidate_email}",
     },
+
     # --------------------------------------------------------------
     # 3. OFFER FLOW
     # --------------------------------------------------------------
     "offer_pending": {
         "email": {
-            "subject": "Offer Preparation in Progress",
-            "text": "We are preparing your offer letter.",
+            "subject": "Offer Letter Preparation in Progress",
+            "text": "Your offer letter is currently being prepared by the HR team.",
         },
-        "sms": "Your offer is being prepared.",
+        "sms": "Your offer letter is being prepared.",
         "log": "Offer pending notification sent to {candidate.candidate_email}",
     },
-    # "offer_sent": {
-    #     "email": {
-    #         "subject": "Your Offer Letter",
-    #         "text": "Please find your offer letter attached.",
-    #         "attachments_factory": generate_offer_letter,
-    #     },
-    #     "sms": "Your offer letter has been emailed to you.",
-    #     "log": "Offer letter sent to {candidate.candidate_email}",
-    # },
     "offer_sent": {
         "email": {
-            "subject": "Your Offer Letter – Signature Required",
-            "text": "Please sign your offer letter using the secure link provided: {sign_url}",
+            "subject": "Your Offer Letter - Signature Required",
+            "text": "Please review and sign your offer letter using the secure link provided in this email.",
         },
-        "sms": "Your offer letter is ready. Please check email to sign.",
-        "opensign": True,   # <== IMPORTANT FLAG
+        "sms": "Your offer letter is ready. Please check your email to review and sign.",
+        "opensign": True,
         "log": "Offer letter sent for signing to {candidate.candidate_email}",
     },
     "offer_accepted": {
         "email": {
-            "subject": "Offer Accepted",
-            "text": "Thank you for accepting the offer! Please upload your resignation letter.",
+            "subject": "Offer Accepted - Next Steps",
+            "text": "Thank you for accepting the offer. Please upload your resignation / relieving letter to proceed with onboarding.",
         },
-        "sms": "Offer accepted! Please upload your resignation letter.",
+        "sms": "Offer accepted. Please upload your resignation letter using the link sent to your email.",
         "log": "Offer acceptance notification sent to {candidate.candidate_email}",
     },
     "offer_rejected": {
         "email": {
-            "subject": "Update on Your Offer",
-            "text": "You have declined the offer. Application closed.",
+            "subject": "Offer Declined",
+            "text": "We note that you have declined the offer. Your application has been closed. Thank you for considering Knowcraft Analytics.",
         },
-        "sms": "You declined the offer.",
+        "sms": "You have declined the offer. Your application is now closed.",
         "log": "Offer rejection notification sent to {candidate.candidate_email}",
     },
 
     # --------------------------------------------------------------
-    # 4. RESIGNATION FLOW (NEW)
+    # 4. RESIGNATION FLOW
     # --------------------------------------------------------------
     "resignation_pending": {
         "email": {
-            "subject": "Upload Your Resignation Letter",
-            "text": "Please upload your resignation letter under 48 hours using this link: {link}",
+            "subject": "Request to Upload Resignation Letter",
+            "text": "To proceed with your joining formalities, please upload your resignation / relieving letter within 48 hours using the secure link.",
         },
-        "sms": "Upload your resignation letter under 48 hours using this link: {link}.",
+        "sms": "Please upload your resignation letter within 48 hours using the link sent to your email.",
         "log": "Resignation letter request sent to {candidate.candidate_email}",
     },
     "resignation_uploaded": {
         "email": {
             "subject": "Resignation Letter Received",
-            "text": "We have received your resignation letter. HR will verify it shortly.",
+            "text": "Thank you. We have received your resignation letter. HR will verify it shortly.",
         },
-        "sms": "Resignation letter received.",
+        "sms": "Resignation letter received. HR will verify shortly.",
         "log": "Resignation uploaded confirmation sent to {candidate.candidate_email}",
     },
     "resignation_review": {
         "email": {
             "subject": "Resignation Letter Under Review",
-            "text": "Your resignation letter is under review by HR.",
+            "text": "Your resignation letter is currently under review by HR.",
         },
-        "sms": "Resignation letter is under review.",
+        "sms": "Your resignation letter is under HR review.",
         "log": "Resignation review started for {candidate.candidate_email}",
     },
     "resignation_approved": {
         "email": {
             "subject": "Resignation Letter Approved",
-            "text": "Your resignation letter has been approved. Please upload the required documents.",
+            "text": "Your resignation letter has been approved. Please proceed with uploading the remaining joining documents.",
         },
-        "sms": "Resignation approved. Please upload required documents.",
+        "sms": "Resignation letter approved. Please upload remaining documents.",
         "log": "Resignation approved notification sent to {candidate.candidate_email}",
     },
     "resignation_rejected": {
         "email": {
-            "subject": "Resignation Letter Rejected",
-            "text": "Your resignation letter is unclear or incomplete. Please re-upload.",
+            "subject": "Resignation Letter Requires Re-upload",
+            "text": "Your resignation letter was unclear or incomplete. Please re-upload a clear copy using the same link.",
         },
-        "sms": "Resignation rejected. Please re-upload.",
+        "sms": "Resignation letter requires re-upload. Please check your email.",
         "log": "Resignation rejected notification sent to {candidate.candidate_email}",
     },
 
     # --------------------------------------------------------------
-    # 5. DOCUMENT FLOW (UPDATED)
+    # 5. DOCUMENT FLOW
     # --------------------------------------------------------------
     "docs_pending": {
         "email": {
-            "subject": "Upload Your Documents",
-            "text": "Please upload your joining documents using this link: {link}",
+            "subject": "Upload Joining Documents",
+            "text": "Please upload all required joining documents using the secure link provided.",
         },
-        "sms": "Upload your documents: {link}",
+        "sms": "Please upload your joining documents using the link sent to your email.",
         "log": "Document upload request sent to {candidate.candidate_email}",
     },
     "docs_uploaded": {
         "email": {
-            "subject": "Documents Received",
-            "text": "We’ve received your documents. Verification will be done shortly.",
+            "subject": "Documents Received Successfully",
+            "text": "Thank you. We have received your documents. Our team will verify them shortly.",
         },
-        "sms": "Documents received.",
+        "sms": "Documents received. Verification in progress.",
         "log": "Documents uploaded confirmation sent to {candidate.candidate_email}",
     },
     "review_docs": {
         "email": {
             "subject": "Document Verification in Progress",
-            "text": "Your uploaded documents are under review. You'll be notified once verification is completed.",
+            "text": "Your submitted documents are currently under verification by HR.",
         },
-        "sms": "Documents under review.",
+        "sms": "Your documents are under verification.",
         "log": "Document review started for {candidate.candidate_email}",
     },
     "docs_unclear": {
         "email": {
-            "subject": "Documents Unclear",
-            "text": "Some uploaded documents were unclear. Please re-upload the required documents.",
+            "subject": "Documents Require Re-upload",
+            "text": "Some of your uploaded documents were unclear. Please re-upload clear copies using the same link.",
         },
-        "sms": "Documents unclear. Please re-upload.",
+        "sms": "Some documents are unclear. Please re-upload using the link sent.",
         "log": "Documents unclear notification sent to {candidate.candidate_email}",
     },
     "docs_incomplete": {
         "email": {
-            "subject": "Document Verification Result",
-            "text": "Some documents were incomplete or unclear. Please re-upload using the same link.",
+            "subject": "Documents Incomplete",
+            "text": "Some required documents were missing or incomplete. Please upload the complete set using the provided link.",
         },
-        "sms": "Some documents were unclear. Please re-upload.",
+        "sms": "Some documents are incomplete. Please re-upload using the link sent.",
         "log": "Documents incomplete notification sent to {candidate.candidate_email}",
     },
     "docs_approved": {
         "email": {
             "subject": "Documents Approved",
-            "text": "All documents verified successfully. Joining process will begin.",
+            "text": "All your documents have been successfully verified. Your joining process will now begin.",
         },
-        "sms": "Documents approved. Joining process started.",
+        "sms": "All documents approved. Joining process started.",
         "log": "Documents approved notification sent to {candidate.candidate_email}",
     },
 
@@ -466,26 +454,26 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
     # --------------------------------------------------------------
     "joining_pending": {
         "email": {
-            "subject": "Joining Preparation Started",
-            "text": "HR is preparing your onboarding formalities.",
+            "subject": "Joining Formalities Initiated",
+            "text": "Your joining formalities have been initiated. HR will share the next steps shortly.",
         },
-        "sms": "Joining formalities in progress.",
+        "sms": "Your joining formalities have been initiated.",
         "log": "Joining pending notification sent to {candidate.candidate_email}",
     },
     "joining_poned": {
         "email": {
-            "subject": "Joining Postponed",
-            "text": "Your joining has been postponed. HR will provide the updated joining date.",
+            "subject": "Joining Date Postponed",
+            "text": "Your joining date has been postponed. HR will communicate the revised date shortly.",
         },
-        "sms": "Joining postponed. Wait for updated date.",
+        "sms": "Your joining has been postponed. Updated date will be shared soon.",
         "log": "Joining postponed notification sent to {candidate.candidate_email}",
     },
     "joined": {
         "email": {
-            "subject": "Welcome Aboard!",
-            "text": "Congratulations on joining our team!",
+            "subject": "Welcome to Knowcraft Analytics!",
+            "text": "Congratulations! You have successfully joined Knowcraft Analytics. We look forward to your valuable contribution.",
         },
-        "sms": "Welcome aboard!",
+        "sms": "Welcome to Knowcraft Analytics! Congratulations on joining the team.",
         "log": "Joining confirmation sent to {candidate.candidate_email}",
     },
 
@@ -494,10 +482,10 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
     # --------------------------------------------------------------
     "rejected": {
         "email": {
-            "subject": "Application Update",
-            "text": "Your application has been closed.",
+            "subject": "Application Closed",
+            "text": "We thank you for your interest in Knowcraft Analytics. Your application has been closed at this stage.",
         },
-        "sms": "Your application has been closed.",
+        "sms": "Your application has been closed. Thank you for your interest in Knowcraft Analytics.",
         "log": "Final rejection sent to {candidate.candidate_email}",
     },
 }
