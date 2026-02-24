@@ -458,64 +458,125 @@ class SendApprovalNoteAPIView(APIView):
         # --- HTML Template ---
         html_content = """
         <html>
-        <body style="font-family: Arial, sans-serif; color:#333; line-height:1.6;">
-            <h2 style="color:#2c3e50;">Approval Required – Candidate Hiring</h2>
-
-            <p>Dear <strong>{{ approver_name }}</strong>,</p>
-
-            <p>
-            Sharing the formal approval note regarding 
-            <strong>{{ candidate_name }}</strong> shortlisted as 
-            <strong>{{ designation }}</strong> – <strong>{{ department }}</strong>.
-            </p>
-
-            <table style="border-collapse: collapse; width:100%; margin-top:15px;" border="1">
-                <tr><td><strong>Name of Candidate</strong></td><td>{{ candidate_name }}</td></tr>
-                <tr><td><strong>Designation</strong></td><td>{{ designation }}</td></tr>
-                <tr><td><strong>Experience</strong></td><td>{{ experience }}</td></tr>
-                <tr><td><strong>Qualification</strong></td><td>{{ qualification }}</td></tr>
-                <tr><td><strong>Last Organization</strong></td><td>{{ last_organization }}</td></tr>
-
-                <tr><td colspan="2"><br><strong>Interviewers</strong></td></tr>
-                <tr><td>HR Round</td><td>{{ hr_round_interviewer }}</td></tr>
-                <tr><td>Technical Round</td><td>{{ tech_round_interviewer }}</td></tr>
-                <tr><td>Case Study Round</td><td>{{ case_study_round_interviewer }}</td></tr>
-                <tr><td>Final Round</td><td>{{ final_round_interviewer }}</td></tr>
-                <tr><td>Management/Client Round</td><td>{{ management_client_round_interviewer }}</td></tr>
-
-                <tr><td colspan="2"><br><strong>Scores</strong></td></tr>
-                <tr><td>HR Round</td><td>{{ hr_round_score }}</td></tr>
-                <tr><td>Technical Round</td><td>{{ tech_round_score }}</td></tr>
-                <tr><td>Case Study Round</td><td>{{ case_study_round_score }}</td></tr>
-                <tr><td>Final Round</td><td>{{ final_round_score }}</td></tr>
-                <tr><td>Management/Client Round</td><td>{{ management_client_round_score }}</td></tr>
-
-                <tr><td><strong>Current / Last Drawn CTC</strong></td><td>{{ current_ctc }}</td></tr>
-                <tr><td><strong>Expected CTC</strong></td><td>{{ expected_ctc }}</td></tr>
-                <tr><td><strong>CTC to be Offered</strong></td><td>{{ offered_ctc }}</td></tr>
-                <tr><td><strong>Notice Period</strong></td><td>{{ notice_period }}</td></tr>
-                <tr><td><strong>Office Location</strong></td><td>{{ office_location }}</td></tr>
-                <tr><td><strong>Source</strong></td><td>{{ source }}</td></tr>
-                <tr><td><strong>MRF</strong></td><td>{{ mrf }}</td></tr>
-                <tr><td><strong>New / Replacement</strong></td><td>{{ hiring_type }}</td></tr>
-
-                {% if remarks %}
-                <tr><td><strong>Remarks</strong></td><td>{{ remarks }}</td></tr>
-                {% endif %}
-            </table>
-
-            <p style="margin-top:20px;">
-                Request you to review the same and share your feedback, if any.
-                Link: <a href='{{FRONTEND_URL}}/onboarding'>View Candidate</a>
-            </p>
-
-            <p>
-                Regards,<br>
-                Team – HR <br>
-                Knowcraft Analytics Private Limited
-            </p>
-        </body>
-        </html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:700px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Logo -->
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <!-- Separator -->
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                <h2 style="margin:0 0 24px 0;color:#1f2937;font-size:26px;font-weight:600;">Approval Required – Candidate Hiring</h2>
+                                
+                                <p style="margin:0 0 18px 0;">Dear <strong>{{ approver_name }}</strong>,</p>
+                                
+                                <p style="margin:0 0 24px 0;">
+                                    Sharing the formal approval note regarding <strong>{{ candidate_name }}</strong> shortlisted as 
+                                    <strong>{{ designation }}</strong> – <strong>{{ department }}</strong>.
+                                </p>
+                                
+                                <!-- Candidate Details Table -->
+                                <h3 style="margin:28px 0 12px 0;color:#1f2937;font-size:18px;font-weight:600;">Candidate Details</h3>
+                                <table border="1" cellpadding="12" cellspacing="0" width="100%" style="border-collapse:collapse;border-color:#e2e8f0;font-size:15px;">
+                                    <tr style="background:#f8fafc;">
+                                        <td style="width:38%;font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Name of Candidate</td>
+                                        <td style="border:1px solid #e2e8f0;">{{ candidate_name }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Designation</td>
+                                        <td style="border:1px solid #e2e8f0;">{{ designation }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Experience</td>
+                                        <td style="border:1px solid #e2e8f0;">{{ experience }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Qualification</td>
+                                        <td style="border:1px solid #e2e8f0;">{{ qualification }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Last Organization</td>
+                                        <td style="border:1px solid #e2e8f0;">{{ last_organization }}</td>
+                                    </tr>
+                                </table>
+                                
+                                <!-- Interview Rounds -->
+                                <h3 style="margin:32px 0 12px 0;color:#1f2937;font-size:18px;font-weight:600;">Interview Rounds</h3>
+                                <table border="1" cellpadding="12" cellspacing="0" width="100%" style="border-collapse:collapse;border-color:#e2e8f0;font-size:15px;">
+                                    <tr style="background:#f8fafc;">
+                                        <td colspan="2" style="font-weight:700;color:#1f2937;border:1px solid #e2e8f0;text-align:center;">Interviewers</td>
+                                    </tr>
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">HR Round</td><td style="border:1px solid #e2e8f0;">{{ hr_round_interviewer }}</td></tr>
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Technical Round</td><td style="border:1px solid #e2e8f0;">{{ tech_round_interviewer }}</td></tr>
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Case Study Round</td><td style="border:1px solid #e2e8f0;">{{ case_study_round_interviewer }}</td></tr>
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Final Round</td><td style="border:1px solid #e2e8f0;">{{ final_round_interviewer }}</td></tr>
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Management / Client Round</td><td style="border:1px solid #e2e8f0;">{{ management_client_round_interviewer }}</td></tr>
+                                    
+                                    <tr style="background:#f8fafc;">
+                                        <td colspan="2" style="font-weight:700;color:#1f2937;border:1px solid #e2e8f0;text-align:center;">Scores</td>
+                                    </tr>
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">HR Round</td><td style="border:1px solid #e2e8f0;">{{ hr_round_score }}</td></tr>
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Technical Round</td><td style="border:1px solid #e2e8f0;">{{ tech_round_score }}</td></tr>
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Case Study Round</td><td style="border:1px solid #e2e8f0;">{{ case_study_round_score }}</td></tr>
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Final Round</td><td style="border:1px solid #e2e8f0;">{{ final_round_score }}</td></tr>
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Management / Client Round</td><td style="border:1px solid #e2e8f0;">{{ management_client_round_score }}</td></tr>
+                                </table>
+                                
+                                <!-- Offer & Other Details -->
+                                <h3 style="margin:32px 0 12px 0;color:#1f2937;font-size:18px;font-weight:600;">Offer & Other Details</h3>
+                                <table border="1" cellpadding="12" cellspacing="0" width="100%" style="border-collapse:collapse;border-color:#e2e8f0;font-size:15px;">
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Current / Last Drawn CTC</td><td style="border:1px solid #e2e8f0;">{{ current_ctc }}</td></tr>
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Expected CTC</td><td style="border:1px solid #e2e8f0;">{{ expected_ctc }}</td></tr>
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">CTC to be Offered</td><td style="border:1px solid #e2e8f0;font-weight:500;">{{ offered_ctc }}</td></tr>
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Notice Period</td><td style="border:1px solid #e2e8f0;">{{ notice_period }}</td></tr>
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Office Location</td><td style="border:1px solid #e2e8f0;">{{ office_location }}</td></tr>
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Source</td><td style="border:1px solid #e2e8f0;">{{ source }}</td></tr>
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">MRF</td><td style="border:1px solid #e2e8f0;">{{ mrf }}</td></tr>
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">New / Replacement</td><td style="border:1px solid #e2e8f0;">{{ hiring_type }}</td></tr>
+                                    {% if remarks %}
+                                    <tr><td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Remarks</td><td style="border:1px solid #e2e8f0;">{{ remarks }}</td></tr>
+                                    {% endif %}
+                                </table>
+                                
+                                <!-- Action -->
+                                <p style="margin:32px 0 8px 0;">
+                                    Request you to review the details and share your feedback, if any.
+                                </p>
+                                <p style="margin:0 0 30px 0;text-align:center;">
+                                    <a href="{{FRONTEND_URL}}/onboarding" 
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;display:inline-block;">
+                                        View Candidate Profile
+                                    </a>
+                                </p>
+                                
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                            </td>
+                        </tr>
+                        
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
         """
 
         # --- Context ---

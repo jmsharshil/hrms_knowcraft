@@ -885,86 +885,77 @@ def build_candidate_history(email, exclude_application_id=None):
     return history
 
 email_html_templates = {
-    "job_assigned":f"""<html>
-<body style="font-family: Arial, sans-serif; background-color: #f4f6f8; margin:0; padding:20px;">
-
-    <table width="100%" cellpadding="0" cellspacing="0">
-        <tr>
-            <td align="center">
-
-                <table width="600" cellpadding="0" cellspacing="0" 
-                       style="background-color: #ffffff; border-radius: 8px; overflow:hidden;">
-
-                    <!-- Header -->
-                    <tr>
-                        <td style="padding:15px 20px; border-bottom:1px solid #e0e0e0;">
-                            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" height="45">
-                        </td>
-                    </tr>
-
-                    <!-- Body -->
-                    <tr>
-                        <td style="padding:20px;">
-                            <h2 style="color: #2c3e50; margin-top:0;">New Job Assignment</h2>
-                            
-                            <p>Hello <strong>{{user_name}}</strong>,</p>
-
-                            <p>
-                                A new job has been assigned to you. Please find the details below:
-                            </p>
-
-                            <table width="100%" cellpadding="8" cellspacing="0" 
-                                   style="margin-top: 15px; border-collapse: collapse;">
-                                <tr>
-                                    <td><strong>Job Title:</strong></td>
-                                    <td>{{job_title}}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Department:</strong></td>
-                                    <td>{{department}}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Designation:</strong></td>
-                                    <td>{{designation}}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Assigned By:</strong></td>
-                                    <td>{{assigned_by}}</td>
-                                </tr>
-                            </table>
-
-                            <!-- CTA Button -->
-                            <p style="margin-top:25px; text-align:center;">
-                                <a href="{FRONTEND_URL}/onboarding"
-                                   style="background:#2c3e50; color:#ffffff; padding:12px 20px;
-                                          text-decoration:none; border-radius:5px; display:inline-block;">
-                                    View Dashboard
-                                </a>
-                            </p>
-
-                            <p>
-                                Regards,<br>
-                                <strong>Hiring Team</strong><br>
-                                Knowcraft Analytics Private Limited
-                            </p>
-                        </td>
-                    </tr>
-
-                    <!-- Footer -->
-                    <tr>
-                        <td style="background:#f4f6f8; padding:12px 20px; font-size:12px; color:#777;">
-                            © 2026 Knowcraft Analytics Private Limited. All rights reserved.
-                        </td>
-                    </tr>
-
-                </table>
-
-            </td>
-        </tr>
-    </table>
-
-</body>
-</html>
+    "job_assigned": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Logo -->
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <!-- Separator -->
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">New Job Assignment</h2>
+                                
+                                <p style="margin:0 0 16px 0;">Hello <strong>{{user_name}}</strong>,</p>
+                                
+                                <p style="margin:0 0 20px 0;">
+                                    A new job has been assigned to you. Please find the details below:
+                                </p>
+                                
+                                <!-- Clean Details Table -->
+                                <table border="1" cellpadding="12" cellspacing="0" width="100%" style="border-collapse:collapse;border-color:#e2e8f0;font-size:15px;">
+                                    <tr style="background:#f8fafc;">
+                                        <td style="width:38%;font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Job Title</td>
+                                        <td style="border:1px solid #e2e8f0;">{{job_title}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Department</td>
+                                        <td style="border:1px solid #e2e8f0;">{{department}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Designation</td>
+                                        <td style="border:1px solid #e2e8f0;">{{designation}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight:600;color:#1f2937;border:1px solid #e2e8f0;">Assigned By</td>
+                                        <td style="border:1px solid #e2e8f0;">{{assigned_by}}</td>
+                                    </tr>
+                                </table>
+                                
+                                <!-- Action Button -->
+                                <p style="margin:32px 0 30px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}/onboarding" 
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;display:inline-block;">
+                                        View Dashboard
+                                    </a>
+                                </p>
+                                
+                                <p style="margin:20px 0 6px 0;color:#555555;">Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
 """
 }
 email_alt_text = {

@@ -263,18 +263,61 @@ class CandidateBookSlotView(APIView):
                         text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}",
                         template=f"""
                         <html>
-                        <body style="font-family: Arial; color:#333;">
-                            <h2>Interview Scheduled ({round_name})</h2>
-                            <p>Dear {interviewer.name},</p>
-                            <p>This is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.</p>
-                            <p>Please find below the MS Teams link and attached candidate’s details.</p>
-                            <p>Join link: {meeting_link}</p>
-                            <p>Resume Link: {candidate.resume.url}</p>
-                            <br>
-                            <p>Regards,
-                            <br>
-                            Team HR</p>
-                            </body>
+                        <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+                            <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+                                <tr>
+                                    <td align="center" style="padding:30px 15px;">
+                                        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                                            <!-- Logo -->
+                                            <tr>
+                                                <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                                    <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                                </td>
+                                            </tr>
+                                            <!-- Separator -->
+                                            <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                                            <!-- Content -->
+                                            <tr>
+                                                <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
+                                                    <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Interview Scheduled — {round_name}</h2>
+                                                    <p style="margin:0 0 16px 0;">Dear {interviewer.name},</p>
+                                                    <p style="margin:0 0 16px 0;">This is to inform you that the interview for <strong>{candidate.candidate_name}</strong> for the role of <strong>{candidate.job.mrf.designation.name}</strong> has been scheduled on <strong>{start_str}</strong>.</p>
+                                                    <p style="margin:0 0 16px 0;">Please find below the MS Teams link and candidate details:</p>
+                                                    
+                                                    <!-- Clean Link Table -->
+                                                    <table style="margin:22px 0;width:100%;border-collapse:collapse;background:#f8fafc;border-radius:8px;overflow:hidden;">
+                                                        <tr>
+                                                            <td style="padding:16px 20px;width:140px;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">Join Link</td>
+                                                            <td style="padding:16px 20px;border-bottom:1px solid #e2e8f0;">
+                                                                <a href="{meeting_link}" style="color:#2563eb;text-decoration:underline;font-weight:500;">{meeting_link}</a>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td style="padding:16px 20px;width:140px;font-weight:600;color:#475569;">Resume</td>
+                                                            <td style="padding:16px 20px;">
+                                                                <a href="{candidate.resume.url}" style="color:#2563eb;text-decoration:underline;font-weight:500;">View / Download Resume</a>
+                                                            </td>
+                                                        </tr>
+                                                    </table>
+                                                    
+                                                    <p style="margin:25px 0 16px 0;">Please join the meeting on time and keep the candidate’s resume handy.</p>
+                                                    <br>
+                                                    <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                                    <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                                    <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                                </td>
+                                            </tr>
+                                            <!-- Footer -->
+                                            <tr>
+                                                <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                                    © 2026 Knowcraft Analytics Private Limited • Confidential
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </body>
                         </html>""",
                         to=interviewer.email,
                         attachments=[resume_attachment] if resume_attachment else None
@@ -300,16 +343,65 @@ class CandidateBookSlotView(APIView):
             f"?interview_round={round}&job_application={candidate.id}"
         )
 
-        send_mail(
-            f"Interview Scheduled – {candidate.job.mrf.designation.name} at Knowcraft Analytics Private Limited",
-            f"""Dear {candidate.candidate_name},\nWe are pleased to inform you have been shortlisted for {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled at {start_str}.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
+        send_email(
+            subject=f"Interview Scheduled – {candidate.job.mrf.designation.name} at Knowcraft Analytics Private Limited",
+            text=f"""Dear {candidate.candidate_name},\nWe are pleased to inform you have been shortlisted for {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled at {start_str}.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
 \nWe look forward to speaking with you.
 \nPlease feel free to reach out if you have any questions or require further assistance.
 \nWarm regards,
 \nTeam-HR
 \nKnowcraft Analytics Private Limited""",
-            settings.DEFAULT_FROM_EMAIL,
-            [candidate.candidate_email],
+            template="""<html>
+        <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+            <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+                <tr>
+                    <td align="center" style="padding:30px 15px;">
+                        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                            <!-- Logo -->
+                            <tr>
+                                <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                    <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                </td>
+                            </tr>
+                            <!-- Separator -->
+                            <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                            <!-- Content -->
+                            <tr>
+                                <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
+                                    <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Interview Scheduled — {round_name}</h2>
+                                    <p style="margin:0 0 16px 0;">Dear {candidate.candidate_name},</p>
+                                    <p style="margin:0 0 20px 0;">We are pleased to inform you that your <strong>{round_name}</strong> interview for the position of <strong>{candidate.job.mrf.designation.name}</strong> has been scheduled on <strong>{start_str}</strong>.</p>
+                                    
+                                    <!-- Big Join Button -->
+                                    <p style="margin:30px 0 35px 0;text-align:center;">
+                                        <a href="{meeting_link}" 
+                                        style="background-color:#2563eb;color:#ffffff;padding:16px 36px;text-decoration:none;border-radius:8px;font-weight:600;font-size:17px;display:inline-block;">
+                                            Join Interview on MS Teams
+                                        </a>
+                                    </p>
+                                    
+                                    <p style="margin:0 0 16px 0;">Kindly ensure you join the interview via the link above on time using a laptop or desktop for the best experience.</p>
+                                    <p style="margin:0 0 16px 0;">We look forward to speaking with you.</p>
+                                    <p style="margin:0 0 16px 0;">Please feel free to reach out if you have any questions or require further assistance.</p>
+                                    <br>
+                                    <p style="margin:20px 0 6px 0;color:#555555;">Warm regards,</p>
+                                    <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                    <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                </td>
+                            </tr>
+                            <!-- Footer -->
+                            <tr>
+                                <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                    © 2026 Knowcraft Analytics Private Limited
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>""",
+            to=candidate.candidate_email
         )
         interviewer,created = Interviewer.objects.get_or_create(id=interviewer_id)
         send_email(
@@ -317,20 +409,61 @@ class CandidateBookSlotView(APIView):
             text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}",
             template=f"""
             <html>
-            <body style="font-family: Arial; color:#333;">
-                <h2>Interview Scheduled ({round_name})</h2>
-                <p>Dear {interviewer.name},</p>
-                <p>This is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.</p>
-                <p>Please find below the MS Teams link and attached candidate’s details.</p>
-                <p>Join link: {meeting_link}</p>
-                <p>Feedback link: {feedback_link}</p>
-                <p>Resume Link: {candidate.resume.url}</p>
-                <br>
-                <p>Regards,
-                <br>
-                Team HR</p>
-                </body>
-            </html>""",
+        <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+            <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+                <tr>
+                    <td align="center" style="padding:30px 15px;">
+                        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                            <!-- Logo -->
+                            <tr>
+                                <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                    <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                </td>
+                            </tr>
+                            <!-- Separator -->
+                            <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                            <!-- Content -->
+                            <tr>
+                                <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
+                                    <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Interview Scheduled — {round_name}</h2>
+                                    <p style="margin:0 0 16px 0;">Dear {interviewer.name},</p>
+                                    <p style="margin:0 0 16px 0;">This is to inform you that the interview for <strong>{candidate.candidate_name}</strong> for the role of <strong>{candidate.job.mrf.designation.name}</strong> has been scheduled on <strong>{start_str}</strong>.</p>
+                                    <p style="margin:0 0 16px 0;">Please find below the MS Teams link and candidate details:</p>
+                                    
+                                    <table style="margin:20px 0;width:100%;border-collapse:collapse;">
+                                        <tr>
+                                            <td style="padding:12px 0;width:140px;font-weight:600;color:#475569;">Join Link:</td>
+                                            <td style="padding:12px 0;">
+                                                <a href="{meeting_link}" style="color:#2563eb;text-decoration:underline;font-weight:500;">{meeting_link}</a>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding:12px 0;width:140px;font-weight:600;color:#475569;">Resume:</td>
+                                            <td style="padding:12px 0;">
+                                                <a href="{candidate.resume.url}" style="color:#2563eb;text-decoration:underline;font-weight:500;">View / Download Resume</a>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                    
+                                    <p style="margin:25px 0 16px 0;">Kindly join the meeting on time.</p>
+                                    <br>
+                                    <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                    <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                    <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                </td>
+                            </tr>
+                            <!-- Footer -->
+                            <tr>
+                                <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                    © 2026 Knowcraft Analytics Private Limited • Confidential
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>""",
             to=interviewer.email,
             attachments=[resume_attachment] if resume_attachment else None
         )

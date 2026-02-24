@@ -174,278 +174,236 @@ def get_auto_salary_range(department, designation):
 email_templates = {
     "mrf_submit_new": f"""
     <html>
-    <body style="font-family: Arial, sans-serif; background:#f4f6f8; margin:0; padding:20px;">
-
-    <table width="100%" cellpadding="0" cellspacing="0">
-    <tr>
-    <td align="center">
-
-    <table width="600" cellpadding="0" cellspacing="0" 
-        style="background:#ffffff; border-radius:8px; overflow:hidden;">
-
-    <tr>
-    <td style="padding:15px 20px; border-bottom:1px solid #e0e0e0;">
-    <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" height="45" alt="Knowcraft">
-    </td>
-    </tr>
-
-    <tr>
-    <td style="padding:20px;">
-    <h2 style="color:#2c3e50; margin-top:0;">New Manpower Requisition Submitted</h2>
-
-    <p>Dear <strong>{{manager_name}}</strong>,</p>
-
-    <p>
-    A requisition for <strong>{{designation}}</strong> was raised by 
-    <strong>{{hod_name}}</strong> on <strong>{{date}}</strong> 
-    as a <strong>new request</strong>.
-    </p>
-
-    <p>Please review the requisition and take necessary action.</p>
-
-    <p style="text-align:center; margin-top:25px;">
-    <a href="{FRONTEND_URL}"
-    style="background:#2c3e50;color:#fff;padding:12px 20px;
-    text-decoration:none;border-radius:5px;">
-    Review MRF
-    </a>
-    </p>
-
-    <p>Best regards,<br><strong>Team HR</strong><br>
-    Knowcraft Analytics Private Limited</p>
-
-    </td>
-    </tr>
-
-    <tr>
-    <td style="background:#f4f6f8; padding:12px 20px; font-size:12px; color:#777;">
-    © 2026 Knowcraft Analytics Private Limited
-    </td>
-    </tr>
-
-    </table>
-
-    </td>
-    </tr>
-    </table>
-
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Logo -->
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <!-- Separator -->
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">New Manpower Requisition Submitted</h2>
+                                <p style="margin:0 0 16px 0;">Dear <strong>{{manager_name}}</strong>,</p>
+                                <p style="margin:0 0 16px 0;">
+                                    A requisition for <strong>{{designation}}</strong> was raised by 
+                                    <strong>{{hod_name}}</strong> on <strong>{{date}}</strong> as a <strong>new request</strong>.
+                                </p>
+                                <p style="margin:0 0 24px 0;">Please review the requisition and take necessary action.</p>
+                                
+                                <!-- Button -->
+                                <p style="margin:25px 0 30px 0;text-align:center;">
+                                    <a href="{{FRONTEND_URL}}" 
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;display:inline-block;">
+                                        Review MRF
+                                    </a>
+                                </p>
+                                
+                                <p style="margin:20px 0 6px 0;color:#555555;">Best regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
     </body>
     </html>
-    """,
-        "mrf_submit_replace": f"""
+""",
+
+"mrf_submit_replace": f"""
     <html>
-    <body style="font-family: Arial, sans-serif; background:#f4f6f8; margin:0; padding:20px;">
-
-    <table width="100%" align="center" cellpadding="0" cellspacing="0">
-    <tr><td align="center">
-
-    <table width="600" style="background:#fff;border-radius:8px;overflow:hidden;">
-
-    <tr>
-    <td style="padding:15px 20px;border-bottom:1px solid #e0e0e0;">
-    <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" height="45">
-    </td>
-    </tr>
-
-    <tr>
-    <td style="padding:20px;">
-
-    <h2 style="color:#2c3e50;">Replacement Requisition Submitted</h2>
-
-    <p>Dear <strong>{{manager_name}}</strong>,</p>
-
-    <p>
-    A requisition for <strong>{{designation}}</strong> was raised by 
-    <strong>{{hod_name}}</strong> on <strong>{{date}}</strong> 
-    for replacement of <strong>{{resigned_employee}}</strong>.
-    </p>
-
-    <p>Please review and proceed with necessary action.</p>
-
-    <p style="text-align:center;margin-top:25px;">
-    <a href="{FRONTEND_URL}"
-    style="background:#2c3e50;color:#fff;padding:12px 20px;
-    text-decoration:none;border-radius:5px;">
-    Review MRF
-    </a>
-    </p>
-
-    <p>Best regards,<br><strong>Team HR</strong><br>
-    Knowcraft Analytics Private Limited</p>
-
-    </td>
-    </tr>
-
-    <tr>
-    <td style="background:#f4f6f8;padding:12px 20px;font-size:12px;color:#777;">
-    © 2026 Knowcraft Analytics Private Limited
-    </td>
-    </tr>
-
-    </table>
-
-    </td></tr>
-    </table>
-
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Replacement Requisition Submitted</h2>
+                                <p style="margin:0 0 16px 0;">Dear <strong>{{manager_name}}</strong>,</p>
+                                <p style="margin:0 0 16px 0;">
+                                    A requisition for <strong>{{designation}}</strong> was raised by 
+                                    <strong>{{hod_name}}</strong> on <strong>{{date}}</strong> 
+                                    for replacement of <strong>{{resigned_employee}}</strong>.
+                                </p>
+                                <p style="margin:0 0 24px 0;">Please review and proceed with necessary action.</p>
+                                
+                                <p style="margin:25px 0 30px 0;text-align:center;">
+                                    <a href="{{FRONTEND_URL}}" 
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;display:inline-block;">
+                                        Review MRF
+                                    </a>
+                                </p>
+                                
+                                <p style="margin:20px 0 6px 0;color:#555555;">Best regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
     </body>
     </html>
-    """,
-        "mrf_reminder": f"""
+""",
+
+"mrf_reminder": f"""
     <html>
-    <body style="font-family: Arial; background:#f4f6f8; padding:20px;">
-
-    <table width="100%" align="center">
-    <tr><td align="center">
-
-    <table width="600" style="background:#fff;border-radius:8px;overflow:hidden;">
-
-    <tr>
-    <td style="padding:15px 20px;border-bottom:1px solid #e0e0e0;">
-    <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" height="45">
-    </td>
-    </tr>
-
-    <tr>
-    <td style="padding:20px;">
-
-    <h2 style="color:#2c3e50;">MRF Reminder</h2>
-
-    <p>Dear <strong>{{manager_name}}</strong>,</p>
-
-    <p>
-    This is a gentle reminder regarding the requisition for 
-    <strong>{{position}}</strong> raised on 
-    <strong>{{requisition_date}}</strong>.
-    </p>
-
-    <p>Please review and take necessary action.</p>
-
-    <p style="text-align:center;margin-top:25px;">
-    <a href="{FRONTEND_URL}"
-    style="background:#2c3e50;color:#fff;padding:12px 20px;
-    text-decoration:none;border-radius:5px;">
-    View Requisition
-    </a>
-    </p>
-
-    <p>Best regards,<br><strong>Team HR</strong><br>
-    Knowcraft Analytics Private Limited</p>
-
-    </td>
-    </tr>
-
-    <tr>
-    <td style="background:#f4f6f8;padding:12px 20px;font-size:12px;color:#777;">
-    © 2026 Knowcraft Analytics Private Limited
-    </td>
-    </tr>
-
-    </table>
-
-    </td></tr>
-    </table>
-
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">MRF Reminder</h2>
+                                <p style="margin:0 0 16px 0;">Dear <strong>{{manager_name}}</strong>,</p>
+                                <p style="margin:0 0 16px 0;">
+                                    This is a gentle reminder regarding the requisition for 
+                                    <strong>{{position}}</strong> raised on 
+                                    <strong>{{requisition_date}}</strong>.
+                                </p>
+                                <p style="margin:0 0 24px 0;">Please review and take necessary action at the earliest.</p>
+                                
+                                <p style="margin:25px 0 30px 0;text-align:center;">
+                                    <a href="{{FRONTEND_URL}}" 
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;display:inline-block;">
+                                        View Requisition
+                                    </a>
+                                </p>
+                                
+                                <p style="margin:20px 0 6px 0;color:#555555;">Best regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
     </body>
     </html>
-    """,
-        "mrf_reject": f"""
+""",
+
+"mrf_reject": f"""
     <html>
-    <body style="font-family: Arial; background:#f4f6f8; padding:20px;">
-
-    <table width="100%" align="center">
-    <tr><td align="center">
-
-    <table width="600" style="background:#fff;border-radius:8px;overflow:hidden;">
-
-    <tr>
-    <td style="padding:15px 20px;border-bottom:1px solid #e0e0e0;">
-    <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" height="45">
-    </td>
-    </tr>
-
-    <tr>
-    <td style="padding:20px;">
-
-    <h2 style="color:#e74c3c;">MRF Rejected</h2>
-
-    <p>Dear <strong>{{manager_name}}</strong>,</p>
-
-    <p>
-    MRF for <strong>{{designation}}</strong> was rejected by 
-    <strong>{{approver_name}}</strong> on <strong>{{date}}</strong>.
-    </p>
-
-    <p>Please revise and resubmit the requisition.</p>
-
-    <p>Best regards,<br><strong>Team HR</strong><br>
-    Knowcraft Analytics Private Limited</p>
-
-    </td>
-    </tr>
-
-    <tr>
-    <td style="background:#f4f6f8;padding:12px 20px;font-size:12px;color:#777;">
-    © 2026 Knowcraft Analytics Private Limited
-    </td>
-    </tr>
-
-    </table>
-
-    </td></tr>
-    </table>
-
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#ef4444;font-size:24px;font-weight:600;">MRF Rejected</h2>
+                                <p style="margin:0 0 16px 0;">Dear <strong>{{manager_name}}</strong>,</p>
+                                <p style="margin:0 0 16px 0;">
+                                    MRF for <strong>{{designation}}</strong> was rejected by 
+                                    <strong>{{approver_name}}</strong> on <strong>{{date}}</strong>.
+                                </p>
+                                <p style="margin:0 0 24px 0;">Please revise and resubmit the requisition.</p>
+                                
+                                <p style="margin:20px 0 6px 0;color:#555555;">Best regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
     </body>
     </html>
-    """,
-    "mrf_approved": f"""
+""",
+
+"mrf_approved": f"""
     <html>
-    <body style="font-family: Arial; background:#f4f6f8; padding:20px;">
-
-    <table width="100%" align="center">
-    <tr><td align="center">
-
-    <table width="600" style="background:#fff;border-radius:8px;overflow:hidden;">
-
-    <tr>
-    <td style="padding:15px 20px;border-bottom:1px solid #e0e0e0;">
-    <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" height="45">
-    </td>
-    </tr>
-
-    <tr>
-    <td style="padding:20px;">
-
-    <h2 style="color:#27ae60;">MRF Approved</h2>
-
-    <p>Dear <strong>{{manager_name}}</strong>,</p>
-
-    <p>
-    MRF for <strong>{{designation}}</strong> was approved on 
-    <strong>{{date}}</strong>.
-    </p>
-
-    <p>The recruitment process may proceed.</p>
-
-    <p>Best regards,<br><strong>Team HR</strong><br>
-    Knowcraft Analytics Private Limited</p>
-
-    </td>
-    </tr>
-
-    <tr>
-    <td style="background:#f4f6f8;padding:12px 20px;font-size:12px;color:#777;">
-    © 2026 Knowcraft Analytics Private Limited
-    </td>
-    </tr>
-
-    </table>
-
-    </td></tr>
-    </table>
-
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#10b981;font-size:24px;font-weight:600;">MRF Approved</h2>
+                                <p style="margin:0 0 16px 0;">Dear <strong>{{manager_name}}</strong>,</p>
+                                <p style="margin:0 0 16px 0;">
+                                    MRF for <strong>{{designation}}</strong> was approved on 
+                                    <strong>{{date}}</strong>.
+                                </p>
+                                <p style="margin:0 0 24px 0;">The recruitment process may now proceed.</p>
+                                
+                                <p style="margin:20px 0 6px 0;color:#555555;">Best regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
     </body>
     </html>
-    """
+"""
 }
 
 alt_text = {
