@@ -200,7 +200,7 @@ email_templates = {
                                 
                                 <!-- Button -->
                                 <p style="margin:25px 0 30px 0;text-align:center;">
-                                    <a href="{{FRONTEND_URL}}" 
+                                    <a href="{FRONTEND_URL}" 
                                        style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;display:inline-block;">
                                         Review MRF
                                     </a>
@@ -250,7 +250,7 @@ email_templates = {
                                 <p style="margin:0 0 24px 0;">Please review and proceed with necessary action.</p>
                                 
                                 <p style="margin:25px 0 30px 0;text-align:center;">
-                                    <a href="{{FRONTEND_URL}}" 
+                                    <a href="{FRONTEND_URL}" 
                                        style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;display:inline-block;">
                                         Review MRF
                                     </a>
@@ -299,7 +299,7 @@ email_templates = {
                                 <p style="margin:0 0 24px 0;">Please review and take necessary action at the earliest.</p>
                                 
                                 <p style="margin:25px 0 30px 0;text-align:center;">
-                                    <a href="{{FRONTEND_URL}}" 
+                                    <a href="{FRONTEND_URL}" 
                                        style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;display:inline-block;">
                                         View Requisition
                                     </a>
