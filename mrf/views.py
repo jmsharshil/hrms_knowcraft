@@ -251,7 +251,7 @@ class MRFViewSet(viewsets.ModelViewSet):
         if self.action == 'create':
             return [IsAuthenticated(), CanCreateMRF()]
         elif self.action in ['update', 'partial_update']:
-            return [IsAuthenticated(), CanEditMRF()]
+            return [IsAuthenticated()]
         elif self.action == 'submit':
             return [IsAuthenticated(), CanSubmitMRF()]
         elif self.action == 'approve_reject':

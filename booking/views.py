@@ -289,7 +289,7 @@ class CandidateBookSlotView(APIView):
                                                         <tr>
                                                             <td style="padding:16px 20px;width:140px;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">Join Link</td>
                                                             <td style="padding:16px 20px;border-bottom:1px solid #e2e8f0;">
-                                                                <a href="{meeting_link}" style="color:#2563eb;text-decoration:underline;font-weight:500;">{meeting_link}</a>
+                                                                <a href="{meeting_link}" style="color:#2563eb;text-decoration:underline;font-weight:500;">Join Meeting</a>
                                                             </td>
                                                         </tr>
                                                         <tr>
@@ -434,7 +434,13 @@ class CandidateBookSlotView(APIView):
                                         <tr>
                                             <td style="padding:12px 0;width:140px;font-weight:600;color:#475569;">Join Link:</td>
                                             <td style="padding:12px 0;">
-                                                <a href="{meeting_link}" style="color:#2563eb;text-decoration:underline;font-weight:500;">{meeting_link}</a>
+                                                <a href="{meeting_link}" style="color:#2563eb;text-decoration:underline;font-weight:500;">Join Meeting</a>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding:12px 0;width:140px;font-weight:600;color:#475569;">Feedback Link:</td>
+                                            <td style="padding:12px 0;">
+                                                <a href="{feedback_link}" style="color:#2563eb;text-decoration:underline;font-weight:500;">Give feedback</a>
                                             </td>
                                         </tr>
                                         <tr>
