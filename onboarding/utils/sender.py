@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 def send_email(to,subject,cc=[],text="",template=None,attachments=None):
-    msg = EmailMultiAlternatives(subject, text, "talent@knowcraft.in", [to]+cc)
+    msg = EmailMultiAlternatives(subject, text, "talent@knowcraft.in",to= [to],cc= cc+['talent@knowcraft.in'])
     if template:
         msg.attach_alternative(template, "text/html")
     if attachments:

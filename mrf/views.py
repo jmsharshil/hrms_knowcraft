@@ -601,7 +601,7 @@ class MRFViewSet(viewsets.ModelViewSet):
         
         # Base queryset based on user role
         if user.role == 'department_head':
-            queryset = MRF.objects.filter(requested_by=user)
+            queryset = MRF.objects.filter(requested_by=user,company=getattr(user, 'company', None))
         else:
             queryset = MRF.objects.filter(company=getattr(user, 'company', None))
         

@@ -351,7 +351,7 @@ class CandidateBookSlotView(APIView):
 \nWarm regards,
 \nTeam-HR
 \nKnowcraft Analytics Private Limited""",
-            template="""<html>
+            template=f"""<html>
         <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
             <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
                 <tr>
