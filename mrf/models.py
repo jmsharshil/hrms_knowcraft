@@ -105,7 +105,6 @@ class Designation(models.Model):
             try:
                 from .utils import parse_expirience
                 extracted = parse_expirience(self.skills_competencies)
-                print(extracted)
                 if extracted:
                     self.expirience = extracted[:100]  # safety for max_length
             except Exception as e:

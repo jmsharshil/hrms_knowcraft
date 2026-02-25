@@ -13,6 +13,7 @@ from .serializers import (
 from .permissions import IsAdmin, IsAdminOrHRManager,IsDepartmentHead,IsHR
 from django.http import HttpResponse
 from django.utils import timezone
+from onboarding.utils.sender import send_email
 
 def home(request):
     return HttpResponse("Welcome to the HRMS KnowCraft Application!")
@@ -52,13 +53,74 @@ def send_magic_link_email(user, magic_link):
     Best regards,
     {user.company.name} Team
     """
-    
-    send_mail(
-        subject,
-        message,
-        settings.DEFAULT_FROM_EMAIL,
-        [user.email],
-        fail_silently=False,
+    template = f"""
+        <html>
+            <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+                <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+                    <tr>
+                        <td align="center" style="padding:30px 15px;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                                <!-- Logo -->
+                                <tr>
+                                    <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" 
+                                            alt="Knowcraft Analytics" 
+                                            style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                    </td>
+                                </tr>
+                                <!-- Separator -->
+                                <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                                
+                                <!-- Content -->
+                                <tr>
+                                    <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                        <h2 style="margin:0 0 24px 0;color:#1f2937;font-size:24px;font-weight:600;">Reset Your 6-Digit PIN</h2>
+                                        
+                                        <p style="margin:0 0 16px 0;">Hello <strong>{user.name}</strong>,</p>
+                                        
+                                        <p style="margin:0 0 24px 0;">
+                                            You have requested to reset your 6-digit PIN. Please click the button below to set a new PIN:
+                                        </p>
+                                        
+                                        <!-- Prominent Button -->
+                                        <p style="margin:30px 0 35px 0;text-align:center;">
+                                            <a href="{magic_link_url}" 
+                                            style="background-color:#2563eb;color:#ffffff;padding:16px 36px;text-decoration:none;border-radius:8px;font-weight:600;font-size:17px;display:inline-block;">
+                                                Reset My PIN Now
+                                            </a>
+                                        </p>
+                                        
+                                        <p style="margin:0 0 20px 0;color:#ef4444;font-weight:500;">
+                                            This link will expire in 24 hours for security reasons.
+                                        </p>
+                                        
+                                        <p style="margin:0 0 16px 0;">
+                                            If you did not request this reset, please ignore this email or contact HR immediately.
+                                        </p>
+                                        
+                                        <br>
+                                        <p style="margin:20px 0 6px 0;color:#555555;">Best regards,</p>
+                                        <p style="margin:0;font-weight:700;color:#1f2937;">{user.company.name} Team</p>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Footer -->
+                                <tr>
+                                    <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                        © 2026 Knowcraft Analytics Private Limited • Confidential
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>"""
+    send_email(
+        subject=subject,
+        text=message,
+        to=user.email,
+        template=template,
     )
 
 def send_forget_pin_email(user, magic_link):
@@ -80,12 +142,74 @@ def send_forget_pin_email(user, magic_link):
     {user.company.name} Team
     """
     
-    send_mail(
-        subject,
-        message,
-        settings.DEFAULT_FROM_EMAIL,
-        [user.email],
-        fail_silently=False,
+    template = f"""
+        <html>
+            <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+                <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+                    <tr>
+                        <td align="center" style="padding:30px 15px;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                                <!-- Logo -->
+                                <tr>
+                                    <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" 
+                                            alt="Knowcraft Analytics" 
+                                            style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                    </td>
+                                </tr>
+                                <!-- Separator -->
+                                <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                                
+                                <!-- Content -->
+                                <tr>
+                                    <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                        <h2 style="margin:0 0 24px 0;color:#1f2937;font-size:24px;font-weight:600;">Reset Your 6-Digit PIN</h2>
+                                        
+                                        <p style="margin:0 0 16px 0;">Hello <strong>{user.name}</strong>,</p>
+                                        
+                                        <p style="margin:0 0 24px 0;">
+                                            You have requested to reset your 6-digit PIN. Please click the button below to set a new PIN:
+                                        </p>
+                                        
+                                        <!-- Prominent Button -->
+                                        <p style="margin:30px 0 35px 0;text-align:center;">
+                                            <a href="{magic_link_url}" 
+                                            style="background-color:#2563eb;color:#ffffff;padding:16px 36px;text-decoration:none;border-radius:8px;font-weight:600;font-size:17px;display:inline-block;">
+                                                Reset My PIN Now
+                                            </a>
+                                        </p>
+                                        
+                                        <p style="margin:0 0 20px 0;color:#ef4444;font-weight:500;">
+                                            This link will expire in 24 hours for security reasons.
+                                        </p>
+                                        
+                                        <p style="margin:0 0 16px 0;">
+                                            If you did not request this reset, please ignore this email or contact HR immediately.
+                                        </p>
+                                        
+                                        <br>
+                                        <p style="margin:20px 0 6px 0;color:#555555;">Best regards,</p>
+                                        <p style="margin:0;font-weight:700;color:#1f2937;">{user.company.name} Team</p>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Footer -->
+                                <tr>
+                                    <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                        © 2026 Knowcraft Analytics Private Limited • Confidential
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>"""
+    send_email(
+        subject=subject,
+        text=message,
+        to=user.email,
+        template=template,
     )
 
 class CompanySignupView(APIView):

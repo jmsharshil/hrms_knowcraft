@@ -535,55 +535,90 @@ def send_offer_letter_email(candidate):
     # ---------------- HTML Template ----------------
     html_template = """
     <html>
-    <body style='font-family: Arial, sans-serif; color:#333; line-height:1.6;'>
-        <p>Hi {{candidate_name}},</p>
-        <p>
-            We are pleased to offer you the position of 
-            <b>{{designation}}</b> and we believe that your knowledge, skills, 
-            and experience would be an ideal fit for our 
-            <b>{{department}}</b> team.
-        </p>
-        <p>
-            We hope you will enjoy your role and make a significant contribution 
-            to the overall success of Knowcraft Analytics Private Limited.
-        </p>
-        <p>
-            Kindly find your enclosed Offer Letter. It includes important details 
-            about your compensation, benefits, and the terms and conditions of your 
-            anticipated employment.
-        </p>
-        <p>
-            On acceptance of the offer, kindly send us the signed offer letter along 
-            with the last page of the offer letter signed by you which mentions the 
-            compensation package by <b>{{acceptance_deadline}}</b>, after this the 
-            offer shall be revoked automatically.
-        </p>
-        <h4>General Policies</h4>
-        <p><b>Leave:</b></p>
-        <ul>
-            <li>We provide 24 earned leaves in a year.</li>
-            <li>10–11 national holidays.</li>
-        </ul>
-        <p><b>Background Check:</b></p>
-        <p>
-            There will be a detailed background check by a third party as part of the 
-            company policy and client requirement.
-        </p>
-        {{bond_section|safe}}
-        <p><b>Work Mode:</b> {{work_mode}}</p>
-        <p>
-            <b>Date of Joining:</b> {{joining_date}} (Reporting time 10:30 AM)
-        </p>
-        <p><b>Address:</b> {{office_address}}</p
-        <p>
-            We look forward to welcoming you to the Knowcraft team.<br>
-            Let us know if you have any queries.
-        </p>
-        <br>
-        <p>
-            Regards,<br>
-            Team – HR
-        </p>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Logo -->
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <!-- Separator -->
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                <h2 style="margin:0 0 24px 0;color:#1f2937;font-size:26px;font-weight:600;">Offer of Employment</h2>
+                                
+                                <p style="margin:0 0 18px 0;">Hi {{candidate_name}},</p>
+                                
+                                <p style="margin:0 0 18px 0;">
+                                    We are pleased to offer you the position of <strong>{{designation}}</strong> and we believe that your knowledge, skills, 
+                                    and experience would be an ideal fit for our <strong>{{department}}</strong> team.
+                                </p>
+                                
+                                <p style="margin:0 0 18px 0;">
+                                    We hope you will enjoy your role and make a significant contribution to the overall success of Knowcraft Analytics Private Limited.
+                                </p>
+                                
+                                <p style="margin:0 0 22px 0;">
+                                    Please find the <strong>Offer Letter (PDF)</strong> attached to this email. It contains important details about your compensation, 
+                                    benefits, and the terms and conditions of your employment.
+                                </p>
+                                
+                                <p style="margin:0 0 22px 0;">
+                                    On acceptance of the offer, kindly send us the <strong>signed Offer Letter</strong> along with the last page mentioning the compensation package 
+                                    by <strong style="color:#1f2937;">{{acceptance_deadline}}</strong>. After this date, the offer shall be automatically revoked.
+                                </p>
+                                
+                                <!-- Policies Section -->
+                                <h3 style="margin:28px 0 14px 0;color:#1f2937;font-size:18px;font-weight:600;">General Policies</h3>
+                                
+                                <p style="margin:0 0 8px 0;"><strong>Leave:</strong></p>
+                                <ul style="margin:0 0 18px 0;padding-left:22px;">
+                                    <li>We provide 24 earned leaves in a year.</li>
+                                    <li>10–11 national holidays.</li>
+                                </ul>
+                                
+                                <p style="margin:0 0 8px 0;"><strong>Background Check:</strong></p>
+                                <p style="margin:0 0 18px 0;">
+                                    There will be a detailed background check by a third party as part of the company policy and client requirement.
+                                </p>
+                                
+                                {{bond_section|safe}}
+                                
+                                <p style="margin:0 0 8px 0;"><strong>Work Mode:</strong> {{work_mode}}</p>
+                                <p style="margin:0 0 8px 0;">
+                                    <strong>Date of Joining:</strong> {{joining_date}} (Reporting time 10:30 AM)
+                                </p>
+                                <p style="margin:0 0 22px 0;">
+                                    <strong>Address:</strong> {{office_address}}
+                                </p>
+                                
+                                <p style="margin:0 0 18px 0;">
+                                    We look forward to welcoming you to the Knowcraft team.<br>
+                                    Let us know if you have any queries.
+                                </p>
+                                
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
     </body>
     </html>
     """

@@ -251,7 +251,7 @@ class MRFViewSet(viewsets.ModelViewSet):
         if self.action == 'create':
             return [IsAuthenticated(), CanCreateMRF()]
         elif self.action in ['update', 'partial_update']:
-            return [IsAuthenticated(), CanEditMRF()]
+            return [IsAuthenticated()]
         elif self.action == 'submit':
             return [IsAuthenticated(), CanSubmitMRF()]
         elif self.action == 'approve_reject':
@@ -601,7 +601,7 @@ class MRFViewSet(viewsets.ModelViewSet):
         
         # Base queryset based on user role
         if user.role == 'department_head':
-            queryset = MRF.objects.filter(requested_by=user)
+            queryset = MRF.objects.filter(requested_by=user,company=getattr(user, 'company', None))
         else:
             queryset = MRF.objects.filter(company=getattr(user, 'company', None))
         

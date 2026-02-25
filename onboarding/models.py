@@ -237,7 +237,7 @@ class ApprovalNote(models.Model):
     ("approval_rejected", "Rejected During Approval"),
     # SALARY ANNEXURE FLOW
     ("salary_annexure_prep", "Salary Annexure Under Preparation"),
-    ("salary_annexure_sent", "Salary Annexure Sent to HR Manager"),
+    ("salary_annexure_review", "Salary Annexure Under Review"),
     ("approved_annexure", "Salary Annexure Approved"),
     ("rejected_annexure", "Salary Annexure Rejected"),
     # Offer Stage
