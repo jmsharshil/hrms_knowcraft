@@ -16,7 +16,7 @@ from slots.graph import get_graph_token,fetch_meeting_recording,fetch_meeting_tr
 from jobs.serializers import JobApplicationSerializer
 from jobs.models import JobApplication
 from rest_framework import permissions
-from onboarding.utils.sender import send_email
+from onboarding.utils.sender import send_email,send_text
 from onboarding.utils.resume_attachment import get_resume_attachment
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -403,6 +403,12 @@ class CandidateBookSlotView(APIView):
         </html>""",
             to=candidate.candidate_email
         )
+        send_text(to=candidate.candidate_phone,text=f"""Dear {candidate.candidate_name},\nWe are pleased to inform you have been shortlisted for {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled at {start_str}.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
+\nWe look forward to speaking with you.
+\nPlease feel free to reach out if you have any questions or require further assistance.
+\nWarm regards,
+\nTeam-HR
+\nKnowcraft Analytics Private Limited""")
         interviewer,created = Interviewer.objects.get_or_create(id=interviewer_id)
         send_email(
             subject=f"Interview Scheduled - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",

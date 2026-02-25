@@ -519,7 +519,7 @@ def aggregate_details_from_feedback(job_application):
     return result
 
 def send_offer_letter_email(candidate):
-    from .sender import send_email
+    from .sender import send_email,send_text
     from django.template import Template, Context
     bond_section = ""
     feedback = aggregate_details_from_feedback(candidate)
@@ -644,3 +644,29 @@ def send_offer_letter_email(candidate):
         template=html_rendered,
         text=''
     )
+    send_text(to=candidate.candidate_phone,text=f"""
+Hi {candidate.candidate_name},  
+
+We are pleased to offer you the position of {candidate.job.mrf.designation.name} in the {candidate.job.mrf.department.name} team at Knowcraft Analytics Private Limited.
+
+Please find your Offer Letter (PDF) attached. It includes details about your compensation, benefits, and terms of employment.
+
+Kindly share the signed Offer Letter along with the last page mentioning the compensation package by 48 Hours. After this date, the offer will be automatically revoked.
+
+General Policies:
+- 24 earned leaves per year
+- 10–11 national holidays
+- Background verification will be conducted by a third party as per company policy
+
+{{bond_section}}
+
+Work Mode: {{work_mode}}
+Date of Joining: {{joining_date}} (Reporting time: 10:30 AM)
+Office Address: {{office_address}}
+
+We look forward to welcoming you to the Knowcraft team.
+Please let us know if you have any questions.
+
+Warm regards,
+Team – HR
+Knowcraft Analytics Private Limited""")
