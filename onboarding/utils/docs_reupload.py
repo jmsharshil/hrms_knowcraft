@@ -5,6 +5,7 @@ def get_pending_documents(docs):
     Returns a list of document field names that are not approved
     """
     pending_docs = []
+    reupload_docs_list = []
     for field in docs._meta.get_fields():
         if isinstance(field, FileField):
             file_name = field.name
@@ -18,4 +19,8 @@ def get_pending_documents(docs):
                     pending_docs.append(
                         file_name.replace('_', ' ').title()
                     )
-    return pending_docs
+                    reupload_docs_list.append(
+                        file_name
+                    )
+    print(reupload_docs_list,pending_docs)
+    return pending_docs,reupload_docs_list

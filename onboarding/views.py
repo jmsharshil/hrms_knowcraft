@@ -153,20 +153,14 @@ def evaluate_documents(application):
             ok,reason = automation_engine(application, application.status, "docs_incomplete")
             if not ok:
                 print(reason)
-            else:
-                print(ok)
         elif is_section_unclear(docs, "joining_docs"):
             ok,reason = automation_engine(application, application.status, "docs_unclear")
             if not ok:
                 print(reason)
-            else:
-                print(ok)
         elif is_section_complete(docs, "joining_docs"):
             ok,reason = automation_engine(application, application.status, "docs_approved")
             if not ok:
                 print(reason)
-            else:
-                print(ok)
 
 class UploadJobApplicationDocumentAPI(APIView):
     permission_classes = [permissions.AllowAny]
@@ -286,8 +280,9 @@ class UploadJobApplicationDocumentAPI(APIView):
             automation_engine(application, "salary_annexure_review", "rejected_annexure")
 
         from onboarding.utils.docs_reupload import get_pending_documents
-        pending_docs = get_pending_documents(docs)
+        pending_docs,reupload_docuemnts_list = get_pending_documents(docs)
         docs.reupload_docuemnts = ' '.join(pending_docs)
+        docs.reupload_docuemnts_list = reupload_docuemnts_list
         docs.save()
 
         return Response(
