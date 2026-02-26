@@ -659,7 +659,7 @@ Team – HR""",
                                                     </p>
                                                     
                                                     <!-- Details Box -->
-                                                    <table style="width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:20px 0;padding:20px 24px;border-collapse:collapse;">
+                                                    <table style="width:100%;border:1px solid #e2e8f0;border-radius:12px;margin:20px 0;padding:20px 24px;">
                                                         <tr>
                                                             <td style="padding:8px 0;font-weight:600;color:#475569;width:140px;">📅 Date & Time</td>
                                                             <td style="padding:8px 0;font-weight:500;">{start_str}</td>
@@ -852,7 +852,7 @@ Team – HR""",
                                     </p>
                                     
                                     <!-- Details Box -->
-                                    <table style="width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:20px 0;padding:20px 24px;border-collapse:collapse;">
+                                    <table style="width:100%;border:1px solid #e2e8f0;border-radius:12px;margin:20px 0;padding:20px 24px;">
                                         <tr>
                                             <td style="padding:8px 0;font-weight:600;color:#475569;width:140px;">📅 Date & Time</td>
                                             <td style="padding:8px 0;font-weight:500;">{start_str}</td>
@@ -891,7 +891,8 @@ Team – HR""",
             </table>
         </body>
         </html>
-    """
+    """,
+    attachments=[resume_attachment] if resume_attachment else None
     )
 
     # Update candidate fields
