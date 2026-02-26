@@ -267,9 +267,9 @@ class JobApplicationLinkSerializer(serializers.ModelSerializer):
             'platform_name', 'title', 'description', 'unique_token',
             'application_url', 'views_count', 'applications_count',
             'is_active', 'expires_at', 'created_by', 'created_by_name',
-            'created_at', 'updated_at', 'is_expired'
+            'created_at', 'updated_at', 'is_expired','qr_code'
         ]
-        read_only_fields = ['unique_token', 'views_count', 'applications_count']
+        read_only_fields = ['unique_token', 'views_count', 'applications_count','qr_code']
     
     def get_application_url(self, obj):
         return obj.get_application_url()
