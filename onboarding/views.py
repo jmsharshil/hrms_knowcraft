@@ -161,6 +161,10 @@ def evaluate_documents(application):
             ok,reason = automation_engine(application, application.status, "docs_approved")
             if not ok:
                 print(reason)
+    elif application.status == "salary_annexure_review" and getattr(docs,'joining_docs_status') == 'approved':
+            automation_engine(application, application.status, "approved_annexure")
+    elif application.status == "salary_annexure_review" and getattr(docs,'joining_docs_status') not in  ['approved','pending']:
+            automation_engine(application, application.status, "rejected_annexure")
 
 class UploadJobApplicationDocumentAPI(APIView):
     permission_classes = [permissions.AllowAny]
@@ -274,10 +278,6 @@ class UploadJobApplicationDocumentAPI(APIView):
 
         if application.status == "docs_pending":
             automation_engine(application, "docs_pending", "docs_uploaded")
-        elif application.status == "salary_annexure_review" and getattr(docs,'joining_docs_status') == 'approved':
-            automation_engine(application, "salary_annexure_review", "approved_annexure")
-        elif application.status == "salary_annexure_review" and getattr(docs,'joining_docs_status') not in  ['approved','pending']:
-            automation_engine(application, "salary_annexure_review", "rejected_annexure")
 
         from onboarding.utils.docs_reupload import get_pending_documents
         pending_docs,reupload_docuemnts_list = get_pending_documents(docs)
@@ -1048,7 +1048,7 @@ class SendForOfferLetterEmailAPI(APIView):
 
         recipient_email = request.data.get("email")
         joining_date = request.data.get("joining_date") or job_application.joining_date
-        offer_letter_upload_link = f"{settings.FRONTEND_URL}/upload-offer-letter/{id}"
+        offer_letter_upload_link = f"{settings.FRONTEND_URL}/review-documents/{id}"
 
         if not recipient_email:
             return Response(
@@ -1112,7 +1112,7 @@ Thank you.
             </body>
         </html>"""
         from .utils.annexure_attachment import get_annexure_attachment
-        annexure_attachment = get_annexure_attachment(job_application)
+        annexure_attachment = get_annexure_attachment(job_application.documents)
         send_email(
             subject=subject,
             text=message,
