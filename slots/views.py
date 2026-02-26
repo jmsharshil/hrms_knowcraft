@@ -5,8 +5,8 @@ from datetime import datetime, timedelta, date
 from zoneinfo import ZoneInfo
 from .graph import get_interviewer_busy_slots
 from .availability import generate_free_slots_for_day
-from .serializers import FreeSlotSerializer,InterviewerSerializer,InterviewFeedbackCreateSerializer,InterviewFeedbackUpdateSerializer,InterviewFeedbackDetailSerializer,InterviewFeedbackListSerializer
-from slots.models import Interviewer,InterviewFeedback
+from .serializers import FreeSlotSerializer,InterviewerSerializer,InterviewFeedbackCreateSerializer,InterviewFeedbackUpdateSerializer,InterviewFeedbackDetailSerializer,InterviewFeedbackListSerializer,InterviewLocationSerializer
+from slots.models import Interviewer,InterviewFeedback,InterviewLocation
 from rest_framework import permissions
 from rest_framework import status
 from django.shortcuts import get_object_or_404
@@ -361,3 +361,68 @@ class InterviewFeedbackDetailAPIView(APIView):
                 'consolidated_result_review': 'interview_rejected_final',
             }
             return mapping.get(current_status, current_status)
+        
+class InterviewLocationListCreateAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        locations = InterviewLocation.objects.filter(
+            company=request.user.company
+        ).order_by("-created_at")
+
+        serializer = InterviewLocationSerializer(locations, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = InterviewLocationSerializer(
+            data=request.data,
+            context={"request": request}
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class InterviewLocationDetailAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self, request, pk):
+        return InterviewLocation.objects.filter(
+            id=pk,
+            company=request.user.company
+        ).first()
+
+    def get(self, request, pk):
+        location = self.get_object(request, pk)
+        if not location:
+            return Response({"detail": "Not found"}, status=404)
+
+        serializer = InterviewLocationSerializer(location)
+        return Response(serializer.data)
+
+    def put(self, request, pk):
+        location = self.get_object(request, pk)
+        if not location:
+            return Response({"detail": "Not found"}, status=404)
+
+        serializer = InterviewLocationSerializer(
+            location,
+            data=request.data,
+            context={"request": request}
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+
+        return Response(serializer.errors, status=400)
+
+    def delete(self, request, pk):
+        location = self.get_object(request, pk)
+        if not location:
+            return Response({"detail": "Not found"}, status=404)
+
+        location.delete()
+        return Response(status=204)

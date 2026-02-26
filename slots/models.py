@@ -141,3 +141,58 @@ class InterviewFeedback(models.Model):
         avg = round_field_map.get(self.interview_round)
         return avg if avg is not None else 0
 
+import urllib.parse
+
+class InterviewLocation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Human-readable name for the location (e.g., Headquarters, Client Site)
+    name = models.CharField(max_length=255,default='Knowcraft')
+
+    # Address components
+    address_line_1 = models.CharField(max_length=255,default='14th Floor, 1410, West Wing,Venus Stratum, Jhansi Ki Rani,B/H GSRTC Bus Stop, Nehrunagar')
+    address_line_2 = models.CharField(max_length=255, blank=True, null=True)
+    city = models.CharField(max_length=100,default='Ahmedabad')
+    state = models.CharField(max_length=100,default='Gujarat')
+    pincode = models.CharField(max_length=20,default='380015')
+    country = models.CharField(max_length=100, default="India")
+
+    # Full address for emails/notifications
+    full_address = models.TextField(blank=True, null=True)
+
+    # Google Maps link for navigation
+    google_maps_link = models.URLField(blank=True, null=True)
+
+    # Link to company
+    company = models.ForeignKey(
+        "accounts.Company",
+        on_delete=models.CASCADE,
+        related_name="interview_locations",
+        null=True,blank=True
+    )
+
+    is_active = models.BooleanField(default=True)
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        """Generate full_address and google_maps_link automatically on save."""
+        # Build full address
+        address_parts = [
+            self.address_line_1,
+            self.address_line_2,
+            self.city,
+            self.state,
+            self.pincode,
+            self.country
+        ]
+        self.full_address = ", ".join([part for part in address_parts if part])
+
+        # Generate Google Maps link
+        query = urllib.parse.quote_plus(self.full_address)
+        self.google_maps_link = f"https://www.google.com/maps/search/?api=1&query={query}"
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.name} - {self.city}"

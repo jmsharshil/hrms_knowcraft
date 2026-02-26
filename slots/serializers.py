@@ -1,6 +1,6 @@
 # slots/serializers.py
 from rest_framework import serializers
-from .models import Interviewer,InterviewFeedback
+from .models import Interviewer,InterviewFeedback,InterviewLocation
 
 class FreeSlotSerializer(serializers.Serializer):
     slot_id = serializers.CharField()
@@ -248,3 +248,40 @@ class InterviewFeedbackUpdateSerializer(serializers.ModelSerializer):
                 setattr(instance, field, validated_data[field])
         instance.save()
         return instance
+
+class InterviewLocationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InterviewLocation
+        fields = [
+            "id","name","address_line_1","address_line_2","city","state","pincode",
+            "country","full_address","google_maps_link","is_active","is_default","created_at",
+        ]
+        read_only_fields = ["id", "full_address", "google_maps_link", "created_at"]
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        user_company = request.user.company
+
+        # If this location is set as default,
+        # remove default from other locations of same company
+        if validated_data.get("is_default"):
+            InterviewLocation.objects.filter(
+                company=user_company,
+                is_default=True
+            ).update(is_default=False)
+
+        validated_data["company"] = user_company
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        request = self.context.get("request")
+        user_company = request.user.company
+
+        # Handle default logic
+        if validated_data.get("is_default"):
+            InterviewLocation.objects.filter(
+                company=user_company,
+                is_default=True
+            ).exclude(id=instance.id).update(is_default=False)
+
+        return super().update(instance, validated_data)
