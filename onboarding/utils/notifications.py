@@ -33,7 +33,17 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "subject": "Duplicate Application Notification",
             "text": "Thank you for your interest in Knowcraft Analytics. We have already received a recent application from you. As per our duplicate application policy, this submission cannot be processed further.",
         },
-        "sms": "We have already received a recent application from you. Duplicate submissions cannot be processed as per our policy.",
+        "sms": """Dear {candidate.candidate_name},
+
+Thank you for your interest in opportunities with Knowcraft Analytics.
+
+Our records indicate that a recent application has already been received from you. As per our duplicate application policy, we are unable to process this submission further at this time.
+
+You are welcome to apply again after a reasonable period.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
         "log": "Duplicate rejection sent to {candidate.candidate_email}",
     },
 
@@ -70,7 +80,19 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "subject": "HR Interview Outcome",
             "text": "Thank you for your participation in the HR interview. After careful consideration, we will not be moving forward with your application at this time.",
         },
-        "sms": "Thank you for attending the HR interview. We will not be proceeding with your application at this stage.",
+        "sms": """Dear {candidate.candidate_name},
+
+Greetings from Knowcraft Analytics.
+
+Thank you for taking the time to participate in the HR round of our interview process.
+
+After careful consideration, we regret to inform you that we will not be proceeding with your application further at this stage. While we were impressed with your profile, the decision was based on current requirements.
+
+We sincerely appreciate your interest and wish you every success in your future endeavors.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
         "log": "Interview round 1 rejection sent to {candidate.candidate_email}",
     },
     "interview_next_2": {
@@ -103,7 +125,19 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "subject": "Technical Round Outcome",
             "text": "Thank you for your time and effort in the Technical round. We will not be proceeding further with your application at this stage.",
         },
-        "sms": "Thank you for the Technical round. We will not be moving forward with your application.",
+        "sms": """Dear {candidate.candidate_name},
+
+Greetings from Knowcraft Analytics.
+
+Thank you for participating in the Technical Round of our interview process.
+
+Following a thorough evaluation, we regret to inform you that we will not be moving forward with your application. We truly value the time and effort you invested.
+
+We encourage you to explore future opportunities with us and wish you continued success in your career.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
         "log": "Interview rejection for round 2 sent to {candidate.candidate_email}",
     },
     "interview_next_3": {
@@ -134,7 +168,19 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
     "interview_rejected_3": {
         "email": {
             "subject": "Case Study Round Outcome",
-            "text": "Thank you for your participation in the Case Study round. We regret to inform you that we will not be proceeding further.",
+            "text": """Dear {candidate.candidate_name},
+
+Greetings from Knowcraft Analytics.
+
+Thank you for participating in the Case Study Round of our interview process.
+
+After careful consideration, we regret to inform you that we will not be proceeding further with your application. We sincerely appreciate your effort and interest in our organization.
+
+We wish you the very best for your professional journey ahead.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
         },
         "sms": "Thank you for the Case Study round. We will not be moving forward with your application.",
         "log": "Interview rejection for round 3 sent to {candidate.candidate_email}",
@@ -169,7 +215,19 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "subject": "Final Round Outcome",
             "text": "Thank you for your time and effort throughout the final round. We will not be proceeding with your candidature at this stage.",
         },
-        "sms": "Thank you for the Final round. We will not be moving forward with your application.",
+        "sms": """Dear {candidate.candidate_name},
+
+Greetings from Knowcraft Analytics.
+
+Thank you for taking the time to participate in the Final Round of our selection process.
+
+After comprehensive evaluation, we regret to inform you that we will not be moving forward with your application. This was a competitive process, and we appreciate your engagement throughout.
+
+We wish you success in all your future endeavors.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
         "log": "Interview rejection for final round sent to {candidate.candidate_email}",
     },
     "interview_next_management_client": {
@@ -202,7 +260,19 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "subject": "Management / Client Round Outcome",
             "text": "Thank you for your participation in the Management / Client round. We regret to inform you that we will not be proceeding further.",
         },
-        "sms": "Thank you for the Management / Client round. We will not be moving forward with your application.",
+        "sms": """Dear {candidate.candidate_name},
+
+Greetings from Knowcraft Analytics.
+
+Thank you for participating in the Management / Client Round of our interview process.
+
+Following detailed discussions and evaluation, we regret to inform you that we will not be progressing further with your application. We greatly appreciate the time and effort you invested in meeting with our team.
+
+We encourage you to stay connected for future opportunities and wish you continued success.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
         "log": "Interview rejection for management client round sent to {candidate.candidate_email}",
     },
 
@@ -214,7 +284,20 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "subject": "You Have Been Selected",
             "text": "Congratulations! You have been selected by the interview panel. Your profile is now with the approval committee.",
         },
-        "sms": "Congratulations! You have been selected by the interview panel.",
+        "sms": """Dear {candidate.candidate_name},
+Congratulations! 🎉
+
+We are pleased to inform you that you have been selected for the position of *{candidate.job.mrf.designation.name}* at Knowcraft Analytics after successfully completing all interview rounds.
+
+Our team was impressed with your skills and performance, and we look forward to having you onboard.
+
+Our HR team will connect with you shortly to share the offer details and next steps.
+
+Congratulations once again and welcome to Knowcraft Analytics!
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
         "log": "Selection notification sent to {candidate.candidate_email}",
     },
     "approval_pending": {
@@ -405,7 +488,33 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "subject": "Upload Joining Documents",
             "text": "Please upload all required joining documents using the secure link provided.",
         },
-        "sms": "Please upload your joining documents using the link sent to your email.",
+        "sms": """Dear {candidate.candidate_name},
+
+Greetings from Knowcraft Analytics!
+
+Congratulations on your selection. We are excited to move forward with your onboarding process.
+
+To proceed, please upload the required documents using the link below:
+{FRONTEND_URL}/api/application/documents/upload/{candidate.id}
+
+Documents Required:
+1. Certificates and Marksheets till Highest Qualification (Mandatory)
+2. Last Organization Documents (if applicable):
+   - Offer / Appointment Letter
+   - Experience & Relieving Letter
+   - Increment Letter
+   - Last 3 Months Salary Slips
+3. Aadhar Card (Mandatory)
+4. PAN Card (Mandatory)
+5. Passport Size Photograph (Mandatory)
+
+Kindly upload the documents at the earliest to help us proceed with the next steps.
+
+Feel free to reach out in case of any questions.
+
+Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
         "log": "Document upload request sent to {candidate.candidate_email}",
     },
     "docs_uploaded": {
@@ -429,7 +538,23 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "subject": "Documents Require Re-upload",
             "text": "Some of your uploaded documents were unclear. Please re-upload clear copies using the same link.",
         },
-        "sms": "Some documents are unclear. Please re-upload using the link sent.",
+        "sms": """Dear {candidate.candidate_name},
+
+Greetings from Knowcraft Analytics.
+
+Thank you for submitting your documents as part of the recruitment process.
+
+Upon review, we noticed that some of the submitted documents are incomplete or unclear. We kindly request you to re-upload the required documents using the link below:
+
+{FRONTEND_URL}/api/application/documents/upload/{candidate.id}
+
+Please ensure that the files are properly scanned and all information is clearly visible.
+
+If you need any assistance, please feel free to reach out to us.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
         "log": "Documents unclear notification sent to {candidate.candidate_email}",
     },
     "docs_incomplete": {
@@ -437,7 +562,23 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "subject": "Documents Incomplete",
             "text": "Some required documents were missing or incomplete. Please upload the complete set using the provided link.",
         },
-        "sms": "Some documents are incomplete. Please re-upload using the link sent.",
+        "sms": """Dear {candidate.candidate_name},
+
+Greetings from Knowcraft Analytics.
+
+Thank you for submitting your documents as part of the recruitment process.
+
+Upon review, we noticed that some of the submitted documents are incomplete or unclear. We kindly request you to re-upload the required documents using the link below:
+
+{FRONTEND_URL}/api/application/documents/upload/{candidate.id}
+
+Please ensure that the files are properly scanned and all information is clearly visible.
+
+If you need any assistance, please feel free to reach out to us.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
         "log": "Documents incomplete notification sent to {candidate.candidate_email}",
     },
     "docs_approved": {
@@ -457,7 +598,17 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "subject": "Joining Formalities Initiated",
             "text": "Your joining formalities have been initiated. HR will share the next steps shortly.",
         },
-        "sms": "Your joining formalities have been initiated.",
+        "sms": """Dear {candidate.candidate_name},
+
+We are pleased to inform you that your joining process has been initiated.
+
+Our HR team will share further details and next steps with you shortly.
+
+We look forward to welcoming you to Knowcraft Analytics.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
         "log": "Joining pending notification sent to {candidate.candidate_email}",
     },
     "joining_poned": {
@@ -485,7 +636,17 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
             "subject": "Application Closed",
             "text": "We thank you for your interest in Knowcraft Analytics. Your application has been closed at this stage.",
         },
-        "sms": "Your application has been closed. Thank you for your interest in Knowcraft Analytics.",
+        "sms": """Dear {candidate.candidate_name},
+
+Thank you for your interest in opportunities with Knowcraft Analytics.
+
+We regret to inform you that your application has been closed at this stage.
+
+We appreciate the time you invested and wish you success in your future opportunities.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
         "log": "Final rejection sent to {candidate.candidate_email}",
     },
 }
@@ -611,6 +772,10 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
     
     if sms_text and getattr(candidate, "phone", None):
         try:
+            reciever_name = ""
+            if candidate.job and candidate.job.assigned_to_internal_hr:
+                reciever_name = candidate.job.assigned_to_internal_hr.name
+            sms_text = sms_text.format(reciever_name=reciever_name,candidate=candidate,FRONTEND_URL=FRONTEND_URL)
             send_text(candidate.phone, sms_text)
         except Exception as exc:
             logger.exception("SMS failed for %s (stage=%s): %s", candidate.phone, stage, exc)
@@ -678,52 +843,108 @@ NOTIFY_INTERNAL_MAP = {
     #     "sms": "Interview pending for assigned candidate.",
     # },
     "shortlisted": {
-        "receivers": ["interviewer","hr",'referral'],
+        "receivers": ["hr",'referral'],
         "subject": "Selected for interview",
         "body": "The candidate is ready for interview scheduling.",
-        "sms": "Interview pending for assigned candidate.",
+        "sms": """Dear HR Team,
+
+The candidate {candidate.candidate_name} has been shortlisted.
+
+Please proceed with the next steps in the hiring process.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
     },
     "interview_next_2": {
         "receivers": ["interviewer","hr"],
         "subject": "Selected for next round of interview",
         "body": "The candidate is ready for interview scheduling.",
-        "sms": "Interview pending for assigned candidate.",
+        "sms": """Dear HR Team,
+
+The candidate {candidate.candidate_name} has successfully cleared the HR round.
+
+Please proceed with the next stage of the hiring process.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
     },
     "interview_next_3": {
         "receivers": ["interviewer","hr"],
         "subject": "Selected for next round of interview",
         "body": "The candidate is ready for interview scheduling.",
-        "sms": "Interview pending for assigned candidate.",
+        "sms": """Dear HR Team,
+
+The candidate {candidate.candidate_name} has successfully cleared the Technical round.
+
+Please proceed with the next stage.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
     },
     "interview_next_final": {
         "receivers": ["interviewer","hr"],
         "subject": "Selected for next round of interview",
         "body": "The candidate is ready for interview scheduling.",
-        "sms": "Interview pending for assigned candidate.",
+        "sms": """Dear HR Team,
+
+The candidate {candidate.candidate_name} has successfully cleared the Case Study round.
+
+Please proceed with the next stage.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
     },
     "interview_rejected_1": {
         "receivers": ["interviewer",'referral'],
         "subject": "Candidate rejection",
         "body": "The candidate is rejected in First round of interview.",
-        "sms": "The Candindate is rejected in First round of interview.",
+        "sms": """Dear Team,
+
+The candidate {candidate.candidate_name} has been rejected following the HR interview round.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
     },
     "interview_rejected_2": {
         "receivers": ["interviewer",'referral'],
         "subject": "Candidate rejection",
         "body": "The candidate is rejected in Second round of interview.",
-        "sms": "The Candindate is rejected in Second round of interview.",
+        "sms": """Dear Team,
+
+The candidate {candidate.candidate_name} has been rejected following the Technical interview round.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
     },
     "interview_rejected_3": {
         "receivers": ["interviewer",'referral'],
         "subject": "Candidate rejection",
         "body": "The candidate is rejected in Third round of interview.",
-        "sms": "The Candindate is rejected in Third round of interview.",
+        "sms": """Dear Team,
+
+The candidate {candidate.candidate_name} has been rejected following the Case Study interview round.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
     },
     "interview_rejected_final": {
         "receivers": ["interviewer",'referral'],
         "subject": "Candidate rejection",
         "body": "The candidate is rejected in Fianl round of interview.",
-        "sms": "The Candindate is rejected in Final round of interview.",
+        "sms": """Dear Team,
+
+The candidate {candidate.candidate_name} has been rejected following the Final interview round.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
     },
     "interview_pending_management_client": {
         "receivers": ["interviewer"],
@@ -735,13 +956,27 @@ NOTIFY_INTERNAL_MAP = {
         "receivers": ["interviewer", "hr"],
         "subject": "Selected for Management / Client Interview",
         "body": "The candidate has been selected for the management/client interview round.",
-        "sms": "Candidate selected for management/client interview.",
+        "sms": """Dear HR Team,
+
+The candidate {candidate.candidate_name} has successfully cleared the Final round.
+
+Please proceed with the next stage.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
     },
     "interview_rejected_management_client": {
         "receivers": ["interviewer", "referral"],
         "subject": "Candidate Rejected (Management / Client Round)",
         "body": "The candidate is rejected in the management/client interview round.",
-        "sms": "Candidate rejected in management/client interview.",
+        "sms": """Dear Team,
+
+The candidate {candidate.candidate_name} has been rejected following the Management / Client interview round.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
     },
     "approval_pending": {
         "receivers": ["department_head"],
@@ -759,7 +994,15 @@ NOTIFY_INTERNAL_MAP = {
         "receivers": ["hr"],
         "subject": "Candidate Approval Rejected",
         "body": "Approval manager has rejected the candidate’s profile.",
-        "sms": "Candidate approval rejected.",
+        "sms": """Dear HR Team,
+
+The candidate {candidate.candidate_name} was not approved during the approval stage.
+
+Please take the necessary action to close the process.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
     },
     # "salary_docs_uploaded": {
     #     "receivers": ["hr"],
@@ -797,17 +1040,37 @@ NOTIFY_INTERNAL_MAP = {
         "body": "Prepare and send the offer letter to the candidate.",
         "sms": "Offer letter preparation pending.",
     },
-    # "offer_accepted": {
-    #     "receivers": ["hr"],
-    #     "subject": "Offer Accepted by Candidate",
-    #     "body": "Candidate has accepted the offer.",
-    #     "sms": "Candidate accepted the offer.",
-    # },
+    "offer_accepted": {
+        "receivers": ["hr"],
+        "subject": "Offer Accepted by Candidate",
+        "body": "Candidate has accepted the offer.",
+        "sms": """Dear {reciever_name},
+
+This is to inform you that {candidate.candidate_name} has formally accepted the offer for the position of {candidate.job.mrf.designation.name}.
+
+Please proceed with the next onboarding steps.
+
+Kindly let us know if any additional details are required.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
+    },
     "offer_rejected": {
         "receivers": ["consultancy","hr","hr_manager"],
         "subject": "Offer Rejected",
         "body": "Candidate has rejected the offer.",
-        "sms": "Candidate rejected the offer.",
+        "sms": """Dear {reciever_name},
+
+This is to inform you that {candidate.candidate_name} has declined the offer for the position of {candidate.job.mrf.designation.name}.
+
+Please proceed with the necessary updates and further hiring actions.
+
+Kindly let us know if any additional information is required.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
     },
     # "resignation_uploaded": {
     #     "receivers": ["hr"],
@@ -819,7 +1082,17 @@ NOTIFY_INTERNAL_MAP = {
         "receivers": ["hr"],
         "subject": "Documents Uploaded",
         "body": "Candidate has uploaded joining documents.",
-        "sms": "Candidate uploaded joining documents.",
+        "sms": """Dear {reciever_name},
+
+This is to inform you that the candidate *{candidate.candidate_name}* has successfully uploaded all the required documents.
+
+You may review the documents and proceed with the next steps of evaluation and onboarding.
+
+Please let us know if any additional information is required.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
     },
     "joining_pending": {
         "receivers": ["hr", "internal_team", "admin", "department_head"],
@@ -831,13 +1104,31 @@ NOTIFY_INTERNAL_MAP = {
         "receivers": ["hr", "department_head"],
         "subject": "Joining Postponed",
         "body": "Candidate has postponed the joining date.",
-        "sms": "Candidate postponed joining.",
+        "sms": """Dear {reciever_name},
+
+This is to inform you that {candidate.candidate_name} has not joined on the scheduled joining date for the position of {candidate.job.mrf.designation.name}.
+
+The joining has been postponed. Kindly review and advise on the next course of action.
+
+Please let us know if any follow-up is required.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
     },
     "joined": {
         "receivers": ["hr", "internal_team", "admin", "department_head", "consultancy", "referer"],
         "subject": "Candidate Joined",
         "body": "Candidate has joined successfully.",
-        "sms": "Candidate joined.",
+        "sms": """Dear Team,
+
+We are pleased to inform you that {candidate.candidate_name} has successfully joined the organization.
+
+We wish them a successful journey with Knowcraft Analytics.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
     },
     "duplicate_rejected": {
         "receivers": ["consultancy"],
@@ -849,7 +1140,15 @@ NOTIFY_INTERNAL_MAP = {
         "receivers": ["consultancy", "department_head", "hr",'referral'],
         "subject": "Candidate Rejected",
         "body": "Candidate profile has been rejected.",
-        "sms": "Candidate rejected.",
+        "sms": """Dear Team,
+
+The candidate {candidate.candidate_name} has been rejected.
+
+This concludes the hiring process for this profile.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited""",
     },
 }
 
@@ -1022,6 +1321,7 @@ def notify_internal(candidate: Any, stage: str,cc:list) -> bool:
                 if candidate.job and candidate.job.assigned_to_internal_hr:
                     reciever_name = candidate.job.assigned_to_internal_hr.name
             template = template.format(candidate=candidate,feedback_link=feedback_link,reciever_name=reciever_name)
+            sms_text = sms_text.format(reciever_name=reciever_name,candidate=candidate,FRONTEND_URL=FRONTEND_URL)
             send_email(email,subject=subject,text=body,template=template)
         
         if to_phones:

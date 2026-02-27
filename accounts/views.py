@@ -41,17 +41,17 @@ def send_magic_link_email(user, magic_link):
     
     subject = f"Set Your PIN - {user.company.name}"
     message = f"""
-    Hello {user.name},
+Hello {user.name},
     
-    Your account has been created as {user.get_role_display()} at {user.company.name}.
+Your account has been created as {user.get_role_display()} at {user.company.name}.
     
-    Please click the link below to set your 6-digit PIN:
-    {magic_link_url}
+Please click the link below to set your 6-digit PIN:
+{magic_link_url}
     
-    This link will expire in 24 hours.
+This link will expire in 24 hours.
     
-    Best regards,
-    {user.company.name} Team
+Best regards,
+{user.company.name} Team
     """
     template = f"""
         <html>
@@ -133,15 +133,15 @@ def send_forget_pin_email(user, magic_link):
     
     subject = f"ReSet Your PIN - {user.company.name}"
     message = f"""
-    Hello {user.name},
+Hello {user.name},
         
-    Please click the link below to reset your 6-digit PIN:
-    {magic_link_url}
+Please click the link below to reset your 6-digit PIN:
+{magic_link_url}
     
-    This link will expire in 24 hours.
+This link will expire in 24 hours.
     
-    Best regards,
-    {user.company.name} Team
+Best regards,
+{user.company.name} Team
     """
     
     template = f"""
