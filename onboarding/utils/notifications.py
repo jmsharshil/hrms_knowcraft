@@ -740,18 +740,18 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
                 print(e)
         try:
             html_template = HTML_TEMPLATES[stage]
-            if stage == "salary_docs_pending":
-                link = f"{FRONTEND_URL}/api/application/documents/upload/salary-bank/{candidate.id}"
-                email_cfg["text"].format(link=link)
-                sms_text.format(link=link)
-            if stage == 'docs_pending':
-                link = f"{FRONTEND_URL}/api/application/documents/upload/docs/{candidate.id}"
-                email_cfg["text"].format(link=link)
-                sms_text.format(link=link)
-            if stage == "resignation_pending":
-                link = f"{FRONTEND_URL}/api/application/documents/upload/resignation/{candidate.id}"
-                email_cfg["text"].format(link=link)
-                sms_text.format(link=link)
+            # if stage == "salary_docs_pending":
+            #     link = f"{FRONTEND_URL}/api/application/documents/upload/salary-bank/{candidate.id}"
+            #     email_cfg["text"].format(link=link)
+            #     sms_text.format(link=link)
+            # if stage == 'docs_pending':
+            #     link = f"{FRONTEND_URL}/api/application/documents/upload/docs/{candidate.id}"
+            #     email_cfg["text"].format(link=link)
+            #     sms_text.format(link=link)
+            # if stage == "resignation_pending":
+            #     link = f"{FRONTEND_URL}/api/application/documents/upload/resignation/{candidate.id}"
+            #     email_cfg["text"].format(link=link)
+            #     sms_text.format(link=link)
             # if stage in ['docs_unclear','docs_incomplete','']:
             #     from onboarding.utils.docs_reupload import get_pending_documents
             #     pending_docs = get_pending_documents(candidate.documents)
