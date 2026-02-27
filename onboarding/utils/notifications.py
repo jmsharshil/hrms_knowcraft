@@ -770,13 +770,10 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
 
     # ---------- SMS ----------
     
-    if sms_text and getattr(candidate, "phone", None):
+    if sms_text and getattr(candidate, "candidate_phone", None):
         try:
-            reciever_name = ""
-            if candidate.job and candidate.job.assigned_to_internal_hr:
-                reciever_name = candidate.job.assigned_to_internal_hr.name
-            sms_text = sms_text.format(reciever_name=reciever_name,candidate=candidate,FRONTEND_URL=FRONTEND_URL)
-            send_text(candidate.phone, sms_text)
+            sms_text = sms_text.format(candidate=candidate,FRONTEND_URL=FRONTEND_URL)
+            send_text(candidate.candidate_phone, sms_text)
         except Exception as exc:
             logger.exception("SMS failed for %s (stage=%s): %s", candidate.phone, stage, exc)
             success = False
