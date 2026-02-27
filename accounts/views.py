@@ -13,7 +13,7 @@ from .serializers import (
 from .permissions import IsAdmin, IsAdminOrHRManager,IsDepartmentHead,IsHR
 from django.http import HttpResponse
 from django.utils import timezone
-from onboarding.utils.sender import send_email
+from onboarding.utils.sender import send_email,send_text
 
 def home(request):
     return HttpResponse("Welcome to the HRMS KnowCraft Application!")
@@ -122,6 +122,8 @@ def send_magic_link_email(user, magic_link):
         to=user.email,
         template=template,
     )
+    if user.phone:
+        send_text(to=user.phone,text=message)
 
 def send_forget_pin_email(user, magic_link):
     """Send forget pin email to user"""
@@ -211,6 +213,8 @@ def send_forget_pin_email(user, magic_link):
         to=user.email,
         template=template,
     )
+    if user.phone:
+        send_text(to=user.phone,text=message)
 
 class CompanySignupView(APIView):
     """Company admin signup endpoint"""
@@ -320,7 +324,9 @@ class CreateUserView(APIView):
                 email=serializer.validated_data['email'],
                 name=serializer.validated_data['name'],
                 company=request.user.company,
-                role=serializer.validated_data['role']
+                role=serializer.validated_data['role'],
+                phone=serializer.validated_data['phone'],
+                department=serializer.validated_data.get('department',None)
             )
             user.created_by = request.user
             user.save()
@@ -373,12 +379,14 @@ class CurrentUserView(APIView):
             'id': str(user.id),
             'name': user.name,
             'email': user.email,
+            'phone':user.phone,
             'role': user.role,
             'role_display': user.get_role_display(),
             'company_id': str(user.company.id),
             'company_name': user.company.name,
             'pin_set': user.pin_set,
-            'is_active': user.is_active
+            'is_active': user.is_active,
+            'department':user.department
         })
 
 class UpdateMyProfileView(APIView):
@@ -402,7 +410,9 @@ class UpdateMyProfileView(APIView):
                 'user': {
                     'id': str(user.id),
                     'name': user.name,
-                    'email': user.email
+                    'email': user.email,
+                    'phone':user.phone,
+                    'department':user.department
                 }
             }, status=status.HTTP_200_OK)
 

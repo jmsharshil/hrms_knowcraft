@@ -1,4 +1,4 @@
-from .sender import send_email
+from .sender import send_email,send_text
 from accounts.models import User
 
 def send_salary_annexure_email(annexure, requested_by):
@@ -182,3 +182,76 @@ def send_salary_annexure_email(annexure, requested_by):
         to=approver.email,
         template=html_content
     )
+
+    whatsapp_text = f"""
+*Salary Annexure Approval Required*
+
+Dear {approver.name},
+
+Please review the salary annexure for the below candidate.
+
+━━━━━━━━━━━━━━━━━━
+*Candidate & Annexure Details*
+━━━━━━━━━━━━━━━━━━
+Candidate Name: {candidate.candidate_name}
+Designation: {annexure.designation}
+Effective From: {annexure.effective_from}
+Gross Monthly: {annexure.gross_monthly}
+Net Monthly: {annexure.net_monthly}
+CTC Annual: {annexure.ctc_annual}
+Status: {annexure.status}
+Revision Count: {annexure.revision_count}
+Prepared By: {annexure.prepared_by}
+Reviewed By: {annexure.reviewed_by or "-"}
+Created At: {annexure.created_at}
+Updated At: {annexure.updated_at}
+Notes: {annexure.notes or "-"}
+Rejection Reason: {annexure.rejection_reason or "-"}
+
+━━━━━━━━━━━━━━━━━━
+*Monthly Earnings / Allowances*
+━━━━━━━━━━━━━━━━━━
+Basic + DA: {annexure.basic_da}
+Basket Allowances: {annexure.basket_allowances}
+HRA: {annexure.hra}
+Medical Allowance: {annexure.medical_allowance}
+Leave Travel Allowance: {annexure.leave_travel_allowance}
+Telephone / Internet: {annexure.telephone_internet_allowance}
+Books & Periodicals: {annexure.books_periodicals}
+Uniform Allowance: {annexure.uniform_allowance}
+Driver Salary: {annexure.driver_salary}
+Car Maintenance: {annexure.car_maintenance}
+Meals Allowance: {annexure.meals_allowance}
+Special Allowance: {annexure.special_allowance}
+Children Education Allowance: {annexure.children_education_allowance}
+Conveyance Allowance: {annexure.conveyance_allowance}
+
+━━━━━━━━━━━━━━━━━━
+*Employer Contributions*
+━━━━━━━━━━━━━━━━━━
+Employer PF: {annexure.employer_pf}
+Employer Insurance: {annexure.employer_insurance}
+Employer Variable: {annexure.employer_variable_component}
+Employer Gratuity: {annexure.employer_gratuity}
+Employer ESIC: {annexure.employer_esic}
+Total Employer Cost: {annexure.employer_total}
+
+━━━━━━━━━━━━━━━━━━
+*Employee Deductions*
+━━━━━━━━━━━━━━━━━━
+Employee PF: {annexure.employee_pf}
+Professional Tax: {annexure.employee_pt}
+Employee ESIC: {annexure.employee_esic}
+Total Deductions: {annexure.employee_total}
+
+━━━━━━━━━━━━━━━━━━
+
+Kindly review and approve / reject the annexure at the earliest.
+
+Regards,
+{requested_by.name}
+Recruitment Team
+Knowcraft Analytics Private Limited
+"""
+    if approver.phone:
+        send_text(to=approver.phone,text=whatsapp_text)

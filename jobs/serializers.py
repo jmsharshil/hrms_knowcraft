@@ -343,7 +343,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'original_filename', 'file_size', 'file_size_mb', 'cover_letter',"rejection_reason",
             'experience_years','relevant_experience_years', 'current_ctc', 'expected_ctc', 'notice_period',
             'linkedin_url', 'portfolio_url','skill','education','location','current_employer','match_score', 'status', 'status_display',
-            'source', 'source_display', 'platform_name', 'application_link','is_duplicate',"referral_name","referral_email",
+            'source', 'source_display', 'platform_name', 'application_link','is_duplicate',"referral_name","referral_email","referral_phone",
             "referral_emp_code","referral_designation","referral_department","is_shortlisted","consolidated_feedback_avg",
             'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report','slot_link','candidate_history',
             'created_at', 'updated_at','is_selected','is_approved','is_rejected',
@@ -525,6 +525,7 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
                     if application.get_platform_name() in ["Employee Referral", "referral"]:
                         application.referral_name = data.get('referral_name', "")
                         application.referral_email = data.get("referral_email", "")
+                        application.referral_phone = data.get("referral_phone", "")
                         application.referral_emp_code = data.get('referral_emp_code', "")
                         application.referral_department = data.get("referral_department", "")
                         application.referral_designation = data.get("referral_designation", "")
@@ -678,6 +679,7 @@ class ReferralApplicationCreateSerializer(serializers.ModelSerializer):
 
         referral_name = data.get('referral_name', "")
         referral_email = data.get("referral_email", "")
+        referral_phone = data.get("referral_phone", "")
         referral_emp_code = data.get('referral_emp_code', "")
         referral_department = data.get("referral_department", "")
         referral_designation = data.get("referral_designation", "")
@@ -702,6 +704,7 @@ class ReferralApplicationCreateSerializer(serializers.ModelSerializer):
                         file_size=file_size,
                         referral_name=referral_name,
                         referral_email=referral_email,
+                        referral_phone=referral_phone,
                         referral_emp_code=referral_emp_code,
                         referral_department=referral_department,
                         referral_designation=referral_designation,
@@ -718,6 +721,7 @@ class ReferralApplicationCreateSerializer(serializers.ModelSerializer):
                         file_size=file_size,
                         referral_name=referral_name,
                         referral_email=referral_email,
+                        referral_phone = referral_phone,
                         referral_emp_code=referral_emp_code,
                         referral_department=referral_department,
                         referral_designation=referral_designation
@@ -751,7 +755,7 @@ class ReferralApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReferralApplication
         fields = [
-            'id', 'resume', 'resume_url','original_filename', 'file_size',
+            'id', 'resume', 'resume_url','original_filename', 'file_size','referral_phone',
             'file_size_mb',"referral_name","referral_email","referral_emp_code","position_title",
             "referral_designation","referral_department",'notes','created_at', 'updated_at'
         ]
@@ -803,6 +807,7 @@ class ReferralToJobApplicationCreateSerializer(serializers.Serializer):
         file_size = referral_application.file_size
         referral_name = referral_application.referral_name
         referral_email = referral_application.referral_email
+        referral_phone = referral_application.referral_phone
         referral_emp_code = referral_application.referral_emp_code
         referral_department = referral_application.referral_department
         referral_designation = referral_application.referral_designation
@@ -819,6 +824,7 @@ class ReferralToJobApplicationCreateSerializer(serializers.Serializer):
                     file_size=file_size,
                     referral_name=referral_name,
                     referral_email=referral_email,
+                    referral_phone=referral_phone,
                     referral_emp_code=referral_emp_code,
                     referral_department=referral_department,
                     referral_designation=referral_designation

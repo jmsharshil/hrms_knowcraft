@@ -20,7 +20,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'email', 'name', 'role', 'role_display', 
             'company', 'company_name', 'pin_set', 'is_active',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at','phone','department'
         ]
         read_only_fields = ['id', 'company', 'pin_set', 'created_at', 'updated_at']
         extra_kwargs = {

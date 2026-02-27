@@ -450,7 +450,7 @@ import threading
 import time
 from .models import MRF
 from accounts.models import User
-from onboarding.utils.sender import send_email
+from onboarding.utils.sender import send_email,send_text
 def schedule_mrf_reminder(mrf_id):
     """Runs a reminder check after 48 hours in a background thread."""
 
@@ -503,6 +503,8 @@ def schedule_mrf_reminder(mrf_id):
                         template=template,
                         text=text
                     )
+                    if approver.phone:
+                        send_text(to=approver.phone,text=text)
                     print(f"Reminder email sent for MRF {mrf_id}")
 
         except Exception as e:

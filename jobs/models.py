@@ -514,6 +514,7 @@ class JobApplication(models.Model):
     
     referral_name = models.CharField(null=True,blank=True)
     referral_email = models.CharField(null=True,blank=True)
+    referral_phone = models.CharField(null=True,blank=True)
     referral_emp_code = models.CharField(null=True,blank=True)
     referral_designation = models.CharField(null=True,blank=True)
     referral_department = models.CharField(null=True,blank=True)
@@ -614,6 +615,7 @@ class ReferralApplication(models.Model):
     #Referrer Info    
     referral_name = models.CharField(null=True,blank=True)
     referral_email = models.CharField(null=True,blank=True)
+    referral_phone = models.CharField(null=True,blank=True)
     referral_emp_code = models.CharField(null=True,blank=True)
     referral_designation = models.CharField(null=True,blank=True)
     referral_department = models.CharField(null=True,blank=True)

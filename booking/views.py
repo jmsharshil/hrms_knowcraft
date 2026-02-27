@@ -369,6 +369,8 @@ class CandidateBookSlotView(APIView):
                         to=interviewer.email,
                         attachments=[resume_attachment] if resume_attachment else None
                     )
+                    if interviewer.phone:
+                        send_text(to=interviewer.phone,text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}")
 
         elif candidate.status in ['interview_next_3', 'interview_pending_3']:
             round = "case_study_round"
@@ -526,6 +528,8 @@ class CandidateBookSlotView(APIView):
             to=interviewer.email,
             attachments=[resume_attachment] if resume_attachment else None
         )
+        if interviewer.phone:
+            send_text(to=interviewer.phone,text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}")
         candidate.interview_link = meeting_link
         candidate.interviewer_name = interviewer.name
         candidate.interview_scheduled_at = start_dt
@@ -691,6 +695,16 @@ Team – HR""",
                     to=tech_interviewer.email,
                     attachments=[resume_attachment] if resume_attachment else None
                 )
+                if interviewer.phone:
+                    send_text(to=interviewer.phone,text=f"""Dear {tech_interviewer.name},
+
+Interview for {candidate.candidate_name} ({designation}) has been scheduled.
+
+Date & Time: {start_str}
+Location: {location}
+
+Warm Regards,
+Team – HR""")
     elif candidate.status in ['interview_next_3', 'interview_pending_3']:
         round = "case_study_round"
         round_name = "Case Study Round"
@@ -895,6 +909,22 @@ Team – HR""",
     attachments=[resume_attachment] if resume_attachment else None
     )
 
+    if interviewer.phone:
+        send_text(to=interviewer.phone,text=f"""Dear {interviewer.name},
+
+The {round_name} interview for {candidate.candidate_name} ({designation}) has been scheduled.
+
+📅 Date & Time: {start_str}
+📍 Location: {location_str}
+
+Goole Map Link:
+{maps_link}
+
+Feedback Link:
+{feedback_link}
+
+Warm Regards,
+Team – HR""")
     # Update candidate fields
     candidate.interviewer_name = interviewer.name
     candidate.interview_scheduled_at = start_dt

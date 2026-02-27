@@ -10,7 +10,7 @@ class FreeSlotSerializer(serializers.Serializer):
 class InterviewerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Interviewer
-        fields = ["id", "name", "email", "company"]
+        fields = ["id", "name", "email", "company","phone"]
 
     def validate(self, attrs):
         request = self.context.get("request")

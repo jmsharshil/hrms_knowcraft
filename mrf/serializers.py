@@ -592,7 +592,7 @@ class MRFSubmitSerializer(serializers.Serializer):
         user = self.context['request'].user
         if mrf.company != user.company:
             raise serializers.ValidationError("Cannot submit MRF outside your company")
-        from onboarding.utils.sender import send_email
+        from onboarding.utils.sender import send_email,send_text
         subject = f'Requisition Raised for {mrf.designation} Position'
         # manager_name = User.objects.filter(role="hr_manager").first().name
         # manager_email = User.objects.filter(role="hr_manager").first().email
@@ -613,6 +613,7 @@ class MRFSubmitSerializer(serializers.Serializer):
 
         manager_name = manager.name
         manager_email = manager.email
+        manager_phone = manager.phone
         from .utils import email_templates,alt_text
         if mrf.resigned_crafter_name:
             template = email_templates['mrf_submit_replace']
@@ -626,6 +627,8 @@ class MRFSubmitSerializer(serializers.Serializer):
             text = text.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.created_at.strftime("%B %d,%Y"))
         try:
             send_email(to=manager_email,subject=subject,template=template,text=text)
+            if manager_phone:
+                send_text(to=manager_phone,text=text)
             from .utils import schedule_mrf_reminder
             schedule_mrf_reminder(mrf_id=mrf.id)
         except Exception as e:
