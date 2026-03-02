@@ -21,7 +21,7 @@ from .permissions import (
     CanApproveMRF, CanSubmitMRF, IsDepartmentHead,CanCreateMRF
 )
 from .utils import schedule_mrf_reminder
-from onboarding.utils.sender import send_email
+from onboarding.utils.sender import send_email,send_text
 from .utils import email_templates, alt_text
 from accounts.models import User
 
@@ -524,6 +524,8 @@ class MRFViewSet(viewsets.ModelViewSet):
                             template=template,
                             text=text
                         )
+                        if approver.phone:
+                            send_text(to=approver.phone,text=text)
                 schedule_mrf_reminder(mrf.id)
             message = 'MRF approved successfully'
             if mrf.status == 'approved':
@@ -547,6 +549,8 @@ class MRFViewSet(viewsets.ModelViewSet):
                     template=template,
                     text=text
                 )
+                if mrf.requested_by.phone:
+                    send_text(to=mrf.requested_by.phone,text=text)
                 message = f'MRF fully approved. Requisition No: {mrf.requisition_no}'
         
         else:  # reject
@@ -586,6 +590,8 @@ class MRFViewSet(viewsets.ModelViewSet):
                 template=template,
                 text=text
             )
+            if mrf.requested_by.phone:
+                send_text(to=mrf.requested_by.phone,text=text)
             message = 'MRF rejected. Department head can revise and resubmit.'
         
         serializer = MRFDetailSerializer(mrf, context={'request': request})

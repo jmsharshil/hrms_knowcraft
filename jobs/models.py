@@ -4,6 +4,9 @@ import uuid
 import secrets
 from django.db.models import Q, UniqueConstraint
 from django.conf import settings
+import qrcode
+from io import BytesIO
+from django.core.files import File
 
 FRONTEND_URL = getattr(settings,"FRONTEND_URL")
 
@@ -218,6 +221,9 @@ class JobApplicationLink(models.Model):
         editable=False,
         help_text='Unique token for the application link'
     )
+
+    #qr code
+    qr_code = models.FileField(upload_to='job_qrcodes/', blank=True, null=True)
     
     # Link Details
     title = models.CharField(max_length=255, help_text='Title for this link')
@@ -262,6 +268,24 @@ class JobApplicationLink(models.Model):
         if not self.unique_token:
             # Generate unique token
             self.unique_token = secrets.token_urlsafe(32)
+        if not self.qr_code:
+            # Generate the URL from your existing method
+            url_to_encode = self.get_application_url()
+            
+            # Generate QR Image
+            qr = qrcode.QRCode(version=1, box_size=10, border=5)
+            qr.add_data(url_to_encode)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            
+            # Save to memory buffer
+            buffer = BytesIO()
+            img.save(buffer, format='PNG')
+            
+            # Save to FileField (This triggers the upload to Azure Blob Storage)
+            file_name = f'qr_{self.platform}_{self.unique_token[:8]}.png'
+            self.qr_code.save(file_name, File(buffer), save=False)
+            buffer.close()
         super().save(*args, **kwargs)
     
     def get_application_url(self):
@@ -375,6 +399,7 @@ class JobApplication(models.Model):
         ('application_link', 'Application Link'),
         ('direct', 'Direct Application'),
         ('referral', 'Employee Referral'),
+        ('career_page', 'Career Page'),
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -490,6 +515,7 @@ class JobApplication(models.Model):
     
     referral_name = models.CharField(null=True,blank=True)
     referral_email = models.CharField(null=True,blank=True)
+    referral_phone = models.CharField(null=True,blank=True)
     referral_emp_code = models.CharField(null=True,blank=True)
     referral_designation = models.CharField(null=True,blank=True)
     referral_department = models.CharField(null=True,blank=True)
@@ -590,6 +616,7 @@ class ReferralApplication(models.Model):
     #Referrer Info    
     referral_name = models.CharField(null=True,blank=True)
     referral_email = models.CharField(null=True,blank=True)
+    referral_phone = models.CharField(null=True,blank=True)
     referral_emp_code = models.CharField(null=True,blank=True)
     referral_designation = models.CharField(null=True,blank=True)
     referral_department = models.CharField(null=True,blank=True)

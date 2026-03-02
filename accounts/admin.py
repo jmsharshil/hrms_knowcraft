@@ -13,14 +13,14 @@ class CompanyAdmin(admin.ModelAdmin):
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ['email', 'name', 'role', 'company', 'pin_set', 'is_active', 'created_at']
-    list_filter = ['role', 'is_active', 'pin_set', 'created_at', 'company']
+    list_display = ['email', 'name', 'role', 'company', 'phone', 'pin_set', 'is_active', 'created_at','department']
+    list_filter = ['role', 'is_active', 'pin_set', 'created_at', 'company','department']
     search_fields = ['email', 'name', 'company__name']
     readonly_fields = ['id', 'created_at', 'updated_at', 'last_login']
     
     fieldsets = (
-        (None, {'fields': ('email', 'pin', 'pin_set')}),
-        ('Personal Info', {'fields': ('name', 'role', 'company')}),
+        (None, {'fields': ('email', 'pin', 'pin_set' ,'department')}),
+        ('Personal Info', {'fields': ('name', 'role', 'company','phone')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Important dates', {'fields': ('last_login', 'created_at', 'updated_at')}),
         ('Metadata', {'fields': ('id', 'created_by')}),
@@ -29,7 +29,7 @@ class UserAdmin(BaseUserAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'name', 'role', 'company', 'is_active', 'is_staff'),
+            'fields': ('email', 'name', 'role', 'company', 'is_active', 'is_staff','phone'),
         }),
     )
     

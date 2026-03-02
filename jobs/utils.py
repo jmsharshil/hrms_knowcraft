@@ -6,7 +6,7 @@ from pathlib import Path
 from openai import AzureOpenAI
 from pydantic import BaseModel
 from django.conf import settings
-from onboarding.utils.sender import send_email
+from onboarding.utils.sender import send_email,send_text
 import base64
 
 FRONTEND_URL = getattr(settings,"FRONTEND_URL")
@@ -998,3 +998,5 @@ def send_job_assignment_email(user, job, assigned_by):
         template=template,
         text=text
     )
+    if user.phone:
+        send_text(to=user.phone,text=text)

@@ -71,6 +71,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     name = models.CharField(max_length=255)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='users')
+    phone = models.CharField(null=True,blank=True)
+    department = models.ForeignKey('mrf.department',null=True,blank=True,on_delete=models.CASCADE)
     
     # PIN for authentication (stored as hash)
     pin = models.CharField(max_length=128, null=True, blank=True)

@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from .models import User, Company, MagicLink
 import re
-
+from mrf.models import Department
 
 class CompanySerializer(serializers.ModelSerializer):
     class Meta:
@@ -20,7 +20,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'email', 'name', 'role', 'role_display', 
             'company', 'company_name', 'pin_set', 'is_active',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at','phone','department'
         ]
         read_only_fields = ['id', 'company', 'pin_set', 'created_at', 'updated_at']
         extra_kwargs = {
@@ -70,6 +70,8 @@ class CreateUserSerializer(serializers.Serializer):
     """Serializer for creating users by Admin/HR Manager"""
     name = serializers.CharField(max_length=255)
     email = serializers.EmailField()
+    phone = serializers.CharField(required=False,allow_blank=True)
+    department = serializers.PrimaryKeyRelatedField(queryset=Department.objects.all(),required=False,allow_null=True)
     role = serializers.ChoiceField(choices=[
         ('admin', 'Admin'),
         ('hr_manager', 'HR Manager'),

@@ -1,4 +1,4 @@
-from .sender import send_email
+from .sender import send_email,send_text
 from .task_queue import TASK_QUEUE
 from booking.models import Booking
 from slots.models import InterviewFeedback
@@ -8,7 +8,7 @@ import logging
 logger = logging.getLogger(__name__)
 REMINDER_INTERVAL = 7200  # 120 minutes
 
-def send_feedback_reminder_email(interviewer_email, interviewer_name, candidate_name, round_name,link,position):
+def send_feedback_reminder_email(interviewer_email, interviewer_name, interviewer_phone, candidate_name, round_name,link,position):
     subject = f"Gentle Reminder: Interview Feedback Form Pending ({round_name})"
 
     text = f"""
@@ -76,6 +76,8 @@ HR Team
         text=text,
         template=template
     )
+    if interviewer_phone:
+        send_text(to=interviewer_phone,text=text)
     print("Reminder for feedback sent!")
 
 def interview_feedback_reminder_task(booking_id):
@@ -120,6 +122,7 @@ def interview_feedback_reminder_task(booking_id):
     send_feedback_reminder_email(
         interviewer_email=booking.interviewer.email,
         interviewer_name=booking.interviewer.name,
+        interviewer_phone=booking.interviewer.phone,
         candidate_name=booking.candidate.candidate_name,
         round_name=round_name,
         link= booking.candidate.feedback_link,

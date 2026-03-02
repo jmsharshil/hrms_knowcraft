@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 from django.template import Template, Context
 from .models import JobApplicationDocument,ApprovalNote,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent
 from onboarding.utils.engine import automation_engine
-from .utils.sender import send_email
+from .utils.sender import send_email,send_text
 from .serializers import JobApplicationDocumentSerializer,SalaryAnnexureSerializer,SalaryAnnexureHistorySerializer
 import logging
 from jobs.models import JobApplication
@@ -153,20 +153,18 @@ def evaluate_documents(application):
             ok,reason = automation_engine(application, application.status, "docs_incomplete")
             if not ok:
                 print(reason)
-            else:
-                print(ok)
         elif is_section_unclear(docs, "joining_docs"):
             ok,reason = automation_engine(application, application.status, "docs_unclear")
             if not ok:
                 print(reason)
-            else:
-                print(ok)
         elif is_section_complete(docs, "joining_docs"):
             ok,reason = automation_engine(application, application.status, "docs_approved")
             if not ok:
                 print(reason)
-            else:
-                print(ok)
+    elif application.status == "salary_annexure_review" and getattr(docs,'joining_docs_status') == 'approved':
+            automation_engine(application, application.status, "approved_annexure")
+    elif application.status == "salary_annexure_review" and getattr(docs,'joining_docs_status') not in  ['approved','pending']:
+            automation_engine(application, application.status, "rejected_annexure")
 
 class UploadJobApplicationDocumentAPI(APIView):
     permission_classes = [permissions.AllowAny]
@@ -280,14 +278,9 @@ class UploadJobApplicationDocumentAPI(APIView):
 
         if application.status == "docs_pending":
             automation_engine(application, "docs_pending", "docs_uploaded")
-        elif application.status == "salary_annexure_review" and getattr(docs,'joining_docs_status') == 'approved':
-            automation_engine(application, "salary_annexure_review", "approved_annexure")
-        elif application.status == "salary_annexure_review" and getattr(docs,'joining_docs_status') not in  ['approved','pending']:
-            automation_engine(application, "salary_annexure_review", "rejected_annexure")
 
-        from onboarding.utils.docs_reupload import get_pending_documents
-        pending_docs = get_pending_documents(docs)
-        docs.reupload_docuemnts = ' '.join(pending_docs)
+        docs.reupload_docuemnts = ''
+        docs.reupload_docuemnts_list = []
         docs.save()
 
         return Response(
@@ -365,6 +358,16 @@ class ReviewJobApplicationDocumentsAPI(APIView):
                         file_field.delete(save=False)  # deletes from storage
                         setattr(docs, field, None)
 
+        docs.save()
+
+        from onboarding.utils.docs_reupload import get_pending_documents
+        pending_docs,reupload_docuemnts_list = get_pending_documents(docs)
+        docs.reupload_docuemnts = ' '.join(pending_docs)
+        docs.reupload_docuemnts_list = reupload_docuemnts_list
+
+        if docs.joining_docs_status == 'approved':
+            docs.reupload_docuemnts = ''
+            docs.reupload_docuemnts_list = [] 
         docs.save()
 
         # 🔁 Evaluate partial approval logic
@@ -639,6 +642,64 @@ class SendApprovalNoteAPIView(APIView):
         # --- Render email ---
         template = Template(html_content)
         html_rendered = template.render(Context(context))
+        whatsapp_text = f"""
+*Approval Required – Candidate Hiring*
+
+Dear {context.get('approver_name')},
+
+Sharing the formal approval note regarding the candidate shortlisted.
+
+━━━━━━━━━━━━━━━━━━
+*Candidate Details*
+━━━━━━━━━━━━━━━━━━
+Name: {context.get('candidate_name')}
+Designation: {context.get('designation')} – {context.get('department')}
+Experience: {context.get('experience')}
+Qualification: {context.get('qualification')}
+Last Organization: {context.get('last_organization')}
+
+━━━━━━━━━━━━━━━━━━
+*Interview Rounds – Interviewers*
+━━━━━━━━━━━━━━━━━━
+HR Round: {context.get('hr_round_interviewer')}
+Technical Round: {context.get('tech_round_interviewer')}
+Case Study Round: {context.get('case_study_round_interviewer')}
+Final Round: {context.get('final_round_interviewer')}
+Management / Client Round: {context.get('management_client_round_interviewer')}
+
+━━━━━━━━━━━━━━━━━━
+*Interview Scores*
+━━━━━━━━━━━━━━━━━━
+HR Round: {context.get('hr_round_score')}
+Technical Round: {context.get('tech_round_score')}
+Case Study Round: {context.get('case_study_round_score')}
+Final Round: {context.get('final_round_score')}
+Management / Client Round: {context.get('management_client_round_score')}
+
+━━━━━━━━━━━━━━━━━━
+*Offer & Other Details*
+━━━━━━━━━━━━━━━━━━
+Current / Last Drawn CTC: {context.get('current_ctc')}
+Expected CTC: {context.get('expected_ctc')}
+CTC to be Offered: {context.get('offered_ctc')}
+Notice Period: {context.get('notice_period')}
+Office Location: {context.get('office_location')}
+Source: {context.get('source')}
+MRF: {context.get('mrf')}
+New / Replacement: {context.get('hiring_type')}
+Remarks: {context.get('remarks') or 'N/A'}
+
+━━━━━━━━━━━━━━━━━━
+
+Please review the details and share your feedback.
+
+View Candidate Profile:
+{context.get('FRONTEND_URL')}/onboarding
+
+Regards,
+Team – HR
+Knowcraft Analytics Private Limited
+"""
 
         # --- Trigger workflow ---
         try:
@@ -668,6 +729,8 @@ class SendApprovalNoteAPIView(APIView):
                         template=html_rendered,
                         attachments=[resume_attachment] if resume_attachment else None
                     )
+                    if approver.phone:
+                        send_text(to=approver.phone,text=whatsapp_text)
             else:
                 print(reason)
 
@@ -1052,8 +1115,9 @@ class SendForOfferLetterEmailAPI(APIView):
         job_application = get_object_or_404(JobApplication, id=id)
 
         recipient_email = request.data.get("email")
+        recipient_phone = request.data.get("phone")
         joining_date = request.data.get("joining_date") or job_application.joining_date
-        offer_letter_upload_link = f"{settings.FRONTEND_URL}/upload-offer-letter/{id}"
+        offer_letter_upload_link = f"{settings.FRONTEND_URL}/review-documents/{id}"
 
         if not recipient_email:
             return Response(
@@ -1117,7 +1181,7 @@ Thank you.
             </body>
         </html>"""
         from .utils.annexure_attachment import get_annexure_attachment
-        annexure_attachment = get_annexure_attachment(job_application)
+        annexure_attachment = get_annexure_attachment(job_application.documents)
         send_email(
             subject=subject,
             text=message,
@@ -1125,6 +1189,8 @@ Thank you.
             template=template,
             attachments=[annexure_attachment] if annexure_attachment else None
         )
+        if recipient_phone:
+            send_text(to=recipient_phone,text=message)
         automation_engine(job_application,job_application.status,"offer_pending")
         return Response(
             {"message": "Review email sent successfully!"},
@@ -1138,6 +1204,7 @@ class SendForSalaryAnnexureEmailAPI(APIView):
         job_application = get_object_or_404(JobApplication, id=id)
 
         recipient_email = request.data.get("email")
+        recipient_phone = request.data.get("phone")
         offered_ctc = request.data.get("offered_ctc")
         joining_date = request.data.get("joining_date") or job_application.joining_date
 
@@ -1221,6 +1288,8 @@ Thank you.
             template=template,
             attachments=[resume_attachment] if resume_attachment else None
         )
+        if recipient_phone:
+            send_text(to=recipient_phone,text=message)
         automation_engine(job_application, job_application.status, "salary_annexure_prep")
         return Response(
             {"message": "Salary Annexure review email sent successfully!"},

@@ -10,17 +10,64 @@ from slots.models import Interviewer,Slot
 from slots.graph import create_teams_meeting
 from zoneinfo import ZoneInfo
 from slots.availability import TEMP_SLOT_STORAGE
-from datetime import datetime, timedelta, date,timezone
+from datetime import datetime, timedelta, date
 import requests
 from slots.graph import get_graph_token,fetch_meeting_recording,fetch_meeting_transcript
 from jobs.serializers import JobApplicationSerializer
 from jobs.models import JobApplication
 from rest_framework import permissions
-from onboarding.utils.sender import send_email
+from onboarding.utils.sender import send_email,send_text
 from onboarding.utils.resume_attachment import get_resume_attachment
+from django.utils.dateparse import parse_datetime as dj_parse_datetime,parse_date
+from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.db.models import Count, Q
+from django.utils import timezone
 
 IST = ZoneInfo("Asia/Kolkata")
 
+def parse_datetime(value):
+    """
+    Accepts:
+    - ISO format (2026-03-13T13:00:00 or with timezone)
+    - DD-MM-YYYY HH:MM:SS (13-03-2026 13:00:00)
+
+    Converts everything to IST timezone.
+    Prevents past datetime booking.
+    """
+
+    if not value:
+        raise ValidationError("Datetime value is required")
+
+    dt = None
+
+    # 1️⃣ Try ISO format first
+    dt = dj_parse_datetime(value)
+
+    # 2️⃣ Try custom format if ISO fails
+    if not dt:
+        try:
+            dt = datetime.strptime(value, "%d-%m-%Y %H:%M:%S")
+        except ValueError:
+            raise ValidationError(
+                "Invalid datetime format. Use ISO format (YYYY-MM-DDTHH:MM:SS) "
+                "or DD-MM-YYYY HH:MM:SS"
+            )
+
+    # 3️⃣ Make timezone aware
+    if timezone.is_naive(dt):
+        dt = timezone.make_aware(dt, IST)
+
+    # 4️⃣ Convert everything to IST
+    dt = dt.astimezone(IST)
+    
+    # 5️⃣ Prevent past booking
+    now_ist = timezone.now().astimezone(IST)
+
+    if dt <= now_ist:
+        raise ValidationError("Interview time cannot be in the past")
+
+    return dt
 
 class SendSlotSelectionEmailView(APIView):
     def post(self, request):
@@ -322,6 +369,8 @@ class CandidateBookSlotView(APIView):
                         to=interviewer.email,
                         attachments=[resume_attachment] if resume_attachment else None
                     )
+                    if interviewer.phone:
+                        send_text(to=interviewer.phone,text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}")
 
         elif candidate.status in ['interview_next_3', 'interview_pending_3']:
             round = "case_study_round"
@@ -403,6 +452,12 @@ class CandidateBookSlotView(APIView):
         </html>""",
             to=candidate.candidate_email
         )
+        send_text(to=candidate.candidate_phone,text=f"""Dear {candidate.candidate_name},\nWe are pleased to inform you have been shortlisted for {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled at {start_str}.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
+\nWe look forward to speaking with you.
+\nPlease feel free to reach out if you have any questions or require further assistance.
+\nWarm regards,
+\nTeam-HR
+\nKnowcraft Analytics Private Limited""")
         interviewer,created = Interviewer.objects.get_or_create(id=interviewer_id)
         send_email(
             subject=f"Interview Scheduled - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
@@ -473,6 +528,8 @@ class CandidateBookSlotView(APIView):
             to=interviewer.email,
             attachments=[resume_attachment] if resume_attachment else None
         )
+        if interviewer.phone:
+            send_text(to=interviewer.phone,text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}")
         candidate.interview_link = meeting_link
         candidate.interviewer_name = interviewer.name
         candidate.interview_scheduled_at = start_dt
@@ -540,6 +597,483 @@ def get_experience_level(designation):
     return "fresher"  # safe default
 
 
+def send_notifications(candidate,start_dt,end_dt,interviewer,location):
+    start_str = start_dt.astimezone(IST).strftime("%d/%m/%Y %I:%M %p")
+
+    designation = candidate.job.mrf.designation.name
+    level = get_experience_level(designation)
+
+    round = None
+    round_name = ""
+    resume_attachment = get_resume_attachment(candidate)
+
+    if candidate.status in ['shortlisted', 'interview_pending_1']:
+        round = "hr_round"
+        round_name = "HR Round"
+    elif candidate.status in ['interview_next_2', 'interview_pending_2']:
+        round = "technical_round"
+        round_name = "Technical Round"
+        # 🔹 Notify other technical interviewers
+        if candidate.job.mrf.technical_interviewers.exists():
+            for tech_interviewer in candidate.job.mrf.technical_interviewers.all():
+                if str(tech_interviewer.id) == str(interviewer.id):
+                    continue
+
+                base_path = FEEDBACK_PATHS.get(round, {}).get(level, "/api/slots/hrfresher/")
+                feedback_link = (
+                    f"{settings.FRONTEND_URL}{base_path}"
+                    f"?interview_round={round}&job_application={candidate.id}"
+                )
+
+                send_email(
+                    subject=f"In-Person Interview Scheduled - {candidate.candidate_name}",
+                    text=f"""Dear {tech_interviewer.name},
+
+Interview for {candidate.candidate_name} ({designation}) has been scheduled.
+
+Date & Time: {start_str}
+Location: {location}
+
+Warm Regards,
+Team – HR""",
+                    template=f"""
+                        <html>
+                        <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+                            <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+                                <tr>
+                                    <td align="center" style="padding:30px 15px;">
+                                        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                                            <!-- Logo -->
+                                            <tr>
+                                                <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                                    <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                                </td>
+                                            </tr>
+                                            <!-- Separator -->
+                                            <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                                            <!-- Content -->
+                                            <tr>
+                                                <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                                    <h2 style="margin:0 0 24px 0;color:#1f2937;font-size:24px;font-weight:600;">Interview Scheduled — {candidate.candidate_name}</h2>
+                                                    
+                                                    <p style="margin:0 0 16px 0;">Dear <strong>{tech_interviewer.name}</strong>,</p>
+                                                    
+                                                    <p style="margin:0 0 20px 0;">
+                                                        Interview for <strong>{candidate.candidate_name}</strong> (<strong>{designation}</strong>) has been scheduled.
+                                                    </p>
+                                                    
+                                                    <!-- Details Box -->
+                                                    <table style="width:100%;border:1px solid #e2e8f0;border-radius:12px;margin:20px 0;padding:20px 24px;">
+                                                        <tr>
+                                                            <td style="padding:8px 0;font-weight:600;color:#475569;width:140px;">📅 Date & Time</td>
+                                                            <td style="padding:8px 0;font-weight:500;">{start_str}</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td style="padding:8px 0;font-weight:600;color:#475569;">📍 Location</td>
+                                                            <td style="padding:8px 0;font-weight:500;">{location}</td>
+                                                        </tr>
+                                                    </table>                                                       
+                                                    <br>
+                                                    <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                                    <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                                    <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                                </td>
+                                            </tr>
+                                            <!-- Footer -->
+                                            <tr>
+                                                <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                                    © 2026 Knowcraft Analytics Private Limited • Confidential
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </body>
+                        </html>
+                    """,
+                    to=tech_interviewer.email,
+                    attachments=[resume_attachment] if resume_attachment else None
+                )
+                if interviewer.phone:
+                    send_text(to=interviewer.phone,text=f"""Dear {tech_interviewer.name},
+
+Interview for {candidate.candidate_name} ({designation}) has been scheduled.
+
+Date & Time: {start_str}
+Location: {location}
+
+Warm Regards,
+Team – HR""")
+    elif candidate.status in ['interview_next_3', 'interview_pending_3']:
+        round = "case_study_round"
+        round_name = "Case Study Round"
+    elif candidate.status in ['interview_next_final', 'interview_pending_final']:
+        round = "final_round"
+        round_name = "Final Round"
+    elif candidate.status in ['interview_next_management_client', 'interview_pending_management_client']:
+        round = "management_client_round"
+        round_name = "Management / Client Round"
+
+    BASE_URL = getattr(settings, 'FRONTEND_URL')
+    base_path = FEEDBACK_PATHS.get(round, {}).get(level, "/api/slots/hrfresher/")
+
+    feedback_link = (
+        f"{BASE_URL}{base_path}"
+        f"?interview_round={round}&job_application={candidate.id}"
+    )
+    location_str = location.full_address if hasattr(location, 'full_address') else str(location)
+    maps_link = location.google_maps_link if hasattr(location, 'google_maps_link') else None
+
+    # ==============================
+    # 📧 Candidate Email (In-Person)
+    # ==============================
+    send_email(
+        subject=f"In-Person Interview Scheduled – {designation}",
+        text=f"""Dear {candidate.candidate_name},
+
+Your {round_name} interview for the position of {designation} has been scheduled.
+
+📅 Date & Time: {start_str}
+📍 Location: {location_str}
+
+Goole Map Link:
+{maps_link}
+
+Kindly report 10-15 minutes before the scheduled time.
+
+Warm Regards,
+Team – HR
+Knowcraft Analytics Private Limited
+""",
+        to=candidate.candidate_email,
+        template=f"""
+        <html>
+        <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+            <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+                <tr>
+                    <td align="center" style="padding:30px 15px;">
+                        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                            <!-- Logo -->
+                            <tr>
+                                <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                    <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                </td>
+                            </tr>
+                            <!-- Separator -->
+                            <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                            <!-- Content -->
+                            <tr>
+                                <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                    <h2 style="margin:0 0 24px 0;color:#1f2937;font-size:24px;font-weight:600;">Interview Scheduled — {round_name}</h2>
+                                    
+                                    <p style="margin:0 0 16px 0;">Dear <strong>{candidate.candidate_name}</strong>,</p>
+                                    
+                                    <p style="margin:0 0 24px 0;">
+                                        Your <strong>{round_name}</strong> interview for the position of <strong>{designation}</strong> has been scheduled.
+                                    </p>
+                                    
+                                    <!-- Details Box -->
+                                    <table style="width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:20px 0;padding:20px 24px;border-collapse:collapse;">
+                                        <tr>
+                                            <td style="padding:8px 0;font-weight:600;color:#475569;width:140px;">📅 Date & Time</td>
+                                            <td style="padding:8px 0;font-weight:500;">{start_str}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding:8px 0;font-weight:600;color:#475569;">📍 Location</td>
+                                            <td style="padding:8px 0;font-weight:500;"><a href="{maps_link}" target="_blank">{location_str}</a></td>
+                                        </tr>
+                                    </table>
+                                    
+                                    <p style="margin:0 0 24px 0;color:#1f2937;font-weight:500;">
+                                        Kindly report 10–15 minutes before the scheduled time.
+                                    </p>
+                                    
+                                    <p style="margin:0 0 16px 0;">We look forward to meeting you.</p>
+                                    
+                                    <br>
+                                    <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                    <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                    <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                </td>
+                            </tr>
+                            <!-- Footer -->
+                            <tr>
+                                <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                    © 2026 Knowcraft Analytics Private Limited • Confidential
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+    """
+    )
+
+    # SMS
+    send_text(
+        to=candidate.candidate_phone,
+        text=f"""Dear {candidate.candidate_name}, your {round_name} interview for {designation} is scheduled on {start_str} at {location_str}.\n Please arrive early.\n Location: {maps_link}\n - HR"""
+    )
+
+    # ==============================
+    # 📧 Interviewer Email
+    # ==============================
+    send_email(
+        subject=f"In-Person Interview Scheduled - {candidate.candidate_name}",
+        text=f"""Dear {interviewer.name},
+
+The {round_name} interview for {candidate.candidate_name} ({designation}) has been scheduled.
+
+📅 Date & Time: {start_str}
+📍 Location: {location_str}
+
+Goole Map Link:
+{maps_link}
+
+Feedback Link:
+{feedback_link}
+
+Warm Regards,
+Team – HR""",
+        to=interviewer.email,
+        template=f"""
+        <html>
+        <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+            <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+                <tr>
+                    <td align="center" style="padding:30px 15px;">
+                        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                            <!-- Logo -->
+                            <tr>
+                                <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                    <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                </td>
+                            </tr>
+                            <!-- Separator -->
+                            <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                            <!-- Content -->
+                            <tr>
+                                <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                    <h2 style="margin:0 0 24px 0;color:#1f2937;font-size:24px;font-weight:600;">Interview Scheduled — {candidate.candidate_name}</h2>
+                                    
+                                    <p style="margin:0 0 16px 0;">Dear <strong>{interviewer.name}</strong>,</p>
+                                    
+                                    <p style="margin:0 0 20px 0;">
+                                        Interview for <strong>{candidate.candidate_name}</strong> (<strong>{designation}</strong>) has been scheduled.
+                                    </p>
+                                    
+                                    <!-- Details Box -->
+                                    <table style="width:100%;border:1px solid #e2e8f0;border-radius:12px;margin:20px 0;padding:20px 24px;">
+                                        <tr>
+                                            <td style="padding:8px 0;font-weight:600;color:#475569;width:140px;">📅 Date & Time</td>
+                                            <td style="padding:8px 0;font-weight:500;">{start_str}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding:8px 0;font-weight:600;color:#475569;">📍 Location</td>
+                                            <td style="padding:8px 0;font-weight:500;"><a href="{maps_link}" target="_blank">{location_str}</a></td>
+                                        </tr>
+                                    </table>
+                                    
+                                    <!-- Feedback Button -->
+                                    <p style="margin:30px 0 35px 0;text-align:center;">
+                                        <a href="{feedback_link}" 
+                                        style="background-color:#2563eb;color:#ffffff;padding:16px 36px;text-decoration:none;border-radius:8px;font-weight:600;font-size:17px;display:inline-block;">
+                                            Submit Feedback
+                                        </a>
+                                    </p>
+                                    
+                                    <p style="margin:0 0 16px 0;">Please submit your feedback after the interview using the link above.</p>
+                                    
+                                    <br>
+                                    <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                    <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                    <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                </td>
+                            </tr>
+                            <!-- Footer -->
+                            <tr>
+                                <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                    © 2026 Knowcraft Analytics Private Limited • Confidential
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </body>
+        </html>
+    """,
+    attachments=[resume_attachment] if resume_attachment else None
+    )
+
+    if interviewer.phone:
+        send_text(to=interviewer.phone,text=f"""Dear {interviewer.name},
+
+The {round_name} interview for {candidate.candidate_name} ({designation}) has been scheduled.
+
+📅 Date & Time: {start_str}
+📍 Location: {location_str}
+
+Goole Map Link:
+{maps_link}
+
+Feedback Link:
+{feedback_link}
+
+Warm Regards,
+Team – HR""")
+    # Update candidate fields
+    candidate.interviewer_name = interviewer.name
+    candidate.interview_scheduled_at = start_dt
+    candidate.feedback_link = feedback_link
+    candidate.interview_link = None
+    candidate.save()
+
+    # ✅ Same automation logic
+    from onboarding.utils.engine import automation_engine
+
+    if candidate.status == 'shortlisted':
+        automation_engine(candidate, candidate.status, 'interview_pending_1')
+    elif candidate.status == 'interview_next_2':
+        automation_engine(candidate, candidate.status, 'interview_pending_2')
+    elif candidate.status == 'interview_next_3':
+        automation_engine(candidate, candidate.status, 'interview_pending_3')
+    elif candidate.status == 'interview_next_final':
+        automation_engine(candidate, candidate.status, 'interview_pending_final')
+    elif candidate.status == 'interview_next_management_client':
+        automation_engine(candidate, candidate.status, 'interview_pending_management_client')
+
+class CandidateBookInPersonInterviewView(APIView):
+    """
+    POST /api/booking/candidate/<candidate_id>/book-inperson/
+
+    Body:
+    {
+        "interviewer_id": "<uuid>",
+        "start": "2026-02-28T11:00:00+05:30",
+        "end": "2026-02-28T12:00:00+05:30",
+        "location_id": "<uuid>"
+    }
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, candidate_id):
+
+        try:
+            with transaction.atomic():
+                candidate = (
+                    JobApplication.objects
+                    .select_for_update()
+                    .filter(id=candidate_id)
+                    .first()
+                )
+                if not candidate:
+                    return Response({"detail": "Candidate not found"}, status=404)
+
+                interviewer_id = request.data.get("interviewer_id")
+                start = request.data.get("start")
+                end = request.data.get("end")
+                location_id = request.data.get("location_id")
+
+                from slots.models import InterviewLocation
+                location = None
+                if location_id:
+                    location = InterviewLocation.objects.get(id=location_id)
+                else:
+                    return Response({"detail": "location is required"}, status=400)
+
+                if not interviewer_id:
+                    return Response({"detail": "interviewer_id is required"}, status=400)
+                if not start or not end:
+                    return Response({"detail": "start and end time are required"}, status=400)
+                if not location:
+                    return Response({"detail": "location is required"}, status=400)
+
+                interviewer = (
+                    Interviewer.objects
+                    .select_for_update()
+                    .filter(id=interviewer_id)
+                    .first()
+                )
+
+                if not interviewer:
+                    return Response({"detail": "Invalid interviewer_id"}, status=400)
+
+                try:
+                    start_dt = parse_datetime(start)
+                    end_dt = parse_datetime(end)
+                except:
+                    return Response({"detail": "Invalid datetime format"}, status=400)
+                
+                if not start_dt or not end_dt:
+                    return Response(
+                        {"detail": "Invalid datetime format. Use ISO format e.g. 2026-02-28T11:00:00+05:30"},
+                        status=400
+                    )
+
+                # Make timezone aware if naive
+                if timezone.is_naive(start_dt):
+                    start_dt = timezone.make_aware(start_dt)
+
+                if timezone.is_naive(end_dt):
+                    end_dt = timezone.make_aware(end_dt)
+
+                if start_dt >= end_dt:
+                    return Response(
+                        {"detail": "End time must be after start time"},
+                        status=400
+                    )
+
+                # 🔒 Check interviewer overlap (inside atomic block)
+                interviewer_overlap = Booking.objects.filter(
+                    interviewer=interviewer,
+                    start__lt=end_dt,
+                    end__gt=start_dt
+                ).exists()
+
+                if interviewer_overlap:
+                    return Response(
+                        {"detail": "Interviewer already booked in this time range"},
+                        status=400
+                    )
+
+                # 🔒 Check candidate overlap
+                candidate_overlap = Booking.objects.filter(
+                    candidate=candidate,
+                    start__lt=end_dt,
+                    end__gt=start_dt
+                ).exists()
+
+                if candidate_overlap:
+                    return Response(
+                        {"detail": "Candidate already has an interview scheduled in this time range"},
+                        status=400
+                    )
+
+                # ✅ Create booking
+                booking = Booking.objects.create(
+                    candidate=candidate,
+                    interviewer=interviewer,
+                    interview_type="in_person",
+                    location=location,
+                    start=start_dt,
+                    end=end_dt
+                )
+        except ValidationError as e:
+            return Response({"detail": str(e)}, status=400)
+
+        except Exception as e:
+            return Response({"detail": str(e)}, status=500)
+
+        try:
+            transaction.on_commit(lambda: send_notifications(candidate, start_dt, end_dt, interviewer, location))
+        except Exception as e:
+            Response({"Error":"Unable to book an interview:{e}"},status=500)
+        return Response(BookingSerializer(booking).data, status=201)
 
 class FetchMeetingData(APIView):
     """
@@ -624,3 +1158,77 @@ class MeetingWebhookView(APIView):
                 booking.save()
 
         return Response({"detail": "OK"})
+
+class BranchWiseInterviewReportView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+
+        bookings = Booking.objects.all()
+
+        # ---------------------------
+        # Date Filtering
+        # ---------------------------
+        start_date = request.GET.get("start_date")
+        end_date = request.GET.get("end_date")
+
+        if start_date:
+            start_date = parse_date(start_date)
+            bookings = bookings.filter(start__date__gte=start_date)
+
+        if end_date:
+            end_date = parse_date(end_date)
+            bookings = bookings.filter(start__date__lte=end_date)
+
+        # ---------------------------
+        # Company Filtering
+        # ---------------------------
+        company_id = request.GET.get("company_id")
+        if company_id:
+            bookings = bookings.filter(location__company_id=company_id)
+
+        # ---------------------------
+        # Interviewer Filtering
+        # ---------------------------
+        interviewer_id = request.GET.get("interviewer_id")
+        if interviewer_id:
+            bookings = bookings.filter(interviewer_id=interviewer_id)
+
+        # ---------------------------
+        # Branch Aggregation
+        # ---------------------------
+        branch_data = (
+            bookings
+            .values(
+                "location__id",
+                "location__name",
+                "location__city",
+                "location__company__name"
+            )
+            .annotate(
+                total_interviews=Count("id"),
+                in_person_count=Count("id", filter=Q(interview_type="in_person")),
+                online_count=Count("id", filter=Q(interview_type="online")),
+                # ✅ Round-wise breakdown
+                hr_round_count=Count("id", filter=Q(candidate__status__in=['shortlisted','interview_pending_1'])),
+                technical_round_count=Count("id", filter=Q(candidate__status__in=['interview_next_2','interview_pending_2'])),
+                case_study_round_count=Count("id", filter=Q(candidate__status__in=['interview_next_3','interview_pending_3'])),
+                final_round_count=Count("id", filter=Q(candidate__status__in=['interview_next_final','interview_pending_final'])),
+                management_client_round_count=Count("id", filter=Q(candidate__status__in=['interview_next_management_client','interview_pending_management_client'])),
+            )
+            .order_by("-total_interviews")
+        )
+
+        # ---------------------------
+        # Online Interviews (No Branch)
+        # ---------------------------
+        online_without_branch = bookings.filter(
+            interview_type="online",
+            location__isnull=True
+        ).count()
+
+        return Response({
+            "branch_summary": branch_data,
+            "online_without_branch": online_without_branch,
+            "total_interviews": bookings.count()
+        })
