@@ -1,1 +1,1 @@
-web: gunicorn hrms_knowcraft.wsgi --bind=0.0.0.0:$PORT
+web: python manage.py collectstatic --noinput --clear && gunicorn hrms_knowcraft.wsgi --bind=0.0.0.0:$PORT
