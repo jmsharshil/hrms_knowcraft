@@ -12,6 +12,8 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from onboarding.utils.engine import automation_engine
 from jobs.models import JobApplication
+from django.db import transaction
+import pandas as pd
 
 IST = ZoneInfo("Asia/Kolkata")
 
@@ -426,3 +428,67 @@ class InterviewLocationDetailAPIView(APIView):
 
         location.delete()
         return Response(status=204)
+
+class InterviewerBulkUploadView(APIView):
+    def post(self, request):
+        file = request.FILES.get("file")
+
+        if not file:
+            return Response(
+                {"error": "No file uploaded"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            df = pd.read_excel(file)
+
+            required_columns = ["Name", "Email Id"]
+            for col in required_columns:
+                if col not in df.columns:
+                    return Response(
+                        {"error": f"Missing column: {col}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+            created_count = 0
+            updated_count = 0
+            errors = []
+
+            company = request.user.company
+
+            with transaction.atomic():
+                for index, row in df.iterrows():
+                    name = str(row.get("Name")).strip()
+                    email = str(row.get("Email Id")).strip().lower()
+                    phone = str(row.get("phone")).strip() if not pd.isna(row.get("phone")) else None
+
+                    if not name or not email:
+                        errors.append(f"Row {index+2}: Name or Email missing")
+                        continue
+
+                    interviewer, created = Interviewer.objects.update_or_create(
+                        company=company,
+                        email=email,
+                        defaults={
+                            "name": name,
+                            "phone": phone,
+                        }
+                    )
+
+                    if created:
+                        created_count += 1
+                    else:
+                        updated_count += 1
+
+            return Response({
+                "message": "Bulk upload completed",
+                "created": created_count,
+                "updated": updated_count,
+                "errors": errors
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
