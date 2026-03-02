@@ -56,9 +56,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -249,6 +249,8 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # Frontend URL for magic links (Update based on your frontend)
 FRONTEND_URL = os.getenv("FRONTEND_URL")  # Change to your frontend URL
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # CORS Settings (if frontend is on different domain)
 CORS_ALLOWED_ORIGINS = [
