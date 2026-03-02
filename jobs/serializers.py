@@ -839,3 +839,148 @@ class ReferralToJobApplicationCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError(f"Error occurred while creating application: {str(e)}")
 
         return job_application
+
+#Career Page
+
+class CareersApplicationCreateSerializer(serializers.ModelSerializer):
+    """Serializer for resume upload through careers page"""
+
+    resumes = serializers.ListField(
+        child=serializers.FileField(),
+        write_only=True,
+        required=True
+    )
+
+    class Meta:
+        model = JobApplication
+        fields = ['resumes']
+
+    def validate_resumes(self, values):
+        if not values:
+            raise serializers.ValidationError("At least one resume file is required")
+
+        max_size = 10 * 1024 * 1024  # 10MB
+        allowed_extensions = [
+            '.pdf', '.doc', '.docx', '.txt', '.rtf',
+            '.jpg', '.jpeg', '.png', '.gif',
+            '.odt', '.pages',
+        ]
+
+        import os
+        for value in values:
+            if value.size > max_size:
+                raise serializers.ValidationError(
+                    f"{value.name}: File size must be less than 10MB"
+                )
+
+            ext = os.path.splitext(value.name)[1].lower()
+            if ext not in allowed_extensions:
+                raise serializers.ValidationError(
+                    f"{value.name}: Unsupported file format"
+                )
+
+        return values
+
+
+    def create(self, validated_data):
+        resumes = validated_data.pop('resumes')
+        data = self.context['request'].data
+
+        job_id = data.get('job_id')
+
+        job = Job.objects.filter(id=job_id).first()
+        created_applications = []
+
+        from onboarding.utils.task_queue import TASK_QUEUE
+        from .utils import parse_resume_task
+
+        try:
+            with transaction.atomic():
+                for resume_file in resumes:
+                    original_filename = getattr(resume_file, 'name', '')
+                    file_size = getattr(resume_file, 'size', 0)
+
+                    # Create JobApplication
+                    job_application = JobApplication.objects.create(
+                        job=job,
+                        resume=resume_file,
+                        status='received',
+                        original_filename=original_filename,
+                        file_size=file_size,
+                        source='career_page'
+                    )
+                    created_applications.append(job_application)
+
+                    TASK_QUEUE.enqueue(
+                        parse_resume_task,
+                        job_application,
+                        job_application.resume.file,
+                        job_application.job
+                    )
+
+        except IntegrityError as e:
+            print(e)
+            raise serializers.ValidationError({
+                'non_field_errors': [
+                    'Could not create application. Possible duplicate candidate entry.'
+                ]
+            })
+
+        return created_applications
+    
+class CareersJobListSerializer(serializers.ModelSerializer):
+    """Serializer for job list view"""
+    
+    department_name = serializers.CharField(source='department.name', read_only=True)
+    designation_name = serializers.CharField(source='designation.name', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
+    mrf_requisition_no = serializers.CharField(source='mrf.requisition_no', read_only=True)
+    applications_count = serializers.SerializerMethodField()
+    remaining_positions = serializers.SerializerMethodField()
+    job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
+    
+    class Meta:
+        model = Job
+        fields = [
+            'id', 'job_title', 'department', 'department_name',
+            'designation', 'designation_name', 'location','job_type', 'job_type_display',
+            'no_of_positions', 'positions_filled', 'remaining_positions',
+            'status', 'status_display', 'priority', 'priority_display',
+            'expected_closure_date', 'created_at', 'mrf_requisition_no',
+            'applications_count', 'is_active'
+        ]
+    
+    def get_applications_count(self, obj):
+        return obj.applications.count()
+    
+    def get_remaining_positions(self, obj):
+        return obj.remaining_positions()
+
+
+class CareersJobDetailSerializer(serializers.ModelSerializer):
+    """Serializer for detailed job view"""
+    
+    department_name = serializers.CharField(source='department.name', read_only=True)
+    designation_name = serializers.CharField(source='designation.name', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
+    mrf_details = serializers.SerializerMethodField()
+    remaining_positions = serializers.SerializerMethodField()
+    job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
+
+    class Meta:
+        model = Job
+        fields = '__all__'
+    
+    def get_mrf_details(self, obj):
+        return {
+            'id': str(obj.mrf.id),
+            'requisition_no': obj.mrf.requisition_no,
+            'mrf_name': obj.mrf.mrf_name,
+            'requested_by': obj.mrf.requested_by_name,
+            'approved_at': obj.mrf.approved_at,
+        }
+    
+    def get_remaining_positions(self, obj):
+        return obj.remaining_positions()

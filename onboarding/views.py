@@ -279,10 +279,8 @@ class UploadJobApplicationDocumentAPI(APIView):
         if application.status == "docs_pending":
             automation_engine(application, "docs_pending", "docs_uploaded")
 
-        from onboarding.utils.docs_reupload import get_pending_documents
-        pending_docs,reupload_docuemnts_list = get_pending_documents(docs)
-        docs.reupload_docuemnts = ' '.join(pending_docs)
-        docs.reupload_docuemnts_list = reupload_docuemnts_list
+        docs.reupload_docuemnts = ''
+        docs.reupload_docuemnts_list = []
         docs.save()
 
         return Response(
@@ -360,6 +358,16 @@ class ReviewJobApplicationDocumentsAPI(APIView):
                         file_field.delete(save=False)  # deletes from storage
                         setattr(docs, field, None)
 
+        docs.save()
+
+        from onboarding.utils.docs_reupload import get_pending_documents
+        pending_docs,reupload_docuemnts_list = get_pending_documents(docs)
+        docs.reupload_docuemnts = ' '.join(pending_docs)
+        docs.reupload_docuemnts_list = reupload_docuemnts_list
+
+        if docs.joining_docs_status == 'approved':
+            docs.reupload_docuemnts = ''
+            docs.reupload_docuemnts_list = [] 
         docs.save()
 
         # 🔁 Evaluate partial approval logic

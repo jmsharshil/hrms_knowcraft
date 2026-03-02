@@ -399,6 +399,7 @@ class JobApplication(models.Model):
         ('application_link', 'Application Link'),
         ('direct', 'Direct Application'),
         ('referral', 'Employee Referral'),
+        ('career_page', 'Career Page'),
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

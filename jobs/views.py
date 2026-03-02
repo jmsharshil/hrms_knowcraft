@@ -969,3 +969,66 @@ class ReferralApplicationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+from .serializers import (
+    CareersJobListSerializer,
+    CareersJobDetailSerializer,
+    CareersApplicationCreateSerializer
+)
+from django.shortcuts import get_object_or_404
+
+class CareersViewSet(viewsets.GenericViewSet):
+    """
+    ViewSet for Career Page APIs
+    - List active jobs
+    - Retrieve job detail
+    - Apply for a job (resume upload)
+    """
+    queryset = Job.objects.filter(is_active=True)
+    permission_classes = [AllowAny]
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return CareersJobListSerializer
+        elif self.action == 'retrieve':
+            return CareersJobDetailSerializer
+        elif self.action == 'apply':
+            return CareersApplicationCreateSerializer
+        return CareersJobListSerializer
+
+    # GET /api/careers/
+    def list(self, request):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    # GET /api/careers/{id}/
+    def retrieve(self, request, pk=None):
+        job = get_object_or_404(self.get_queryset(), pk=pk)
+        serializer = self.get_serializer(job)
+        return Response(serializer.data)
+
+    # POST /api/careers/apply/
+    @action(detail=False, methods=['post'], url_path='apply')
+    def apply(self, request):
+        """
+        Apply to a job by uploading one or multiple resumes.
+        Required:
+            - job_id
+            - resumes (list of files)
+        """
+        serializer = self.get_serializer(
+            data=request.data,
+            context={'request': request}
+        )
+
+        serializer.is_valid(raise_exception=True)
+        applications = serializer.save()
+
+        return Response(
+            {
+                "message": "Application(s) submitted successfully.",
+                "applications_created": len(applications)
+            },
+            status=status.HTTP_201_CREATED
+        )
