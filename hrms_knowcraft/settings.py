@@ -293,7 +293,7 @@ if USE_AZURE_MEDIA:
         },
         "staticfiles": {
             # keep whatever you use for static files (example with WhiteNoise)
-            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+            "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
         },
     }
 
