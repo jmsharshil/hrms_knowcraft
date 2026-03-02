@@ -325,7 +325,7 @@ class CreateUserView(APIView):
                 name=serializer.validated_data['name'],
                 company=request.user.company,
                 role=serializer.validated_data['role'],
-                phone=serializer.validated_data['phone'],
+                phone=serializer.validated_data.get('phone',None),
                 department=serializer.validated_data.get('department',None)
             )
             user.created_by = request.user

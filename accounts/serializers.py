@@ -70,6 +70,7 @@ class CreateUserSerializer(serializers.Serializer):
     """Serializer for creating users by Admin/HR Manager"""
     name = serializers.CharField(max_length=255)
     email = serializers.EmailField()
+    phone = serializers.CharField(required=False,allow_blank=True)
     role = serializers.ChoiceField(choices=[
         ('admin', 'Admin'),
         ('hr_manager', 'HR Manager'),
