@@ -455,7 +455,7 @@ def render_beautiful_report(parsed, job, overall_score):
     projects = parsed.get("projects", [])
     certifications = parsed.get("certifications", [])
     achievements = parsed.get("achievements", [])
-    logo_url = "https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png"
+    logo_url = "https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png"
     def list_section(items):
         if not items:
             return "<p>Not Provided</p>"
@@ -585,7 +585,7 @@ li {{
             <div><strong>Applied For:</strong> {job_title}</div>
         </td>
         <td align="right">
-            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" class="logo">
+            <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" class="logo">
         </td>
     </tr>
 </table>
@@ -895,7 +895,7 @@ email_html_templates = {
                         <!-- Logo -->
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/static/Knowcraft-Analytics.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <!-- Separator -->
