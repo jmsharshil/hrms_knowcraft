@@ -1010,6 +1010,8 @@ class CandidateBookInPersonInterviewView(APIView):
                 try:
                     start_dt = parse_datetime(start)
                     end_dt = parse_datetime(end)
+                except ValidationError as ve:
+                    return Response({"details": ve},status=400)
                 except:
                     return Response({"detail": "Invalid datetime format"}, status=400)
                 
