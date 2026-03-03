@@ -508,6 +508,7 @@ class JobApplication(models.Model):
     is_rejected = models.BooleanField(default=False)
 
     slot_link = models.URLField(null=True,blank=True)
+    inperson_link = models.URLField(null=True,blank=True)
     candidate_history = models.JSONField(null=True,blank=True,default=list)
 
     consolidated_feedback_avg = models.FloatField(default=0)

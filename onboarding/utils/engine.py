@@ -194,8 +194,12 @@ def automation_engine(candidate, old, new):
         candidate.slot_link = (
             f"{FRONTEND_URL}/api/slots/available/?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
         )
+        candidate.inperson_link = (
+            f"{FRONTEND_URL}/api/inperson/interview/?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
+        )
     else:
         candidate.slot_link = ""
+        candidate.inperson_link = ""
 
     candidate.save()
     # 4️⃣ Auto-advance the workflow if needed

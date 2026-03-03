@@ -160,7 +160,12 @@ def update_candidate_slot_link(candidate):
             f"{settings.FRONTEND_URL}/api/slots/available/"
             f"?candidate_id={candidate.id}&interviewer_id={interviewer.id}"
         )
+        candidate.inperson_link = (
+            f"{settings.FRONTEND_URL}/api/inperson/interview/"
+            f"?candidate_id={candidate.id}&interviewer_id={interviewer.id}"
+        )
     else:
         candidate.slot_link = ""
+        candidate.inperson_link = ""
 
-    candidate.save(update_fields=["slot_link"])
+    candidate.save(update_fields=["slot_link","inperson_link"])
