@@ -60,9 +60,11 @@ class UpdatestatusAPI(APIView):
             if interviewer:
                 interviewer_id = interviewer.id
                 application.slot_link = f"{FRONTEND_URL}/api/slots/available/?candidate_id={application.id}&interviewer_id={interviewer_id}"
+                application.inperson_link = f"{FRONTEND_URL}/api/inperson/interview/?candidate_id={application.id}&interviewer_id={interviewer_id}"
             else:
                 interviewer_id = None
                 application.slot_link = ""
+                application.inperson_link = ""
             application.save()
             return Response({"success": ok,"status":application.status})
         else:
