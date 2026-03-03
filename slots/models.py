@@ -158,6 +158,10 @@ class InterviewLocation(models.Model):
     pincode = models.CharField(max_length=20,default='380015')
     country = models.CharField(max_length=100, default="India")
 
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    place_id = models.CharField(max_length=255, blank=True, null=True)
+
     # Full address for emails/notifications
     full_address = models.TextField(blank=True, null=True)
 
@@ -189,9 +193,18 @@ class InterviewLocation(models.Model):
         ]
         self.full_address = ", ".join([part for part in address_parts if part])
 
-        # Generate Google Maps link
-        query = urllib.parse.quote_plus(self.full_address)
-        self.google_maps_link = f"https://www.google.com/maps/search/?api=1&query={query}"
+        # # Generate Google Maps link
+        # if self.place_id:
+        #     self.google_maps_link = (
+        #         f"https://www.google.com/maps/place/?q=place_id:{self.place_id}"
+        #     )
+        # elif self.latitude is not None and self.longitude is not None:
+        #     self.google_maps_link = (
+        #         f"https://www.google.com/maps?q={self.latitude},{self.longitude}"
+        #     )
+        # else:
+        #     query = urllib.parse.quote_plus(self.full_address)
+        #     self.google_maps_link = f"https://www.google.com/maps/search/?api=1&query={query}"
 
         super().save(*args, **kwargs)
 
