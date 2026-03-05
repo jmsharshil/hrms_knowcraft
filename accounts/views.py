@@ -356,7 +356,9 @@ class UserListView(generics.ListAPIView):
     
     def get_queryset(self):
         # Only show users from the same company
-        return User.objects.filter(company=self.request.user.company)
+        if self.request.user.role == 'admin':
+            return User.objects.filter(company=self.request.user.company)
+        return User.objects.filter(company=self.request.user.company,is_active=True)
 
 
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
