@@ -46,10 +46,10 @@ class DepartmentViewSet(viewsets.ModelViewSet):
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
         
+        user = self.request.user
         if hasattr(user, 'department'):
             queryset = queryset.filter(department=user.department)
         
-        user = self.request.user
         if hasattr(user, 'company'):
             queryset = queryset.filter(company=user.company)
         return queryset
