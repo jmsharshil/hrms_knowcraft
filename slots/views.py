@@ -118,6 +118,8 @@ class InterviewerView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class InterviewerListView(APIView):
+    permission_classes = [permissions.AllowAny]
+    
     def get(self, request):
         interviewers = Interviewer.objects.all()
         if request.user.is_authenticated:
