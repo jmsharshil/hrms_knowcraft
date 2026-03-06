@@ -47,7 +47,7 @@ class DepartmentViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
         
         user = self.request.user
-        if user.role == "department_head" and hasattr(user, 'department') and hasattr(user.department,'id'):
+        if hasattr(user, 'role') and user.role == "department_head" and hasattr(user, 'department') and hasattr(user.department,'id'):
             queryset = queryset.filter(id=user.department.id)
         
         if hasattr(user, 'company'):
