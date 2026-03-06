@@ -246,7 +246,7 @@ class JobViewSet(viewsets.ModelViewSet):
 
         # get user
         try:
-            internal_hr = User.objects.get(id=internal_hr_id, role__in=['hr','hr_manager'], is_active=True,company=request.user.company)
+            internal_hr = User.objects.get(id=internal_hr_id,is_active=True,company=request.user.company)
         except User.DoesNotExist:
             return Response({'error': 'Internal HR user not found'}, status=status.HTTP_404_NOT_FOUND)
 
