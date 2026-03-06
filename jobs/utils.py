@@ -8,6 +8,8 @@ from pydantic import BaseModel
 from django.conf import settings
 from onboarding.utils.sender import send_email,send_text
 import base64
+import re
+from onboarding.utils.engine import automation_engine
 
 FRONTEND_URL = getattr(settings,"FRONTEND_URL")
 
@@ -58,6 +60,25 @@ class Response(BaseModel):
     current_employer : str
     location : str
     experience : list[str]
+
+def normalize_phone(phone):
+    if not phone:
+        return None
+
+    # Split if multiple numbers exist
+    first_number = re.split(r"[\/,;|]", phone)[0]
+
+    # Remove all non-digit characters
+    digits = re.sub(r"\D", "", first_number)
+
+    # Handle Indian numbers
+    if len(digits) == 10:
+        digits = "91" + digits
+
+    if not digits.startswith("91"):
+        return "+" + digits
+
+    return "+" + digits
 
 def parse_resume_ai(file_input):
     """
@@ -123,6 +144,8 @@ def parse_resume_ai(file_input):
 
     try:
         parsed = json.loads(res.choices[0].message.content)
+        if "phone_number" in parsed:
+            parsed["phone_number"] = normalize_phone(parsed["phone_number"])
     except Exception as e:
         print(e)
         parsed = {}
@@ -768,8 +791,6 @@ def parse_resume_task(application,resume_file,job):
         application.save()
     
     if application.is_duplicate:
-        from onboarding.utils.engine import automation_engine
-        
         automation_engine(application,application.status,'duplicate_rejected')
     elif application.match_score >= 75:
         automation_engine(application,application.status,'shortlisted')

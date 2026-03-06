@@ -256,7 +256,7 @@ class InterviewLocationSerializer(serializers.ModelSerializer):
             "id","name","address_line_1","address_line_2","city","state","pincode",
             "country","full_address","google_maps_link","is_active","is_default","created_at",
         ]
-        read_only_fields = ["id", "full_address", "google_maps_link", "created_at"]
+        read_only_fields = ["id", "full_address", "created_at"]
 
     def create(self, validated_data):
         request = self.context.get("request")

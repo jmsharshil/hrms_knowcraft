@@ -111,7 +111,10 @@ class JobViewSet(viewsets.ModelViewSet):
         
         assigned_to_me = self.request.query_params.get('assigned_to_me')
         if assigned_to_me and assigned_to_me.lower() == 'true':
-            queryset = queryset.filter(assigned_to_consultancy=user)
+            if user.role == 'consultancy':
+                queryset = queryset.filter(assigned_to_consultancy=user)
+            elif user.role in ['hr', 'hr_manager']:
+                queryset = queryset.filter(assigned_to_internal_hr=user)
         
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:
@@ -243,7 +246,7 @@ class JobViewSet(viewsets.ModelViewSet):
 
         # get user
         try:
-            internal_hr = User.objects.get(id=internal_hr_id, is_active=True,company=request.user.company)
+            internal_hr = User.objects.get(id=internal_hr_id,is_active=True,company=request.user.company)
         except User.DoesNotExist:
             return Response({'error': 'Internal HR user not found'}, status=status.HTTP_404_NOT_FOUND)
 

@@ -948,11 +948,12 @@ Team – HR""")
 
 class CandidateBookInPersonInterviewView(APIView):
     """
-    POST /api/booking/candidate/<candidate_id>/book-inperson/
+    POST /api/booking/candidate/book-inperson/
 
     Body:
     {
         "interviewer_id": "<uuid>",
+        "candidate_id": "<uuid>",
         "start": "2026-02-28T11:00:00+05:30",
         "end": "2026-02-28T12:00:00+05:30",
         "location_id": "<uuid>"
@@ -961,8 +962,11 @@ class CandidateBookInPersonInterviewView(APIView):
 
     permission_classes = [permissions.AllowAny]
 
-    def post(self, request, candidate_id):
+    def post(self, request):
 
+        candidate_id = request.data.get("candidate_id")
+        if not candidate_id:
+            return Response({"detail": "candidate_id is required"}, status=400)
         try:
             with transaction.atomic():
                 candidate = (
@@ -1006,6 +1010,8 @@ class CandidateBookInPersonInterviewView(APIView):
                 try:
                     start_dt = parse_datetime(start)
                     end_dt = parse_datetime(end)
+                except ValidationError as ve:
+                    return Response({"details": ve},status=400)
                 except:
                     return Response({"detail": "Invalid datetime format"}, status=400)
                 

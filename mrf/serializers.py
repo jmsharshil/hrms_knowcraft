@@ -499,6 +499,7 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
             validated_data.get('skills_competencies') or "Not Specified"
         )
         technical_interviewers = validated_data.pop('technical_interviewers', [])
+        validated_data['mrf_name'] = str(validated_data.get("mrf_name",'')).title()
         mrf = MRF.objects.create(**validated_data)
         if technical_interviewers:
             mrf.technical_interviewers.set(technical_interviewers)
