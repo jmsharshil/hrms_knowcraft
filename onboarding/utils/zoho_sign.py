@@ -658,11 +658,11 @@ General Policies:
 - 10–11 national holidays
 - Background verification will be conducted by a third party as per company policy
 
-{{bond_section}}
+{bond_section}
 
-Work Mode: {{work_mode}}
-Date of Joining: {{joining_date}} (Reporting time: 10:30 AM)
-Office Address: {{office_address}}
+Work Mode: {feedback.get("work_mode") or "Work From Office"}
+Date of Joining: {candidate.joining_date.strftime('%d-%m-%Y') if candidate.joining_date else ''} (Reporting time: 10:30 AM)
+Office Address: {feedback.get('preferred_location') or candidate.job.mrf.location}
 
 We look forward to welcoming you to the Knowcraft team.
 Please let us know if you have any questions.
