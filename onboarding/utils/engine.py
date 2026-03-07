@@ -63,7 +63,7 @@ NOTIFY_STATES = {
     # "joining_poned",
     # "joined",
     # Final rejections
-    "duplicate_rejected",
+    # "duplicate_rejected",
     "rejected",
 }
 
