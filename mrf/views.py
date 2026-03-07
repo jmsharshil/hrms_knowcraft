@@ -22,7 +22,7 @@ from .permissions import (
 )
 from .utils import schedule_mrf_reminder
 from onboarding.utils.sender import send_email,send_text
-from .utils import email_templates, alt_text
+from .utils import email_templates, alt_text, is_valid_uuid
 from accounts.models import User
 
 class DepartmentViewSet(viewsets.ModelViewSet):
@@ -215,7 +215,7 @@ class ApprovalWorkflowViewSet(viewsets.ModelViewSet):
         queryset = ApprovalWorkflow.objects.select_related('template')
         
         template_id = self.request.query_params.get('template')
-        if template_id:
+        if template_id and is_valid_uuid(template_id):
             queryset = queryset.filter(template_id=template_id)
         
         is_active = self.request.query_params.get('is_active')
@@ -269,7 +269,7 @@ class MRFViewSet(viewsets.ModelViewSet):
         ).prefetch_related('approvals', 'revisions', 'workflow_template__levels')
         
         # Filter based on user role
-        if user.role == 'department_head':
+        if user.role in ['department_head','hr']:
             approval_workflows = ApprovalWorkflow.objects.filter(
                 approver=user,
                 is_active=True,
@@ -290,22 +290,60 @@ class MRFViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(
                 Q(requested_by=user) | approval_q
             )
-        elif user.role in ['admin', 'hr_manager', 'hr']:
+        elif user.role in ['admin', 'hr_manager']:
             pass  # Can see all
         else:
             queryset = queryset.filter(status='approved')
         
         # Apply filters from query params
         status_filter = self.request.query_params.get('status')
-        if status_filter:
+        if status_filter and status_filter not in ['pending_my_approval','all_pending']:
             queryset = queryset.filter(status=status_filter)
         
+        if status_filter and status_filter == 'all_pending':
+            queryset = queryset.filter(
+                status__in=['pending_level_1', 'pending_level_2', 'pending_level_3']
+            )
+        
+        if status_filter and status_filter=='pending_my_approval':
+            # Pending approval count for current user
+            workflow_levels = ApprovalWorkflow.objects.filter(
+                required_role=user.role,
+                is_active=True,
+                approver=user,
+                template__company=getattr(user, 'company', None)
+            ).values_list('template_id', 'level')
+            
+            q_objects = Q()
+            for template_id, level in workflow_levels:
+                q_objects |= Q(
+                    workflow_template_id=template_id,
+                    current_approval_level=level - 1
+                )
+            
+            if q_objects:
+                queryset = queryset.filter(q_objects).filter(
+                    status__in=['pending_level_1', 'pending_level_2', 'pending_level_3']
+                )
+        
         department_filter = self.request.query_params.get('department')
-        if department_filter:
+        if department_filter and department_filter != '' and is_valid_uuid(department_filter):
             queryset = queryset.filter(department_id=department_filter)
+
+        designation_filter = self.request.query_params.get('designation')
+        if designation_filter and designation_filter != '' and is_valid_uuid(designation_filter):
+            queryset = queryset.filter(designation_id=designation_filter)
+        
+        department_name_filter = self.request.query_params.get('department_name')
+        if department_name_filter and department_name_filter != '':
+            queryset = queryset.filter(department__name__icontains=department_name_filter)
+
+        designation_name_filter = self.request.query_params.get('designation_name')
+        if designation_name_filter and designation_name_filter != '':
+            queryset = queryset.filter(designation__name__icontains=designation_name_filter)
         
         workflow_filter = self.request.query_params.get('workflow')
-        if workflow_filter:
+        if workflow_filter and is_valid_uuid(workflow_filter):
             queryset = queryset.filter(workflow_template_id=workflow_filter)
         
         my_mrfs = self.request.query_params.get('my_mrfs')
@@ -609,7 +647,7 @@ class MRFViewSet(viewsets.ModelViewSet):
         user = request.user
         
         # Base queryset based on user role
-        if user.role == 'department_head':
+        if user.role in ['department_head','hr']:
             queryset = MRF.objects.filter(requested_by=user,company=getattr(user, 'company', None))
         else:
             queryset = MRF.objects.filter(company=getattr(user, 'company', None))
@@ -621,14 +659,18 @@ class MRFViewSet(viewsets.ModelViewSet):
             'pending_level_2': queryset.filter(status='pending_level_2').count(),
             'pending_level_3': queryset.filter(status='pending_level_3').count(),
             'approved': queryset.filter(status='approved').count(),
-            'rejected': queryset.filter(status='rejected').count(),
+            # 'rejected': queryset.filter(status='rejected').count(),
             'revision_required': queryset.filter(status='revision_required').count(),
+            'all_pending': queryset.filter(
+                status__in=['pending_level_1', 'pending_level_2', 'pending_level_3']
+            ).count()
         }
         
         # Pending approval count for current user
         workflow_levels = ApprovalWorkflow.objects.filter(
             required_role=user.role,
             is_active=True,
+            approver=user,
             template__company=getattr(user, 'company', None)
         ).values_list('template_id', 'level')
         

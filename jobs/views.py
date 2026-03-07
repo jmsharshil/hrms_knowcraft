@@ -27,6 +27,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import JobApplicationFilter
 from .utils import send_job_assignment_email
+from mrf.utils import is_valid_uuid
 
 class JobViewSet(viewsets.ModelViewSet):
     """ViewSet for managing Jobs"""
@@ -102,7 +103,7 @@ class JobViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(status=status_filter)
         
         department_filter = self.request.query_params.get('department')
-        if department_filter:
+        if department_filter and is_valid_uuid(department_filter):
             queryset = queryset.filter(department_id=department_filter)
         
         priority_filter = self.request.query_params.get('priority')
@@ -672,7 +673,7 @@ class JobApplicationLinkViewSet(viewsets.ModelViewSet):
         
         # Apply filters
         job_filter = self.request.query_params.get('job')
-        if job_filter:
+        if job_filter and is_valid_uuid(job_filter):
             queryset = queryset.filter(job_id=job_filter)
         
         platform_filter = self.request.query_params.get('platform')
@@ -824,7 +825,7 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
             queryset = queryset.none()
         # Apply filters
         job_filter = self.request.query_params.get('job')
-        if job_filter:
+        if job_filter and is_valid_uuid(job_filter):
             queryset = queryset.filter(job_id=job_filter)
         
         status_filter = self.request.query_params.get('status')
@@ -1002,6 +1003,15 @@ class CareersViewSet(viewsets.GenericViewSet):
     # GET /api/careers/
     def list(self, request):
         queryset = self.filter_queryset(self.get_queryset())
+
+        department_filter = self.request.query_params.get('department')
+        if department_filter and department_filter != '' and is_valid_uuid(department_filter):
+            queryset = queryset.filter(department_id=department_filter)
+
+        designation_filter = self.request.query_params.get('designation')
+        if designation_filter and designation_filter != '' and is_valid_uuid(designation_filter):
+            queryset = queryset.filter(designation_id=designation_filter)
+        
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 

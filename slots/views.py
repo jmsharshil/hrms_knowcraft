@@ -24,6 +24,7 @@ class AvailableSlotsForInterviewerView(APIView):
         candidate_id = request.query_params.get("candidate_id")
         interviewer_id = request.query_params.get("interviewer_id")
         days = int(request.query_params.get("days", 7))
+        duration = int(request.query_params.get("duration", 30))
 
         if not candidate_id or not interviewer_id:
             return Response({"detail": "candidate_id and interviewer_id are required"}, status=400)
@@ -48,7 +49,7 @@ class AvailableSlotsForInterviewerView(APIView):
                 daily_busy = get_interviewer_busy_slots(interviewer.email, day_start, day_end)
                 all_busy.extend(daily_busy)
 
-                free_today = generate_free_slots_for_day(daily_busy, d, interviewer)
+                free_today = generate_free_slots_for_day(daily_busy, d, interviewer, duration)
                 all_free.extend(free_today)
         except Exception as e:
             print(f"Can Not get the Slots:{e}")

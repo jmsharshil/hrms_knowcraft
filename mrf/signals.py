@@ -133,3 +133,17 @@
 #     # This is just a placeholder for additional logging
 #     # You can extend this to log specific field changes
 #     pass
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from .models import MRF
+from onboarding.utils.task_queue import TASK_QUEUE
+from onboarding.utils.mrf_send_reminder import mrf_approval_reminder_task
+from django.utils import timezone
+
+@receiver(post_save, sender=MRF)
+def schedule_mrf_reminder(sender, instance, created, **kwargs):
+    # Only enqueue if new MRF
+    if created:
+        print("reminder started!")
+        TASK_QUEUE.enqueue(mrf_approval_reminder_task, instance.id)
