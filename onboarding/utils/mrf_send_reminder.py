@@ -7,7 +7,7 @@ from django.conf import settings
 
 FRONTEND_URL = getattr(settings,"FRONTEND_URL")
 logger = logging.getLogger(__name__)
-REMINDER_INTERVAL = 300  # 120 minutes
+REMINDER_INTERVAL = 7200  # 120 minutes
 
 def send_mrf_reminder_email(creator_email, creator_name, creator_phone, mrf_name, designation):
 

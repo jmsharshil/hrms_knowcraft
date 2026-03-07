@@ -564,7 +564,10 @@ class JobApplicationUpdateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = JobApplication
-        fields = ['status', 'notes', 'rating']
+        fields = ['status', 'notes', 'rating', 'candidate_name','candidate_phone','candidate_email',
+                  'source','experience_years','relevant_experience_years','location','skill',
+                  'education','current_employer','linkedin_url'
+                  ]
     
     def validate_status(self, value):
         instance = self.instance
