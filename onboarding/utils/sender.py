@@ -93,6 +93,17 @@ def send_image(to: str, image_url: str, caption: str = ""):
     # return _safe_post_async(payload)
     return SEND_QUEUE.enqueue(payload)
 
+def send_document(to: str, file_url: str, filename: str, text: str = ""):
+    if not to:
+        logger.error("Missing recipient number in send_document()")
+        return
+    
+    payload = {"to": to, "documentUrl": file_url, "fileName":filename}
+    if text:
+        payload["text"] = text
+    
+    return SEND_QUEUE.enqueue(payload)
+
 def send_location(phone: str, latitude: float, longitude: float, text: str, address: str, name: str):
     """
     Sends a WhatsApp location message via WaSender API.

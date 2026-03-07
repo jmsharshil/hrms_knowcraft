@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 from django.template import Template, Context
 from .models import JobApplicationDocument,ApprovalNote,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent
 from onboarding.utils.engine import automation_engine
-from .utils.sender import send_email,send_text
+from .utils.sender import send_email,send_text,send_document
 from .serializers import JobApplicationDocumentSerializer,SalaryAnnexureSerializer,SalaryAnnexureHistorySerializer
 import logging
 from jobs.models import JobApplication
@@ -740,6 +740,7 @@ Knowcraft Analytics Private Limited
                     )
                     if approver.phone:
                         send_text(to=approver.phone,text=whatsapp_text)
+                        send_document(to=approver.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
             else:
                 print(reason)
 
@@ -1299,6 +1300,7 @@ Thank you.
         )
         if recipient_phone:
             send_text(to=recipient_phone,text=message)
+            send_document(to=recipient_phone,text="Candidate Resume",file_url=job_application.resume.url,filename=f'{job_application.candidate_name}_Resume.pdf')
         automation_engine(job_application, job_application.status, "salary_annexure_prep")
         return Response(
             {"message": "Salary Annexure review email sent successfully!"},

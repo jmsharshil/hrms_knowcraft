@@ -16,7 +16,7 @@ from slots.graph import get_graph_token,fetch_meeting_recording,fetch_meeting_tr
 from jobs.serializers import JobApplicationSerializer
 from jobs.models import JobApplication
 from rest_framework import permissions
-from onboarding.utils.sender import send_email,send_text
+from onboarding.utils.sender import send_email,send_text,send_document
 from onboarding.utils.resume_attachment import get_resume_attachment
 from django.utils.dateparse import parse_datetime as dj_parse_datetime,parse_date
 from django.db import transaction
@@ -381,6 +381,7 @@ class CandidateBookSlotView(APIView):
                     )
                     if interviewer.phone:
                         send_text(to=interviewer.phone,text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}")
+                        send_document(to=interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
 
         elif candidate.status in ['interview_next_3', 'interview_pending_3']:
             round = "case_study_round"
@@ -540,6 +541,7 @@ class CandidateBookSlotView(APIView):
         )
         if interviewer.phone:
             send_text(to=interviewer.phone,text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}")
+            send_document(to=interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
         candidate.interview_link = meeting_link
         candidate.interviewer_name = interviewer.name
         candidate.interview_scheduled_at = start_dt
@@ -733,6 +735,7 @@ Location: {location}
 
 Warm Regards,
 Team – HR""")
+                    send_document(to=interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
     elif candidate.status in ['interview_next_3', 'interview_pending_3']:
         round = "case_study_round"
         round_name = "Case Study Round"
@@ -953,6 +956,7 @@ Feedback Link:
 
 Warm Regards,
 Team – HR""")
+        send_document(to=interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
     # Update candidate fields
     candidate.interviewer_name = interviewer.name
     candidate.interview_scheduled_at = start_dt
