@@ -178,7 +178,14 @@ def automation_engine(candidate, old, new):
     from slots.models import Interviewer
     interviewer_email, interviewer = None, None
     if new == 'shortlisted':
-        interviewer_email = candidate.job.mrf.interviewer_email_1
+        if candidate.job.mrf.interviewer_email_1:
+            interviewer_email = candidate.job.mrf.interviewer_email_1
+        elif candidate.job.mrf.interviewer_email_2:
+            interviewer_email = candidate.job.mrf.interviewer_email_2
+        elif candidate.job.mrf.interviewer_email_3:
+            interviewer_email = candidate.job.mrf.interviewer_email_3
+        elif candidate.job.mrf.interviewer_email_final:
+            interviewer_email = candidate.job.mrf.interviewer_email_final
     elif new == "interview_next_2":
         interviewer_email = candidate.job.mrf.interviewer_email_2
     elif new == "interview_next_3":

@@ -289,8 +289,18 @@ class CandidateBookSlotView(APIView):
         resume_attachment = get_resume_attachment(candidate)
         # Determine round
         if candidate.status in ['shortlisted', 'interview_pending_1']:
-            round = "hr_round"
-            round_name = "HR Round"
+            if candidate.job.mrf.interviewer_email_1:
+                round = "hr_round"
+                round_name = "HR Round"
+            elif candidate.job.mrf.interviewer_email_2:
+                round = "technical_round"
+                round_name = "Technical Round"
+            elif candidate.job.mrf.interviewer_email_3:
+                round = "case_study_round"
+                round_name = "Case Study Round"
+            elif candidate.job.mrf.interviewer_email_final:
+                round = "final_round"
+                round_name = "Final Round"
 
         elif candidate.status in ['interview_next_2', 'interview_pending_2']:
             round = "technical_round"
@@ -537,7 +547,14 @@ class CandidateBookSlotView(APIView):
         candidate.save()
         from onboarding.utils.engine import automation_engine
         if candidate.status == 'shortlisted':
-            automation_engine(candidate,candidate.status,'interview_pending_1')
+            if candidate.job.mrf.interviewer_email_1:
+                automation_engine(candidate,candidate.status,'interview_pending_1')
+            elif candidate.job.mrf.interviewer_email_2:
+                automation_engine(candidate,candidate.status,'interview_pending_2')
+            elif candidate.job.mrf.interviewer_email_3:
+                automation_engine(candidate,candidate.status,'interview_pending_3')
+            elif candidate.job.mrf.interviewer_email_final:
+                automation_engine(candidate,candidate.status,'interview_pending_final')
         elif candidate.status == 'interview_next_2':
             automation_engine(candidate,candidate.status,'interview_pending_2')
         elif candidate.status == 'interview_next_3':
@@ -608,8 +625,19 @@ def send_notifications(candidate,start_dt,end_dt,interviewer,location):
     resume_attachment = get_resume_attachment(candidate)
 
     if candidate.status in ['shortlisted', 'interview_pending_1']:
-        round = "hr_round"
-        round_name = "HR Round"
+        if candidate.job.mrf.interviewer_email_1:
+            round = "hr_round"
+            round_name = "HR Round"
+        elif candidate.job.mrf.interviewer_email_2:
+            round = "technical_round"
+            round_name = "Technical Round"
+        elif candidate.job.mrf.interviewer_email_3:
+            round = "case_study_round"
+            round_name = "Case Study Round"
+        elif candidate.job.mrf.interviewer_email_final:
+            round = "final_round"
+            round_name = "Final Round"
+
     elif candidate.status in ['interview_next_2', 'interview_pending_2']:
         round = "technical_round"
         round_name = "Technical Round"
@@ -936,7 +964,14 @@ Team – HR""")
     from onboarding.utils.engine import automation_engine
 
     if candidate.status == 'shortlisted':
-        automation_engine(candidate, candidate.status, 'interview_pending_1')
+        if candidate.job.mrf.interviewer_email_1:
+            automation_engine(candidate,candidate.status,'interview_pending_1')
+        elif candidate.job.mrf.interviewer_email_2:
+            automation_engine(candidate,candidate.status,'interview_pending_2')
+        elif candidate.job.mrf.interviewer_email_3:
+            automation_engine(candidate,candidate.status,'interview_pending_3')
+        elif candidate.job.mrf.interviewer_email_final:
+            automation_engine(candidate,candidate.status,'interview_pending_final')
     elif candidate.status == 'interview_next_2':
         automation_engine(candidate, candidate.status, 'interview_pending_2')
     elif candidate.status == 'interview_next_3':

@@ -40,7 +40,14 @@ class UpdatestatusAPI(APIView):
             from slots.models import Interviewer
             interviewer_email,interviewer = None,None
             if application.status == 'shortlisted':
-                interviewer_email = application.job.mrf.interviewer_email_1
+                if application.job.mrf.interviewer_email_1:
+                    interviewer_email = application.job.mrf.interviewer_email_1
+                elif application.job.mrf.interviewer_email_2:
+                    interviewer_email = application.job.mrf.interviewer_email_2
+                elif application.job.mrf.interviewer_email_3:
+                    interviewer_email = application.job.mrf.interviewer_email_3
+                elif application.job.mrf.interviewer_email_final:
+                    interviewer_email = application.job.mrf.interviewer_email_final
             elif application.status == "interview_next_2":
                 interviewer_email = application.job.mrf.interviewer_email_2
             elif application.status == "interview_next_3":
