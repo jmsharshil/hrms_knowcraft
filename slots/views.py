@@ -37,11 +37,18 @@ class AvailableSlotsForInterviewerView(APIView):
 
         all_free = []
         all_busy = []
+        days_list = []
         try:
             for offset in range(days):
                 d = today_ist + timedelta(days=offset)
                 if d.weekday() >= 5:
                     continue
+
+                # add day metadata
+                days_list.append({
+                    "date": d.strftime("%Y-%m-%d"),
+                    "day": d.strftime("%A")
+                })
 
                 day_start = datetime.combine(d, datetime.min.time(), IST)
                 day_end = datetime.combine(d, datetime.max.time(), IST)
@@ -57,6 +64,7 @@ class AvailableSlotsForInterviewerView(APIView):
                 "error":"Unable to get slots! Interviewer is not a part of the organisation."
             },status=status.HTTP_404_NOT_FOUND)
         return Response({
+            "days": days_list,
             "free_slots": FreeSlotSerializer(all_free, many=True).data,
             "busy_slots": [
                 {
