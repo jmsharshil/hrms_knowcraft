@@ -6,7 +6,7 @@ import uuid
 
 IST = ZoneInfo("Asia/Kolkata")
 
-WORK_START = time(0, 0)
+WORK_START = time(6, 0)
 WORK_END = time(23, 0)
 SLOT_MINUTES = 30
 
