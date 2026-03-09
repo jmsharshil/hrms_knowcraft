@@ -6,8 +6,8 @@ import uuid
 
 IST = ZoneInfo("Asia/Kolkata")
 
-WORK_START = time(9, 0)
-WORK_END = time(18, 0)
+WORK_START = time(0, 1)
+WORK_END = time(23, 59)
 SLOT_MINUTES = 30
 
 # Temporary slot storage (RAM)

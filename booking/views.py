@@ -236,8 +236,8 @@ class CandidateBookSlotView(APIView):
             )
 
         # 6) Slot already booked?
-        if slot.is_booked:
-            return Response({"detail": "This slot is already booked"}, status=400)
+        # if slot.is_booked:
+        #     return Response({"detail": "This slot is already booked"}, status=400)
 
         # 7) Create Teams meeting
         start_dt = slot.start
