@@ -432,7 +432,7 @@ class JobApplication(models.Model):
 
     location = models.CharField(max_length=255,blank=True,null=True)
     availibility = models.CharField(blank=True,null=True)
-    current_employer = models.CharField(max_length=50,blank=True,null=True)
+    current_employer = models.CharField(max_length=100,blank=True,null=True)
     skill = models.JSONField(blank=True,null=True,default=list)
     education = models.JSONField(blank=True,null=True,default=list)
     

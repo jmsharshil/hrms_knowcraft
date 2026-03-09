@@ -74,30 +74,26 @@ Best regards,
                                 <!-- Content -->
                                 <tr>
                                     <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.6;">
-                                        <h2 style="margin:0 0 24px 0;color:#1f2937;font-size:24px;font-weight:600;">Reset Your 6-Digit PIN</h2>
+                                        <h2 style="margin:0 0 24px 0;color:#1f2937;font-size:24px;font-weight:600;">Set Your 6-Digit PIN</h2>
                                         
                                         <p style="margin:0 0 16px 0;">Hello <strong>{user.name}</strong>,</p>
-                                        
+                                        <p style="margin:0 0 24px 0;">Your account has been created as {user.get_role_display()} at {user.company.name}.</p>
                                         <p style="margin:0 0 24px 0;">
-                                            You have requested to reset your 6-digit PIN. Please click the button below to set a new PIN:
+                                            You have requested to set your 6-digit PIN. Please click the button below to set a new PIN:
                                         </p>
                                         
                                         <!-- Prominent Button -->
                                         <p style="margin:30px 0 35px 0;text-align:center;">
                                             <a href="{magic_link_url}" 
                                             style="background-color:#2563eb;color:#ffffff;padding:16px 36px;text-decoration:none;border-radius:8px;font-weight:600;font-size:17px;display:inline-block;">
-                                                Reset My PIN Now
+                                                Set My PIN Now
                                             </a>
                                         </p>
                                         
                                         <p style="margin:0 0 20px 0;color:#ef4444;font-weight:500;">
                                             This link will expire in 24 hours for security reasons.
                                         </p>
-                                        
-                                        <p style="margin:0 0 16px 0;">
-                                            If you did not request this reset, please ignore this email or contact HR immediately.
-                                        </p>
-                                        
+
                                         <br>
                                         <p style="margin:20px 0 6px 0;color:#555555;">Best regards,</p>
                                         <p style="margin:0;font-weight:700;color:#1f2937;">{user.company.name} Team</p>
