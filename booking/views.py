@@ -151,7 +151,7 @@ class SendSlotSelectionEmailView(APIView):
 #         serializer = BookingSerializer(booking)
 #         return Response(serializer.data, status=201)
 
-def create_teams_meeting(organizer_email, attendee_email, start_dt, end_dt, subject):
+def create_teams_meeting(organizer_email, attendee_emails, start_dt, end_dt, subject):
     token = get_graph_token()
 
     url = f"https://graph.microsoft.com/v1.0/users/{organizer_email}/events"
@@ -160,6 +160,14 @@ def create_teams_meeting(organizer_email, attendee_email, start_dt, end_dt, subj
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
+
+    attendees = [
+        {
+            "emailAddress": {"address": email},
+            "type": "required"
+        }
+        for email in attendee_emails
+    ]
 
     data = {
         "subject": subject,
@@ -171,12 +179,7 @@ def create_teams_meeting(organizer_email, attendee_email, start_dt, end_dt, subj
             "dateTime": end_dt.isoformat(),
             "timeZone": "Asia/Kolkata"
         },
-        "attendees": [
-            {
-                "emailAddress": {"address": attendee_email},
-                "type": "required"
-            }
-        ],
+        "attendees": attendees,
         "isOnlineMeeting": True,
         "onlineMeetingProvider": "teamsForBusiness"
     }
@@ -208,11 +211,11 @@ class CandidateBookSlotView(APIView):
             return Response({"detail": "Candidate not found"}, status=404)
 
         # 2) Validate inputs
-        slot_id = request.data.get("slot_id")
+        # slot_id = request.data.get("slot_id")
         interviewer_id = request.data.get("interviewer_id")
 
-        if not slot_id:
-            return Response({"detail": "slot_id is required"}, status=400)
+        # if not slot_id:
+        #     return Response({"detail": "slot_id is required"}, status=400)
 
         if not interviewer_id:
             return Response({"detail": "interviewer_id is required"}, status=400)
@@ -223,29 +226,49 @@ class CandidateBookSlotView(APIView):
             return Response({"detail": "Invalid interviewer_id"}, status=400)
 
         # 4) Validate slot
-        slot = Slot.objects.filter(id=slot_id).first()
-        if not slot:
-            return Response({"detail": "Invalid slot_id"}, status=400)
+        # slot = Slot.objects.filter(id=slot_id).first()
+        # if not slot:
+        #     return Response({"detail": "Invalid slot_id"}, status=400)
 
         # 5) Slot must belong to selected interviewer
         # (your Slot model is M2M: slot.interviewers)
-        if not slot.interviewers.filter(id=interviewer.id).exists():
-            return Response(
-                {"detail": "This slot does not belong to selected interviewer"},
-                status=400
-            )
+        # if not slot.interviewers.filter(id=interviewer.id).exists():
+        #     return Response(
+        #         {"detail": "This slot does not belong to selected interviewer"},
+        #         status=400
+        #     )
 
         # 6) Slot already booked?
         # if slot.is_booked:
         #     return Response({"detail": "This slot is already booked"}, status=400)
 
         # 7) Create Teams meeting
-        start_dt = slot.start
-        end_dt = slot.end
+        start = request.data.get("start")
+        end = request.data.get("end")
+
+        if not start or not end:
+            return Response({"detail": "start and end time are required"}, status=400)
+
+        try:
+            start_dt = parse_datetime(start)
+            end_dt = parse_datetime(end)
+        except ValidationError as ve:
+            return Response({"details": ve},status=400)
+        except:
+            return Response({"detail": "Invalid datetime format"}, status=400)
+
+        attendees = [candidate.candidate_email]
+
+        # Add all technical interviewers
+        if candidate.status in ['interview_next_2', 'interview_pending_2'] and candidate.job.mrf.technical_interviewers.exists():
+            for tech in candidate.job.mrf.technical_interviewers.all():
+                if str(tech.id) == str(interviewer_id):
+                    continue
+                attendees.append(tech.email)
 
         event = create_teams_meeting(
             interviewer.email,
-            candidate.candidate_email,
+            attendees,
             start_dt,
             end_dt,
             subject=f"Interview: {candidate.candidate_name}"
@@ -267,14 +290,14 @@ class CandidateBookSlotView(APIView):
             interviewer=interviewer,
             meeting_id=event.get("id"),
             meeting_link=meeting_link,
-            slot=slot,         # <-- IMPORTANT
+            # slot=slot,         # <-- IMPORTANT
             start=start_dt,
             end=end_dt
         )
 
         # Mark slot as booked
-        slot.is_booked = True
-        slot.save()
+        # slot.is_booked = True
+        # slot.save()
 
         # 9) Email notifications
         start_str = start_dt.astimezone(IST).strftime("%d/%m/%Y %I:%M %p")
