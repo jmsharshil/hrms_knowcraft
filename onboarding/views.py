@@ -1201,6 +1201,8 @@ Thank you.
         )
         if recipient_phone:
             send_text(to=recipient_phone,text=message)
+            if annexure_attachment:
+                send_document(to=recipient_phone,text="Salary Annexure",filename=f"{job_application.candidate_name}_annexure.pdf",file_url=job_application.docs.salary_annexure.url)
         automation_engine(job_application,job_application.status,"offer_pending")
         return Response(
             {"message": "Review email sent successfully!"},
