@@ -69,6 +69,48 @@ def parse_datetime(value):
 
     return dt
 
+def create_calendar_event(organizer_email, attendee_emails, start_dt, end_dt, subject, location=None):
+    token = get_graph_token()
+
+    url = f"https://graph.microsoft.com/v1.0/users/{organizer_email}/events"
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+
+    attendees = [
+        {
+            "emailAddress": {"address": email},
+            "type": "required"
+        }
+        for email in attendee_emails
+    ]
+
+    data = {
+        "subject": subject,
+        "start": {
+            "dateTime": start_dt.isoformat(),
+            "timeZone": "Asia/Kolkata"
+        },
+        "end": {
+            "dateTime": end_dt.isoformat(),
+            "timeZone": "Asia/Kolkata"
+        },
+        "attendees": attendees,
+        "location": {
+            "displayName": location or "Office"
+        }
+    }
+
+    response = requests.post(url, json=data, headers=headers)
+
+    if not response.ok:
+        print("Graph Error:", response.text)
+        return None
+
+    return response.json()
+
 class SendSlotSelectionEmailView(APIView):
     def post(self, request):
         serializer = JobApplicationSerializer(data=request.data)
@@ -265,6 +307,8 @@ class CandidateBookSlotView(APIView):
                 if str(tech.id) == str(interviewer_id):
                     continue
                 attendees.append(tech.email)
+
+        attendees = list(set(attendees))
 
         event = create_teams_meeting(
             interviewer.email,
@@ -649,6 +693,29 @@ def send_notifications(candidate,start_dt,end_dt,interviewer,location):
     round_name = ""
     resume_attachment = get_resume_attachment(candidate)
 
+    location_str = location.full_address if hasattr(location, 'full_address') else str(location)
+    maps_link = location.google_maps_link if hasattr(location, 'google_maps_link') else None
+
+    attendees = [candidate.candidate_email]
+
+    # Add all technical interviewers
+    if candidate.status in ['interview_next_2', 'interview_pending_2'] and candidate.job.mrf.technical_interviewers.exists():
+        for tech in candidate.job.mrf.technical_interviewers.all():
+            if str(tech.id) == str(interviewer.id):
+                continue
+            attendees.append(tech.email)
+
+    attendees = list(set(attendees))
+
+    event = create_calendar_event(
+        interviewer.email,
+        attendees,
+        start_dt,
+        end_dt,
+        subject=f"In-Person Interview: {candidate.candidate_name}",
+        location= location_str
+    )
+
     if candidate.status in ['shortlisted', 'interview_pending_1']:
         if candidate.job.mrf.interviewer_email_1:
             round = "hr_round"
@@ -685,7 +752,10 @@ def send_notifications(candidate,start_dt,end_dt,interviewer,location):
 Interview for {candidate.candidate_name} ({designation}) has been scheduled.
 
 Date & Time: {start_str}
-Location: {location}
+Location: {location_str}
+
+Goole Map Link:
+{maps_link}
 
 Warm Regards,
 Team – HR""",
@@ -723,7 +793,7 @@ Team – HR""",
                                                         </tr>
                                                         <tr>
                                                             <td style="padding:8px 0;font-weight:600;color:#475569;">📍 Location</td>
-                                                            <td style="padding:8px 0;font-weight:500;">{location}</td>
+                                                            <td style="padding:8px 0;font-weight:500;"><a href="{maps_link}" target="_blank">{location_str}</a></td>
                                                         </tr>
                                                     </table>                                                       
                                                     <br>
@@ -748,13 +818,16 @@ Team – HR""",
                     to=tech_interviewer.email,
                     attachments=[resume_attachment] if resume_attachment else None
                 )
-                if interviewer.phone:
-                    send_text(to=interviewer.phone,text=f"""Dear {tech_interviewer.name},
+                if tech_interviewer.phone:
+                    send_text(to=tech_interviewer.phone,text=f"""Dear {tech_interviewer.name},
 
 Interview for {candidate.candidate_name} ({designation}) has been scheduled.
 
 Date & Time: {start_str}
-Location: {location}
+Location: {location_str}
+
+Goole Map Link:
+{maps_link}
 
 Warm Regards,
 Team – HR""")
@@ -776,8 +849,6 @@ Team – HR""")
         f"{BASE_URL}{base_path}"
         f"?interview_round={round}&job_application={candidate.id}"
     )
-    location_str = location.full_address if hasattr(location, 'full_address') else str(location)
-    maps_link = location.google_maps_link if hasattr(location, 'google_maps_link') else None
 
     # ==============================
     # 📧 Candidate Email (In-Person)
@@ -1140,7 +1211,7 @@ class CandidateBookInPersonInterviewView(APIView):
         try:
             transaction.on_commit(lambda: send_notifications(candidate, start_dt, end_dt, interviewer, location))
         except Exception as e:
-            Response({"Error":"Unable to book an interview:{e}"},status=500)
+            return Response({"Error":"Unable to book an interview:{e}"},status=500)
         return Response(BookingSerializer(booking).data, status=201)
 
 class FetchMeetingData(APIView):
