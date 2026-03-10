@@ -125,6 +125,7 @@ class WorkflowTemplate(models.Model):
     is_default = models.BooleanField(default=False, help_text="Use this as default for new MRFs")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, null=True, blank=True)
     
     class Meta:
         ordering = ['-is_default', '-created_at']

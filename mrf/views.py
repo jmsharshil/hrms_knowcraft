@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated,AllowAny
 from django.utils import timezone
 from django.db.models import Q
-from django.db import transaction
+from django.db import transaction,IntegrityError
 from slots.models import Interviewer
 from .models import (
     Department, Designation, MRF, MRFApproval, 
@@ -125,6 +125,9 @@ class WorkflowTemplateViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(is_default=is_default.lower() == 'true')
         
         user = self.request.user
+        if hasattr(user, 'role') and user.role == "department_head" and hasattr(user, 'department') and hasattr(user.department,'id'):
+            queryset = queryset.filter(department_id=user.department.id)
+        
         if hasattr(user, 'company'):
             queryset = queryset.filter(company=user.company)
         return queryset
@@ -162,6 +165,17 @@ class WorkflowTemplateViewSet(viewsets.ModelViewSet):
             serializer.save(company=user.company)
         else:
             serializer.save()
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        try:
+            self.perform_destroy(instance)
+        except IntegrityError:
+            return Response(
+                "Deletion not allowed. Workflow is used in MRFs.",
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 # class WorkflowTemplateViewSet(viewsets.ModelViewSet):
 #     """ViewSet for managing workflow templates"""
@@ -270,6 +284,11 @@ class MRFViewSet(viewsets.ModelViewSet):
         
         # Filter based on user role
         if user.role in ['department_head','hr']:
+            
+            department_q = Q()
+            if user.role == "department_head" and hasattr(user, 'department') and hasattr(user.department,'id'):
+                department_q = Q(department_id=user.department.id)
+            
             approval_workflows = ApprovalWorkflow.objects.filter(
                 approver=user,
                 is_active=True,
@@ -288,7 +307,7 @@ class MRFViewSet(viewsets.ModelViewSet):
                     ]
                 )
             queryset = queryset.filter(
-                Q(requested_by=user) | approval_q
+                Q(requested_by=user) | approval_q | department_q
             )
         elif user.role in ['admin', 'hr_manager']:
             pass  # Can see all
