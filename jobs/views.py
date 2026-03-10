@@ -27,6 +27,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import JobApplicationFilter
 from .utils import send_job_assignment_email
+from mrf.utils import is_valid_uuid
 
 class JobViewSet(viewsets.ModelViewSet):
     """ViewSet for managing Jobs"""
@@ -102,7 +103,7 @@ class JobViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(status=status_filter)
         
         department_filter = self.request.query_params.get('department')
-        if department_filter:
+        if department_filter and is_valid_uuid(department_filter):
             queryset = queryset.filter(department_id=department_filter)
         
         priority_filter = self.request.query_params.get('priority')
@@ -672,7 +673,7 @@ class JobApplicationLinkViewSet(viewsets.ModelViewSet):
         
         # Apply filters
         job_filter = self.request.query_params.get('job')
-        if job_filter:
+        if job_filter and is_valid_uuid(job_filter):
             queryset = queryset.filter(job_id=job_filter)
         
         platform_filter = self.request.query_params.get('platform')
@@ -824,7 +825,7 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
             queryset = queryset.none()
         # Apply filters
         job_filter = self.request.query_params.get('job')
-        if job_filter:
+        if job_filter and is_valid_uuid(job_filter):
             queryset = queryset.filter(job_id=job_filter)
         
         status_filter = self.request.query_params.get('status')
@@ -976,7 +977,10 @@ class ReferralApplicationViewSet(viewsets.ModelViewSet):
 from .serializers import (
     CareersJobListSerializer,
     CareersJobDetailSerializer,
-    CareersApplicationCreateSerializer
+    CareersApplicationCreateSerializer,
+    LinkedApplicationCreateSerializer,
+    NaukriApplicationCreateSerializer,
+    IndeedApplicationCreateSerializer
 )
 from django.shortcuts import get_object_or_404
 
@@ -1002,6 +1006,15 @@ class CareersViewSet(viewsets.GenericViewSet):
     # GET /api/careers/
     def list(self, request):
         queryset = self.filter_queryset(self.get_queryset())
+
+        department_filter = self.request.query_params.get('department')
+        if department_filter and department_filter != '' and is_valid_uuid(department_filter):
+            queryset = queryset.filter(department_id=department_filter)
+
+        designation_filter = self.request.query_params.get('designation')
+        if designation_filter and designation_filter != '' and is_valid_uuid(designation_filter):
+            queryset = queryset.filter(designation_id=designation_filter)
+        
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -1012,6 +1025,204 @@ class CareersViewSet(viewsets.GenericViewSet):
         return Response(serializer.data)
 
     # POST /api/careers/apply/
+    @action(detail=False, methods=['post'], url_path='apply')
+    def apply(self, request):
+        """
+        Apply to a job by uploading one or multiple resumes.
+        Required:
+            - job_id
+            - resumes (list of files)
+        """
+        serializer = self.get_serializer(
+            data=request.data,
+            context={'request': request}
+        )
+
+        serializer.is_valid(raise_exception=True)
+        applications = serializer.save()
+
+        return Response(
+            {
+                "message": "Application(s) submitted successfully.",
+                "applications_created": len(applications)
+            },
+            status=status.HTTP_201_CREATED
+        )
+    
+#LinkedIn
+class LinkedInViewSet(viewsets.GenericViewSet):
+    """
+    ViewSet for LinkedIn APIs
+    - List active jobs
+    - Retrieve job detail
+    - Apply for a job (resume upload)
+    """
+    queryset = Job.objects.filter(is_active=True)
+    permission_classes = [AllowAny]
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return CareersJobListSerializer
+        elif self.action == 'retrieve':
+            return CareersJobDetailSerializer
+        elif self.action == 'apply':
+            return LinkedApplicationCreateSerializer
+        return CareersJobListSerializer
+
+    # GET /api/likedin/
+    def list(self, request):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        department_filter = self.request.query_params.get('department')
+        if department_filter and department_filter != '' and is_valid_uuid(department_filter):
+            queryset = queryset.filter(department_id=department_filter)
+
+        designation_filter = self.request.query_params.get('designation')
+        if designation_filter and designation_filter != '' and is_valid_uuid(designation_filter):
+            queryset = queryset.filter(designation_id=designation_filter)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    # GET /api/linkedin/{id}/
+    def retrieve(self, request, pk=None):
+        job = get_object_or_404(self.get_queryset(), pk=pk)
+        serializer = self.get_serializer(job)
+        return Response(serializer.data)
+
+    # POST /api/linkedin/apply/
+    @action(detail=False, methods=['post'], url_path='apply')
+    def apply(self, request):
+        """
+        Apply to a job by uploading one or multiple resumes.
+        Required:
+            - job_id
+            - resumes (list of files)
+        """
+        serializer = self.get_serializer(
+            data=request.data,
+            context={'request': request}
+        )
+
+        serializer.is_valid(raise_exception=True)
+        applications = serializer.save()
+
+        return Response(
+            {
+                "message": "Application(s) submitted successfully.",
+                "applications_created": len(applications)
+            },
+            status=status.HTTP_201_CREATED
+        )
+    
+#Naukri
+class NaukriViewSet(viewsets.GenericViewSet):
+    """
+    ViewSet for Naukri APIs
+    - List active jobs
+    - Retrieve job detail
+    - Apply for a job (resume upload)
+    """
+    queryset = Job.objects.filter(is_active=True)
+    permission_classes = [AllowAny]
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return CareersJobListSerializer
+        elif self.action == 'retrieve':
+            return CareersJobDetailSerializer
+        elif self.action == 'apply':
+            return NaukriApplicationCreateSerializer
+        return CareersJobListSerializer
+
+    # GET /api/naukri/
+    def list(self, request):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        department_filter = self.request.query_params.get('department')
+        if department_filter and department_filter != '' and is_valid_uuid(department_filter):
+            queryset = queryset.filter(department_id=department_filter)
+
+        designation_filter = self.request.query_params.get('designation')
+        if designation_filter and designation_filter != '' and is_valid_uuid(designation_filter):
+            queryset = queryset.filter(designation_id=designation_filter)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    # GET /api/naukri/{id}/
+    def retrieve(self, request, pk=None):
+        job = get_object_or_404(self.get_queryset(), pk=pk)
+        serializer = self.get_serializer(job)
+        return Response(serializer.data)
+
+    # POST /api/naukri/apply/
+    @action(detail=False, methods=['post'], url_path='apply')
+    def apply(self, request):
+        """
+        Apply to a job by uploading one or multiple resumes.
+        Required:
+            - job_id
+            - resumes (list of files)
+        """
+        serializer = self.get_serializer(
+            data=request.data,
+            context={'request': request}
+        )
+
+        serializer.is_valid(raise_exception=True)
+        applications = serializer.save()
+
+        return Response(
+            {
+                "message": "Application(s) submitted successfully.",
+                "applications_created": len(applications)
+            },
+            status=status.HTTP_201_CREATED
+        )
+    
+#Indeed
+class IndeedViewSet(viewsets.GenericViewSet):
+    """
+    ViewSet for Indeed APIs
+    - List active jobs
+    - Retrieve job detail
+    - Apply for a job (resume upload)
+    """
+    queryset = Job.objects.filter(is_active=True)
+    permission_classes = [AllowAny]
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return CareersJobListSerializer
+        elif self.action == 'retrieve':
+            return CareersJobDetailSerializer
+        elif self.action == 'apply':
+            return IndeedApplicationCreateSerializer
+        return CareersJobListSerializer
+
+    # GET /api/indeed/
+    def list(self, request):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        department_filter = self.request.query_params.get('department')
+        if department_filter and department_filter != '' and is_valid_uuid(department_filter):
+            queryset = queryset.filter(department_id=department_filter)
+
+        designation_filter = self.request.query_params.get('designation')
+        if designation_filter and designation_filter != '' and is_valid_uuid(designation_filter):
+            queryset = queryset.filter(designation_id=designation_filter)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    # GET /api/indeed/{id}/
+    def retrieve(self, request, pk=None):
+        job = get_object_or_404(self.get_queryset(), pk=pk)
+        serializer = self.get_serializer(job)
+        return Response(serializer.data)
+
+    # POST /api/indeed/apply/
     @action(detail=False, methods=['post'], url_path='apply')
     def apply(self, request):
         """

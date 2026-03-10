@@ -826,3 +826,11 @@ def parse_expirience(text):
     except Exception as e:
         print("Failed to parse the expirience:",e)
         return None
+
+import uuid
+def is_valid_uuid(uuid_string):
+    try:
+        uuid_obj = uuid.UUID(str(uuid_string))
+        return True
+    except ValueError:
+        return False

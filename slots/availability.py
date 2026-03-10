@@ -6,8 +6,8 @@ import uuid
 
 IST = ZoneInfo("Asia/Kolkata")
 
-WORK_START = time(9, 0)
-WORK_END = time(18, 0)
+WORK_START = time(6, 0)
+WORK_END = time(23, 0)
 SLOT_MINUTES = 30
 
 # Temporary slot storage (RAM)
@@ -48,7 +48,7 @@ TEMP_SLOT_STORAGE = {}
 
 #     return free
 
-def generate_free_slots_for_day(busy_slots, day, interviewer):
+def generate_free_slots_for_day(busy_slots, day, interviewer, duration=30):
     """Return free slots with real slot_id from DB."""
     free = []
 
@@ -58,7 +58,7 @@ def generate_free_slots_for_day(busy_slots, day, interviewer):
     slot_start = day_start
 
     while slot_start < day_end:
-        slot_end = slot_start + timedelta(minutes=SLOT_MINUTES)
+        slot_end = slot_start + timedelta(minutes=duration)
 
         # check overlap
         overlap = any(b["start"] < slot_end and b["end"] > slot_start for b in busy_slots)
@@ -80,7 +80,7 @@ def generate_free_slots_for_day(busy_slots, day, interviewer):
                 "end": slot_end
             })
 
-        slot_start = slot_end
+        slot_start += timedelta(minutes=30)  # keep grid consistent
 
     return free
 

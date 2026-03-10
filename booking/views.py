@@ -16,7 +16,7 @@ from slots.graph import get_graph_token,fetch_meeting_recording,fetch_meeting_tr
 from jobs.serializers import JobApplicationSerializer
 from jobs.models import JobApplication
 from rest_framework import permissions
-from onboarding.utils.sender import send_email,send_text
+from onboarding.utils.sender import send_email,send_text,send_document
 from onboarding.utils.resume_attachment import get_resume_attachment
 from django.utils.dateparse import parse_datetime as dj_parse_datetime,parse_date
 from django.db import transaction
@@ -68,6 +68,48 @@ def parse_datetime(value):
         raise ValidationError("Interview time cannot be in the past")
 
     return dt
+
+def create_calendar_event(organizer_email, attendee_emails, start_dt, end_dt, subject, location=None):
+    token = get_graph_token()
+
+    url = f"https://graph.microsoft.com/v1.0/users/{organizer_email}/events"
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+
+    attendees = [
+        {
+            "emailAddress": {"address": email},
+            "type": "required"
+        }
+        for email in attendee_emails
+    ]
+
+    data = {
+        "subject": subject,
+        "start": {
+            "dateTime": start_dt.isoformat(),
+            "timeZone": "Asia/Kolkata"
+        },
+        "end": {
+            "dateTime": end_dt.isoformat(),
+            "timeZone": "Asia/Kolkata"
+        },
+        "attendees": attendees,
+        "location": {
+            "displayName": location or "Office"
+        }
+    }
+
+    response = requests.post(url, json=data, headers=headers)
+
+    if not response.ok:
+        print("Graph Error:", response.text)
+        return None
+
+    return response.json()
 
 class SendSlotSelectionEmailView(APIView):
     def post(self, request):
@@ -151,7 +193,7 @@ class SendSlotSelectionEmailView(APIView):
 #         serializer = BookingSerializer(booking)
 #         return Response(serializer.data, status=201)
 
-def create_teams_meeting(organizer_email, attendee_email, start_dt, end_dt, subject):
+def create_teams_meeting(organizer_email, attendee_emails, start_dt, end_dt, subject):
     token = get_graph_token()
 
     url = f"https://graph.microsoft.com/v1.0/users/{organizer_email}/events"
@@ -160,6 +202,14 @@ def create_teams_meeting(organizer_email, attendee_email, start_dt, end_dt, subj
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
+
+    attendees = [
+        {
+            "emailAddress": {"address": email},
+            "type": "required"
+        }
+        for email in attendee_emails
+    ]
 
     data = {
         "subject": subject,
@@ -171,12 +221,7 @@ def create_teams_meeting(organizer_email, attendee_email, start_dt, end_dt, subj
             "dateTime": end_dt.isoformat(),
             "timeZone": "Asia/Kolkata"
         },
-        "attendees": [
-            {
-                "emailAddress": {"address": attendee_email},
-                "type": "required"
-            }
-        ],
+        "attendees": attendees,
         "isOnlineMeeting": True,
         "onlineMeetingProvider": "teamsForBusiness"
     }
@@ -208,11 +253,11 @@ class CandidateBookSlotView(APIView):
             return Response({"detail": "Candidate not found"}, status=404)
 
         # 2) Validate inputs
-        slot_id = request.data.get("slot_id")
+        # slot_id = request.data.get("slot_id")
         interviewer_id = request.data.get("interviewer_id")
 
-        if not slot_id:
-            return Response({"detail": "slot_id is required"}, status=400)
+        # if not slot_id:
+        #     return Response({"detail": "slot_id is required"}, status=400)
 
         if not interviewer_id:
             return Response({"detail": "interviewer_id is required"}, status=400)
@@ -223,29 +268,51 @@ class CandidateBookSlotView(APIView):
             return Response({"detail": "Invalid interviewer_id"}, status=400)
 
         # 4) Validate slot
-        slot = Slot.objects.filter(id=slot_id).first()
-        if not slot:
-            return Response({"detail": "Invalid slot_id"}, status=400)
+        # slot = Slot.objects.filter(id=slot_id).first()
+        # if not slot:
+        #     return Response({"detail": "Invalid slot_id"}, status=400)
 
         # 5) Slot must belong to selected interviewer
         # (your Slot model is M2M: slot.interviewers)
-        if not slot.interviewers.filter(id=interviewer.id).exists():
-            return Response(
-                {"detail": "This slot does not belong to selected interviewer"},
-                status=400
-            )
+        # if not slot.interviewers.filter(id=interviewer.id).exists():
+        #     return Response(
+        #         {"detail": "This slot does not belong to selected interviewer"},
+        #         status=400
+        #     )
 
         # 6) Slot already booked?
-        if slot.is_booked:
-            return Response({"detail": "This slot is already booked"}, status=400)
+        # if slot.is_booked:
+        #     return Response({"detail": "This slot is already booked"}, status=400)
 
         # 7) Create Teams meeting
-        start_dt = slot.start
-        end_dt = slot.end
+        start = request.data.get("start")
+        end = request.data.get("end")
+
+        if not start or not end:
+            return Response({"detail": "start and end time are required"}, status=400)
+
+        try:
+            start_dt = parse_datetime(start)
+            end_dt = parse_datetime(end)
+        except ValidationError as ve:
+            return Response({"details": ve},status=400)
+        except:
+            return Response({"detail": "Invalid datetime format"}, status=400)
+
+        attendees = [candidate.candidate_email]
+
+        # Add all technical interviewers
+        if candidate.status in ['interview_next_2', 'interview_pending_2'] and candidate.job.mrf.technical_interviewers.exists():
+            for tech in candidate.job.mrf.technical_interviewers.all():
+                if str(tech.id) == str(interviewer_id):
+                    continue
+                attendees.append(tech.email)
+
+        attendees = list(set(attendees))
 
         event = create_teams_meeting(
             interviewer.email,
-            candidate.candidate_email,
+            attendees,
             start_dt,
             end_dt,
             subject=f"Interview: {candidate.candidate_name}"
@@ -267,14 +334,14 @@ class CandidateBookSlotView(APIView):
             interviewer=interviewer,
             meeting_id=event.get("id"),
             meeting_link=meeting_link,
-            slot=slot,         # <-- IMPORTANT
+            # slot=slot,         # <-- IMPORTANT
             start=start_dt,
             end=end_dt
         )
 
         # Mark slot as booked
-        slot.is_booked = True
-        slot.save()
+        # slot.is_booked = True
+        # slot.save()
 
         # 9) Email notifications
         start_str = start_dt.astimezone(IST).strftime("%d/%m/%Y %I:%M %p")
@@ -289,8 +356,18 @@ class CandidateBookSlotView(APIView):
         resume_attachment = get_resume_attachment(candidate)
         # Determine round
         if candidate.status in ['shortlisted', 'interview_pending_1']:
-            round = "hr_round"
-            round_name = "HR Round"
+            if candidate.job.mrf.interviewer_email_1:
+                round = "hr_round"
+                round_name = "HR Round"
+            elif candidate.job.mrf.interviewer_email_2:
+                round = "technical_round"
+                round_name = "Technical Round"
+            elif candidate.job.mrf.interviewer_email_3:
+                round = "case_study_round"
+                round_name = "Case Study Round"
+            elif candidate.job.mrf.interviewer_email_final:
+                round = "final_round"
+                round_name = "Final Round"
 
         elif candidate.status in ['interview_next_2', 'interview_pending_2']:
             round = "technical_round"
@@ -371,6 +448,7 @@ class CandidateBookSlotView(APIView):
                     )
                     if interviewer.phone:
                         send_text(to=interviewer.phone,text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}")
+                        send_document(to=interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
 
         elif candidate.status in ['interview_next_3', 'interview_pending_3']:
             round = "case_study_round"
@@ -530,6 +608,7 @@ class CandidateBookSlotView(APIView):
         )
         if interviewer.phone:
             send_text(to=interviewer.phone,text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}")
+            send_document(to=interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
         candidate.interview_link = meeting_link
         candidate.interviewer_name = interviewer.name
         candidate.interview_scheduled_at = start_dt
@@ -537,7 +616,14 @@ class CandidateBookSlotView(APIView):
         candidate.save()
         from onboarding.utils.engine import automation_engine
         if candidate.status == 'shortlisted':
-            automation_engine(candidate,candidate.status,'interview_pending_1')
+            if candidate.job.mrf.interviewer_email_1:
+                automation_engine(candidate,candidate.status,'interview_pending_1')
+            elif candidate.job.mrf.interviewer_email_2:
+                automation_engine(candidate,candidate.status,'interview_pending_2')
+            elif candidate.job.mrf.interviewer_email_3:
+                automation_engine(candidate,candidate.status,'interview_pending_3')
+            elif candidate.job.mrf.interviewer_email_final:
+                automation_engine(candidate,candidate.status,'interview_pending_final')
         elif candidate.status == 'interview_next_2':
             automation_engine(candidate,candidate.status,'interview_pending_2')
         elif candidate.status == 'interview_next_3':
@@ -607,9 +693,43 @@ def send_notifications(candidate,start_dt,end_dt,interviewer,location):
     round_name = ""
     resume_attachment = get_resume_attachment(candidate)
 
+    location_str = location.full_address if hasattr(location, 'full_address') else str(location)
+    maps_link = location.google_maps_link if hasattr(location, 'google_maps_link') else None
+
+    attendees = [candidate.candidate_email]
+
+    # Add all technical interviewers
+    if candidate.status in ['interview_next_2', 'interview_pending_2'] and candidate.job.mrf.technical_interviewers.exists():
+        for tech in candidate.job.mrf.technical_interviewers.all():
+            if str(tech.id) == str(interviewer.id):
+                continue
+            attendees.append(tech.email)
+
+    attendees = list(set(attendees))
+
+    event = create_calendar_event(
+        interviewer.email,
+        attendees,
+        start_dt,
+        end_dt,
+        subject=f"In-Person Interview: {candidate.candidate_name}",
+        location= location_str
+    )
+
     if candidate.status in ['shortlisted', 'interview_pending_1']:
-        round = "hr_round"
-        round_name = "HR Round"
+        if candidate.job.mrf.interviewer_email_1:
+            round = "hr_round"
+            round_name = "HR Round"
+        elif candidate.job.mrf.interviewer_email_2:
+            round = "technical_round"
+            round_name = "Technical Round"
+        elif candidate.job.mrf.interviewer_email_3:
+            round = "case_study_round"
+            round_name = "Case Study Round"
+        elif candidate.job.mrf.interviewer_email_final:
+            round = "final_round"
+            round_name = "Final Round"
+
     elif candidate.status in ['interview_next_2', 'interview_pending_2']:
         round = "technical_round"
         round_name = "Technical Round"
@@ -632,7 +752,10 @@ def send_notifications(candidate,start_dt,end_dt,interviewer,location):
 Interview for {candidate.candidate_name} ({designation}) has been scheduled.
 
 Date & Time: {start_str}
-Location: {location}
+Location: {location_str}
+
+Goole Map Link:
+{maps_link}
 
 Warm Regards,
 Team – HR""",
@@ -670,7 +793,7 @@ Team – HR""",
                                                         </tr>
                                                         <tr>
                                                             <td style="padding:8px 0;font-weight:600;color:#475569;">📍 Location</td>
-                                                            <td style="padding:8px 0;font-weight:500;">{location}</td>
+                                                            <td style="padding:8px 0;font-weight:500;"><a href="{maps_link}" target="_blank">{location_str}</a></td>
                                                         </tr>
                                                     </table>                                                       
                                                     <br>
@@ -695,16 +818,20 @@ Team – HR""",
                     to=tech_interviewer.email,
                     attachments=[resume_attachment] if resume_attachment else None
                 )
-                if interviewer.phone:
-                    send_text(to=interviewer.phone,text=f"""Dear {tech_interviewer.name},
+                if tech_interviewer.phone:
+                    send_text(to=tech_interviewer.phone,text=f"""Dear {tech_interviewer.name},
 
 Interview for {candidate.candidate_name} ({designation}) has been scheduled.
 
 Date & Time: {start_str}
-Location: {location}
+Location: {location_str}
+
+Goole Map Link:
+{maps_link}
 
 Warm Regards,
 Team – HR""")
+                    send_document(to=interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
     elif candidate.status in ['interview_next_3', 'interview_pending_3']:
         round = "case_study_round"
         round_name = "Case Study Round"
@@ -722,8 +849,6 @@ Team – HR""")
         f"{BASE_URL}{base_path}"
         f"?interview_round={round}&job_application={candidate.id}"
     )
-    location_str = location.full_address if hasattr(location, 'full_address') else str(location)
-    maps_link = location.google_maps_link if hasattr(location, 'google_maps_link') else None
 
     # ==============================
     # 📧 Candidate Email (In-Person)
@@ -925,6 +1050,7 @@ Feedback Link:
 
 Warm Regards,
 Team – HR""")
+        send_document(to=interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
     # Update candidate fields
     candidate.interviewer_name = interviewer.name
     candidate.interview_scheduled_at = start_dt
@@ -936,7 +1062,14 @@ Team – HR""")
     from onboarding.utils.engine import automation_engine
 
     if candidate.status == 'shortlisted':
-        automation_engine(candidate, candidate.status, 'interview_pending_1')
+        if candidate.job.mrf.interviewer_email_1:
+            automation_engine(candidate,candidate.status,'interview_pending_1')
+        elif candidate.job.mrf.interviewer_email_2:
+            automation_engine(candidate,candidate.status,'interview_pending_2')
+        elif candidate.job.mrf.interviewer_email_3:
+            automation_engine(candidate,candidate.status,'interview_pending_3')
+        elif candidate.job.mrf.interviewer_email_final:
+            automation_engine(candidate,candidate.status,'interview_pending_final')
     elif candidate.status == 'interview_next_2':
         automation_engine(candidate, candidate.status, 'interview_pending_2')
     elif candidate.status == 'interview_next_3':
@@ -1034,31 +1167,31 @@ class CandidateBookInPersonInterviewView(APIView):
                         status=400
                     )
 
-                # 🔒 Check interviewer overlap (inside atomic block)
-                interviewer_overlap = Booking.objects.filter(
-                    interviewer=interviewer,
-                    start__lt=end_dt,
-                    end__gt=start_dt
-                ).exists()
+                # # 🔒 Check interviewer overlap (inside atomic block)
+                # interviewer_overlap = Booking.objects.filter(
+                #     interviewer=interviewer,
+                #     start__lt=end_dt,
+                #     end__gt=start_dt
+                # ).exists()
 
-                if interviewer_overlap:
-                    return Response(
-                        {"detail": "Interviewer already booked in this time range"},
-                        status=400
-                    )
+                # if interviewer_overlap:
+                #     return Response(
+                #         {"detail": "Interviewer already booked in this time range"},
+                #         status=400
+                #     )
 
-                # 🔒 Check candidate overlap
-                candidate_overlap = Booking.objects.filter(
-                    candidate=candidate,
-                    start__lt=end_dt,
-                    end__gt=start_dt
-                ).exists()
+                # # 🔒 Check candidate overlap
+                # candidate_overlap = Booking.objects.filter(
+                #     candidate=candidate,
+                #     start__lt=end_dt,
+                #     end__gt=start_dt
+                # ).exists()
 
-                if candidate_overlap:
-                    return Response(
-                        {"detail": "Candidate already has an interview scheduled in this time range"},
-                        status=400
-                    )
+                # if candidate_overlap:
+                #     return Response(
+                #         {"detail": "Candidate already has an interview scheduled in this time range"},
+                #         status=400
+                #     )
 
                 # ✅ Create booking
                 booking = Booking.objects.create(
@@ -1078,7 +1211,7 @@ class CandidateBookInPersonInterviewView(APIView):
         try:
             transaction.on_commit(lambda: send_notifications(candidate, start_dt, end_dt, interviewer, location))
         except Exception as e:
-            Response({"Error":"Unable to book an interview:{e}"},status=500)
+            return Response({"Error":"Unable to book an interview:{e}"},status=500)
         return Response(BookingSerializer(booking).data, status=201)
 
 class FetchMeetingData(APIView):

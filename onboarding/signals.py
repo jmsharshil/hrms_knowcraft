@@ -141,7 +141,14 @@ def update_candidate_slot_link(candidate):
     status = candidate.status
 
     if status == 'shortlisted':
-        interviewer_email = candidate.job.mrf.interviewer_email_1
+        if candidate.job.mrf.interviewer_email_1:
+            interviewer_email = candidate.job.mrf.interviewer_email_1
+        elif candidate.job.mrf.interviewer_email_2:
+            interviewer_email = candidate.job.mrf.interviewer_email_2
+        elif candidate.job.mrf.interviewer_email_3:
+            interviewer_email = candidate.job.mrf.interviewer_email_3
+        elif candidate.job.mrf.interviewer_email_final:
+            interviewer_email = candidate.job.mrf.interviewer_email_final
     elif status == "interview_next_2":
         interviewer_email = candidate.job.mrf.interviewer_email_2
     elif status == "interview_next_3":

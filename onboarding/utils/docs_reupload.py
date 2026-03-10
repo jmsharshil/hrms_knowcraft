@@ -22,5 +22,4 @@ def get_pending_documents(docs):
                     reupload_docs_list.append(
                         file_name
                     )
-    print(reupload_docs_list,pending_docs)
     return pending_docs,reupload_docs_list

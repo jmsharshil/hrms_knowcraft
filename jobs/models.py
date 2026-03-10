@@ -197,6 +197,7 @@ class JobApplicationLink(models.Model):
         ('referral', 'Employee Referral'),
         ('email', 'Email'),
         ('other', 'Other'),
+        ('consultancy','Consultancy'),
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -400,6 +401,9 @@ class JobApplication(models.Model):
         ('direct', 'Direct Application'),
         ('referral', 'Employee Referral'),
         ('career_page', 'Career Page'),
+        ('linkedin', 'LinkedIn'),
+        ('naukri', 'Naukri'),
+        ('indeed', 'Indeed'),
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -432,7 +436,7 @@ class JobApplication(models.Model):
 
     location = models.CharField(max_length=255,blank=True,null=True)
     availibility = models.CharField(blank=True,null=True)
-    current_employer = models.CharField(max_length=50,blank=True,null=True)
+    current_employer = models.CharField(max_length=100,blank=True,null=True)
     skill = models.JSONField(blank=True,null=True,default=list)
     education = models.JSONField(blank=True,null=True,default=list)
     

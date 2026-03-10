@@ -1,8 +1,8 @@
 ALLOWED_TRANSITIONS = {
     # APPLICATION
-    "received": ["duplicate_rejected", "shortlisted"],
+    "received": ["duplicate_rejected", "shortlisted",'rejected'],
     # SHORTLISTING & INTERVIEW
-    "shortlisted": ["interview_pending_1"],
+    "shortlisted": ["interview_pending_1",'rejected',"interview_pending_2","interview_pending_3","interview_pending_final"],
     "interview_pending_1": ["interview_done_1"],
     "interview_done_1": ["interview_next_2","interview_next_3","interview_next_final", "interview_rejected_1","consolidated_result_review","interview_next_management_client"],
     "interview_next_2":["interview_pending_2","interview_rejected_1"],
@@ -19,7 +19,7 @@ ALLOWED_TRANSITIONS = {
     "interview_done_management_client":["consolidated_result_review","interview_rejected_management_client"],
     # APPROVAL
     "consolidated_result_review":['selected','rejected'],
-    "selected": ["approval_pending"],
+    "selected": ["approval_pending","rejected"],
     "approval_pending": ["approved", "approval_rejected"],
     # OFFER FLOW
     "approved": ["docs_pending"],
@@ -50,7 +50,7 @@ ALLOWED_TRANSITIONS = {
     "interview_rejected_3": ["interview_next_final","selected"],
     "interview_rejected_final": ["selected"],
     "interview_rejected_management_client":['selected'],
-    "approval_rejected": ["selected"],
+    "approval_rejected": ["selected","approval_pending"],
     "offer_rejected": ["selected"],
     "joined": [],
     "rejected": ["selected"]

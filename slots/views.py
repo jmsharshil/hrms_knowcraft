@@ -24,6 +24,7 @@ class AvailableSlotsForInterviewerView(APIView):
         candidate_id = request.query_params.get("candidate_id")
         interviewer_id = request.query_params.get("interviewer_id")
         days = int(request.query_params.get("days", 7))
+        duration = int(request.query_params.get("duration", 30))
 
         if not candidate_id or not interviewer_id:
             return Response({"detail": "candidate_id and interviewer_id are required"}, status=400)
@@ -36,11 +37,18 @@ class AvailableSlotsForInterviewerView(APIView):
 
         all_free = []
         all_busy = []
+        days_list = []
         try:
             for offset in range(days):
                 d = today_ist + timedelta(days=offset)
                 if d.weekday() >= 5:
                     continue
+
+                # add day metadata
+                days_list.append({
+                    "date": d.strftime("%Y-%m-%d"),
+                    "day": d.strftime("%A")
+                })
 
                 day_start = datetime.combine(d, datetime.min.time(), IST)
                 day_end = datetime.combine(d, datetime.max.time(), IST)
@@ -48,7 +56,7 @@ class AvailableSlotsForInterviewerView(APIView):
                 daily_busy = get_interviewer_busy_slots(interviewer.email, day_start, day_end)
                 all_busy.extend(daily_busy)
 
-                free_today = generate_free_slots_for_day(daily_busy, d, interviewer)
+                free_today = generate_free_slots_for_day(daily_busy, d, interviewer, duration)
                 all_free.extend(free_today)
         except Exception as e:
             print(f"Can Not get the Slots:{e}")
@@ -56,7 +64,8 @@ class AvailableSlotsForInterviewerView(APIView):
                 "error":"Unable to get slots! Interviewer is not a part of the organisation."
             },status=status.HTTP_404_NOT_FOUND)
         return Response({
-            "free_slots": FreeSlotSerializer(all_free, many=True).data,
+            # "days": days_list,
+            # "free_slots": FreeSlotSerializer(all_free, many=True).data,
             "busy_slots": [
                 {
                     "start": b["start"].strftime("%Y-%m-%d %H:%M:%S"),   # -> 2025-12-11T14:30:00+05:30
@@ -119,7 +128,7 @@ class InterviewerView(APIView):
 
 class InterviewerListView(APIView):
     permission_classes = [permissions.AllowAny]
-    
+
     def get(self, request):
         interviewers = Interviewer.objects.all()
         if request.user.is_authenticated:
