@@ -197,6 +197,7 @@ class JobApplicationLink(models.Model):
         ('referral', 'Employee Referral'),
         ('email', 'Email'),
         ('other', 'Other'),
+        ('consultancy','Consultancy'),
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

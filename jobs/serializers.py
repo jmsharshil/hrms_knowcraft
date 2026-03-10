@@ -531,7 +531,7 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
                         application.referral_designation = data.get("referral_designation", "")
                         application.save()
                     
-                    if application.get_platform_name() == 'Other':
+                    if application.get_platform_name() == 'Consultancy':
                         application.source = 'consultancy'
                         application.save()
 
