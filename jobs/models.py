@@ -400,6 +400,9 @@ class JobApplication(models.Model):
         ('direct', 'Direct Application'),
         ('referral', 'Employee Referral'),
         ('career_page', 'Career Page'),
+        ('linkedin', 'LinkedIn'),
+        ('naukri', 'Naukri'),
+        ('indeed', 'Indeed'),
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

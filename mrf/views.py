@@ -174,8 +174,10 @@ class WorkflowTemplateViewSet(viewsets.ModelViewSet):
         except IntegrityError:
             return Response(
                 "Deletion not allowed. Workflow is used in MRFs.",
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_409_CONFLICT
             )
+        
+        return Response("Workflow Deleted Sucessfully!",status=status.HTTP_200_OK)
 
 # class WorkflowTemplateViewSet(viewsets.ModelViewSet):
 #     """ViewSet for managing workflow templates"""

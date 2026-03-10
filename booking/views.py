@@ -1167,31 +1167,31 @@ class CandidateBookInPersonInterviewView(APIView):
                         status=400
                     )
 
-                # 🔒 Check interviewer overlap (inside atomic block)
-                interviewer_overlap = Booking.objects.filter(
-                    interviewer=interviewer,
-                    start__lt=end_dt,
-                    end__gt=start_dt
-                ).exists()
+                # # 🔒 Check interviewer overlap (inside atomic block)
+                # interviewer_overlap = Booking.objects.filter(
+                #     interviewer=interviewer,
+                #     start__lt=end_dt,
+                #     end__gt=start_dt
+                # ).exists()
 
-                if interviewer_overlap:
-                    return Response(
-                        {"detail": "Interviewer already booked in this time range"},
-                        status=400
-                    )
+                # if interviewer_overlap:
+                #     return Response(
+                #         {"detail": "Interviewer already booked in this time range"},
+                #         status=400
+                #     )
 
-                # 🔒 Check candidate overlap
-                candidate_overlap = Booking.objects.filter(
-                    candidate=candidate,
-                    start__lt=end_dt,
-                    end__gt=start_dt
-                ).exists()
+                # # 🔒 Check candidate overlap
+                # candidate_overlap = Booking.objects.filter(
+                #     candidate=candidate,
+                #     start__lt=end_dt,
+                #     end__gt=start_dt
+                # ).exists()
 
-                if candidate_overlap:
-                    return Response(
-                        {"detail": "Candidate already has an interview scheduled in this time range"},
-                        status=400
-                    )
+                # if candidate_overlap:
+                #     return Response(
+                #         {"detail": "Candidate already has an interview scheduled in this time range"},
+                #         status=400
+                #     )
 
                 # ✅ Create booking
                 booking = Booking.objects.create(

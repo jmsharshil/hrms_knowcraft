@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import JobViewSet, JobApplicationViewSet, JobApplicationLinkViewSet,ReferralApplicationViewSet, CareersViewSet
+from .views import JobViewSet, JobApplicationViewSet, JobApplicationLinkViewSet,ReferralApplicationViewSet, CareersViewSet, LinkedInViewSet, NaukriViewSet, IndeedViewSet
 
 router = DefaultRouter()
 router.register(r'jobs', JobViewSet, basename='job')
@@ -8,6 +8,9 @@ router.register(r'application-links', JobApplicationLinkViewSet, basename='appli
 router.register(r'applications', JobApplicationViewSet, basename='application')
 router.register(r'referral-applications', ReferralApplicationViewSet, basename='referral-application')
 router.register(r'careers', CareersViewSet, basename='careers')
+router.register(r'linkedin', LinkedInViewSet, basename='linkedin')
+router.register(r'naukri', NaukriViewSet, basename='naukri')
+router.register(r'indeed', IndeedViewSet, basename='indeed')
 
 urlpatterns = [
     path('', include(router.urls)),
