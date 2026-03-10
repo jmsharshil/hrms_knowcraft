@@ -125,8 +125,8 @@ class WorkflowTemplateViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(is_default=is_default.lower() == 'true')
         
         user = self.request.user
-        if hasattr(user, 'role') and user.role == "department_head" and hasattr(user, 'department') and hasattr(user.department,'id'):
-            queryset = queryset.filter(department_id=user.department.id)
+        # if hasattr(user, 'role') and user.role == "department_head" and hasattr(user, 'department') and hasattr(user.department,'id'):
+        #     queryset = queryset.filter(department_id=user.department.id)
         
         if hasattr(user, 'company'):
             queryset = queryset.filter(company=user.company)
