@@ -19,7 +19,7 @@ ALLOWED_TRANSITIONS = {
     "interview_done_management_client":["consolidated_result_review","interview_rejected_management_client"],
     # APPROVAL
     "consolidated_result_review":['selected','rejected'],
-    "selected": ["approval_pending"],
+    "selected": ["approval_pending","rejected"],
     "approval_pending": ["approved", "approval_rejected"],
     # OFFER FLOW
     "approved": ["docs_pending"],
@@ -50,7 +50,7 @@ ALLOWED_TRANSITIONS = {
     "interview_rejected_3": ["interview_next_final","selected"],
     "interview_rejected_final": ["selected"],
     "interview_rejected_management_client":['selected'],
-    "approval_rejected": ["selected"],
+    "approval_rejected": ["selected","approval_pending"],
     "offer_rejected": ["selected"],
     "joined": [],
     "rejected": ["selected"]

@@ -64,8 +64,8 @@ class AvailableSlotsForInterviewerView(APIView):
                 "error":"Unable to get slots! Interviewer is not a part of the organisation."
             },status=status.HTTP_404_NOT_FOUND)
         return Response({
-            "days": days_list,
-            "free_slots": FreeSlotSerializer(all_free, many=True).data,
+            # "days": days_list,
+            # "free_slots": FreeSlotSerializer(all_free, many=True).data,
             "busy_slots": [
                 {
                     "start": b["start"].strftime("%Y-%m-%d %H:%M:%S"),   # -> 2025-12-11T14:30:00+05:30
@@ -128,7 +128,7 @@ class InterviewerView(APIView):
 
 class InterviewerListView(APIView):
     permission_classes = [permissions.AllowAny]
-    
+
     def get(self, request):
         interviewers = Interviewer.objects.all()
         if request.user.is_authenticated:
