@@ -135,14 +135,14 @@ def get_emails_for_role(candidate, roles):
         if role == "interviewer_management_client":
             emails.add(candidate.job.mrf.interviewer_email_management_client)
                 
-        role_emails = list(
-                company.users.filter(role=role)
-                .exclude(email__isnull=True)
-                .exclude(email="")
-                .values_list("email", flat=True)
-            )
-        for e in role_emails:
-                emails.add(e)
+        # role_emails = list(
+        #         company.users.filter(role=role)
+        #         .exclude(email__isnull=True)
+        #         .exclude(email="")
+        #         .values_list("email", flat=True)
+        #     )
+        # for e in role_emails:
+        #         emails.add(e)
     return list(emails)
 
 def get_cc_for_stage(candidate, stage):
