@@ -718,3 +718,54 @@ class MRFViewSet(viewsets.ModelViewSet):
             serializer.save(company=user.company)
         else:
             serializer.save()
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            data = self.get_paginated_response(serializer.data).data
+        else:
+            serializer = self.get_serializer(queryset, many=True)
+            data = {"results": serializer.data}
+
+        # Calculate statistics based on filtered queryset
+        stats = {
+            'total': queryset.count(),
+            'draft': queryset.filter(status='draft').count(),
+            'pending_level_1': queryset.filter(status='pending_level_1').count(),
+            'pending_level_2': queryset.filter(status='pending_level_2').count(),
+            'pending_level_3': queryset.filter(status='pending_level_3').count(),
+            'approved': queryset.filter(status='approved').count(),
+            'revision_required': queryset.filter(status='revision_required').count(),
+            'all_pending': queryset.filter(
+                status__in=['pending_level_1','pending_level_2','pending_level_3']
+            ).count()
+        }
+
+        # Pending approvals for current user
+        user = request.user
+        workflow_levels = ApprovalWorkflow.objects.filter(
+            required_role=user.role,
+            is_active=True,
+            approver=user,
+            template__company=getattr(user, 'company', None)
+        ).values_list('template_id', 'level')
+
+        q_objects = Q()
+        for template_id, level in workflow_levels:
+            q_objects |= Q(
+                workflow_template_id=template_id,
+                current_approval_level=level - 1
+            )
+
+        if q_objects:
+            stats['pending_my_approval'] = queryset.filter(q_objects).filter(
+                status__in=['pending_level_1','pending_level_2','pending_level_3']
+            ).count()
+        else:
+            stats['pending_my_approval'] = 0
+
+        data["statistics"] = stats
+
+        return Response(data)
