@@ -308,6 +308,11 @@ class CandidateBookSlotView(APIView):
                     continue
                 attendees.append(tech.email)
 
+        attendee_ids = request.data.get("attendees", [])
+        extra_attendees = Interviewer.objects.filter(id__in=attendee_ids)
+        for extra in extra_attendees:
+            attendees.append(extra.email)
+        
         attendees = list(set(attendees))
 
         event = create_teams_meeting(
@@ -683,7 +688,7 @@ def get_experience_level(designation):
     return "fresher"  # safe default
 
 
-def send_notifications(candidate,start_dt,end_dt,interviewer,location):
+def send_notifications(candidate,start_dt,end_dt,interviewer,location,request):
     start_str = start_dt.astimezone(IST).strftime("%d/%m/%Y %I:%M %p")
 
     designation = candidate.job.mrf.designation.name
@@ -704,6 +709,11 @@ def send_notifications(candidate,start_dt,end_dt,interviewer,location):
             if str(tech.id) == str(interviewer.id):
                 continue
             attendees.append(tech.email)
+
+    attendee_ids = request.data.get("attendees", [])
+    extra_attendees = Interviewer.objects.filter(id__in=attendee_ids)
+    for extra in extra_attendees:
+        attendees.append(extra.email)
 
     attendees = list(set(attendees))
 
@@ -1209,7 +1219,7 @@ class CandidateBookInPersonInterviewView(APIView):
             return Response({"detail": str(e)}, status=500)
 
         try:
-            transaction.on_commit(lambda: send_notifications(candidate, start_dt, end_dt, interviewer, location))
+            transaction.on_commit(lambda: send_notifications(candidate, start_dt, end_dt, interviewer, location, request))
         except Exception as e:
             return Response({"Error":"Unable to book an interview:{e}"},status=500)
         return Response(BookingSerializer(booking).data, status=201)
