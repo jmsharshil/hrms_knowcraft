@@ -525,6 +525,10 @@ class JobApplication(models.Model):
     referral_designation = models.CharField(null=True,blank=True)
     referral_department = models.CharField(null=True,blank=True)
 
+    # Interview No-show / Reschedule tracking (used by dashboard)
+    no_show_count = models.PositiveIntegerField(default=0)
+    reschedule_count = models.PositiveIntegerField(default=0)
+
     #Interview Details
     interview_scheduled_at = models.DateTimeField(null=True,blank=True)
     interviewer_name = models.CharField(null=True,blank=True)
