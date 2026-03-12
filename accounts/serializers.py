@@ -14,13 +14,14 @@ class CompanySerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     company_name = serializers.CharField(source='company.name', read_only=True)
     role_display = serializers.CharField(source='get_role_display', read_only=True)
+    department_name = serializers.CharField(source='department.name', read_only=True)
     
     class Meta:
         model = User
         fields = [
             'id', 'email', 'name', 'role', 'role_display', 
             'company', 'company_name', 'pin_set', 'is_active',
-            'created_at', 'updated_at','phone','department'
+            'created_at', 'updated_at','phone','department','department_name'
         ]
         read_only_fields = ['id', 'company', 'pin_set', 'created_at', 'updated_at']
         extra_kwargs = {
