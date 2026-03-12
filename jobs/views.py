@@ -769,6 +769,10 @@ class JobApplicationLinkViewSet(viewsets.ModelViewSet):
         
         return Response(stats, status=status.HTTP_200_OK)
 
+from rest_framework.pagination import PageNumberPagination
+
+class JobApplicationPagination(PageNumberPagination):
+    page_size = 200
 
 class JobApplicationViewSet(viewsets.ModelViewSet):
     """ViewSet for managing Job Applications"""
@@ -777,6 +781,11 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
     
     filter_backends = [DjangoFilterBackend]
     filterset_class = JobApplicationFilter
+
+    def get_pagination_class(self):
+        if self.action == 'list':
+            return JobApplicationPagination
+        return super().get_pagination_class()
     
     def get_serializer_class(self):
         if self.action == 'create':
