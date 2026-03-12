@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'jobs',
     'slots',
     'booking',
+    'dashboard',
 ]
 
 MIDDLEWARE = [
