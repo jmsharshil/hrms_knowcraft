@@ -1017,8 +1017,11 @@ class CareersViewSet(viewsets.GenericViewSet):
         queryset = self.filter_queryset(self.get_queryset())
 
         department_filter = self.request.query_params.get('department')
-        if department_filter and department_filter != '' and is_valid_uuid(department_filter):
-            queryset = queryset.filter(department_id=department_filter)
+        if department_filter and department_filter == 'other':
+            queryset = queryset.filter(department__name__in=['HR and Administration','Internal Accounts','IT','Marketing'])
+        else:
+            if department_filter and department_filter != '' and is_valid_uuid(department_filter):
+                queryset = queryset.filter(department_id=department_filter)
 
         designation_filter = self.request.query_params.get('designation')
         if designation_filter and designation_filter != '' and is_valid_uuid(designation_filter):
