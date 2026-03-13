@@ -772,7 +772,7 @@ class JobApplicationLinkViewSet(viewsets.ModelViewSet):
 from rest_framework.pagination import PageNumberPagination
 
 class JobApplicationPagination(PageNumberPagination):
-    page_size = 200
+    page_size = 500
 
 class JobApplicationViewSet(viewsets.ModelViewSet):
     """ViewSet for managing Job Applications"""
