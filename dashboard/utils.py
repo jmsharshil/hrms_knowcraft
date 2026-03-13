@@ -406,9 +406,17 @@ def calc_recruiter_productivity(apps_qs):
 
 
 # ──────────────────────────────────────────────────────────────
-# 10. CANDIDATE EXPERIENCE
+# 10. CANDIDATE EXPERIENCE  (NPS + CSAT + per-question averages)
 # ──────────────────────────────────────────────────────────────
 def calc_candidate_experience(apps_qs):
+    """
+    Computes:
+      - NPS  = %Promoters(9-10) − %Detractors(0-6)  from Q1
+      - CSAT = %(Satisfied + Very Satisfied)          from Q2
+      - Averages for Q3-Q6
+      - Stage-reached distribution
+      - Recent open feedback
+    """
     from .models import CandidateExperienceFeedback
 
     feedbacks = CandidateExperienceFeedback.objects.filter(
@@ -416,35 +424,91 @@ def calc_candidate_experience(apps_qs):
         is_submitted=True,
     )
 
-    agg = feedbacks.aggregate(
-        avg_rating=Avg('rating'),
-        total_feedbacks=Count('id'),
+    total = feedbacks.count()
+
+    if total == 0:
+        return {
+            "total_responses": 0,
+            "nps": None,
+            "csat_percent": None,
+            "averages": {},
+            "stage_reached_distribution": [],
+            "recent_feedbacks": [],
+        }
+
+    # ── NPS from Q1 (nps_score 0-10) ──
+    promoters = feedbacks.filter(nps_score__gte=9).count()
+    detractors = feedbacks.filter(nps_score__lte=6).count()
+    passives = total - promoters - detractors
+
+    nps_value = round(((promoters - detractors) / total) * 100, 1)
+
+    # ── CSAT from Q2 (overall_satisfaction: 3=Satisfied, 4=Very Satisfied) ──
+    satisfied = feedbacks.filter(overall_satisfaction__gte=3).count()
+    csat_percent = round((satisfied / total) * 100, 1)
+
+    # ── Averages for scaled questions ──
+    averages_agg = feedbacks.aggregate(
+        avg_nps=Avg('nps_score'),
+        avg_overall_satisfaction=Avg('overall_satisfaction'),
+        avg_process_ease=Avg('process_ease'),
+        avg_communication=Avg('communication'),
+        avg_interviewer_quality=Avg('interviewer_quality'),
+        avg_recruitment_speed=Avg('recruitment_speed'),
     )
 
-    by_type = (
+    averages = {}
+    for key, val in averages_agg.items():
+        averages[key] = round(val, 2) if val is not None else None
+
+    # ── Stage reached distribution (Q6b) ──
+    stage_dist = (
         feedbacks
-        .values('feedback_type')
-        .annotate(
-            count=Count('id'),
-            avg_rating=Avg('rating'),
-        )
-        .order_by('feedback_type')
+        .exclude(stage_reached='')
+        .values('stage_reached')
+        .annotate(count=Count('id'))
+        .order_by('stage_reached')
     )
 
+    STAGE_DISPLAY = dict(CandidateExperienceFeedback.STAGE_REACHED_CHOICES)
+    stage_list = [
+        {
+            "stage": s['stage_reached'],
+            "stage_display": STAGE_DISPLAY.get(s['stage_reached'], s['stage_reached']),
+            "count": s['count'],
+        }
+        for s in stage_dist
+    ]
+
+    # ── Recent open feedback (last 10) ──
     recent = feedbacks.order_by('-submitted_at')[:10]
     recent_list = []
     for fb in recent.select_related('application'):
         recent_list.append({
             "candidate_name": fb.application.candidate_name or "N/A",
             "feedback_type": fb.feedback_type,
-            "rating": fb.rating,
-            "comments": fb.comments,
+            "nps_score": fb.nps_score,
+            "nps_category": fb.nps_category,
+            "overall_satisfaction": fb.get_overall_satisfaction_display() if fb.overall_satisfaction else None,
+            "improvement_suggestion": fb.improvement_suggestion,
+            "most_frustrating": fb.most_frustrating,
+            "better_handling": fb.better_handling,
             "submitted_at": fb.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if fb.submitted_at else None,
         })
 
     return {
-        "total_feedbacks": agg['total_feedbacks'] or 0,
-        "avg_rating": round(agg['avg_rating'], 2) if agg['avg_rating'] else None,
-        "by_type": list(by_type),
+        "total_responses": total,
+        "nps": {
+            "score": nps_value,
+            "promoters": promoters,
+            "passives": passives,
+            "detractors": detractors,
+            "promoter_percent": round((promoters / total) * 100, 1),
+            "detractor_percent": round((detractors / total) * 100, 1),
+        },
+        "csat_percent": csat_percent,
+        "averages": averages,
+        "stage_reached_distribution": stage_list,
         "recent_feedbacks": recent_list,
     }
+

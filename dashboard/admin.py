@@ -17,9 +17,10 @@ class RecruitmentCostAdmin(admin.ModelAdmin):
 @admin.register(CandidateExperienceFeedback)
 class CandidateExperienceFeedbackAdmin(admin.ModelAdmin):
     list_display = [
-        'application', 'feedback_type', 'rating',
+        'application', 'feedback_type', 'nps_score',
+        'overall_satisfaction', 'interviewer_quality',
         'is_submitted', 'submitted_at', 'created_at',
     ]
-    list_filter = ['feedback_type', 'is_submitted']
+    list_filter = ['feedback_type', 'is_submitted', 'overall_satisfaction', 'stage_reached']
     search_fields = ['application__candidate_name', 'feedback_token']
     readonly_fields = ['feedback_token', 'created_at']
