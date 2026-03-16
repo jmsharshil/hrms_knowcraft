@@ -1222,7 +1222,7 @@ class CandidateBookInPersonInterviewView(APIView):
         try:
             transaction.on_commit(lambda: send_notifications(candidate, start_dt, end_dt, interviewer, location, request))
         except Exception as e:
-            return Response({"Error":"Unable to book an interview:{e}"},status=500)
+            return Response({"Error":f"Unable to book an interview:{e}"},status=500)
         return Response(BookingSerializer(booking).data, status=201)
 
 class FetchMeetingData(APIView):

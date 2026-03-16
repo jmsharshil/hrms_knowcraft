@@ -431,7 +431,7 @@ class JobApplication(models.Model):
     # Candidate Details (OPTIONAL - can be filled by HR later)
     candidate_name = models.CharField(max_length=255, blank=True)
     candidate_email = models.EmailField(blank=True, null=True)
-    candidate_phone = models.CharField(max_length=20, blank=True)
+    candidate_phone = models.CharField(max_length=20, blank=True,null=True)
     cover_letter = models.TextField(blank=True)
 
     location = models.CharField(max_length=255,blank=True,null=True)

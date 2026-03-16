@@ -99,5 +99,6 @@ class JobApplicationFilter(django_filters.FilterSet):
         return queryset.filter(
             Q(candidate_name__icontains=value) |
             Q(candidate_email__icontains=value) |
-            Q(candidate_phone__icontains=value)
+            Q(candidate_phone__icontains=value) |
+            Q(job__job_title__icontains=value)
         )
