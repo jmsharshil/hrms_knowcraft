@@ -7,7 +7,7 @@ from django.db.models import Q, Count, F
 from django.utils import timezone
 from django.db import transaction
 
-from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLink,ReferralApplication
+from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLink,ReferralApplication,CareerApplication,LinkedInApplication,NaukriApplication,IndeedApplication
 from .serializers import (
     JobListSerializer, JobDetailSerializer, JobCreateSerializer,
     JobUpdateSerializer, AssignToConsultancySerializer, CloseJobSerializer,
@@ -15,7 +15,11 @@ from .serializers import (
     JobApplicationCreateSerializer, JobApplicationUpdateSerializer,
     JobApplicationLinkSerializer, JobApplicationLinkCreateSerializer,
     PublicJobApplicationCreateSerializer, AssignToInternalHRSerializer, AssignToBothSerializer,
-    ReferralApplicationCreateSerializer,ReferralApplicationSerializer, ReferralToJobApplicationCreateSerializer
+    ReferralApplicationCreateSerializer,ReferralApplicationSerializer, ReferralToJobApplicationCreateSerializer,
+    CareerToJobApplicationCreateSerializer,LinkedInToJobApplicationCreateSerializer,
+    NaukriToJobApplicationCreateSerializer,IndeedToJobApplicationCreateSerializer,
+    CareerApplicationSerializer,LinkedInApplicationSerializer,NaukriApplicationSerializer,
+    IndeedApplicationSerializer,JobDropDownListSerializer
 )
 from .permissions import (
     CanViewJobs, CanCreateJobs, CanEditJobs, CanAssignToConsultancy,
@@ -1061,6 +1065,41 @@ class CareersViewSet(viewsets.GenericViewSet):
             status=status.HTTP_201_CREATED
         )
     
+    @action(detail=False, methods=['post'])
+    def create_job_application_from_career(self, request, *args, **kwargs):
+        """
+        Custom action to create a JobApplication from an existing CareerApplication.
+        Requires career_application_id and job_id in the request.
+        """
+        # Use the ReferralToJobApplicationCreateSerializer
+        serializer = CareerToJobApplicationCreateSerializer(data=request.data)
+
+        if serializer.is_valid():
+            job_application = serializer.save()
+            return Response(
+                {
+                    "message": "Job application created successfully",
+                    "job_application_id": str(job_application.id)
+                },
+                status=status.HTTP_201_CREATED
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['get'], url_path='applications')
+    def applications(self, request):
+        """
+        List all resumes uploaded from Careers page
+        """
+        queryset = CareerApplication.objects.all().order_by('-created_at')
+
+        serializer = CareerApplicationSerializer(
+            queryset,
+            many=True,
+            context={'request': request}
+        )
+
+        return Response(serializer.data)
+
 #LinkedIn
 class LinkedInViewSet(viewsets.GenericViewSet):
     """
@@ -1127,6 +1166,41 @@ class LinkedInViewSet(viewsets.GenericViewSet):
             status=status.HTTP_201_CREATED
         )
     
+    @action(detail=False, methods=['post'])
+    def create_job_application_from_linkedin(self, request, *args, **kwargs):
+        """
+        Custom action to create a JobApplication from an existing LinkedInApplication.
+        Requires linkedin_application_id and job_id in the request.
+        """
+        # Use the ReferralToJobApplicationCreateSerializer
+        serializer = LinkedInToJobApplicationCreateSerializer(data=request.data)
+
+        if serializer.is_valid():
+            job_application = serializer.save()
+            return Response(
+                {
+                    "message": "Job application created successfully",
+                    "job_application_id": str(job_application.id)
+                },
+                status=status.HTTP_201_CREATED
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['get'], url_path='applications')
+    def applications(self, request):
+        """
+        List all resumes uploaded from LinkedIn
+        """
+        queryset = LinkedInApplication.objects.all().order_by('-created_at')
+
+        serializer = LinkedInApplicationSerializer(
+            queryset,
+            many=True,
+            context={'request': request}
+        )
+
+        return Response(serializer.data)
+
 #Naukri
 class NaukriViewSet(viewsets.GenericViewSet):
     """
@@ -1193,6 +1267,41 @@ class NaukriViewSet(viewsets.GenericViewSet):
             status=status.HTTP_201_CREATED
         )
     
+    @action(detail=False, methods=['post'])
+    def create_job_application_from_naukri(self, request, *args, **kwargs):
+        """
+        Custom action to create a JobApplication from an existing NaukriApplication.
+        Requires naukri_application_id and job_id in the request.
+        """
+        # Use the ReferralToJobApplicationCreateSerializer
+        serializer = NaukriToJobApplicationCreateSerializer(data=request.data)
+
+        if serializer.is_valid():
+            job_application = serializer.save()
+            return Response(
+                {
+                    "message": "Job application created successfully",
+                    "job_application_id": str(job_application.id)
+                },
+                status=status.HTTP_201_CREATED
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['get'], url_path='applications')
+    def applications(self, request):
+        """
+        List all resumes uploaded from Naukri
+        """
+        queryset = NaukriApplication.objects.all().order_by('-created_at')
+
+        serializer = NaukriApplicationSerializer(
+            queryset,
+            many=True,
+            context={'request': request}
+        )
+
+        return Response(serializer.data)
+    
 #Indeed
 class IndeedViewSet(viewsets.GenericViewSet):
     """
@@ -1258,3 +1367,47 @@ class IndeedViewSet(viewsets.GenericViewSet):
             },
             status=status.HTTP_201_CREATED
         )
+    
+    @action(detail=False, methods=['post'])
+    def create_job_application_from_indeed(self, request, *args, **kwargs):
+        """
+        Custom action to create a JobApplication from an existing IndeedApplication.
+        Requires indeed_application_id and job_id in the request.
+        """
+        # Use the ReferralToJobApplicationCreateSerializer
+        serializer = IndeedToJobApplicationCreateSerializer(data=request.data)
+
+        if serializer.is_valid():
+            job_application = serializer.save()
+            return Response(
+                {
+                    "message": "Job application created successfully",
+                    "job_application_id": str(job_application.id)
+                },
+                status=status.HTTP_201_CREATED
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['get'], url_path='applications')
+    def applications(self, request):
+        """
+        List all resumes uploaded from Indeed
+        """
+        queryset = IndeedApplication.objects.all().order_by('-created_at')
+
+        serializer = IndeedApplicationSerializer(
+            queryset,
+            many=True,
+            context={'request': request}
+        )
+
+        return Response(serializer.data)
+
+class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API to get job id and job title only (no pagination)
+    """
+    queryset = Job.objects.filter(is_active=True).only('id', 'job_title')
+    serializer_class = JobDropDownListSerializer
+    permission_classes = [AllowAny]
+    pagination_class = None

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLink,ReferralApplication
+from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLink,ReferralApplication,CareerApplication,LinkedInApplication,NaukriApplication,IndeedApplication
 from accounts.models import User
 from django.db import IntegrityError, transaction
 
@@ -894,32 +894,19 @@ class CareersApplicationCreateSerializer(serializers.ModelSerializer):
         job = Job.objects.filter(id=job_id).first()
         created_applications = []
 
-        from onboarding.utils.task_queue import TASK_QUEUE
-        from .utils import parse_resume_task
-
         try:
             with transaction.atomic():
                 for resume_file in resumes:
                     original_filename = getattr(resume_file, 'name', '')
                     file_size = getattr(resume_file, 'size', 0)
 
-                    # Create JobApplication
-                    job_application = JobApplication.objects.create(
-                        job=job,
+                    career_application = CareerApplication.objects.create(
                         resume=resume_file,
-                        status='received',
                         original_filename=original_filename,
                         file_size=file_size,
-                        source='career_page'
+                        position_title=job.job_title if job else None
                     )
-                    created_applications.append(job_application)
-
-                    TASK_QUEUE.enqueue(
-                        parse_resume_task,
-                        job_application,
-                        job_application.resume.file,
-                        job_application.job
-                    )
+                    created_applications.append(career_application)
 
         except IntegrityError as e:
             print(e)
@@ -988,6 +975,87 @@ class CareersJobDetailSerializer(serializers.ModelSerializer):
     def get_remaining_positions(self, obj):
         return obj.remaining_positions()
 
+class CareerToJobApplicationCreateSerializer(serializers.Serializer):
+    """Serializer to create a JobApplication from an existing CareerApplication"""
+
+    career_application_id = serializers.UUIDField(required=True)
+    job_id = serializers.UUIDField(required=True)
+
+    def validate(self, data):
+        """Ensure that the CareerApplication and Job exist"""
+        try:
+            career_application = CareerApplication.objects.get(id=data['career_application_id'])
+        except CareerApplication.DoesNotExist:
+            raise serializers.ValidationError("Career Page Application not found")
+
+        try:
+            job = Job.objects.get(id=data['job_id'])
+        except Job.DoesNotExist:
+            raise serializers.ValidationError("Job not found")
+
+        data['career_application'] = career_application
+        data['job'] = job
+        return data
+
+    def create(self, validated_data):
+        """Create a JobApplication from the CareerApplication"""
+
+        career_application = validated_data['career_application']
+        job = validated_data['job']
+
+        # Prepare values to create JobApplication
+        resume_file = career_application.resume
+        original_filename = career_application.original_filename
+        file_size = career_application.file_size
+        
+        try:
+            with transaction.atomic():
+                # Create the JobApplication record
+                job_application = JobApplication.objects.create(
+                    job=job,
+                    resume=resume_file,
+                    source='career_page',
+                    status='received',
+                    original_filename=original_filename,
+                    file_size=file_size,
+                )
+
+                # Trigger background task for resume parsing
+                from onboarding.utils.task_queue import TASK_QUEUE
+                from .utils import parse_resume_task
+                TASK_QUEUE.enqueue(parse_resume_task, job_application, resume_file, job)
+
+        except Exception as e:
+            raise serializers.ValidationError(f"Error occurred while creating application: {str(e)}")
+
+        return job_application
+
+class CareerApplicationSerializer(serializers.ModelSerializer):
+    """Serializer for career applications"""
+    
+    resume_url = serializers.SerializerMethodField()
+    file_size_mb = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = CareerApplication
+        fields = [
+            'id', 'resume', 'resume_url','original_filename', 'file_size',
+            'file_size_mb',"position_title",'notes','created_at', 'updated_at'
+        ]
+    
+    def get_resume_url(self, obj):
+        if obj.resume:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.resume.url)
+            return obj.resume.url
+        return None
+    
+    def get_file_size_mb(self, obj):
+        if obj.file_size:
+            return round(obj.file_size / (1024 * 1024), 2)
+        return 0
+
 #LinkedIn
 class LinkedApplicationCreateSerializer(serializers.ModelSerializer):
     """Serializer for resume upload through LinkedIn"""
@@ -1038,32 +1106,19 @@ class LinkedApplicationCreateSerializer(serializers.ModelSerializer):
         job = Job.objects.filter(id=job_id).first()
         created_applications = []
 
-        from onboarding.utils.task_queue import TASK_QUEUE
-        from .utils import parse_resume_task
-
         try:
             with transaction.atomic():
                 for resume_file in resumes:
                     original_filename = getattr(resume_file, 'name', '')
                     file_size = getattr(resume_file, 'size', 0)
 
-                    # Create JobApplication
-                    job_application = JobApplication.objects.create(
-                        job=job,
+                    linkedin_application = LinkedInApplication.objects.create(
                         resume=resume_file,
-                        status='received',
                         original_filename=original_filename,
                         file_size=file_size,
-                        source='linkedin'
+                        position_title=job.job_title if job else None
                     )
-                    created_applications.append(job_application)
-
-                    TASK_QUEUE.enqueue(
-                        parse_resume_task,
-                        job_application,
-                        job_application.resume.file,
-                        job_application.job
-                    )
+                    created_applications.append(linkedin_application)
 
         except IntegrityError as e:
             print(e)
@@ -1074,6 +1129,87 @@ class LinkedApplicationCreateSerializer(serializers.ModelSerializer):
             })
 
         return created_applications
+    
+class LinkedInToJobApplicationCreateSerializer(serializers.Serializer):
+    """Serializer to create a JobApplication from an existing LinkedInApplication"""
+
+    linkedin_application_id = serializers.UUIDField(required=True)
+    job_id = serializers.UUIDField(required=True)
+
+    def validate(self, data):
+        """Ensure that the LinkedInApplication and Job exist"""
+        try:
+            linkedin_application = LinkedInApplication.objects.get(id=data['linkedin_application_id'])
+        except LinkedInApplication.DoesNotExist:
+            raise serializers.ValidationError("LinkedIn Application not found")
+
+        try:
+            job = Job.objects.get(id=data['job_id'])
+        except Job.DoesNotExist:
+            raise serializers.ValidationError("Job not found")
+
+        data['linkedin_application'] = linkedin_application
+        data['job'] = job
+        return data
+
+    def create(self, validated_data):
+        """Create a JobApplication from the LinkedInApplication"""
+
+        linkedin_application = validated_data['linkedin_application']
+        job = validated_data['job']
+
+        # Prepare values to create JobApplication
+        resume_file = linkedin_application.resume
+        original_filename = linkedin_application.original_filename
+        file_size = linkedin_application.file_size
+        
+        try:
+            with transaction.atomic():
+                # Create the JobApplication record
+                job_application = JobApplication.objects.create(
+                    job=job,
+                    resume=resume_file,
+                    source='linkedin',
+                    status='received',
+                    original_filename=original_filename,
+                    file_size=file_size,
+                )
+
+                # Trigger background task for resume parsing
+                from onboarding.utils.task_queue import TASK_QUEUE
+                from .utils import parse_resume_task
+                TASK_QUEUE.enqueue(parse_resume_task, job_application, resume_file, job)
+
+        except Exception as e:
+            raise serializers.ValidationError(f"Error occurred while creating application: {str(e)}")
+
+        return job_application
+
+class LinkedInApplicationSerializer(serializers.ModelSerializer):
+    """Serializer for linkedin applications"""
+    
+    resume_url = serializers.SerializerMethodField()
+    file_size_mb = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = LinkedInApplication
+        fields = [
+            'id', 'resume', 'resume_url','original_filename', 'file_size',
+            'file_size_mb',"position_title",'notes','created_at', 'updated_at'
+        ]
+    
+    def get_resume_url(self, obj):
+        if obj.resume:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.resume.url)
+            return obj.resume.url
+        return None
+    
+    def get_file_size_mb(self, obj):
+        if obj.file_size:
+            return round(obj.file_size / (1024 * 1024), 2)
+        return 0
     
 #Naukri
 class NaukriApplicationCreateSerializer(serializers.ModelSerializer):
@@ -1125,32 +1261,19 @@ class NaukriApplicationCreateSerializer(serializers.ModelSerializer):
         job = Job.objects.filter(id=job_id).first()
         created_applications = []
 
-        from onboarding.utils.task_queue import TASK_QUEUE
-        from .utils import parse_resume_task
-
         try:
             with transaction.atomic():
                 for resume_file in resumes:
                     original_filename = getattr(resume_file, 'name', '')
                     file_size = getattr(resume_file, 'size', 0)
 
-                    # Create JobApplication
-                    job_application = JobApplication.objects.create(
-                        job=job,
+                    naukri_application = NaukriApplication.objects.create(
                         resume=resume_file,
-                        status='received',
                         original_filename=original_filename,
                         file_size=file_size,
-                        source='naukri'
+                        position_title=job.job_title if job else None
                     )
-                    created_applications.append(job_application)
-
-                    TASK_QUEUE.enqueue(
-                        parse_resume_task,
-                        job_application,
-                        job_application.resume.file,
-                        job_application.job
-                    )
+                    created_applications.append(naukri_application)
 
         except IntegrityError as e:
             print(e)
@@ -1161,7 +1284,88 @@ class NaukriApplicationCreateSerializer(serializers.ModelSerializer):
             })
 
         return created_applications
+
+class NaukriToJobApplicationCreateSerializer(serializers.Serializer):
+    """Serializer to create a JobApplication from an existing NaukriApplication"""
+
+    naukri_application_id = serializers.UUIDField(required=True)
+    job_id = serializers.UUIDField(required=True)
+
+    def validate(self, data):
+        """Ensure that the NaukriApplication and Job exist"""
+        try:
+            naukri_application = NaukriApplication.objects.get(id=data['naukri_application_id'])
+        except NaukriApplication.DoesNotExist:
+            raise serializers.ValidationError("Naukri Application not found")
+
+        try:
+            job = Job.objects.get(id=data['job_id'])
+        except Job.DoesNotExist:
+            raise serializers.ValidationError("Job not found")
+
+        data['naukri_application'] = naukri_application
+        data['job'] = job
+        return data
+
+    def create(self, validated_data):
+        """Create a JobApplication from the NaukriApplication"""
+
+        naukri_application = validated_data['naukri_application']
+        job = validated_data['job']
+
+        # Prepare values to create JobApplication
+        resume_file = naukri_application.resume
+        original_filename = naukri_application.original_filename
+        file_size = naukri_application.file_size
+        
+        try:
+            with transaction.atomic():
+                # Create the JobApplication record
+                job_application = JobApplication.objects.create(
+                    job=job,
+                    resume=resume_file,
+                    source='naukri',
+                    status='received',
+                    original_filename=original_filename,
+                    file_size=file_size,
+                )
+
+                # Trigger background task for resume parsing
+                from onboarding.utils.task_queue import TASK_QUEUE
+                from .utils import parse_resume_task
+                TASK_QUEUE.enqueue(parse_resume_task, job_application, resume_file, job)
+
+        except Exception as e:
+            raise serializers.ValidationError(f"Error occurred while creating application: {str(e)}")
+
+        return job_application
     
+class NaukriApplicationSerializer(serializers.ModelSerializer):
+    """Serializer for naukri applications"""
+    
+    resume_url = serializers.SerializerMethodField()
+    file_size_mb = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = NaukriApplication
+        fields = [
+            'id', 'resume', 'resume_url','original_filename', 'file_size',
+            'file_size_mb',"position_title",'notes','created_at', 'updated_at'
+        ]
+    
+    def get_resume_url(self, obj):
+        if obj.resume:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.resume.url)
+            return obj.resume.url
+        return None
+    
+    def get_file_size_mb(self, obj):
+        if obj.file_size:
+            return round(obj.file_size / (1024 * 1024), 2)
+        return 0
+
 #Indeed
 class IndeedApplicationCreateSerializer(serializers.ModelSerializer):
     """Serializer for resume upload through Indeed"""
@@ -1212,32 +1416,19 @@ class IndeedApplicationCreateSerializer(serializers.ModelSerializer):
         job = Job.objects.filter(id=job_id).first()
         created_applications = []
 
-        from onboarding.utils.task_queue import TASK_QUEUE
-        from .utils import parse_resume_task
-
         try:
             with transaction.atomic():
                 for resume_file in resumes:
                     original_filename = getattr(resume_file, 'name', '')
                     file_size = getattr(resume_file, 'size', 0)
 
-                    # Create JobApplication
-                    job_application = JobApplication.objects.create(
-                        job=job,
+                    indeed_application = IndeedApplication.objects.create(
                         resume=resume_file,
-                        status='received',
                         original_filename=original_filename,
                         file_size=file_size,
-                        source='indeed'
+                        position_title=job.job_title if job else None
                     )
-                    created_applications.append(job_application)
-
-                    TASK_QUEUE.enqueue(
-                        parse_resume_task,
-                        job_application,
-                        job_application.resume.file,
-                        job_application.job
-                    )
+                    created_applications.append(indeed_application)
 
         except IntegrityError as e:
             print(e)
@@ -1248,3 +1439,96 @@ class IndeedApplicationCreateSerializer(serializers.ModelSerializer):
             })
 
         return created_applications
+    
+class IndeedToJobApplicationCreateSerializer(serializers.Serializer):
+    """Serializer to create a JobApplication from an existing IndeedApplication"""
+
+    indeed_application_id = serializers.UUIDField(required=True)
+    job_id = serializers.UUIDField(required=True)
+
+    def validate(self, data):
+        """Ensure that the IndeedApplication and Job exist"""
+        try:
+            indeed_application = IndeedApplication.objects.get(id=data['indeed_application_id'])
+        except IndeedApplication.DoesNotExist:
+            raise serializers.ValidationError("Indeed Application not found")
+
+        try:
+            job = Job.objects.get(id=data['job_id'])
+        except Job.DoesNotExist:
+            raise serializers.ValidationError("Job not found")
+
+        data['indeed_application'] = indeed_application
+        data['job'] = job
+        return data
+
+    def create(self, validated_data):
+        """Create a JobApplication from the IndeedApplication"""
+
+        indeed_application = validated_data['indeed_application']
+        job = validated_data['job']
+
+        # Prepare values to create JobApplication
+        resume_file = indeed_application.resume
+        original_filename = indeed_application.original_filename
+        file_size = indeed_application.file_size
+        
+        try:
+            with transaction.atomic():
+                # Create the JobApplication record
+                job_application = JobApplication.objects.create(
+                    job=job,
+                    resume=resume_file,
+                    source='indeed',
+                    status='received',
+                    original_filename=original_filename,
+                    file_size=file_size,
+                )
+
+                # Trigger background task for resume parsing
+                from onboarding.utils.task_queue import TASK_QUEUE
+                from .utils import parse_resume_task
+                TASK_QUEUE.enqueue(parse_resume_task, job_application, resume_file, job)
+
+        except Exception as e:
+            raise serializers.ValidationError(f"Error occurred while creating application: {str(e)}")
+
+        return job_application
+
+class IndeedApplicationSerializer(serializers.ModelSerializer):
+    """Serializer for indeed applications"""
+    
+    resume_url = serializers.SerializerMethodField()
+    file_size_mb = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = IndeedApplication
+        fields = [
+            'id', 'resume', 'resume_url','original_filename', 'file_size',
+            'file_size_mb',"position_title",'notes','created_at', 'updated_at'
+        ]
+    
+    def get_resume_url(self, obj):
+        if obj.resume:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.resume.url)
+            return obj.resume.url
+        return None
+    
+    def get_file_size_mb(self, obj):
+        if obj.file_size:
+            return round(obj.file_size / (1024 * 1024), 2)
+        return 0
+    
+class JobDropDownListSerializer(serializers.ModelSerializer):
+    department_name = serializers.CharField(source='department.name', read_only=True)
+    designation_name = serializers.CharField(source='designation.name', read_only=True)
+    posted_by_name = serializers.CharField(source='posted_by.name', read_only=True)
+    
+    class Meta:
+        model = Job
+        fields = [
+            'id', 'job_title','department', 'department_name',
+            'designation', 'designation_name', 'posted_by',"posted_by_name"
+            ]
