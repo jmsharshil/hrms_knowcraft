@@ -1405,9 +1405,55 @@ class IndeedViewSet(viewsets.GenericViewSet):
 
 class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    API to get job id and job title only (no pagination)
+    API to get job dropdown (no pagination)
     """
-    queryset = Job.objects.filter(is_active=True).only('id', 'job_title')
     serializer_class = JobDropDownListSerializer
     permission_classes = [AllowAny]
     pagination_class = None
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Job.objects.select_related(
+            'department',
+            'designation',
+            'posted_by'
+        ).only(
+            'id',
+            'job_title',
+            'department__name',
+            'designation__name',
+            'posted_by__name',
+            'company',
+            'is_active'
+        )
+
+        if not user.is_authenticated:
+            return queryset.filter(is_active=True)
+        
+        # Filter based on user role
+        if user.role in ['admin', 'hr_manager']:
+            # Can see all jobs
+            pass
+        elif user.role == 'department_head':
+            # Can see jobs from their department
+            if hasattr(user, 'headed_department'):
+                queryset = queryset.filter(department=user.headed_department)
+            else:
+                queryset = queryset.none()
+        elif user.role == 'hr':
+            # Internal HR: only jobs assigned to them OR jobs they posted
+            queryset = queryset.filter(
+                Q(assigned_to_internal_hr=user) | Q(posted_by=user)
+            )
+        elif user.role == 'consultancy':
+            # Can see assigned jobs or publicly visible jobs
+            queryset = queryset.filter(
+                Q(assigned_to_consultancy=user) | Q(visible_to_consultancy=True)
+            )
+        else:
+            queryset = queryset.none()
+        
+        if hasattr(user, 'company'):
+            queryset = queryset.filter(company=user.company)
+        
+        return queryset.filter(is_active=True).order_by('job_title')
