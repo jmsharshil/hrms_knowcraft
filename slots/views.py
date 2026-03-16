@@ -56,8 +56,8 @@ class AvailableSlotsForInterviewerView(APIView):
                 daily_busy = get_interviewer_busy_slots(interviewer.email, day_start, day_end)
                 all_busy.extend(daily_busy)
 
-                free_today = generate_free_slots_for_day(daily_busy, d, interviewer, duration)
-                all_free.extend(free_today)
+                # free_today = generate_free_slots_for_day(daily_busy, d, interviewer, duration)
+                # all_free.extend(free_today)
         except Exception as e:
             print(f"Can Not get the Slots:{e}")
             return Response({

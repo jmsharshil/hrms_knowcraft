@@ -431,7 +431,7 @@ class JobApplication(models.Model):
     # Candidate Details (OPTIONAL - can be filled by HR later)
     candidate_name = models.CharField(max_length=255, blank=True)
     candidate_email = models.EmailField(blank=True, null=True)
-    candidate_phone = models.CharField(max_length=20, blank=True)
+    candidate_phone = models.CharField(max_length=20, blank=True,null=True)
     cover_letter = models.TextField(blank=True)
 
     location = models.CharField(max_length=255,blank=True,null=True)
@@ -524,6 +524,10 @@ class JobApplication(models.Model):
     referral_emp_code = models.CharField(null=True,blank=True)
     referral_designation = models.CharField(null=True,blank=True)
     referral_department = models.CharField(null=True,blank=True)
+
+    # Interview No-show / Reschedule tracking (used by dashboard)
+    no_show_count = models.PositiveIntegerField(default=0)
+    reschedule_count = models.PositiveIntegerField(default=0)
 
     #Interview Details
     interview_scheduled_at = models.DateTimeField(null=True,blank=True)
@@ -631,3 +635,90 @@ class ReferralApplication(models.Model):
         db_table = 'referral_applications'
         ordering = ['-created_at']
      
+class CareerApplication(models.Model):
+    """Track applications through career page""" 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Resume (REQUIRED - direct upload)
+    resume = models.FileField(upload_to='career_resumes/', help_text='Career Page resume in any format')
+    original_filename = models.CharField(max_length=255, blank=True, help_text='Original file name')
+    file_size = models.PositiveIntegerField(default=0, help_text='File size in bytes')
+    
+    # Additional Info
+    notes = models.TextField(blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    position_title = models.CharField(null=True,blank=True)
+    
+    class Meta:
+        db_table = 'career_applications'
+        ordering = ['-created_at']
+
+class LinkedInApplication(models.Model):
+    """Track applications through Linkedin""" 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Resume (REQUIRED - direct upload)
+    resume = models.FileField(upload_to='linkedin_resumes/', help_text='LinkedIn resume in any format')
+    original_filename = models.CharField(max_length=255, blank=True, help_text='Original file name')
+    file_size = models.PositiveIntegerField(default=0, help_text='File size in bytes')
+    
+    # Additional Info
+    notes = models.TextField(blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    position_title = models.CharField(null=True,blank=True)
+    
+    class Meta:
+        db_table = 'linkedin_applications'
+        ordering = ['-created_at']
+
+class NaukriApplication(models.Model):
+    """Track applications through Naukri""" 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Resume (REQUIRED - direct upload)
+    resume = models.FileField(upload_to='naukri_resumes/', help_text='Naukri resume in any format')
+    original_filename = models.CharField(max_length=255, blank=True, help_text='Original file name')
+    file_size = models.PositiveIntegerField(default=0, help_text='File size in bytes')
+    
+    # Additional Info
+    notes = models.TextField(blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    position_title = models.CharField(null=True,blank=True)
+    
+    class Meta:
+        db_table = 'naukri_applications'
+        ordering = ['-created_at']
+
+class IndeedApplication(models.Model):
+    """Track applications through Indeed""" 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Resume (REQUIRED - direct upload)
+    resume = models.FileField(upload_to='indeed_resumes/', help_text='Indeed resume in any format')
+    original_filename = models.CharField(max_length=255, blank=True, help_text='Original file name')
+    file_size = models.PositiveIntegerField(default=0, help_text='File size in bytes')
+    
+    # Additional Info
+    notes = models.TextField(blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    position_title = models.CharField(null=True,blank=True)
+    
+    class Meta:
+        db_table = 'indeed_applications'
+        ordering = ['-created_at']

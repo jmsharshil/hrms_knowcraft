@@ -107,7 +107,13 @@ def get_interviewer_busy_slots(email, start_ist, end_ist):
             # skip malformed events but don't crash
             continue
 
-    return busy
+    unique = {}
+    for slot in busy:
+        key = (slot["start"], slot["end"])
+        if key not in unique:
+            unique[key] = slot
+
+    return list(unique.values())
 
 
 
