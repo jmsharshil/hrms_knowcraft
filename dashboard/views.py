@@ -35,7 +35,6 @@ class IsDashboardUser:
         return (
             request.user
             and request.user.is_authenticated
-            and request.user.role in ['admin', 'hr_manager']
         )
 
 

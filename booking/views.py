@@ -299,6 +299,9 @@ class CandidateBookSlotView(APIView):
         except:
             return Response({"detail": "Invalid datetime format"}, status=400)
 
+        if not candidate.candidate_email:
+            return Response("Candidate Email Not Found!Please Add email in Candidate to continue.",status=400)
+    
         attendees = [candidate.candidate_email]
 
         # Add all technical interviewers
@@ -610,9 +613,9 @@ class CandidateBookSlotView(APIView):
             to=extra.email,
             attachments=[resume_attachment] if resume_attachment else None
         )
-        if extra.phone:
-            send_text(to=extra.phone,text=f"Dear {extra.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}")
-            send_document(to=extra.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
+            if extra.phone:
+                send_text(to=extra.phone,text=f"Dear {extra.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}")
+                send_document(to=extra.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
 
         candidate.interview_link = meeting_link
         candidate.interviewer_name = interviewer.name
@@ -701,6 +704,8 @@ def send_notifications(candidate,start_dt,end_dt,interviewer,location,request):
     location_str = location.full_address if hasattr(location, 'full_address') else str(location)
     maps_link = location.google_maps_link if hasattr(location, 'google_maps_link') else None
 
+    if not candidate.candidate_email:
+        return Response("Candidate Email Not Found!Please Add email in Candidate to continue.",status=400)
     attendees = [candidate.candidate_email]
 
     # Add all technical interviewers
