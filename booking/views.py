@@ -610,9 +610,9 @@ class CandidateBookSlotView(APIView):
             to=extra.email,
             attachments=[resume_attachment] if resume_attachment else None
         )
-        if extra.phone:
-            send_text(to=extra.phone,text=f"Dear {extra.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}")
-            send_document(to=extra.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
+            if extra.phone:
+                send_text(to=extra.phone,text=f"Dear {extra.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}")
+                send_document(to=extra.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
 
         candidate.interview_link = meeting_link
         candidate.interviewer_name = interviewer.name
