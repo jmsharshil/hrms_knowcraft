@@ -299,6 +299,9 @@ class CandidateBookSlotView(APIView):
         except:
             return Response({"detail": "Invalid datetime format"}, status=400)
 
+        if not candidate.candidate_email:
+            return Response("Candidate Email Not Found!Please Add email in Candidate to continue.",status=400)
+    
         attendees = [candidate.candidate_email]
 
         # Add all technical interviewers
@@ -701,6 +704,8 @@ def send_notifications(candidate,start_dt,end_dt,interviewer,location,request):
     location_str = location.full_address if hasattr(location, 'full_address') else str(location)
     maps_link = location.google_maps_link if hasattr(location, 'google_maps_link') else None
 
+    if not candidate.candidate_email:
+        return Response("Candidate Email Not Found!Please Add email in Candidate to continue.",status=400)
     attendees = [candidate.candidate_email]
 
     # Add all technical interviewers
