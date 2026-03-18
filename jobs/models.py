@@ -157,6 +157,22 @@ class Job(models.Model):
     
     # Job Description (optional rich text for public posting)
     job_description = models.TextField(blank=True, help_text='Detailed job description for public posting')
+
+    assigned_consultancies = models.ManyToManyField(
+        'accounts.User',
+        blank=True,
+        null=True,
+        related_name='consultancy_jobs',
+        limit_choices_to={'role': 'consultancy'}
+    )
+
+    assigned_internal_hrs = models.ManyToManyField(
+        'accounts.User',
+        blank=True,
+        null=True,
+        related_name='internal_hr_jobs',
+        limit_choices_to={'role__in': ['hr', 'hr_manager','admin']}
+    )
     
     class Meta:
         db_table = 'jobs'
@@ -406,6 +422,14 @@ class JobApplication(models.Model):
         ('indeed', 'Indeed'),
     ]
     
+    INTERVIEW_CHOICES=[
+            ("hr_round", "HR Round"),
+            ("technical_round", "Technical Round"),
+            ("case_study_round", "Case Study Round"),
+            ("final_round", "Final Round"),
+            ("management_client_round", "Management / Client Round")
+        ]
+    
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     job = models.ForeignKey(
         Job,
@@ -534,6 +558,7 @@ class JobApplication(models.Model):
     interviewer_name = models.CharField(null=True,blank=True)
     interview_link = models.TextField(null=True,blank=True)
     feedback_link = models.TextField(null=True,blank=True)
+    round_name = models.CharField(null=True,blank=True,choices=INTERVIEW_CHOICES)
     
     class Meta:
         db_table = 'job_applications'

@@ -1152,182 +1152,292 @@ Knowcraft Analytics Private Limited""",
 def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
     emails = set()
 
-    job = candidate.job
+    job = getattr(candidate, "job", None)
     if not job:
         logger.error(f"No job linked with candidate {candidate.id}")
         return []
+
+    mrf = getattr(job, "mrf", None)
+
+    def add_email(email):
+        if email:
+            emails.add(email)
+
+    def add_user(user):
+        if user and getattr(user, "email", None):
+            emails.add(user.email)
+
+    def add_users(qs):
+        for user in qs:
+            add_user(user)
+
     try:
 
         for role in receivers:
 
-            # HR (comes from MRF)
+            # =========================
+            # HR (MULTI + OLD SUPPORT)
+            # =========================
             if role == "hr":
-                if job and job.assigned_to_internal_hr and job.assigned_to_internal_hr.email:
-                    emails.add(job.assigned_to_internal_hr.email)
-                    continue
-            
-            if role == "interviewer":
-                if job and job.mrf:
-                    if candidate.status in ["interview_pending_1","interview_done_1","interview_rejected_1","shorlisted"]:
-                        emails.add(job.mrf.interviewer_email_1)
-                    if candidate.status in ["interview_pending_2","interview_done_2","interview_rejected_2","interview_next_2"]:
-                        emails.add(job.mrf.interviewer_email_2)
-                    if candidate.status in ["interview_pending_3","interview_done_3","interview_rejected_3","interview_next_3"]:
-                        emails.add(job.mrf.interviewer_email_2)
-                    if candidate.status in ["interview_pending_final","interview_done_final","interview_rejected_final","interview_next_final"]:
-                        emails.add(job.mrf.interviewer_email_final)
-                    if candidate.status in ["interview_pending_management_client","interview_done_management_client","interview_rejected_management_client","interview_next_management_client"]:
-                        emails.add(job.mrf.interviewer_email_final)
-                    continue
+                add_user(getattr(job, "assigned_to_internal_hr", None))
 
+                if hasattr(job, "assigned_internal_hrs"):
+                    add_users(job.assigned_internal_hrs.all())
+
+                continue
+
+            # =========================
+            # INTERVIEWERS (FIXED)
+            # =========================
+            if role == "interviewer" and mrf:
+
+                status = candidate.status
+
+                if status in ["interview_pending_1","interview_done_1","interview_rejected_1","shortlisted"]:
+                    add_email(getattr(mrf, "interviewer_email_1", None))
+
+                elif status in ["interview_pending_2","interview_done_2","interview_rejected_2","interview_next_2"]:
+                    # support both field & M2M
+                    add_email(getattr(mrf, "interviewer_email_2", None))
+                    if hasattr(mrf, "technical_interviewers"):
+                        add_users(mrf.technical_interviewers.all())
+
+                elif status in ["interview_pending_3","interview_done_3","interview_rejected_3","interview_next_3"]:
+                    add_email(getattr(mrf, "interviewer_email_3", None))
+
+                elif status in ["interview_pending_final","interview_done_final","interview_rejected_final","interview_next_final"]:
+                    add_email(getattr(mrf, "interviewer_email_final", None))
+
+                elif status in ["interview_pending_management_client","interview_done_management_client","interview_rejected_management_client","interview_next_management_client"]:
+                    add_email(getattr(mrf, "interviewer_email_management_client", None))
+
+                continue
+
+            # =========================
+            # CONSULTANCY (MULTI + OLD)
+            # =========================
             if role == "consultancy":
-                if job and job.assigned_to_consultancy and job.assigned_to_consultancy.email and candidate.source == 'consultancy':
-                    emails.add(job.assigned_to_consultancy.email)
-                    continue
-            
+                if candidate.source == 'consultancy':
+                    add_user(getattr(job, "assigned_to_consultancy", None))
+
+                    if hasattr(job, "assigned_consultancies"):
+                        add_users(job.assigned_consultancies.all())
+
+                continue
+
+            # =========================
+            # DEPARTMENT HEAD
+            # =========================
             if role == 'department_head':
-                if job and job.mrf and job.mrf.requested_by and job.mrf.requested_by.email and job.mrf.requested_by.role == 'department_head':
-                   emails.add(job.mrf.requested_by.email) 
+                if mrf:
+                    user = getattr(mrf, "requested_by", None)
+                    if user and user.role == 'department_head':
+                        add_user(user)
                 continue
 
+            # =========================
+            # HR MANAGER
+            # =========================
             if role == 'hr_manager':
-                if job and job.assigned_by and job.assigned_by.email and job.assigned_by.role =='hr_manager':
-                   emails.add(job.assigned_by.email) 
+                user = getattr(job, "assigned_by", None)
+                if user and user.role == 'hr_manager':
+                    add_user(user)
                 continue
 
+            # =========================
+            # ADMIN (FIXED → ALL ADMINS)
+            # =========================
             if role == 'admin':
-                admin = User.objects.filter(role='admin').exclude(email__isnull=True).exclude(email="").first()
-                emails.add(admin.email)
+                admins = User.objects.filter(role='admin') \
+                    .exclude(email__isnull=True) \
+                    .exclude(email="")
+                add_users(admins)
                 continue
 
-            if role == "referer":
-                if candidate and candidate.referral_email:
-                    emails.add(candidate.referral_email)
+            # =========================
+            # REFERRER (FIXED NAME)
+            # =========================
+            if role == "referrer":
+                add_email(getattr(candidate, "referral_email", None))
                 continue
 
+            # =========================
+            # INTERNAL TEAM (OPTIONAL)
+            # =========================
             if role == "internal_team":
-                #To be written 
+                # Future logic
                 continue
+
         return list(emails)
+
     except Exception as e:
-        logger.exception("Error finding emails to send:",e)
+        logger.exception(f"Error finding emails to send: {e}")
+        return []
 
 def resolve_internal_phones(candidate, receivers: list[str]) -> list[str]:
     phones = set()
 
-    job = candidate.job
+    job = getattr(candidate, "job", None)
     if not job:
         logger.error(f"No job linked with candidate {candidate.id}")
         return []
-    try:
 
+    mrf = getattr(job, "mrf", None)
+
+    def add_phone(phone):
+        if phone:
+            phones.add(phone)
+
+    def add_user(user):
+        if user and getattr(user, "phone", None):
+            phones.add(user.phone)
+
+    def add_users(qs):
+        for user in qs:
+            add_user(user)
+
+    try:
         for role in receivers:
 
-            # HR (comes from MRF)
+            # =========================
+            # HR (MULTI + OLD)
+            # =========================
             if role == "hr":
-                if job and job.assigned_to_internal_hr and job.assigned_to_internal_hr.phone:
-                    phones.add(job.assigned_to_internal_hr.phone)
-                    continue
-            
-            # if role == "interviewer":
-            #     if job and job.mrf:
-            #         if candidate.status in ["interview_pending_1","interview_done_1","interview_rejected_1","shorlisted"]:
-            #             phones.add(job.mrf.interviewer_email_1)
-            #         if candidate.status in ["interview_pending_2","interview_done_2","interview_rejected_2","interview_next_2"]:
-            #             phones.add(job.mrf.interviewer_email_2)
-            #         if candidate.status in ["interview_pending_3","interview_done_3","interview_rejected_3","interview_next_3"]:
-            #             phones.add(job.mrf.interviewer_email_2)
-            #         if candidate.status in ["interview_pending_final","interview_done_final","interview_rejected_final","interview_next_final"]:
-            #             phones.add(job.mrf.interviewer_email_final)
-            #         if candidate.status in ["interview_pending_management_client","interview_done_management_client","interview_rejected_management_client","interview_next_management_client"]:
-            #             phones.add(job.mrf.interviewer_email_final)
-            #         continue
+                add_user(getattr(job, "assigned_to_internal_hr", None))
 
+                if hasattr(job, "assigned_internal_hrs"):
+                    add_users(job.assigned_internal_hrs.all())
+
+                continue
+
+            # =========================
+            # CONSULTANCY (MULTI + OLD)
+            # =========================
             if role == "consultancy":
-                if job and job.assigned_to_consultancy and job.assigned_to_consultancy.phone and candidate.source == 'consultancy':
-                    phones.add(job.assigned_to_consultancy.phone)
-                    continue
-            
+                if candidate.source == 'consultancy':
+                    add_user(getattr(job, "assigned_to_consultancy", None))
+
+                    if hasattr(job, "assigned_consultancies"):
+                        add_users(job.assigned_consultancies.all())
+
+                continue
+
+            # =========================
+            # DEPARTMENT HEAD
+            # =========================
             if role == 'department_head':
-                if job and job.mrf and job.mrf.requested_by and job.mrf.requested_by.phone and job.mrf.requested_by.role == 'department_head':
-                   phones.add(job.mrf.requested_by.phone) 
+                if mrf:
+                    user = getattr(mrf, "requested_by", None)
+                    if user and user.role == 'department_head':
+                        add_user(user)
                 continue
 
+            # =========================
+            # HR MANAGER
+            # =========================
             if role == 'hr_manager':
-                if job and job.assigned_by and job.assigned_by.phone and job.assigned_by.role =='hr_manager':
-                   phones.add(job.assigned_by.phone) 
+                user = getattr(job, "assigned_by", None)
+                if user and user.role == 'hr_manager':
+                    add_user(user)
                 continue
 
+            # =========================
+            # ADMIN (FIXED)
+            # =========================
             if role == 'admin':
-                admin = User.objects.filter(role='admin').exclude(phone__isnull=True).exclude(phone="").first()
-                phones.add(admin.phone)
+                admins = User.objects.filter(role='admin') \
+                    .exclude(phone__isnull=True) \
+                    .exclude(phone="")
+                add_users(admins)
                 continue
 
-            if role == "referer":
-                if candidate and candidate.referral_phone:
-                    phones.add(candidate.referral_phone)
+            # =========================
+            # REFERRER (FIXED)
+            # =========================
+            if role == "referrer":
+                add_phone(getattr(candidate, "referral_phone", None))
                 continue
 
-            if role == "internal_team":
-                #To be written 
-                continue
         return list(phones)
-    except Exception as e:
-        logger.exception("Error finding emails to send:",e)
 
-def notify_internal(candidate: Any, stage: str,cc:list) -> bool:
+    except Exception as e:
+        logger.exception(f"Error finding phones to send: {e}")
+        return []
+
+def notify_internal(candidate: Any, stage: str, cc: list) -> bool:
     recievers = NOTIFY_INTERNAL_MAP[stage]['receivers']
     subject = NOTIFY_INTERNAL_MAP[stage]['subject']
     body = NOTIFY_INTERNAL_MAP[stage]['body']
-    sms_text = NOTIFY_INTERNAL_MAP[stage]['sms']
+    base_sms_text = NOTIFY_INTERNAL_MAP[stage]['sms']  # FIX
 
     if not recievers:
         logger.warning("No notification recievers for stage '%s'", stage)
         return False
+
     to_emails = resolve_internal_emails(candidate, recievers)
-    to_phones = resolve_internal_phones(candidate,recievers)
+    to_phones = resolve_internal_phones(candidate, recievers)
 
     if not to_emails:
         logger.warning(f"No internal email recipients found for stage {stage}")
         return False
+
     try:
         from .templates import NOTIFY_INTERNAL_HTML_TEMPLATES
+
+        template_base = NOTIFY_INTERNAL_HTML_TEMPLATES[stage]
+
         for email in to_emails:
-            template = NOTIFY_INTERNAL_HTML_TEMPLATES[stage]
+
             feedback_link = ""
-            feedback_link_base=""
-            reciever_name=""
-            if stage in ['interview_pending_1','interview_pending_2', "interview_pending_3","interview_pending_final","interview_pending_management_client"]:
-                if stage == 'interview_pending_1':
-                    round = "hr_round"
-                    feedback_link_base = f"{FRONTEND_URL}/api/slots/hr-feedback-form/"
-                if stage == 'interview_pending_2':
-                    round = "technical_round"
-                    feedback_link_base = f"{FRONTEND_URL}/api/slots/technical-feedback-form-one/"
-                if stage == 'interview_pending_3':
-                    round = "case_study_round"
-                    feedback_link_base = f"{FRONTEND_URL}/api/slots/technical-feedback-form-two/"
-                if stage == 'interview_pending_final':
-                    round = "final_round"
-                    feedback_link_base = f"{FRONTEND_URL}/api/slots/final-feedback-form/"
-                if stage == 'interview_pending_management_client':
-                    round = "management_client_round"
-                    feedback_link_base = f"{FRONTEND_URL}/api/slots/management-feedback-form/"
-                feedback_link = f"{feedback_link_base}?interview_round={round}&job_application={candidate.id}"
-            if stage == 'docs_uploaded':
-                if candidate.job and candidate.job.assigned_to_internal_hr:
-                    reciever_name = candidate.job.assigned_to_internal_hr.name
-            template = template.format(candidate=candidate,feedback_link=feedback_link,reciever_name=reciever_name)
-            sms_text = sms_text.format(reciever_name=reciever_name,candidate=candidate,FRONTEND_URL=FRONTEND_URL)
-            send_email(email,subject=subject,text=body,template=template)
-        
+            reciever_name = ""
+
+            # =========================
+            # FEEDBACK LINK
+            # =========================
+            if stage.startswith("interview_pending"):
+
+                mapping = {
+                    'interview_pending_1': ("hr_round", "hr-feedback-form"),
+                    'interview_pending_2': ("technical_round", "technical-feedback-form-one"),
+                    'interview_pending_3': ("case_study_round", "technical-feedback-form-two"),
+                    'interview_pending_final': ("final_round", "final-feedback-form"),
+                    'interview_pending_management_client': ("management_client_round", "management-feedback-form"),
+                }
+
+                if stage in mapping:
+                    round, endpoint = mapping[stage]
+                    feedback_link = f"{FRONTEND_URL}/api/slots/{endpoint}/?interview_round={round}&job_application={candidate.id}"
+
+            # =========================
+            # RECEIVER NAME (SAFE)
+            # =========================
+            reciever_name = email.split("@")[0]  # fallback
+
+            template = template_base.format(
+                candidate=candidate,
+                feedback_link=feedback_link,
+                reciever_name=reciever_name
+            )
+
+            send_email(email, subject=subject, text=body, template=template)
+
+        # =========================
+        # SMS (FIXED)
+        # =========================
         if to_phones:
             for phone in to_phones:
-                send_text(to=phone,text=sms_text)
+                sms_text = base_sms_text.format(
+                    reciever_name="User",
+                    candidate=candidate,
+                    FRONTEND_URL=FRONTEND_URL
+                )
+                send_text(to=phone, text=sms_text)
+
         logger.info(
-            f"Internal notification sent for {candidate.candidate_name} at stage '{stage}' to {to_emails}"
+            f"Internal notification sent for {candidate.candidate_name} at stage '{stage}'"
         )
         return True
+
     except Exception as e:
         logger.exception(f"Failed internal notification: {e}")
         return False

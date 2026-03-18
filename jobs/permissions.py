@@ -22,7 +22,7 @@ class CanViewJobs(permissions.BasePermission):
         # Internal HR can only view jobs assigned to them OR jobs they posted
         if user.role == 'hr':
             # Allow if job assigned to this internal HR
-            if obj.assigned_to_internal_hr == user:
+            if obj.assigned_to_internal_hr == user or obj.assigned_internal_hrs.filter(id=user.id).exists():
                 return True
             # Optionally allow if they posted the job themselves (keep or remove as needed)
             if obj.posted_by == user:
@@ -37,7 +37,11 @@ class CanViewJobs(permissions.BasePermission):
 
         # Consultancy can view assigned jobs or publicly visible jobs
         if user.role == 'consultancy':
-            return obj.assigned_to_consultancy == user or obj.visible_to_consultancy
+            return (
+                obj.assigned_to_consultancy == user or
+                obj.assigned_consultancies.filter(id=user.id).exists() or
+                obj.visible_to_consultancy
+            )
 
         return False
 
@@ -153,10 +157,10 @@ class CanViewApplications(permissions.BasePermission):
             return True
         
         if user.role == 'hr':
-            return obj.job.assigned_to_internal_hr == user
+            return obj.assigned_to_internal_hr == user or obj.assigned_internal_hrs.filter(id=user.id).exists()
         
         # Consultancy can view applications for their assigned jobs
         if user.role == 'consultancy':
-            return obj.job.assigned_to_consultancy == user
+            return obj.assigned_to_consultancy == user or obj.assigned_consultancies.filter(id=user.id).exists()
         
         return False

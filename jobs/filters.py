@@ -36,13 +36,11 @@ class JobApplicationFilter(django_filters.FilterSet):
         field_name='job__department_id'
     )
 
-    assigned_hr = django_filters.UUIDFilter(
-        field_name='job__assigned_to_internal_hr_id'
-    )
+    assigned_hr = django_filters.UUIDFilter(method='filter_assigned_hr')
 
-    assigned_consultancy = django_filters.UUIDFilter(
-        field_name='job__assigned_to_consultancy_id'
-    )
+    assigned_consultancy = django_filters.UUIDFilter(method='filter_assigned_consultancy')
+
+    assigned_to_me = django_filters.BooleanFilter(method='filter_assigned_to_me')
 
     # =============================
     # EXPERIENCE & SCORE FILTERS
@@ -66,6 +64,39 @@ class JobApplicationFilter(django_filters.FilterSet):
             match_score_float=Cast('match_score', FloatField())
         ).filter(match_score_float__gte=value)
 
+    def filter_assigned_hr(self, queryset, name, value):
+        return queryset.filter(
+            Q(job__assigned_to_internal_hr_id=value) |
+            Q(job__assigned_internal_hrs__id=value)
+        )
+
+
+    def filter_assigned_consultancy(self, queryset, name, value):
+        return queryset.filter(
+            Q(job__assigned_to_consultancy_id=value) |
+            Q(job__assigned_consultancies__id=value)
+        )
+    
+    def filter_assigned_to_me(self, queryset, name, value):
+        user = self.request.user
+
+        if not value or not user.is_authenticated:
+            return queryset
+
+        if user.role == 'consultancy':
+            return queryset.filter(
+                Q(job__assigned_to_consultancy=user) |
+                Q(job__assigned_consultancies=user)
+            ).distinct()
+
+        elif user.role in ['hr', 'hr_manager', 'admin']:
+            return queryset.filter(
+                Q(job__assigned_to_internal_hr=user) |
+                Q(job__assigned_internal_hrs=user)
+            ).distinct()
+
+        return queryset.none()
+    
     # =============================
     # DATE FILTERS
     # =============================

@@ -5,7 +5,7 @@ from .models import Job, JobAssignmentHistory, JobApplication, ReferralApplicati
 class JobAdmin(admin.ModelAdmin):
     list_display = [
         'job_title', 'department', 'location', 'no_of_positions',
-        'status', 'priority', 'assigned_to_consultancy', 'is_active',
+        'status', 'priority', 'is_active',
         'created_at'
     ]
     list_filter = [
@@ -45,7 +45,7 @@ class JobAdmin(admin.ModelAdmin):
         }),
         ('Assignment Details', {
             'fields': (
-                'assigned_to_consultancy', 'assigned_at', 'assigned_by'
+                'assigned_consultancies', 'assigned_at', 'assigned_by'
             )
         }),
         # ('Closure Details', {
@@ -62,7 +62,7 @@ class JobAdmin(admin.ModelAdmin):
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
-            'department', 'designation', 'mrf', 'assigned_to_consultancy',
+            'department', 'designation', 'mrf', 'assigned_consultancies',
             'posted_by', 'company'
         )
 

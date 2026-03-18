@@ -224,20 +224,36 @@ class JobUpdateSerializer(serializers.ModelSerializer):
 class AssignToConsultancySerializer(serializers.Serializer):
     """Serializer for assigning job to consultancy"""
     
-    consultancy_id = serializers.UUIDField()
+    # consultancy_id = serializers.UUIDField()
+    consultancy_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        allow_empty=False
+    )
     notes = serializers.CharField(required=False, allow_blank=True)
     
-    def validate_consultancy_id(self, value):
-        try:
-            user = User.objects.get(id=value, role='consultancy', is_active=True)
-        except User.DoesNotExist:
-            raise serializers.ValidationError("Invalid consultancy user")
+    def validate_consultancy_ids(self, value):
+        users = User.objects.filter(id__in=value, role='consultancy', is_active=True, company=self.context['request'].user.company)
+        
+        if len(users) != len(value):
+            raise serializers.ValidationError("One or more consultancy users are invalid")
+        
         return value
 
 class AssignToBothSerializer(serializers.Serializer):
-    consultancy_id = serializers.UUIDField()
-    internal_hr_id = serializers.UUIDField()
+    consultancy_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        allow_empty=False
+    )
+    internal_hr_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        allow_empty=False
+    )
     notes = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    def validate(self, data):
+        if not data.get('consultancy_ids') and not data.get('internal_hr_ids'):
+            raise serializers.ValidationError("At least one assignment is required")
+        return data
 
 class CloseJobSerializer(serializers.Serializer):
     """Serializer for closing a job"""
@@ -326,6 +342,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     department_name = serializers.CharField(source='job.department.name', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     source_display = serializers.CharField(source='get_source_display', read_only=True)
+    round_name_display = serializers.CharField(source='get_round_name_display', read_only=True)
     submitted_by_name = serializers.CharField(
         source='submitted_by.name',
         read_only=True,
@@ -347,7 +364,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             "referral_emp_code","referral_designation","referral_department","is_shortlisted","consolidated_feedback_avg",
             'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report','slot_link','candidate_history',
             'created_at', 'updated_at','is_selected','is_approved','is_rejected','inperson_link',
-            'interview_scheduled_at','interviewer_name','interview_link','feedback_link'
+            'interview_scheduled_at','interviewer_name','interview_link','feedback_link','round_name','round_name_display'
         ]
     
     def get_platform_name(self, obj):
@@ -621,18 +638,24 @@ class JobAssignmentHistorySerializer(serializers.ModelSerializer):
         
 class AssignToInternalHRSerializer(serializers.Serializer):
     """Serializer for assigning job to internal HR"""
-    internal_hr_id = serializers.UUIDField()
+    internal_hr_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        allow_empty=False
+    )
     notes = serializers.CharField(required=False, allow_blank=True)
 
-    def validate_internal_hr_id(self, value):
-        try:
-            user = User.objects.get(id=value, is_active=True)
-        except User.DoesNotExist:
-            raise serializers.ValidationError("Invalid internal HR user")
+    def validate_internal_hr_ids(self, value):
+        users = User.objects.filter(
+            id__in=value,
+            is_active=True,
+            role__in=['hr', 'hr_manager']
+        )
 
-        # Accept hr or hr_manager roles — adjust to your roles if needed
-        if user.role not in ['hr', 'hr_manager']:
-            raise serializers.ValidationError("User is not an internal HR")
+        if len(users) != len(value):
+            raise serializers.ValidationError(
+                "One or more users are invalid or not internal HR"
+            )
+
         return value
 
 class ReferralApplicationCreateSerializer(serializers.ModelSerializer):
@@ -1150,3 +1173,51 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
     def get_file_size_mb(self, obj):
         return round(obj.file_size / (1024 * 1024), 2)
+
+class AssignJobSerializer(serializers.Serializer):
+    consultancy_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        allow_empty=True
+    )
+    internal_hr_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        allow_empty=True
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    def validate(self, data):
+        consultancy_ids = data.get('consultancy_ids', [])
+        internal_hr_ids = data.get('internal_hr_ids', [])
+
+        if not consultancy_ids and not internal_hr_ids:
+            raise serializers.ValidationError(
+                "At least one of consultancy_ids or internal_hr_ids is required"
+            )
+
+        request = self.context['request']
+
+        # Validate consultancies
+        if consultancy_ids:
+            consultancies = User.objects.filter(
+                id__in=consultancy_ids,
+                role='consultancy',
+                is_active=True,
+                company=request.user.company
+            )
+            if len(consultancies) != len(consultancy_ids):
+                raise serializers.ValidationError("Invalid consultancy users")
+
+        # Validate internal HR
+        if internal_hr_ids:
+            internal_hrs = User.objects.filter(
+                id__in=internal_hr_ids,
+                role__in=['hr', 'hr_manager'],
+                is_active=True,
+                company=request.user.company
+            )
+            if len(internal_hrs) != len(internal_hr_ids):
+                raise serializers.ValidationError("Invalid internal HR users")
+
+        return data
