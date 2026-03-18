@@ -17,7 +17,7 @@ from .serializers import (
     PublicJobApplicationCreateSerializer, AssignToInternalHRSerializer, AssignToBothSerializer,
     ReferralApplicationCreateSerializer,ReferralApplicationSerializer, ReferralToJobApplicationCreateSerializer,
     CareerToJobApplicationCreateSerializer,ApplicationSerializer,ApplicationCreateSerializer,
-    ApplicationToJobSerializer,JobDropDownListSerializer
+    ApplicationToJobSerializer,JobDropDownListSerializer,AssignJobSerializer
 )
 from .permissions import (
     CanViewJobs, CanCreateJobs, CanEditJobs, CanAssignToConsultancy,
