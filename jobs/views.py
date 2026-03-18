@@ -7,7 +7,7 @@ from django.db.models import Q, Count, F
 from django.utils import timezone
 from django.db import transaction
 
-from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLink,ReferralApplication,CareerApplication,LinkedInApplication,NaukriApplication,IndeedApplication
+from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLink,ReferralApplication,Application
 from .serializers import (
     JobListSerializer, JobDetailSerializer, JobCreateSerializer,
     JobUpdateSerializer, AssignToConsultancySerializer, CloseJobSerializer,
@@ -16,10 +16,8 @@ from .serializers import (
     JobApplicationLinkSerializer, JobApplicationLinkCreateSerializer,
     PublicJobApplicationCreateSerializer, AssignToInternalHRSerializer, AssignToBothSerializer,
     ReferralApplicationCreateSerializer,ReferralApplicationSerializer, ReferralToJobApplicationCreateSerializer,
-    CareerToJobApplicationCreateSerializer,LinkedInToJobApplicationCreateSerializer,
-    NaukriToJobApplicationCreateSerializer,IndeedToJobApplicationCreateSerializer,
-    CareerApplicationSerializer,LinkedInApplicationSerializer,NaukriApplicationSerializer,
-    IndeedApplicationSerializer,JobDropDownListSerializer
+    CareerToJobApplicationCreateSerializer,ApplicationSerializer,ApplicationCreateSerializer,
+    ApplicationToJobSerializer,JobDropDownListSerializer
 )
 from .permissions import (
     CanViewJobs, CanCreateJobs, CanEditJobs, CanAssignToConsultancy,
@@ -990,10 +988,7 @@ class ReferralApplicationViewSet(viewsets.ModelViewSet):
 from .serializers import (
     CareersJobListSerializer,
     CareersJobDetailSerializer,
-    CareersApplicationCreateSerializer,
-    LinkedApplicationCreateSerializer,
-    NaukriApplicationCreateSerializer,
-    IndeedApplicationCreateSerializer
+    CareersApplicationCreateSerializer
 )
 from django.shortcuts import get_object_or_404
 
@@ -1068,8 +1063,8 @@ class CareersViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['post'])
     def create_job_application_from_career(self, request, *args, **kwargs):
         """
-        Custom action to create a JobApplication from an existing CareerApplication.
-        Requires career_application_id and job_id in the request.
+        Custom action to create a JobApplication from an existing Application.
+        Requires application_id and job_id in the request.
         """
         # Use the ReferralToJobApplicationCreateSerializer
         serializer = CareerToJobApplicationCreateSerializer(data=request.data)
@@ -1090,312 +1085,9 @@ class CareersViewSet(viewsets.GenericViewSet):
         """
         List all resumes uploaded from Careers page
         """
-        queryset = CareerApplication.objects.all().order_by('-created_at')
+        queryset = Application.objects.filter(source='career_page').order_by('-created_at')
 
-        serializer = CareerApplicationSerializer(
-            queryset,
-            many=True,
-            context={'request': request}
-        )
-
-        return Response(serializer.data)
-
-#LinkedIn
-class LinkedInViewSet(viewsets.GenericViewSet):
-    """
-    ViewSet for LinkedIn APIs
-    - List active jobs
-    - Retrieve job detail
-    - Apply for a job (resume upload)
-    """
-    queryset = Job.objects.filter(is_active=True)
-    permission_classes = [AllowAny]
-
-    def get_serializer_class(self):
-        if self.action == 'list':
-            return CareersJobListSerializer
-        elif self.action == 'retrieve':
-            return CareersJobDetailSerializer
-        elif self.action == 'apply':
-            return LinkedApplicationCreateSerializer
-        return CareersJobListSerializer
-
-    # GET /api/likedin/
-    def list(self, request):
-        queryset = self.filter_queryset(self.get_queryset())
-
-        department_filter = self.request.query_params.get('department')
-        if department_filter and department_filter != '' and is_valid_uuid(department_filter):
-            queryset = queryset.filter(department_id=department_filter)
-
-        designation_filter = self.request.query_params.get('designation')
-        if designation_filter and designation_filter != '' and is_valid_uuid(designation_filter):
-            queryset = queryset.filter(designation_id=designation_filter)
-        
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-    # GET /api/linkedin/{id}/
-    def retrieve(self, request, pk=None):
-        job = get_object_or_404(self.get_queryset(), pk=pk)
-        serializer = self.get_serializer(job)
-        return Response(serializer.data)
-
-    # POST /api/linkedin/apply/
-    @action(detail=False, methods=['post'], url_path='apply')
-    def apply(self, request):
-        """
-        Apply to a job by uploading one or multiple resumes.
-        Required:
-            - job_id
-            - resumes (list of files)
-        """
-        serializer = self.get_serializer(
-            data=request.data,
-            context={'request': request}
-        )
-
-        serializer.is_valid(raise_exception=True)
-        applications = serializer.save()
-
-        return Response(
-            {
-                "message": "Application(s) submitted successfully.",
-                "applications_created": len(applications)
-            },
-            status=status.HTTP_201_CREATED
-        )
-    
-    @action(detail=False, methods=['post'])
-    def create_job_application_from_linkedin(self, request, *args, **kwargs):
-        """
-        Custom action to create a JobApplication from an existing LinkedInApplication.
-        Requires linkedin_application_id and job_id in the request.
-        """
-        # Use the ReferralToJobApplicationCreateSerializer
-        serializer = LinkedInToJobApplicationCreateSerializer(data=request.data)
-
-        if serializer.is_valid():
-            job_application = serializer.save()
-            return Response(
-                {
-                    "message": "Job application created successfully",
-                    "job_application_id": str(job_application.id)
-                },
-                status=status.HTTP_201_CREATED
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=False, methods=['get'], url_path='applications')
-    def applications(self, request):
-        """
-        List all resumes uploaded from LinkedIn
-        """
-        queryset = LinkedInApplication.objects.all().order_by('-created_at')
-
-        serializer = LinkedInApplicationSerializer(
-            queryset,
-            many=True,
-            context={'request': request}
-        )
-
-        return Response(serializer.data)
-
-#Naukri
-class NaukriViewSet(viewsets.GenericViewSet):
-    """
-    ViewSet for Naukri APIs
-    - List active jobs
-    - Retrieve job detail
-    - Apply for a job (resume upload)
-    """
-    queryset = Job.objects.filter(is_active=True)
-    permission_classes = [AllowAny]
-
-    def get_serializer_class(self):
-        if self.action == 'list':
-            return CareersJobListSerializer
-        elif self.action == 'retrieve':
-            return CareersJobDetailSerializer
-        elif self.action == 'apply':
-            return NaukriApplicationCreateSerializer
-        return CareersJobListSerializer
-
-    # GET /api/naukri/
-    def list(self, request):
-        queryset = self.filter_queryset(self.get_queryset())
-
-        department_filter = self.request.query_params.get('department')
-        if department_filter and department_filter != '' and is_valid_uuid(department_filter):
-            queryset = queryset.filter(department_id=department_filter)
-
-        designation_filter = self.request.query_params.get('designation')
-        if designation_filter and designation_filter != '' and is_valid_uuid(designation_filter):
-            queryset = queryset.filter(designation_id=designation_filter)
-        
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-    # GET /api/naukri/{id}/
-    def retrieve(self, request, pk=None):
-        job = get_object_or_404(self.get_queryset(), pk=pk)
-        serializer = self.get_serializer(job)
-        return Response(serializer.data)
-
-    # POST /api/naukri/apply/
-    @action(detail=False, methods=['post'], url_path='apply')
-    def apply(self, request):
-        """
-        Apply to a job by uploading one or multiple resumes.
-        Required:
-            - job_id
-            - resumes (list of files)
-        """
-        serializer = self.get_serializer(
-            data=request.data,
-            context={'request': request}
-        )
-
-        serializer.is_valid(raise_exception=True)
-        applications = serializer.save()
-
-        return Response(
-            {
-                "message": "Application(s) submitted successfully.",
-                "applications_created": len(applications)
-            },
-            status=status.HTTP_201_CREATED
-        )
-    
-    @action(detail=False, methods=['post'])
-    def create_job_application_from_naukri(self, request, *args, **kwargs):
-        """
-        Custom action to create a JobApplication from an existing NaukriApplication.
-        Requires naukri_application_id and job_id in the request.
-        """
-        # Use the ReferralToJobApplicationCreateSerializer
-        serializer = NaukriToJobApplicationCreateSerializer(data=request.data)
-
-        if serializer.is_valid():
-            job_application = serializer.save()
-            return Response(
-                {
-                    "message": "Job application created successfully",
-                    "job_application_id": str(job_application.id)
-                },
-                status=status.HTTP_201_CREATED
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=False, methods=['get'], url_path='applications')
-    def applications(self, request):
-        """
-        List all resumes uploaded from Naukri
-        """
-        queryset = NaukriApplication.objects.all().order_by('-created_at')
-
-        serializer = NaukriApplicationSerializer(
-            queryset,
-            many=True,
-            context={'request': request}
-        )
-
-        return Response(serializer.data)
-    
-#Indeed
-class IndeedViewSet(viewsets.GenericViewSet):
-    """
-    ViewSet for Indeed APIs
-    - List active jobs
-    - Retrieve job detail
-    - Apply for a job (resume upload)
-    """
-    queryset = Job.objects.filter(is_active=True)
-    permission_classes = [AllowAny]
-
-    def get_serializer_class(self):
-        if self.action == 'list':
-            return CareersJobListSerializer
-        elif self.action == 'retrieve':
-            return CareersJobDetailSerializer
-        elif self.action == 'apply':
-            return IndeedApplicationCreateSerializer
-        return CareersJobListSerializer
-
-    # GET /api/indeed/
-    def list(self, request):
-        queryset = self.filter_queryset(self.get_queryset())
-
-        department_filter = self.request.query_params.get('department')
-        if department_filter and department_filter != '' and is_valid_uuid(department_filter):
-            queryset = queryset.filter(department_id=department_filter)
-
-        designation_filter = self.request.query_params.get('designation')
-        if designation_filter and designation_filter != '' and is_valid_uuid(designation_filter):
-            queryset = queryset.filter(designation_id=designation_filter)
-        
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-    # GET /api/indeed/{id}/
-    def retrieve(self, request, pk=None):
-        job = get_object_or_404(self.get_queryset(), pk=pk)
-        serializer = self.get_serializer(job)
-        return Response(serializer.data)
-
-    # POST /api/indeed/apply/
-    @action(detail=False, methods=['post'], url_path='apply')
-    def apply(self, request):
-        """
-        Apply to a job by uploading one or multiple resumes.
-        Required:
-            - job_id
-            - resumes (list of files)
-        """
-        serializer = self.get_serializer(
-            data=request.data,
-            context={'request': request}
-        )
-
-        serializer.is_valid(raise_exception=True)
-        applications = serializer.save()
-
-        return Response(
-            {
-                "message": "Application(s) submitted successfully.",
-                "applications_created": len(applications)
-            },
-            status=status.HTTP_201_CREATED
-        )
-    
-    @action(detail=False, methods=['post'])
-    def create_job_application_from_indeed(self, request, *args, **kwargs):
-        """
-        Custom action to create a JobApplication from an existing IndeedApplication.
-        Requires indeed_application_id and job_id in the request.
-        """
-        # Use the ReferralToJobApplicationCreateSerializer
-        serializer = IndeedToJobApplicationCreateSerializer(data=request.data)
-
-        if serializer.is_valid():
-            job_application = serializer.save()
-            return Response(
-                {
-                    "message": "Job application created successfully",
-                    "job_application_id": str(job_application.id)
-                },
-                status=status.HTTP_201_CREATED
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=False, methods=['get'], url_path='applications')
-    def applications(self, request):
-        """
-        List all resumes uploaded from Indeed
-        """
-        queryset = IndeedApplication.objects.all().order_by('-created_at')
-
-        serializer = IndeedApplicationSerializer(
+        serializer = ApplicationSerializer(
             queryset,
             many=True,
             context={'request': request}
@@ -1457,3 +1149,78 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(company=user.company)
         
         return queryset.filter(is_active=True).order_by('job_title')
+    
+class ApplicationViewSet(viewsets.GenericViewSet):
+    queryset = Job.objects.filter(is_active=True)
+    permission_classes = [AllowAny]
+
+    def get_serializer_class(self):
+        if self.action == 'apply':
+            return ApplicationCreateSerializer
+        elif self.action == 'convert':
+            return ApplicationToJobSerializer
+        return CareersJobListSerializer
+
+    def list(self, request):
+        queryset = self.get_queryset()
+        serializer = CareersJobListSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        job = get_object_or_404(self.get_queryset(), pk=pk)
+        serializer = CareersJobDetailSerializer(job)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'])
+    def apply(self, request):
+        """
+        POST /apply/
+        body:
+        {
+            "job_id": "...",
+            "source": "linkedin",
+            "resumes": [...]
+        }
+        """
+        serializer = self.get_serializer(
+            data=request.data,
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        apps = serializer.save()
+
+        return Response({
+            "message": "Applications submitted",
+            "count": len(apps)
+        })
+
+    @action(detail=False, methods=['post'])
+    def convert(self, request):
+        """
+        Convert Application → JobApplication
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        job_app = serializer.save()
+
+        return Response({
+            "message": "Converted successfully",
+            "job_application_id": str(job_app.id)
+        })
+
+    @action(detail=False, methods=['get'])
+    def applications(self, request):
+        source = request.query_params.get('source')
+
+        queryset = Application.objects.all()
+
+        if source:
+            queryset = queryset.filter(source=source)
+
+        serializer = ApplicationSerializer(
+            queryset,
+            many=True,
+            context={'request': request}
+        )
+        return Response(serializer.data)

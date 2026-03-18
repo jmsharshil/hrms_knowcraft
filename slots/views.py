@@ -159,7 +159,7 @@ class InterviewFeedbackListCreateAPIView(APIView):
         if interview_round:
             queryset = queryset.filter(interview_round=interview_round)
 
-        queryset = queryset.order_by("-created_at")
+        queryset = queryset.order_by("created_at")
 
         serializer = InterviewFeedbackListSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

@@ -634,91 +634,29 @@ class ReferralApplication(models.Model):
     class Meta:
         db_table = 'referral_applications'
         ordering = ['-created_at']
-     
-class CareerApplication(models.Model):
-    """Track applications through career page""" 
+
+class ApplicationSource(models.TextChoices):
+    CAREER = 'career_page', 'Career Page'
+    LINKEDIN = 'linkedin', 'LinkedIn'
+    NAUKRI = 'naukri', 'Naukri'
+    INDEED = 'indeed', 'Indeed'
+
+
+class Application(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
-    # Resume (REQUIRED - direct upload)
-    resume = models.FileField(upload_to='career_resumes/', help_text='Career Page resume in any format')
-    original_filename = models.CharField(max_length=255, blank=True, help_text='Original file name')
-    file_size = models.PositiveIntegerField(default=0, help_text='File size in bytes')
-    
-    # Additional Info
+    source = models.CharField(max_length=20, choices=ApplicationSource.choices)
+
+    resume = models.FileField(upload_to='applications/')
+    original_filename = models.CharField(max_length=255, blank=True)
+    file_size = models.PositiveIntegerField(default=0)
+
     notes = models.TextField(blank=True)
-    
-    # Timestamps
+    position_title = models.CharField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    position_title = models.CharField(null=True,blank=True)
-    
     class Meta:
-        db_table = 'career_applications'
-        ordering = ['-created_at']
-
-class LinkedInApplication(models.Model):
-    """Track applications through Linkedin""" 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-
-    # Resume (REQUIRED - direct upload)
-    resume = models.FileField(upload_to='linkedin_resumes/', help_text='LinkedIn resume in any format')
-    original_filename = models.CharField(max_length=255, blank=True, help_text='Original file name')
-    file_size = models.PositiveIntegerField(default=0, help_text='File size in bytes')
-    
-    # Additional Info
-    notes = models.TextField(blank=True)
-    
-    # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    position_title = models.CharField(null=True,blank=True)
-    
-    class Meta:
-        db_table = 'linkedin_applications'
-        ordering = ['-created_at']
-
-class NaukriApplication(models.Model):
-    """Track applications through Naukri""" 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-
-    # Resume (REQUIRED - direct upload)
-    resume = models.FileField(upload_to='naukri_resumes/', help_text='Naukri resume in any format')
-    original_filename = models.CharField(max_length=255, blank=True, help_text='Original file name')
-    file_size = models.PositiveIntegerField(default=0, help_text='File size in bytes')
-    
-    # Additional Info
-    notes = models.TextField(blank=True)
-    
-    # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    position_title = models.CharField(null=True,blank=True)
-    
-    class Meta:
-        db_table = 'naukri_applications'
-        ordering = ['-created_at']
-
-class IndeedApplication(models.Model):
-    """Track applications through Indeed""" 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-
-    # Resume (REQUIRED - direct upload)
-    resume = models.FileField(upload_to='indeed_resumes/', help_text='Indeed resume in any format')
-    original_filename = models.CharField(max_length=255, blank=True, help_text='Original file name')
-    file_size = models.PositiveIntegerField(default=0, help_text='File size in bytes')
-    
-    # Additional Info
-    notes = models.TextField(blank=True)
-    
-    # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    position_title = models.CharField(null=True,blank=True)
-    
-    class Meta:
-        db_table = 'indeed_applications'
+        db_table = 'applications'
         ordering = ['-created_at']

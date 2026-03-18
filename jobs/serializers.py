@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLink,ReferralApplication,CareerApplication,LinkedInApplication,NaukriApplication,IndeedApplication
+from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLink,ReferralApplication,Application,ApplicationSource
 from accounts.models import User
 from django.db import IntegrityError, transaction
 
@@ -900,11 +900,12 @@ class CareersApplicationCreateSerializer(serializers.ModelSerializer):
                     original_filename = getattr(resume_file, 'name', '')
                     file_size = getattr(resume_file, 'size', 0)
 
-                    career_application = CareerApplication.objects.create(
+                    career_application = Application.objects.create(
                         resume=resume_file,
                         original_filename=original_filename,
                         file_size=file_size,
-                        position_title=job.job_title if job else None
+                        position_title=job.job_title if job else None,
+                        source="career_page"
                     )
                     created_applications.append(career_application)
 
@@ -976,16 +977,16 @@ class CareersJobDetailSerializer(serializers.ModelSerializer):
         return obj.remaining_positions()
 
 class CareerToJobApplicationCreateSerializer(serializers.Serializer):
-    """Serializer to create a JobApplication from an existing CareerApplication"""
+    """Serializer to create a JobApplication from an existing Application"""
 
-    career_application_id = serializers.UUIDField(required=True)
+    application_id = serializers.UUIDField(required=True)
     job_id = serializers.UUIDField(required=True)
 
     def validate(self, data):
-        """Ensure that the CareerApplication and Job exist"""
+        """Ensure that the Application and Job exist"""
         try:
-            career_application = CareerApplication.objects.get(id=data['career_application_id'])
-        except CareerApplication.DoesNotExist:
+            career_application = Application.objects.get(id=data['application_id'])
+        except Application.DoesNotExist:
             raise serializers.ValidationError("Career Page Application not found")
 
         try:
@@ -1030,497 +1031,6 @@ class CareerToJobApplicationCreateSerializer(serializers.Serializer):
 
         return job_application
 
-class CareerApplicationSerializer(serializers.ModelSerializer):
-    """Serializer for career applications"""
-    
-    resume_url = serializers.SerializerMethodField()
-    file_size_mb = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = CareerApplication
-        fields = [
-            'id', 'resume', 'resume_url','original_filename', 'file_size',
-            'file_size_mb',"position_title",'notes','created_at', 'updated_at'
-        ]
-    
-    def get_resume_url(self, obj):
-        if obj.resume:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.resume.url)
-            return obj.resume.url
-        return None
-    
-    def get_file_size_mb(self, obj):
-        if obj.file_size:
-            return round(obj.file_size / (1024 * 1024), 2)
-        return 0
-
-#LinkedIn
-class LinkedApplicationCreateSerializer(serializers.ModelSerializer):
-    """Serializer for resume upload through LinkedIn"""
-
-    resumes = serializers.ListField(
-        child=serializers.FileField(),
-        write_only=True,
-        required=True
-    )
-
-    class Meta:
-        model = JobApplication
-        fields = ['resumes']
-
-    def validate_resumes(self, values):
-        if not values:
-            raise serializers.ValidationError("At least one resume file is required")
-
-        max_size = 10 * 1024 * 1024  # 10MB
-        allowed_extensions = [
-            '.pdf', '.doc', '.docx', '.txt', '.rtf',
-            '.jpg', '.jpeg', '.png', '.gif',
-            '.odt', '.pages',
-        ]
-
-        import os
-        for value in values:
-            if value.size > max_size:
-                raise serializers.ValidationError(
-                    f"{value.name}: File size must be less than 10MB"
-                )
-
-            ext = os.path.splitext(value.name)[1].lower()
-            if ext not in allowed_extensions:
-                raise serializers.ValidationError(
-                    f"{value.name}: Unsupported file format"
-                )
-
-        return values
-
-
-    def create(self, validated_data):
-        resumes = validated_data.pop('resumes')
-        data = self.context['request'].data
-
-        job_id = data.get('job_id')
-
-        job = Job.objects.filter(id=job_id).first()
-        created_applications = []
-
-        try:
-            with transaction.atomic():
-                for resume_file in resumes:
-                    original_filename = getattr(resume_file, 'name', '')
-                    file_size = getattr(resume_file, 'size', 0)
-
-                    linkedin_application = LinkedInApplication.objects.create(
-                        resume=resume_file,
-                        original_filename=original_filename,
-                        file_size=file_size,
-                        position_title=job.job_title if job else None
-                    )
-                    created_applications.append(linkedin_application)
-
-        except IntegrityError as e:
-            print(e)
-            raise serializers.ValidationError({
-                'non_field_errors': [
-                    'Could not create application. Possible duplicate candidate entry.'
-                ]
-            })
-
-        return created_applications
-    
-class LinkedInToJobApplicationCreateSerializer(serializers.Serializer):
-    """Serializer to create a JobApplication from an existing LinkedInApplication"""
-
-    linkedin_application_id = serializers.UUIDField(required=True)
-    job_id = serializers.UUIDField(required=True)
-
-    def validate(self, data):
-        """Ensure that the LinkedInApplication and Job exist"""
-        try:
-            linkedin_application = LinkedInApplication.objects.get(id=data['linkedin_application_id'])
-        except LinkedInApplication.DoesNotExist:
-            raise serializers.ValidationError("LinkedIn Application not found")
-
-        try:
-            job = Job.objects.get(id=data['job_id'])
-        except Job.DoesNotExist:
-            raise serializers.ValidationError("Job not found")
-
-        data['linkedin_application'] = linkedin_application
-        data['job'] = job
-        return data
-
-    def create(self, validated_data):
-        """Create a JobApplication from the LinkedInApplication"""
-
-        linkedin_application = validated_data['linkedin_application']
-        job = validated_data['job']
-
-        # Prepare values to create JobApplication
-        resume_file = linkedin_application.resume
-        original_filename = linkedin_application.original_filename
-        file_size = linkedin_application.file_size
-        
-        try:
-            with transaction.atomic():
-                # Create the JobApplication record
-                job_application = JobApplication.objects.create(
-                    job=job,
-                    resume=resume_file,
-                    source='linkedin',
-                    status='received',
-                    original_filename=original_filename,
-                    file_size=file_size,
-                )
-
-                # Trigger background task for resume parsing
-                from onboarding.utils.task_queue import TASK_QUEUE
-                from .utils import parse_resume_task
-                TASK_QUEUE.enqueue(parse_resume_task, job_application, resume_file, job)
-
-        except Exception as e:
-            raise serializers.ValidationError(f"Error occurred while creating application: {str(e)}")
-
-        return job_application
-
-class LinkedInApplicationSerializer(serializers.ModelSerializer):
-    """Serializer for linkedin applications"""
-    
-    resume_url = serializers.SerializerMethodField()
-    file_size_mb = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = LinkedInApplication
-        fields = [
-            'id', 'resume', 'resume_url','original_filename', 'file_size',
-            'file_size_mb',"position_title",'notes','created_at', 'updated_at'
-        ]
-    
-    def get_resume_url(self, obj):
-        if obj.resume:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.resume.url)
-            return obj.resume.url
-        return None
-    
-    def get_file_size_mb(self, obj):
-        if obj.file_size:
-            return round(obj.file_size / (1024 * 1024), 2)
-        return 0
-    
-#Naukri
-class NaukriApplicationCreateSerializer(serializers.ModelSerializer):
-    """Serializer for resume upload through Naukri"""
-
-    resumes = serializers.ListField(
-        child=serializers.FileField(),
-        write_only=True,
-        required=True
-    )
-
-    class Meta:
-        model = JobApplication
-        fields = ['resumes']
-
-    def validate_resumes(self, values):
-        if not values:
-            raise serializers.ValidationError("At least one resume file is required")
-
-        max_size = 10 * 1024 * 1024  # 10MB
-        allowed_extensions = [
-            '.pdf', '.doc', '.docx', '.txt', '.rtf',
-            '.jpg', '.jpeg', '.png', '.gif',
-            '.odt', '.pages',
-        ]
-
-        import os
-        for value in values:
-            if value.size > max_size:
-                raise serializers.ValidationError(
-                    f"{value.name}: File size must be less than 10MB"
-                )
-
-            ext = os.path.splitext(value.name)[1].lower()
-            if ext not in allowed_extensions:
-                raise serializers.ValidationError(
-                    f"{value.name}: Unsupported file format"
-                )
-
-        return values
-
-
-    def create(self, validated_data):
-        resumes = validated_data.pop('resumes')
-        data = self.context['request'].data
-
-        job_id = data.get('job_id')
-
-        job = Job.objects.filter(id=job_id).first()
-        created_applications = []
-
-        try:
-            with transaction.atomic():
-                for resume_file in resumes:
-                    original_filename = getattr(resume_file, 'name', '')
-                    file_size = getattr(resume_file, 'size', 0)
-
-                    naukri_application = NaukriApplication.objects.create(
-                        resume=resume_file,
-                        original_filename=original_filename,
-                        file_size=file_size,
-                        position_title=job.job_title if job else None
-                    )
-                    created_applications.append(naukri_application)
-
-        except IntegrityError as e:
-            print(e)
-            raise serializers.ValidationError({
-                'non_field_errors': [
-                    'Could not create application. Possible duplicate candidate entry.'
-                ]
-            })
-
-        return created_applications
-
-class NaukriToJobApplicationCreateSerializer(serializers.Serializer):
-    """Serializer to create a JobApplication from an existing NaukriApplication"""
-
-    naukri_application_id = serializers.UUIDField(required=True)
-    job_id = serializers.UUIDField(required=True)
-
-    def validate(self, data):
-        """Ensure that the NaukriApplication and Job exist"""
-        try:
-            naukri_application = NaukriApplication.objects.get(id=data['naukri_application_id'])
-        except NaukriApplication.DoesNotExist:
-            raise serializers.ValidationError("Naukri Application not found")
-
-        try:
-            job = Job.objects.get(id=data['job_id'])
-        except Job.DoesNotExist:
-            raise serializers.ValidationError("Job not found")
-
-        data['naukri_application'] = naukri_application
-        data['job'] = job
-        return data
-
-    def create(self, validated_data):
-        """Create a JobApplication from the NaukriApplication"""
-
-        naukri_application = validated_data['naukri_application']
-        job = validated_data['job']
-
-        # Prepare values to create JobApplication
-        resume_file = naukri_application.resume
-        original_filename = naukri_application.original_filename
-        file_size = naukri_application.file_size
-        
-        try:
-            with transaction.atomic():
-                # Create the JobApplication record
-                job_application = JobApplication.objects.create(
-                    job=job,
-                    resume=resume_file,
-                    source='naukri',
-                    status='received',
-                    original_filename=original_filename,
-                    file_size=file_size,
-                )
-
-                # Trigger background task for resume parsing
-                from onboarding.utils.task_queue import TASK_QUEUE
-                from .utils import parse_resume_task
-                TASK_QUEUE.enqueue(parse_resume_task, job_application, resume_file, job)
-
-        except Exception as e:
-            raise serializers.ValidationError(f"Error occurred while creating application: {str(e)}")
-
-        return job_application
-    
-class NaukriApplicationSerializer(serializers.ModelSerializer):
-    """Serializer for naukri applications"""
-    
-    resume_url = serializers.SerializerMethodField()
-    file_size_mb = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = NaukriApplication
-        fields = [
-            'id', 'resume', 'resume_url','original_filename', 'file_size',
-            'file_size_mb',"position_title",'notes','created_at', 'updated_at'
-        ]
-    
-    def get_resume_url(self, obj):
-        if obj.resume:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.resume.url)
-            return obj.resume.url
-        return None
-    
-    def get_file_size_mb(self, obj):
-        if obj.file_size:
-            return round(obj.file_size / (1024 * 1024), 2)
-        return 0
-
-#Indeed
-class IndeedApplicationCreateSerializer(serializers.ModelSerializer):
-    """Serializer for resume upload through Indeed"""
-
-    resumes = serializers.ListField(
-        child=serializers.FileField(),
-        write_only=True,
-        required=True
-    )
-
-    class Meta:
-        model = JobApplication
-        fields = ['resumes']
-
-    def validate_resumes(self, values):
-        if not values:
-            raise serializers.ValidationError("At least one resume file is required")
-
-        max_size = 10 * 1024 * 1024  # 10MB
-        allowed_extensions = [
-            '.pdf', '.doc', '.docx', '.txt', '.rtf',
-            '.jpg', '.jpeg', '.png', '.gif',
-            '.odt', '.pages',
-        ]
-
-        import os
-        for value in values:
-            if value.size > max_size:
-                raise serializers.ValidationError(
-                    f"{value.name}: File size must be less than 10MB"
-                )
-
-            ext = os.path.splitext(value.name)[1].lower()
-            if ext not in allowed_extensions:
-                raise serializers.ValidationError(
-                    f"{value.name}: Unsupported file format"
-                )
-
-        return values
-
-
-    def create(self, validated_data):
-        resumes = validated_data.pop('resumes')
-        data = self.context['request'].data
-
-        job_id = data.get('job_id')
-
-        job = Job.objects.filter(id=job_id).first()
-        created_applications = []
-
-        try:
-            with transaction.atomic():
-                for resume_file in resumes:
-                    original_filename = getattr(resume_file, 'name', '')
-                    file_size = getattr(resume_file, 'size', 0)
-
-                    indeed_application = IndeedApplication.objects.create(
-                        resume=resume_file,
-                        original_filename=original_filename,
-                        file_size=file_size,
-                        position_title=job.job_title if job else None
-                    )
-                    created_applications.append(indeed_application)
-
-        except IntegrityError as e:
-            print(e)
-            raise serializers.ValidationError({
-                'non_field_errors': [
-                    'Could not create application. Possible duplicate candidate entry.'
-                ]
-            })
-
-        return created_applications
-    
-class IndeedToJobApplicationCreateSerializer(serializers.Serializer):
-    """Serializer to create a JobApplication from an existing IndeedApplication"""
-
-    indeed_application_id = serializers.UUIDField(required=True)
-    job_id = serializers.UUIDField(required=True)
-
-    def validate(self, data):
-        """Ensure that the IndeedApplication and Job exist"""
-        try:
-            indeed_application = IndeedApplication.objects.get(id=data['indeed_application_id'])
-        except IndeedApplication.DoesNotExist:
-            raise serializers.ValidationError("Indeed Application not found")
-
-        try:
-            job = Job.objects.get(id=data['job_id'])
-        except Job.DoesNotExist:
-            raise serializers.ValidationError("Job not found")
-
-        data['indeed_application'] = indeed_application
-        data['job'] = job
-        return data
-
-    def create(self, validated_data):
-        """Create a JobApplication from the IndeedApplication"""
-
-        indeed_application = validated_data['indeed_application']
-        job = validated_data['job']
-
-        # Prepare values to create JobApplication
-        resume_file = indeed_application.resume
-        original_filename = indeed_application.original_filename
-        file_size = indeed_application.file_size
-        
-        try:
-            with transaction.atomic():
-                # Create the JobApplication record
-                job_application = JobApplication.objects.create(
-                    job=job,
-                    resume=resume_file,
-                    source='indeed',
-                    status='received',
-                    original_filename=original_filename,
-                    file_size=file_size,
-                )
-
-                # Trigger background task for resume parsing
-                from onboarding.utils.task_queue import TASK_QUEUE
-                from .utils import parse_resume_task
-                TASK_QUEUE.enqueue(parse_resume_task, job_application, resume_file, job)
-
-        except Exception as e:
-            raise serializers.ValidationError(f"Error occurred while creating application: {str(e)}")
-
-        return job_application
-
-class IndeedApplicationSerializer(serializers.ModelSerializer):
-    """Serializer for indeed applications"""
-    
-    resume_url = serializers.SerializerMethodField()
-    file_size_mb = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = IndeedApplication
-        fields = [
-            'id', 'resume', 'resume_url','original_filename', 'file_size',
-            'file_size_mb',"position_title",'notes','created_at', 'updated_at'
-        ]
-    
-    def get_resume_url(self, obj):
-        if obj.resume:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.resume.url)
-            return obj.resume.url
-        return None
-    
-    def get_file_size_mb(self, obj):
-        if obj.file_size:
-            return round(obj.file_size / (1024 * 1024), 2)
-        return 0
-    
 class JobDropDownListSerializer(serializers.ModelSerializer):
     department_name = serializers.CharField(source='department.name', read_only=True)
     designation_name = serializers.CharField(source='designation.name', read_only=True)
@@ -1532,3 +1042,111 @@ class JobDropDownListSerializer(serializers.ModelSerializer):
             'id', 'job_title','department', 'department_name',
             'designation', 'designation_name', 'posted_by',"posted_by_name"
             ]
+        
+class ApplicationCreateSerializer(serializers.ModelSerializer):
+    resumes = serializers.ListField(
+        child=serializers.FileField(),
+        write_only=True
+    )
+
+    source = serializers.ChoiceField(choices=ApplicationSource.choices)
+
+    class Meta:
+        model = Application
+        fields = ['resumes', 'source']
+
+    def validate_resumes(self, values):
+        if not values:
+            raise serializers.ValidationError("At least one resume required")
+
+        max_size = 10 * 1024 * 1024
+        allowed_extensions = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.png']
+
+        import os
+        for file in values:
+            if file.size > max_size:
+                raise serializers.ValidationError(f"{file.name} too large")
+
+            ext = os.path.splitext(file.name)[1].lower()
+            if ext not in allowed_extensions:
+                raise serializers.ValidationError(f"{file.name} invalid format")
+
+        return values
+
+    def create(self, validated_data):
+        resumes = validated_data.pop('resumes')
+        source = validated_data.get('source')
+
+        request = self.context['request']
+        job_id = request.data.get('job_id')
+
+        job = Job.objects.filter(id=job_id).first()
+        created = []
+
+        with transaction.atomic():
+            for file in resumes:
+                app = Application.objects.create(
+                    source=source,
+                    resume=file,
+                    original_filename=file.name,
+                    file_size=file.size,
+                    position_title=job.job_title if job else None
+                )
+                created.append(app)
+
+        return created
+    
+class ApplicationToJobSerializer(serializers.Serializer):
+    application_id = serializers.UUIDField()
+    job_id = serializers.UUIDField()
+
+    def validate(self, data):
+        try:
+            application = Application.objects.get(id=data['application_id'])
+        except Application.DoesNotExist:
+            raise serializers.ValidationError("Application not found")
+
+        try:
+            job = Job.objects.get(id=data['job_id'])
+        except Job.DoesNotExist:
+            raise serializers.ValidationError("Job not found")
+
+        data['application'] = application
+        data['job'] = job
+        return data
+
+    def create(self, validated_data):
+        application = validated_data['application']
+        job = validated_data['job']
+
+        with transaction.atomic():
+            job_app = JobApplication.objects.create(
+                job=job,
+                resume=application.resume,
+                source=application.source,  # dynamic
+                status='received',
+                original_filename=application.original_filename,
+                file_size=application.file_size,
+            )
+
+            from onboarding.utils.task_queue import TASK_QUEUE
+            from .utils import parse_resume_task
+
+            TASK_QUEUE.enqueue(parse_resume_task, job_app, application.resume, job)
+
+        return job_app
+
+class ApplicationSerializer(serializers.ModelSerializer):
+    resume_url = serializers.SerializerMethodField()
+    file_size_mb = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Application
+        fields = '__all__'
+
+    def get_resume_url(self, obj):
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.resume.url) if request else obj.resume.url
+
+    def get_file_size_mb(self, obj):
+        return round(obj.file_size / (1024 * 1024), 2)
