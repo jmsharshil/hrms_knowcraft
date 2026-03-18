@@ -149,7 +149,7 @@ def parse_resume_ai(file_input):
     except Exception as e:
         print(e)
         parsed = {}
-
+    print(parsed)
     return parsed
 
 
