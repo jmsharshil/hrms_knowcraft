@@ -681,18 +681,20 @@ class JobViewSet(viewsets.ModelViewSet):
 
         now = timezone.now()
 
-        # ✅ Assign consultancies
-        if consultancies.exists():
-            job.assigned_consultancies.add(*consultancies)
+        # =========================
+        # ✅ CONSULTANCY ASSIGNMENT
+        # =========================
+        existing_consultancies = set(job.assigned_consultancies.all())
+        new_consultancies = set(consultancies)
 
-            if not job.assigned_to_consultancy:
-                job.assigned_to_consultancy = consultancies.first()
+        to_add_consultancies = new_consultancies - existing_consultancies
+        to_remove_consultancies = existing_consultancies - new_consultancies
 
-            job.assigned_at = now
-            job.assigned_by = request.user
-            job.visible_to_consultancy = True
+        # ➕ Add new consultancies
+        if to_add_consultancies:
+            job.assigned_consultancies.add(*to_add_consultancies)
 
-            for consultancy in consultancies:
+            for consultancy in to_add_consultancies:
                 JobAssignmentHistory.objects.create(
                     job=job,
                     action='assigned',
@@ -703,17 +705,46 @@ class JobViewSet(viewsets.ModelViewSet):
                 self._create_consultancy_link(job, consultancy)
                 send_job_assignment_email(consultancy, job, request.user)
 
-        # ✅ Assign internal HR
-        if internal_hrs.exists():
-            job.assigned_internal_hrs.add(*internal_hrs)
+        # ➖ Remove old consultancies
+        if to_remove_consultancies:
+            job.assigned_consultancies.remove(*to_remove_consultancies)
 
-            if not job.assigned_to_internal_hr:
-                job.assigned_to_internal_hr = internal_hrs.first()
+            for consultancy in to_remove_consultancies:
+                JobAssignmentHistory.objects.create(
+                    job=job,
+                    action='unassigned',
+                    consultancy=consultancy,
+                    performed_by=request.user,
+                    notes='Auto removed due to reassignment'
+                )
+                send_job_unassignment_email(consultancy, job, request.user)
 
-            job.assigned_internal_at = now
-            job.assigned_internal_by = request.user
+        # ✅ Update fallback FK
+        if job.assigned_consultancies.exists():
+            job.assigned_to_consultancy = job.assigned_consultancies.first()
+            job.visible_to_consultancy = True
+        else:
+            job.assigned_to_consultancy = None
+            job.visible_to_consultancy = False
 
-            for hr in internal_hrs:
+        if consultancy_ids:  # only update timestamps if request had data
+            job.assigned_at = now
+            job.assigned_by = request.user
+
+        # =========================
+        # ✅ INTERNAL HR ASSIGNMENT
+        # =========================
+        existing_hrs = set(job.assigned_internal_hrs.all())
+        new_hrs = set(internal_hrs)
+
+        to_add_hrs = new_hrs - existing_hrs
+        to_remove_hrs = existing_hrs - new_hrs
+
+        # ➕ Add new HRs
+        if to_add_hrs:
+            job.assigned_internal_hrs.add(*to_add_hrs)
+
+            for hr in to_add_hrs:
                 JobAssignmentHistory.objects.create(
                     job=job,
                     action='assigned_internal',
@@ -723,18 +754,46 @@ class JobViewSet(viewsets.ModelViewSet):
                 )
                 send_job_assignment_email(hr, job, request.user)
 
-        # ✅ Status logic (VERY IMPORTANT)
+        # ➖ Remove old HRs
+        if to_remove_hrs:
+            job.assigned_internal_hrs.remove(*to_remove_hrs)
+
+            for hr in to_remove_hrs:
+                JobAssignmentHistory.objects.create(
+                    job=job,
+                    action='unassigned_internal',
+                    consultancy=hr,
+                    performed_by=request.user,
+                    notes='Auto removed due to reassignment'
+                )
+                send_job_unassignment_email(hr, job, request.user)
+
+        # ✅ Update fallback FK
+        if job.assigned_internal_hrs.exists():
+            job.assigned_to_internal_hr = job.assigned_internal_hrs.first()
+        else:
+            job.assigned_to_internal_hr = None
+
+        if internal_hr_ids:
+            job.assigned_internal_at = now
+            job.assigned_internal_by = request.user
+
+        # =========================
+        # ✅ STATUS LOGIC
+        # =========================
         if job.assigned_consultancies.exists() and job.assigned_internal_hrs.exists():
             job.status = 'assigned_to_both'
         elif job.assigned_consultancies.exists():
             job.status = 'assigned_to_consultancy'
         elif job.assigned_internal_hrs.exists():
             job.status = 'assigned_to_internal_hr'
+        else:
+            job.status = 'open'
 
         job.save()
 
         return Response({
-            'message': 'Job assigned successfully',
+            'message': 'Job assignment updated successfully',
             'data': JobDetailSerializer(job, context={'request': request}).data
         }, status=status.HTTP_200_OK)
 
