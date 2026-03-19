@@ -171,7 +171,8 @@ def automation_engine(candidate, old, new):
         candidate.interview_link = None
         candidate.interviewer_name = None
         candidate.interview_scheduled_at = None
-        candidate.feedback_link = None
+        # candidate.feedback_link = None
+        candidate.round_name = None
 
     candidate.save()
 
@@ -180,12 +181,16 @@ def automation_engine(candidate, old, new):
     if new == 'shortlisted':
         if candidate.job.mrf.interviewer_email_1:
             interviewer_email = candidate.job.mrf.interviewer_email_1
+            candidate.round_name = "hr_round"
         elif candidate.job.mrf.interviewer_email_2:
             interviewer_email = candidate.job.mrf.interviewer_email_2
+            candidate.round_name = "technical_round"
         elif candidate.job.mrf.interviewer_email_3:
             interviewer_email = candidate.job.mrf.interviewer_email_3
+            candidate.round_name = "case_study_round"
         elif candidate.job.mrf.interviewer_email_final:
             interviewer_email = candidate.job.mrf.interviewer_email_final
+            candidate.round_name = "final_round"
     elif new == "interview_next_2":
         interviewer_email = candidate.job.mrf.interviewer_email_2
     elif new == "interview_next_3":

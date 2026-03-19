@@ -2,26 +2,26 @@
 from accounts.models import User
 
 CC_RULES = {
-    "shortlisted": ["consultancy","referer"],
+    "shortlisted": ["consultancy","referrer"],
     "interview_pending_1": ["consultancy","interviewer_1"],
     "interview_done_1": [],
-    "interview_rejected_1": [ "consultancy","referer"],
-    "interview_next_2": ["consultancy","referer"],
+    "interview_rejected_1": [ "consultancy","referrer"],
+    "interview_next_2": ["consultancy","referrer"],
     "interview_pending_2": ["consultancy","interviewer_2"],
     "interview_done_2": [],
-    "interview_rejected_2": [ "consultancy","referer"],
-    "interview_next_3": ["consultancy","referer"],
+    "interview_rejected_2": [ "consultancy","referrer"],
+    "interview_next_3": ["consultancy","referrer"],
     "interview_pending_3": ["consultancy","interviewer_2"],
     "interview_done_3": [],
-    "interview_rejected_3": [ "consultancy","referer"],
-    "interview_next_final": ["consultancy","referer"],
+    "interview_rejected_3": [ "consultancy","referrer"],
+    "interview_next_final": ["consultancy","referrer"],
     "interview_pending_final": ["consultancy","interviewer_final"],
     "interview_done_final": [],
-    "interview_rejected_final": [ "consultancy","referer"],
-    "interview_next_management_client": ["consultancy", "referer"],
+    "interview_rejected_final": [ "consultancy","referrer"],
+    "interview_next_management_client": ["consultancy", "referrer"],
     "interview_pending_management_client": ["consultancy", "interviewer_management_client"],
     "interview_done_management_client": [],
-    "interview_rejected_management_client": ["consultancy", "referer"],
+    "interview_rejected_management_client": ["consultancy", "referrer"],
     # "selected": ["hr", "department_head"],
     # "approval_pending": ["approver", "hr"],
     "approved": [ "consultancy"],
@@ -29,19 +29,20 @@ CC_RULES = {
 
     # "offer_pending": ["recruiter"],
     "offer_sent": ["consultancy"],
-    "offer_accepted": ["consultancy","referer"],
-    "offer_rejected": ["consultancy","referer"],
+    "offer_accepted": ["consultancy","referrer"],
+    "offer_rejected": ["consultancy","referrer"],
     "resignation_pending": ["consultancy"],
     "salary_docs_pending": ["consultancy"],
     "docs_pending": ["consultancy"],
     # "docs_received": ["hr", "onboarding_team"],
     "docs_approved":["consultancy"],
     "joining_pending": ["consultancy"],
-    "joined": ["consultant", "referer","hr_manager"],
+    "joined": ["consultant", "referrer","hr_manager"],
 
-    "duplicate_rejected": ["consultancy","referer"],
-    "rejected": ["consultancy","referer"],
+    "duplicate_rejected": ["consultancy","referrer"],
+    "rejected": ["consultancy","referrer"],
 }
+
 def get_emails_for_role(candidate, roles):
     """
     roles may be a single string or list of role names.
@@ -57,92 +58,89 @@ def get_emails_for_role(candidate, roles):
     if not job:
         return []
 
-    # mrf = getattr(job, "mrf", None)
+    mrf = getattr(job, "mrf", None)
     company = getattr(job, "company", None)
 
-    # Helper to add email if exists
-    def add(user):
+    # Helper
+    def add_email(email):
+        if email:
+            emails.add(email)
+
+    def add_user(user):
         if user and getattr(user, "email", None):
             emails.add(user.email)
+
+    def add_users(qs):
+        for user in qs:
+            add_user(user)
 
     # Loop role by role
     for role in roles:
 
-        # ---------------------------
-        # MRF-based roles
-        # ---------------------------
-        # if role == "hr":
-        #     add(getattr(mrf, "hr", None))
-
-        # elif role == "hr_manager":
-        #     add(getattr(mrf, "hr_manager", None))
-
-        # elif role == "recruiter":
-        #     add(getattr(mrf,  None))
-
-        # elif role == "interviewer":
-        #     # interviewer can be many
-        #     interviewer = getattr(mrf, "interviewer", None)
-        #     if interviewer:
-        #         if hasattr(interviewer, "all"):
-        #             for u in interviewer.all():
-        #                 add(u)
-        #         else:
-        #             add(interviewer)
-
-        # elif role == "department_head":
-        #     add(getattr(mrf, "department_head", None))
-
-        # ---------------------------
-        # Company roles → User table
-        # ---------------------------
-        # elif role in ["admin", "internal_team", "consultancy"]:
-        #     if company and hasattr(company, "users"):
-        #         qs = company.users.filter(role=role)
-        #         for user in qs:
-        #             add(user)
-
-        # ---------------------------
-        # Referral-based roles
-        # ---------------------------
-        # elif role == "referrer":
-        #     if getattr(candidate, "referer", None):
-        #         emails.add(candidate.referral_email)
-
-        # ---------------------------
-        # Consultant for consultancy agencies
-        # ---------------------------
+        # =========================
+        # CONSULTANCY (FIXED)
+        # =========================
         if role == "consultancy":
-            if getattr(candidate, "job", None) and getattr(candidate.job,'assigned_to_consultancy',None) and getattr(candidate.job.assigned_to_consultancy,'email',None) and candidate.source == 'consultancy':
-                emails.add(candidate.job.assigned_to_consultancy.email)
+            if candidate.source == "consultancy":
+                # OLD (single)
+                add_user(getattr(job, "assigned_to_consultancy", None))
 
-        if role == "interviewer_1":
-            emails.add(candidate.job.mrf.interviewer_email_1)
+                # NEW (multiple)
+                if hasattr(job, "assigned_consultancies"):
+                    add_users(job.assigned_consultancies.all())
 
-        if role == "interviewer_2":
-            # emails.add(candidate.job.mrf.interviewer_email_2)
-            if candidate.job.mrf.technical_interviewers.exists():
-                for interviewer in candidate.job.mrf.technical_interviewers.all():
-                    if interviewer.email:
-                        emails.add(interviewer.email)
+        # =========================
+        # INTERNAL HR (STRICT ASSIGNED ONLY)
+        # =========================
+        elif role == "hr":
+            # OLD (single)
+            add_user(getattr(job, "assigned_to_internal_hr", None))
 
-        if role == "interviewer_3":
-            emails.add(candidate.job.mrf.interviewer_email_3)
+            # NEW (multiple)
+            if hasattr(job, "assigned_internal_hrs"):
+                add_users(job.assigned_internal_hrs.all())
 
-        if role == "interviewer_final":
-            emails.add(candidate.job.mrf.interviewer_email_final)
-        
-        if role == "interviewer_management_client":
-            emails.add(candidate.job.mrf.interviewer_email_management_client)
-                
-        # role_emails = list(
-        #         company.users.filter(role=role)
-        #         .exclude(email__isnull=True)
-        #         .exclude(email="")
-        #         .values_list("email", flat=True)
-        #     )
-        # for e in role_emails:
-        #         emails.add(e)
+        # =========================
+        # REFERRER (CANDIDATE BASED)
+        # =========================
+        elif role == "referrer":
+            if getattr(candidate, "referral_email", None):
+                add_email(candidate.referral_email)
+
+        # =========================
+        # INTERVIEWERS (SAFE)
+        # =========================
+        elif role == "interviewer_1":
+            if mrf:
+                add_email(getattr(mrf, "interviewer_email_1", None))
+
+        elif role == "interviewer_2":
+            if mrf and hasattr(mrf, "technical_interviewers"):
+                add_users(mrf.technical_interviewers.all())
+
+        elif role == "interviewer_3":
+            if mrf:
+                add_email(getattr(mrf, "interviewer_email_3", None))
+
+        elif role == "interviewer_final":
+            if mrf:
+                add_email(getattr(mrf, "interviewer_email_final", None))
+
+        elif role == "interviewer_management_client":
+            if mrf:
+                add_email(getattr(mrf, "interviewer_email_management_client", None))
+
+        # =========================
+        # COMPANY ROLE FALLBACK (RESTORED)
+        # =========================
+        elif role in ["admin", "hr_manager"]:
+            if company and hasattr(company, "users"):
+                users = company.users.filter(
+                    role=role
+                ).exclude(email__isnull=True).exclude(email="")
+
+                add_users(users)
+
     return list(emails)
 
 def get_cc_for_stage(candidate, stage):

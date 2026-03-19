@@ -135,7 +135,7 @@ class InterviewFeedbackListSerializer(serializers.ModelSerializer):
             "satbility_reliability_commitment",
             "hr_round_avg_rating","tech_round_avg_rating",
             "case_study_round_avg_rating","final_round_avg_rating",
-            "management_client_round_rating"
+            "management_client_round_rating","created_at"
         ]
 
 class InterviewFeedbackDetailSerializer(serializers.ModelSerializer):

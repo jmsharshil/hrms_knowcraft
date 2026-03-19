@@ -7,7 +7,7 @@ from django.db.models import Q, Count, F
 from django.utils import timezone
 from django.db import transaction
 
-from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLink,ReferralApplication,CareerApplication,LinkedInApplication,NaukriApplication,IndeedApplication
+from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLink,ReferralApplication,Application
 from .serializers import (
     JobListSerializer, JobDetailSerializer, JobCreateSerializer,
     JobUpdateSerializer, AssignToConsultancySerializer, CloseJobSerializer,
@@ -16,10 +16,8 @@ from .serializers import (
     JobApplicationLinkSerializer, JobApplicationLinkCreateSerializer,
     PublicJobApplicationCreateSerializer, AssignToInternalHRSerializer, AssignToBothSerializer,
     ReferralApplicationCreateSerializer,ReferralApplicationSerializer, ReferralToJobApplicationCreateSerializer,
-    CareerToJobApplicationCreateSerializer,LinkedInToJobApplicationCreateSerializer,
-    NaukriToJobApplicationCreateSerializer,IndeedToJobApplicationCreateSerializer,
-    CareerApplicationSerializer,LinkedInApplicationSerializer,NaukriApplicationSerializer,
-    IndeedApplicationSerializer,JobDropDownListSerializer
+    CareerToJobApplicationCreateSerializer,ApplicationSerializer,ApplicationCreateSerializer,
+    ApplicationToJobSerializer,JobDropDownListSerializer,AssignJobSerializer
 )
 from .permissions import (
     CanViewJobs, CanCreateJobs, CanEditJobs, CanAssignToConsultancy,
@@ -30,7 +28,7 @@ from accounts.models import User
 from rest_framework.parsers import MultiPartParser, FormParser
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import JobApplicationFilter
-from .utils import send_job_assignment_email
+from .utils import send_job_assignment_email,send_job_unassignment_email
 from mrf.utils import is_valid_uuid
 
 class JobViewSet(viewsets.ModelViewSet):
@@ -91,12 +89,12 @@ class JobViewSet(viewsets.ModelViewSet):
         elif user.role == 'hr':
             # Internal HR: only jobs assigned to them OR jobs they posted
             queryset = queryset.filter(
-                Q(assigned_to_internal_hr=user) | Q(posted_by=user)
+                Q(assigned_to_internal_hr=user) | Q(posted_by=user) | Q(assigned_internal_hrs=user)
             )
         elif user.role == 'consultancy':
             # Can see assigned jobs or publicly visible jobs
             queryset = queryset.filter(
-                Q(assigned_to_consultancy=user) | Q(visible_to_consultancy=True)
+                Q(assigned_to_consultancy=user) | Q(assigned_consultancies=user)
             )
         else:
             queryset = queryset.none()
@@ -117,9 +115,13 @@ class JobViewSet(viewsets.ModelViewSet):
         assigned_to_me = self.request.query_params.get('assigned_to_me')
         if assigned_to_me and assigned_to_me.lower() == 'true':
             if user.role == 'consultancy':
-                queryset = queryset.filter(assigned_to_consultancy=user)
+                queryset = queryset.filter(
+                    Q(assigned_consultancies=user) | Q(assigned_to_consultancy=user)
+                )
             elif user.role in ['hr', 'hr_manager']:
-                queryset = queryset.filter(assigned_to_internal_hr=user)
+                queryset = queryset.filter(
+                    Q(assigned_internal_hrs=user) | Q(assigned_to_internal_hr=user)
+                )
         
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:
@@ -136,7 +138,7 @@ class JobViewSet(viewsets.ModelViewSet):
         
         if hasattr(user, 'company'):
             queryset = queryset.filter(company=user.company)
-        return queryset
+        return queryset.distinct()
     
     def perform_create(self, serializer):
         user = self.request.user
@@ -154,12 +156,13 @@ class JobViewSet(viewsets.ModelViewSet):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        consultancy_id = serializer.validated_data['consultancy_id']
+        consultancy_ids = serializer.validated_data['consultancy_ids']
+
         notes = serializer.validated_data.get('notes', '')
         
         # Get consultancy user
         try:
-            consultancy = User.objects.get(id=consultancy_id, role='consultancy', is_active=True,company=request.user.company)
+            consultancies = User.objects.filter(id__in=consultancy_ids, role='consultancy', is_active=True,company=request.user.company)
         except User.DoesNotExist:
             return Response(
                 {'error': 'Consultancy user not found'},
@@ -167,11 +170,11 @@ class JobViewSet(viewsets.ModelViewSet):
             )
         
         # Check if job can be assigned
-        if not job.can_be_assigned_to_consultancy():
-            return Response(
-                {'error': 'Job cannot be assigned. It may be in wrong status or inactive'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        job.assigned_consultancies.add(*consultancies)
+
+        # backward compatibility
+        if not job.assigned_to_consultancy:
+            job.assigned_to_consultancy = consultancies.first()
         
         # Check if reassigning
         action = 'assigned'
@@ -179,26 +182,27 @@ class JobViewSet(viewsets.ModelViewSet):
             action = 'reassigned'
         
         # Update job
-        job.assigned_to_consultancy = consultancy
+        # job.assigned_to_consultancy = consultancy
         job.assigned_at = timezone.now()
         job.assigned_by = request.user
         job.status = 'assigned_to_consultancy'
-        job.visible_to_consultancy = True
+        # job.visible_to_consultancy = True
         job.save()
         
         # Create history record
-        JobAssignmentHistory.objects.create(
-            job=job,
-            action=action,
-            consultancy=consultancy,
-            performed_by=request.user,
-            notes=notes
-        )
-        self._create_consultancy_link(job, consultancy)
-        send_job_assignment_email(job.assigned_to_consultancy,job,request.user)
+        for consultancy in consultancies:
+            JobAssignmentHistory.objects.create(
+                job=job,
+                action='assigned',
+                consultancy=consultancy,
+                performed_by=request.user,
+                notes=notes
+            )
+            self._create_consultancy_link(job, consultancy)
+            send_job_assignment_email(consultancy, job, request.user)
         serializer = JobDetailSerializer(job, context={'request': request})
         return Response({
-            'message': f'Job successfully assigned to {consultancy.name}',
+            'message': f'Job successfully assigned to {", ".join([c.name for c in consultancies])}',
             'data': serializer.data
         }, status=status.HTTP_200_OK)
     
@@ -246,47 +250,49 @@ class JobViewSet(viewsets.ModelViewSet):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        internal_hr_id = serializer.validated_data['internal_hr_id']
+        internal_hr_ids = serializer.validated_data['internal_hr_ids']
         notes = serializer.validated_data.get('notes', '')
 
         # get user
         try:
-            internal_hr = User.objects.get(id=internal_hr_id,is_active=True,company=request.user.company)
+            internal_hrs = User.objects.filter(id__in=internal_hr_ids,is_active=True,company=request.user.company)
         except User.DoesNotExist:
             return Response({'error': 'Internal HR user not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        # check assignable
-        if not job.can_be_assigned_to_internal_hr():
-            return Response({'error': 'Job cannot be assigned. It may be in wrong status or inactive'},
-                            status=status.HTTP_400_BAD_REQUEST)
+        job.assigned_internal_hrs.add(*internal_hrs)
+
+        if not job.assigned_to_internal_hr:
+            job.assigned_to_internal_hr = internal_hrs.first()
 
         action = 'assigned_internal'
         if job.assigned_to_internal_hr:
             action = 'reassigned_internal'
 
         # Update job
-        job.assigned_to_internal_hr = internal_hr
+        # job.assigned_to_internal_hr = internal_hr
         job.assigned_internal_at = timezone.now()
         job.assigned_internal_by = request.user
-        job.status = 'assigned_to_internal_hr'
+        # job.status = 'assigned_to_internal_hr'
+        if job.assigned_consultancies.exists():
+            job.status = 'assigned_to_both'
+        else:
+            job.status = 'assigned_to_internal_hr'
         # Optionally: leave visible_to_consultancy unchanged; you might want to keep consultancy visibility false by default
         job.save()
 
         # Create history record
-        JobAssignmentHistory.objects.create(
-            job=job,
-            action=action,
-            consultancy=job.assigned_to_internal_hr,  # note: consultancy FK reused for history; if you prefer create new field change model
-            performed_by=request.user,
-            notes=notes,
-            old_value='',
-            new_value=str(internal_hr.id)
-        )
-
-        send_job_assignment_email(job.assigned_to_internal_hr,job,request.user)
+        for hr in internal_hrs:
+            JobAssignmentHistory.objects.create(
+                job=job,
+                action='assigned_internal',
+                consultancy=hr,
+                performed_by=request.user,
+                notes=notes
+            )
+            send_job_assignment_email(hr, job, request.user)
         serializer = JobDetailSerializer(job, context={'request': request})
         return Response({
-            'message': f'Job successfully assigned to internal HR {internal_hr.name}',
+            'message': f'Job successfully assigned to internal HRs {", ".join([i.name for i in internal_hrs])}',
             'data': serializer.data
         }, status=status.HTTP_200_OK)
         
@@ -332,44 +338,58 @@ class JobViewSet(viewsets.ModelViewSet):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        consultancy_id = serializer.validated_data['consultancy_id']
-        internal_hr_id = serializer.validated_data['internal_hr_id']
+        # consultancy_id = serializer.validated_data['consultancy_id']
+        # internal_hr_id = serializer.validated_data['internal_hr_id']
         notes = serializer.validated_data.get('notes', '') or ''
 
         # --- Get consultancy user ---
-        try:
-            consultancy = User.objects.get(
-                id=consultancy_id,
-                role='consultancy',
-                company=request.user.company,
-                is_active=True
-            )
-        except User.DoesNotExist:
-            return Response(
-                {'error': 'Consultancy user not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        # try:
+        #     consultancy = User.objects.get(
+        #         id=consultancy_id,
+        #         role='consultancy',
+        #         company=request.user.company,
+        #         is_active=True
+        #     )
+        # except User.DoesNotExist:
+        #     return Response(
+        #         {'error': 'Consultancy user not found'},
+        #         status=status.HTTP_404_NOT_FOUND
+        #     )
 
-        # --- Get internal HR user ---
-        try:
-            internal_hr = User.objects.get(
-                id=internal_hr_id,
-                role__in=['hr', 'hr_manager'],
-                company=request.user.company,
-                is_active=True
-            )
-        except User.DoesNotExist:
-            return Response(
-                {'error': 'Internal HR user not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        # # --- Get internal HR user ---
+        # try:
+        #     internal_hr = User.objects.get(
+        #         id=internal_hr_id,
+        #         role__in=['hr', 'hr_manager'],
+        #         company=request.user.company,
+        #         is_active=True
+        #     )
+        # except User.DoesNotExist:
+        #     return Response(
+        #         {'error': 'Internal HR user not found'},
+        #         status=status.HTTP_404_NOT_FOUND
+        #     )
 
-        # --- Check if job can be assigned (reuse your existing logic) ---
-        if not (job.can_be_assigned_to_consultancy() and job.can_be_assigned_to_internal_hr()):
-            return Response(
-                {'error': 'Job cannot be assigned. It may be in wrong status or inactive'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # # --- Check if job can be assigned (reuse your existing logic) ---
+        # if not (job.can_be_assigned_to_consultancy() and job.can_be_assigned_to_internal_hr()):
+        #     return Response(
+        #         {'error': 'Job cannot be assigned. It may be in wrong status or inactive'},
+        #         status=status.HTTP_400_BAD_REQUEST
+        #     )
+        consultancy_ids = serializer.validated_data.get('consultancy_ids', [])
+        internal_hr_ids = serializer.validated_data.get('internal_hr_ids', [])
+
+        consultancies = User.objects.filter(id__in=consultancy_ids, role='consultancy', company=request.user.company)
+        internal_hrs = User.objects.filter(id__in=internal_hr_ids, role__in=['hr', 'hr_manager'], company=request.user.company)
+
+        job.assigned_consultancies.add(*consultancies)
+        job.assigned_internal_hrs.add(*internal_hrs)
+
+        if not job.assigned_to_consultancy and consultancies.exists():
+            job.assigned_to_consultancy = consultancies.first()
+
+        if not job.assigned_to_internal_hr and internal_hrs.exists():
+            job.assigned_to_internal_hr = internal_hrs.first()
 
         # Determine history actions
         consultancy_action = 'assigned'
@@ -383,16 +403,16 @@ class JobViewSet(viewsets.ModelViewSet):
         # --- Update job fields ---
         now = timezone.now()
 
-        job.assigned_to_consultancy = consultancy
+        # job.assigned_to_consultancy = consultancy
         job.assigned_at = now
         job.assigned_by = request.user
 
-        job.assigned_to_internal_hr = internal_hr
+        # job.assigned_to_internal_hr = internal_hr
         job.assigned_internal_at = now
         job.assigned_internal_by = request.user
 
         # Make it visible for consultancy
-        job.visible_to_consultancy = True
+        # job.visible_to_consultancy = True
 
         # You can choose status; 'in_progress' makes sense when both are working on it
         job.status = 'assigned_to_both'
@@ -400,32 +420,30 @@ class JobViewSet(viewsets.ModelViewSet):
         job.save()
 
         # --- Create history records (no change to ACTION_CHOICES) ---
-        JobAssignmentHistory.objects.create(
-            job=job,
-            action=consultancy_action,
-            consultancy=consultancy,
-            performed_by=request.user,
-            notes=notes,
-            old_value='',
-            new_value=str(consultancy.id)
-        )
+        for consultancy in consultancies:
+            JobAssignmentHistory.objects.create(
+                job=job,
+                action='assigned',
+                consultancy=consultancy,
+                performed_by=request.user,
+                notes=notes
+            )
+            self._create_consultancy_link(job, consultancy)
+            send_job_assignment_email(consultancy, job, request.user)
 
-        JobAssignmentHistory.objects.create(
-            job=job,
-            action=internal_action,
-            consultancy=internal_hr,  # same reused field as in your existing code
-            performed_by=request.user,
-            notes=notes,
-            old_value='',
-            new_value=str(internal_hr.id)
-        )
-        self._create_consultancy_link(job, consultancy)
-        send_job_assignment_email(job.assigned_to_internal_hr,job,request.user)
-        send_job_assignment_email(job.assigned_to_consultancy,job,request.user)
+        for hr in internal_hrs:
+            JobAssignmentHistory.objects.create(
+                job=job,
+                action='assigned_internal',
+                consultancy=hr,
+                performed_by=request.user,
+                notes=notes
+            )
+            send_job_assignment_email(hr, job, request.user)
         job_data = JobDetailSerializer(job, context={'request': request}).data
         return Response(
             {
-                'message': f'Job successfully assigned to consultancy {consultancy.name} and internal HR {internal_hr.name}',
+                'message': f'Job successfully assigned to consultancies {", ".join([c.name for c in consultancies])} and internal HRs {", ".join([h.name for h in internal_hrs])}',
                 'data': job_data
             },
             status=status.HTTP_200_OK
@@ -570,7 +588,7 @@ class JobViewSet(viewsets.ModelViewSet):
                 queryset = Job.objects.none()
         elif user.role == 'consultancy':
             queryset = Job.objects.filter(
-                Q(assigned_to_consultancy=user) | Q(visible_to_consultancy=True)
+                Q(assigned_to_consultancy=user) | Q(assigned_consultancies=user)
             )
         else:
             queryset = Job.objects.none()
@@ -646,6 +664,143 @@ class JobViewSet(viewsets.ModelViewSet):
             expires_at=timezone.now() + timedelta(days=60)
         )
 
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanAssignToConsultancy])
+    def assign(self, request, pk=None):
+        job = self.get_object()
+        serializer = AssignJobSerializer(data=request.data, context={'request': request})
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        consultancy_ids = serializer.validated_data.get('consultancy_ids', [])
+        internal_hr_ids = serializer.validated_data.get('internal_hr_ids', [])
+        notes = serializer.validated_data.get('notes', '') or ''
+
+        consultancies = User.objects.filter(id__in=consultancy_ids)
+        internal_hrs = User.objects.filter(id__in=internal_hr_ids)
+
+        now = timezone.now()
+
+        # =========================
+        # ✅ CONSULTANCY ASSIGNMENT
+        # =========================
+        existing_consultancies = set(job.assigned_consultancies.all())
+        new_consultancies = set(consultancies)
+
+        to_add_consultancies = new_consultancies - existing_consultancies
+        to_remove_consultancies = existing_consultancies - new_consultancies
+
+        # ➕ Add new consultancies
+        if to_add_consultancies:
+            job.assigned_consultancies.add(*to_add_consultancies)
+
+            for consultancy in to_add_consultancies:
+                JobAssignmentHistory.objects.create(
+                    job=job,
+                    action='assigned',
+                    consultancy=consultancy,
+                    performed_by=request.user,
+                    notes=notes
+                )
+                self._create_consultancy_link(job, consultancy)
+                send_job_assignment_email(consultancy, job, request.user)
+
+        # ➖ Remove old consultancies
+        if to_remove_consultancies:
+            job.assigned_consultancies.remove(*to_remove_consultancies)
+
+            for consultancy in to_remove_consultancies:
+                job.application_links.filter(
+                    created_by=consultancy,
+                    is_active=True
+                ).update(is_active=False)
+
+                JobAssignmentHistory.objects.create(
+                    job=job,
+                    action='unassigned',
+                    consultancy=consultancy,
+                    performed_by=request.user,
+                    notes='Auto removed due to reassignment'
+                )
+                send_job_unassignment_email(consultancy, job, request.user)
+
+        # ✅ Update fallback FK
+        if job.assigned_consultancies.exists():
+            job.assigned_to_consultancy = job.assigned_consultancies.first()
+            # job.visible_to_consultancy = True
+        else:
+            job.assigned_to_consultancy = None
+            # job.visible_to_consultancy = False
+
+        if consultancy_ids:  # only update timestamps if request had data
+            job.assigned_at = now
+            job.assigned_by = request.user
+
+        # =========================
+        # ✅ INTERNAL HR ASSIGNMENT
+        # =========================
+        existing_hrs = set(job.assigned_internal_hrs.all())
+        new_hrs = set(internal_hrs)
+
+        to_add_hrs = new_hrs - existing_hrs
+        to_remove_hrs = existing_hrs - new_hrs
+
+        # ➕ Add new HRs
+        if to_add_hrs:
+            job.assigned_internal_hrs.add(*to_add_hrs)
+
+            for hr in to_add_hrs:
+                JobAssignmentHistory.objects.create(
+                    job=job,
+                    action='assigned_internal',
+                    consultancy=hr,
+                    performed_by=request.user,
+                    notes=notes
+                )
+                send_job_assignment_email(hr, job, request.user)
+
+        # ➖ Remove old HRs
+        if to_remove_hrs:
+            job.assigned_internal_hrs.remove(*to_remove_hrs)
+
+            for hr in to_remove_hrs:
+                JobAssignmentHistory.objects.create(
+                    job=job,
+                    action='unassigned_internal',
+                    consultancy=hr,
+                    performed_by=request.user,
+                    notes='Auto removed due to reassignment'
+                )
+                send_job_unassignment_email(hr, job, request.user)
+
+        # ✅ Update fallback FK
+        if job.assigned_internal_hrs.exists():
+            job.assigned_to_internal_hr = job.assigned_internal_hrs.first()
+        else:
+            job.assigned_to_internal_hr = None
+
+        if internal_hr_ids:
+            job.assigned_internal_at = now
+            job.assigned_internal_by = request.user
+
+        # =========================
+        # ✅ STATUS LOGIC
+        # =========================
+        if job.assigned_consultancies.exists() and job.assigned_internal_hrs.exists():
+            job.status = 'assigned_to_both'
+        elif job.assigned_consultancies.exists():
+            job.status = 'assigned_to_consultancy'
+        elif job.assigned_internal_hrs.exists():
+            job.status = 'assigned_to_internal_hr'
+        else:
+            job.status = 'open'
+
+        job.save()
+
+        return Response({
+            'message': 'Job assignment updated successfully',
+            'data': JobDetailSerializer(job, context={'request': request}).data
+        }, status=status.HTTP_200_OK)
 
 class JobApplicationLinkViewSet(viewsets.ModelViewSet):
     """ViewSet for managing Job Application Links"""
@@ -690,7 +845,7 @@ class JobApplicationLinkViewSet(viewsets.ModelViewSet):
         
         if hasattr(user, 'company'):
             queryset = queryset.filter(job__company=user.company)
-        return queryset
+        return queryset.distinct()
     
     @action(detail=True, methods=['post'])
     def toggle_active(self, request, pk=None):
@@ -866,7 +1021,7 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
                 Q(candidate_phone__icontains=search)
             )
         queryset = queryset.order_by(F('match_score').desc(nulls_last=True), '-created_at')
-        return queryset
+        return queryset.distinct()
     
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def public_apply(self, request):
@@ -990,10 +1145,7 @@ class ReferralApplicationViewSet(viewsets.ModelViewSet):
 from .serializers import (
     CareersJobListSerializer,
     CareersJobDetailSerializer,
-    CareersApplicationCreateSerializer,
-    LinkedApplicationCreateSerializer,
-    NaukriApplicationCreateSerializer,
-    IndeedApplicationCreateSerializer
+    CareersApplicationCreateSerializer
 )
 from django.shortcuts import get_object_or_404
 
@@ -1068,8 +1220,8 @@ class CareersViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['post'])
     def create_job_application_from_career(self, request, *args, **kwargs):
         """
-        Custom action to create a JobApplication from an existing CareerApplication.
-        Requires career_application_id and job_id in the request.
+        Custom action to create a JobApplication from an existing Application.
+        Requires application_id and job_id in the request.
         """
         # Use the ReferralToJobApplicationCreateSerializer
         serializer = CareerToJobApplicationCreateSerializer(data=request.data)
@@ -1090,312 +1242,9 @@ class CareersViewSet(viewsets.GenericViewSet):
         """
         List all resumes uploaded from Careers page
         """
-        queryset = CareerApplication.objects.all().order_by('-created_at')
+        queryset = Application.objects.filter(source='career_page').order_by('-created_at')
 
-        serializer = CareerApplicationSerializer(
-            queryset,
-            many=True,
-            context={'request': request}
-        )
-
-        return Response(serializer.data)
-
-#LinkedIn
-class LinkedInViewSet(viewsets.GenericViewSet):
-    """
-    ViewSet for LinkedIn APIs
-    - List active jobs
-    - Retrieve job detail
-    - Apply for a job (resume upload)
-    """
-    queryset = Job.objects.filter(is_active=True)
-    permission_classes = [AllowAny]
-
-    def get_serializer_class(self):
-        if self.action == 'list':
-            return CareersJobListSerializer
-        elif self.action == 'retrieve':
-            return CareersJobDetailSerializer
-        elif self.action == 'apply':
-            return LinkedApplicationCreateSerializer
-        return CareersJobListSerializer
-
-    # GET /api/likedin/
-    def list(self, request):
-        queryset = self.filter_queryset(self.get_queryset())
-
-        department_filter = self.request.query_params.get('department')
-        if department_filter and department_filter != '' and is_valid_uuid(department_filter):
-            queryset = queryset.filter(department_id=department_filter)
-
-        designation_filter = self.request.query_params.get('designation')
-        if designation_filter and designation_filter != '' and is_valid_uuid(designation_filter):
-            queryset = queryset.filter(designation_id=designation_filter)
-        
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-    # GET /api/linkedin/{id}/
-    def retrieve(self, request, pk=None):
-        job = get_object_or_404(self.get_queryset(), pk=pk)
-        serializer = self.get_serializer(job)
-        return Response(serializer.data)
-
-    # POST /api/linkedin/apply/
-    @action(detail=False, methods=['post'], url_path='apply')
-    def apply(self, request):
-        """
-        Apply to a job by uploading one or multiple resumes.
-        Required:
-            - job_id
-            - resumes (list of files)
-        """
-        serializer = self.get_serializer(
-            data=request.data,
-            context={'request': request}
-        )
-
-        serializer.is_valid(raise_exception=True)
-        applications = serializer.save()
-
-        return Response(
-            {
-                "message": "Application(s) submitted successfully.",
-                "applications_created": len(applications)
-            },
-            status=status.HTTP_201_CREATED
-        )
-    
-    @action(detail=False, methods=['post'])
-    def create_job_application_from_linkedin(self, request, *args, **kwargs):
-        """
-        Custom action to create a JobApplication from an existing LinkedInApplication.
-        Requires linkedin_application_id and job_id in the request.
-        """
-        # Use the ReferralToJobApplicationCreateSerializer
-        serializer = LinkedInToJobApplicationCreateSerializer(data=request.data)
-
-        if serializer.is_valid():
-            job_application = serializer.save()
-            return Response(
-                {
-                    "message": "Job application created successfully",
-                    "job_application_id": str(job_application.id)
-                },
-                status=status.HTTP_201_CREATED
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=False, methods=['get'], url_path='applications')
-    def applications(self, request):
-        """
-        List all resumes uploaded from LinkedIn
-        """
-        queryset = LinkedInApplication.objects.all().order_by('-created_at')
-
-        serializer = LinkedInApplicationSerializer(
-            queryset,
-            many=True,
-            context={'request': request}
-        )
-
-        return Response(serializer.data)
-
-#Naukri
-class NaukriViewSet(viewsets.GenericViewSet):
-    """
-    ViewSet for Naukri APIs
-    - List active jobs
-    - Retrieve job detail
-    - Apply for a job (resume upload)
-    """
-    queryset = Job.objects.filter(is_active=True)
-    permission_classes = [AllowAny]
-
-    def get_serializer_class(self):
-        if self.action == 'list':
-            return CareersJobListSerializer
-        elif self.action == 'retrieve':
-            return CareersJobDetailSerializer
-        elif self.action == 'apply':
-            return NaukriApplicationCreateSerializer
-        return CareersJobListSerializer
-
-    # GET /api/naukri/
-    def list(self, request):
-        queryset = self.filter_queryset(self.get_queryset())
-
-        department_filter = self.request.query_params.get('department')
-        if department_filter and department_filter != '' and is_valid_uuid(department_filter):
-            queryset = queryset.filter(department_id=department_filter)
-
-        designation_filter = self.request.query_params.get('designation')
-        if designation_filter and designation_filter != '' and is_valid_uuid(designation_filter):
-            queryset = queryset.filter(designation_id=designation_filter)
-        
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-    # GET /api/naukri/{id}/
-    def retrieve(self, request, pk=None):
-        job = get_object_or_404(self.get_queryset(), pk=pk)
-        serializer = self.get_serializer(job)
-        return Response(serializer.data)
-
-    # POST /api/naukri/apply/
-    @action(detail=False, methods=['post'], url_path='apply')
-    def apply(self, request):
-        """
-        Apply to a job by uploading one or multiple resumes.
-        Required:
-            - job_id
-            - resumes (list of files)
-        """
-        serializer = self.get_serializer(
-            data=request.data,
-            context={'request': request}
-        )
-
-        serializer.is_valid(raise_exception=True)
-        applications = serializer.save()
-
-        return Response(
-            {
-                "message": "Application(s) submitted successfully.",
-                "applications_created": len(applications)
-            },
-            status=status.HTTP_201_CREATED
-        )
-    
-    @action(detail=False, methods=['post'])
-    def create_job_application_from_naukri(self, request, *args, **kwargs):
-        """
-        Custom action to create a JobApplication from an existing NaukriApplication.
-        Requires naukri_application_id and job_id in the request.
-        """
-        # Use the ReferralToJobApplicationCreateSerializer
-        serializer = NaukriToJobApplicationCreateSerializer(data=request.data)
-
-        if serializer.is_valid():
-            job_application = serializer.save()
-            return Response(
-                {
-                    "message": "Job application created successfully",
-                    "job_application_id": str(job_application.id)
-                },
-                status=status.HTTP_201_CREATED
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=False, methods=['get'], url_path='applications')
-    def applications(self, request):
-        """
-        List all resumes uploaded from Naukri
-        """
-        queryset = NaukriApplication.objects.all().order_by('-created_at')
-
-        serializer = NaukriApplicationSerializer(
-            queryset,
-            many=True,
-            context={'request': request}
-        )
-
-        return Response(serializer.data)
-    
-#Indeed
-class IndeedViewSet(viewsets.GenericViewSet):
-    """
-    ViewSet for Indeed APIs
-    - List active jobs
-    - Retrieve job detail
-    - Apply for a job (resume upload)
-    """
-    queryset = Job.objects.filter(is_active=True)
-    permission_classes = [AllowAny]
-
-    def get_serializer_class(self):
-        if self.action == 'list':
-            return CareersJobListSerializer
-        elif self.action == 'retrieve':
-            return CareersJobDetailSerializer
-        elif self.action == 'apply':
-            return IndeedApplicationCreateSerializer
-        return CareersJobListSerializer
-
-    # GET /api/indeed/
-    def list(self, request):
-        queryset = self.filter_queryset(self.get_queryset())
-
-        department_filter = self.request.query_params.get('department')
-        if department_filter and department_filter != '' and is_valid_uuid(department_filter):
-            queryset = queryset.filter(department_id=department_filter)
-
-        designation_filter = self.request.query_params.get('designation')
-        if designation_filter and designation_filter != '' and is_valid_uuid(designation_filter):
-            queryset = queryset.filter(designation_id=designation_filter)
-        
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-    # GET /api/indeed/{id}/
-    def retrieve(self, request, pk=None):
-        job = get_object_or_404(self.get_queryset(), pk=pk)
-        serializer = self.get_serializer(job)
-        return Response(serializer.data)
-
-    # POST /api/indeed/apply/
-    @action(detail=False, methods=['post'], url_path='apply')
-    def apply(self, request):
-        """
-        Apply to a job by uploading one or multiple resumes.
-        Required:
-            - job_id
-            - resumes (list of files)
-        """
-        serializer = self.get_serializer(
-            data=request.data,
-            context={'request': request}
-        )
-
-        serializer.is_valid(raise_exception=True)
-        applications = serializer.save()
-
-        return Response(
-            {
-                "message": "Application(s) submitted successfully.",
-                "applications_created": len(applications)
-            },
-            status=status.HTTP_201_CREATED
-        )
-    
-    @action(detail=False, methods=['post'])
-    def create_job_application_from_indeed(self, request, *args, **kwargs):
-        """
-        Custom action to create a JobApplication from an existing IndeedApplication.
-        Requires indeed_application_id and job_id in the request.
-        """
-        # Use the ReferralToJobApplicationCreateSerializer
-        serializer = IndeedToJobApplicationCreateSerializer(data=request.data)
-
-        if serializer.is_valid():
-            job_application = serializer.save()
-            return Response(
-                {
-                    "message": "Job application created successfully",
-                    "job_application_id": str(job_application.id)
-                },
-                status=status.HTTP_201_CREATED
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    @action(detail=False, methods=['get'], url_path='applications')
-    def applications(self, request):
-        """
-        List all resumes uploaded from Indeed
-        """
-        queryset = IndeedApplication.objects.all().order_by('-created_at')
-
-        serializer = IndeedApplicationSerializer(
+        serializer = ApplicationSerializer(
             queryset,
             many=True,
             context={'request': request}
@@ -1443,12 +1292,12 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
         elif user.role == 'hr':
             # Internal HR: only jobs assigned to them OR jobs they posted
             queryset = queryset.filter(
-                Q(assigned_to_internal_hr=user) | Q(posted_by=user)
+                Q(assigned_to_internal_hr=user) | Q(posted_by=user) | Q(assigned_internal_hrs=user)
             )
         elif user.role == 'consultancy':
             # Can see assigned jobs or publicly visible jobs
             queryset = queryset.filter(
-                Q(assigned_to_consultancy=user) | Q(visible_to_consultancy=True)
+                Q(assigned_to_consultancy=user) | Q(assigned_consultancies=user)
             )
         else:
             queryset = queryset.none()
@@ -1456,4 +1305,79 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
         if hasattr(user, 'company'):
             queryset = queryset.filter(company=user.company)
         
-        return queryset.filter(is_active=True).order_by('job_title')
+        return queryset.filter(is_active=True).order_by('job_title').distinct()
+    
+class ApplicationViewSet(viewsets.GenericViewSet):
+    queryset = Job.objects.filter(is_active=True)
+    permission_classes = [AllowAny]
+
+    def get_serializer_class(self):
+        if self.action == 'apply':
+            return ApplicationCreateSerializer
+        elif self.action == 'convert':
+            return ApplicationToJobSerializer
+        return CareersJobListSerializer
+
+    def list(self, request):
+        queryset = self.get_queryset()
+        serializer = CareersJobListSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        job = get_object_or_404(self.get_queryset(), pk=pk)
+        serializer = CareersJobDetailSerializer(job)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'])
+    def apply(self, request):
+        """
+        POST /apply/
+        body:
+        {
+            "job_id": "...",
+            "source": "linkedin",
+            "resumes": [...]
+        }
+        """
+        serializer = self.get_serializer(
+            data=request.data,
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        apps = serializer.save()
+
+        return Response({
+            "message": "Applications submitted",
+            "count": len(apps)
+        })
+
+    @action(detail=False, methods=['post'])
+    def convert(self, request):
+        """
+        Convert Application → JobApplication
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        job_app = serializer.save()
+
+        return Response({
+            "message": "Converted successfully",
+            "job_application_id": str(job_app.id)
+        })
+
+    @action(detail=False, methods=['get'])
+    def applications(self, request):
+        source = request.query_params.get('source')
+
+        queryset = Application.objects.all()
+
+        if source:
+            queryset = queryset.filter(source=source)
+
+        serializer = ApplicationSerializer(
+            queryset,
+            many=True,
+            context={'request': request}
+        )
+        return Response(serializer.data)

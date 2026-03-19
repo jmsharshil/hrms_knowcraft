@@ -159,7 +159,7 @@ class InterviewFeedbackListCreateAPIView(APIView):
         if interview_round:
             queryset = queryset.filter(interview_round=interview_round)
 
-        queryset = queryset.order_by("-created_at")
+        queryset = queryset.order_by("created_at")
 
         serializer = InterviewFeedbackListSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -210,33 +210,43 @@ class InterviewFeedbackListCreateAPIView(APIView):
             if new_status == 'interview_done_1':
                 if application.job.mrf.interviewer_email_2:
                     new_status = 'interview_next_2'
+                    application.round_name = "technical_round"
                 elif application.job.mrf.interviewer_email_3:
                     new_status = 'interview_next_3'
+                    application.round_name = "case_study_round"
                 elif application.job.mrf.interviewer_email_final:
                     new_status = 'interview_next_final'
+                    application.round_name = "final_round"
                 elif application.job.mrf.interviewer_email_management_client:
                     new_status = 'interview_next_management_client'
+                    application.round_name = "management_client_round"
                 else:
                     new_status = 'consolidated_result_review'
             elif new_status == 'interview_done_2':
                 if application.job.mrf.interviewer_email_3:
                     new_status = 'interview_next_3'
+                    application.round_name = "case_study_round"
                 elif application.job.mrf.interviewer_email_final:
                     new_status = 'interview_next_final'
+                    application.round_name = "final_round"
                 elif application.job.mrf.interviewer_email_management_client:
                     new_status = 'interview_next_management_client'
+                    application.round_name = "management_client_round"
                 else:
                     new_status = 'consolidated_result_review'
             elif new_status == 'interview_done_3':
                 if application.job.mrf.interviewer_email_final:
                     new_status = 'interview_next_final'
+                    application.round_name = "final_round"
                 elif application.job.mrf.interviewer_email_management_client:
                     new_status = 'interview_next_management_client'
+                    application.round_name = "management_client_round"
                 else:
                     new_status = 'consolidated_result_review'
             elif new_status == 'interview_done_final':
                 if application.job.mrf.interviewer_email_management_client:
                     new_status = 'interview_next_management_client'
+                    application.round_name = "management_client_round"
                 else:
                     new_status = 'consolidated_result_review'
             elif new_status == 'interview_done_management_client':
@@ -252,6 +262,7 @@ class InterviewFeedbackListCreateAPIView(APIView):
             }
             new_status = reject_mapping.get(new_status, new_status)
 
+        application.save()
         return new_status
 
 class InterviewFeedbackDetailAPIView(APIView):
