@@ -114,7 +114,7 @@ def interview_feedback_reminder_task(booking_id):
         interview_date=booking.start.date()
     ).exists()
 
-    if feedback_exists:
+    if feedback_exists or round_name == 'Interview':
         logger.info(f"Feedback already submitted for Booking {booking.id}. No reminder sent.")
         return
 
