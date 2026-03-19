@@ -3,6 +3,11 @@ from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLin
 from accounts.models import User
 from django.db import IntegrityError, transaction
 
+class SimpleUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'name', 'email']
+
 class JobListSerializer(serializers.ModelSerializer):
     """Serializer for job list view"""
     
@@ -24,7 +29,18 @@ class JobListSerializer(serializers.ModelSerializer):
     applications_count = serializers.SerializerMethodField()
     remaining_positions = serializers.SerializerMethodField()
     job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
-    
+    assigned_consultancies_details = SimpleUserSerializer(
+        source='assigned_consultancies',
+        many=True,
+        read_only=True
+    )
+
+    assigned_internal_hrs_details = SimpleUserSerializer(
+        source='assigned_internal_hrs',
+        many=True,
+        read_only=True
+    )
+
     class Meta:
         model = Job
         fields = [
@@ -35,7 +51,8 @@ class JobListSerializer(serializers.ModelSerializer):
             'assigned_to_consultancy', 'assigned_to_name',
             'assigned_to_internal_hr', 'assigned_internal_name',
             'expected_closure_date', 'created_at', 'mrf_requisition_no',
-            'applications_count', 'is_active', 'visible_to_consultancy'
+            'applications_count', 'is_active', 'visible_to_consultancy',
+            'assigned_consultancies_details','assigned_internal_hrs_details'
         ]
     
     def get_applications_count(self, obj):
@@ -97,6 +114,19 @@ class JobDetailSerializer(serializers.ModelSerializer):
     application_links_count = serializers.SerializerMethodField()
     remaining_positions = serializers.SerializerMethodField()
     job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
+
+    assigned_consultancies_details = SimpleUserSerializer(
+        source='assigned_consultancies',
+        many=True,
+        read_only=True
+    )
+
+    assigned_internal_hrs_details = SimpleUserSerializer(
+        source='assigned_internal_hrs',
+        many=True,
+        read_only=True
+    )
+
     class Meta:
         model = Job
         fields = '__all__'
