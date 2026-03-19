@@ -710,6 +710,11 @@ class JobViewSet(viewsets.ModelViewSet):
             job.assigned_consultancies.remove(*to_remove_consultancies)
 
             for consultancy in to_remove_consultancies:
+                job.application_links.filter(
+                    created_by=consultancy,
+                    is_active=True
+                ).update(is_active=False)
+
                 JobAssignmentHistory.objects.create(
                     job=job,
                     action='unassigned',
