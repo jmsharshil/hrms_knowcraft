@@ -94,7 +94,7 @@ class JobViewSet(viewsets.ModelViewSet):
         elif user.role == 'consultancy':
             # Can see assigned jobs or publicly visible jobs
             queryset = queryset.filter(
-                Q(assigned_to_consultancy=user) | Q(visible_to_consultancy=True) | Q(assigned_consultancies=user)
+                Q(assigned_to_consultancy=user) | Q(assigned_consultancies=user)
             )
         else:
             queryset = queryset.none()
@@ -186,7 +186,7 @@ class JobViewSet(viewsets.ModelViewSet):
         job.assigned_at = timezone.now()
         job.assigned_by = request.user
         job.status = 'assigned_to_consultancy'
-        job.visible_to_consultancy = True
+        # job.visible_to_consultancy = True
         job.save()
         
         # Create history record
@@ -412,7 +412,7 @@ class JobViewSet(viewsets.ModelViewSet):
         job.assigned_internal_by = request.user
 
         # Make it visible for consultancy
-        job.visible_to_consultancy = True
+        # job.visible_to_consultancy = True
 
         # You can choose status; 'in_progress' makes sense when both are working on it
         job.status = 'assigned_to_both'
@@ -588,7 +588,7 @@ class JobViewSet(viewsets.ModelViewSet):
                 queryset = Job.objects.none()
         elif user.role == 'consultancy':
             queryset = Job.objects.filter(
-                Q(assigned_to_consultancy=user) | Q(visible_to_consultancy=True) | Q(assigned_consultancies=user)
+                Q(assigned_to_consultancy=user) | Q(assigned_consultancies=user)
             )
         else:
             queryset = Job.objects.none()
@@ -722,10 +722,10 @@ class JobViewSet(viewsets.ModelViewSet):
         # ✅ Update fallback FK
         if job.assigned_consultancies.exists():
             job.assigned_to_consultancy = job.assigned_consultancies.first()
-            job.visible_to_consultancy = True
+            # job.visible_to_consultancy = True
         else:
             job.assigned_to_consultancy = None
-            job.visible_to_consultancy = False
+            # job.visible_to_consultancy = False
 
         if consultancy_ids:  # only update timestamps if request had data
             job.assigned_at = now
@@ -1292,7 +1292,7 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
         elif user.role == 'consultancy':
             # Can see assigned jobs or publicly visible jobs
             queryset = queryset.filter(
-                Q(assigned_to_consultancy=user) | Q(visible_to_consultancy=True) | Q(assigned_consultancies=user)
+                Q(assigned_to_consultancy=user) | Q(assigned_consultancies=user)
             )
         else:
             queryset = queryset.none()
