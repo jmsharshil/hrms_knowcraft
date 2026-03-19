@@ -509,7 +509,7 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
             if link.job.status not in allowed_statuses:
                 # relax check if the link was created by an internal HR user
                 creator = getattr(link, 'created_by', None)
-                if not (creator and getattr(creator, 'role', None) in ['hr', 'hr_manager']):
+                if not (creator and getattr(creator, 'role', None) in ['hr', 'hr_manager', 'admin']):
                     raise serializers.ValidationError("This job is not accepting applications")
 
             self.context['application_link'] = link
@@ -678,7 +678,7 @@ class AssignToInternalHRSerializer(serializers.Serializer):
         users = User.objects.filter(
             id__in=value,
             is_active=True,
-            role__in=['hr', 'hr_manager']
+            role__in=['hr', 'hr_manager', 'admin']
         )
 
         if len(users) != len(value):
@@ -1243,7 +1243,7 @@ class AssignJobSerializer(serializers.Serializer):
         if internal_hr_ids:
             internal_hrs = User.objects.filter(
                 id__in=internal_hr_ids,
-                role__in=['hr', 'hr_manager'],
+                role__in=['hr', 'hr_manager','admin'],
                 is_active=True,
                 company=request.user.company
             )

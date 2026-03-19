@@ -28,7 +28,7 @@ from accounts.models import User
 from rest_framework.parsers import MultiPartParser, FormParser
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import JobApplicationFilter
-from .utils import send_job_assignment_email
+from .utils import send_job_assignment_email,send_job_unassignment_email
 from mrf.utils import is_valid_uuid
 
 class JobViewSet(viewsets.ModelViewSet):
