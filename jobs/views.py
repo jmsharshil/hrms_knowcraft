@@ -138,7 +138,7 @@ class JobViewSet(viewsets.ModelViewSet):
         
         if hasattr(user, 'company'):
             queryset = queryset.filter(company=user.company)
-        return queryset
+        return queryset.distinct()
     
     def perform_create(self, serializer):
         user = self.request.user
@@ -781,7 +781,7 @@ class JobApplicationLinkViewSet(viewsets.ModelViewSet):
         
         if hasattr(user, 'company'):
             queryset = queryset.filter(job__company=user.company)
-        return queryset
+        return queryset.distinct()
     
     @action(detail=True, methods=['post'])
     def toggle_active(self, request, pk=None):
@@ -957,7 +957,7 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
                 Q(candidate_phone__icontains=search)
             )
         queryset = queryset.order_by(F('match_score').desc(nulls_last=True), '-created_at')
-        return queryset
+        return queryset.distinct()
     
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def public_apply(self, request):
@@ -1241,7 +1241,7 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
         if hasattr(user, 'company'):
             queryset = queryset.filter(company=user.company)
         
-        return queryset.filter(is_active=True).order_by('job_title')
+        return queryset.filter(is_active=True).order_by('job_title').distinct()
     
 class ApplicationViewSet(viewsets.GenericViewSet):
     queryset = Job.objects.filter(is_active=True)
