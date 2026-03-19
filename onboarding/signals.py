@@ -179,4 +179,4 @@ def update_candidate_slot_link(candidate):
         candidate.slot_link = ""
         candidate.inperson_link = ""
 
-    candidate.save(update_fields=["slot_link","inperson_link"])
+    candidate.save(update_fields=["slot_link","inperson_link","round_name"])
