@@ -113,14 +113,6 @@ def parse_resume_ai(file_input):
     prompt = f"""
     You are an expert ATS resume parser.
 
-    IMPORTANT INSTRUCTIONS:
-    - Emails and phone numbers may contain OCR errors or duplicated characters.
-    - You MUST clean and normalize them.
-    - Remove repeated characters (e.g., gmgmaiali → gmail).
-    - Ensure email is valid (example: example@gmail.com).
-    - Ensure phone number is realistic (10–15 digits max, no repetition patterns) if not than set it to ''.
-    - If multiple versions exist, return the most valid one.
-
     Extract the following fields from this resume:
 
     - name
