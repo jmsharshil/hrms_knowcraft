@@ -1325,3 +1325,30 @@ class AssignJobSerializer(serializers.Serializer):
                 raise serializers.ValidationError("Invalid internal HR users")
 
         return data
+
+class CareersMergedJobSerializer(serializers.Serializer):
+    designation = serializers.UUIDField()
+    designation_name = serializers.CharField(source='designation__name')
+
+    department = serializers.UUIDField()
+    department_name = serializers.CharField(source='department__name')
+
+    mrf_name = serializers.CharField(source='mrf__mrf_name')
+
+    location = serializers.CharField()
+    job_type = serializers.CharField()
+
+    total_positions = serializers.IntegerField()
+    total_filled = serializers.IntegerField()
+    applications_count = serializers.IntegerField()
+
+    remaining_positions = serializers.SerializerMethodField()
+    job_ids = serializers.ListField()
+
+    id = serializers.UUIDField()
+    job_title = serializers.CharField()
+
+    def get_remaining_positions(self, obj):
+        return obj['total_positions'] - obj['total_filled']
+
+    

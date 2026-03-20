@@ -3,7 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.db.models import Q, Count, F
+from django.db.models import Q, Count, F, Sum, Min
 from django.utils import timezone
 from django.db import transaction
 
@@ -1145,7 +1145,8 @@ class ReferralApplicationViewSet(viewsets.ModelViewSet):
 from .serializers import (
     CareersJobListSerializer,
     CareersJobDetailSerializer,
-    CareersApplicationCreateSerializer
+    CareersApplicationCreateSerializer,
+    CareersMergedJobSerializer
 )
 from django.shortcuts import get_object_or_404
 
@@ -1161,7 +1162,7 @@ class CareersViewSet(viewsets.GenericViewSet):
 
     def get_serializer_class(self):
         if self.action == 'list':
-            return CareersJobListSerializer
+            return CareersMergedJobSerializer
         elif self.action == 'retrieve':
             return CareersJobDetailSerializer
         elif self.action == 'apply':
@@ -1182,6 +1183,39 @@ class CareersViewSet(viewsets.GenericViewSet):
         designation_filter = self.request.query_params.get('designation')
         if designation_filter and designation_filter != '' and is_valid_uuid(designation_filter):
             queryset = queryset.filter(designation_id=designation_filter)
+
+        queryset = queryset.filter(
+            Q(expected_closure_date__isnull=True) |
+            Q(expected_closure_date__gte=timezone.now())
+        )
+
+        from django.contrib.postgres.aggregates import ArrayAgg
+        from django.db.models import OuterRef, Subquery
+
+        job_subquery = Job.objects.filter(
+            designation=OuterRef('designation'),
+            department=OuterRef('department'),
+            mrf__mrf_name=OuterRef('mrf__mrf_name')
+        )
+
+        queryset = queryset.values(
+            'designation',
+            'designation__name',
+            'department',
+            'department__name',
+            'mrf__mrf_name',
+            'location',
+            'job_type',
+        ).annotate(
+            total_positions=Sum('no_of_positions'),
+            total_filled=Sum('positions_filled'),
+            applications_count=Count('applications', distinct=True),
+        ).annotate(
+            job_ids=ArrayAgg('id')
+        ).annotate(
+            id=Subquery(job_subquery.values('id')[:1]),
+            job_title=Subquery(job_subquery.values('job_title')[:1]),
+        ).order_by('-total_positions')
         
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
