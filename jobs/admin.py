@@ -45,7 +45,7 @@ class JobAdmin(admin.ModelAdmin):
         }),
         ('Assignment Details', {
             'fields': (
-                'assigned_consultancies', 'assigned_at', 'assigned_by'
+                'assigned_consultancies', 'assigned_internal_hrs', 'assigned_at', 'assigned_by'
             )
         }),
         # ('Closure Details', {
