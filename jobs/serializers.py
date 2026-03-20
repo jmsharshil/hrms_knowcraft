@@ -378,6 +378,26 @@ class JobApplicationSerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True
     )
+    uploaded_by_name = serializers.CharField(
+        source='application_link.created_by.name',
+        read_only=True,
+        allow_null=True
+    )
+    uploaded_by_email = serializers.CharField(
+        source='application_link.created_by.email',
+        read_only=True,
+        allow_null=True
+    )
+    uploaded_by_role = serializers.CharField(
+        source='application_link.created_by.role',
+        read_only=True,
+        allow_null=True
+    )
+    uploaded_by_phone = serializers.CharField(
+        source='application_link.created_by.phone',
+        read_only=True,
+        allow_null=True
+    )
     platform_name = serializers.SerializerMethodField()
     resume_url = serializers.SerializerMethodField()
     file_size_mb = serializers.SerializerMethodField()
@@ -394,7 +414,8 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             "referral_emp_code","referral_designation","referral_department","is_shortlisted","consolidated_feedback_avg",
             'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report','slot_link','candidate_history',
             'created_at', 'updated_at','is_selected','is_approved','is_rejected','inperson_link',
-            'interview_scheduled_at','interviewer_name','interview_link','feedback_link','round_name','round_name_display'
+            'interview_scheduled_at','interviewer_name','interview_link','feedback_link','round_name','round_name_display',
+            "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone"
         ]
     
     def get_platform_name(self, obj):
