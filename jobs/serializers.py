@@ -3,6 +3,77 @@ from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLin
 from accounts.models import User
 from django.db import IntegrityError, transaction
 
+# ============= APPLICATION LINK SERIALIZERS =============
+
+class JobApplicationLinkSerializer(serializers.ModelSerializer):
+    """Serializer for job application links"""
+    
+    platform_display = serializers.CharField(source='get_platform_display', read_only=True)
+    application_url = serializers.SerializerMethodField()
+    created_by_name = serializers.CharField(
+        source='created_by.name',
+        read_only=True,
+        allow_null=True
+    )
+    job_title = serializers.CharField(source='job.job_title', read_only=True)
+    is_expired = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = JobApplicationLink
+        fields = [
+            'id', 'job', 'job_title', 'platform', 'platform_display',
+            'platform_name', 'title', 'description', 'unique_token',
+            'application_url', 'views_count', 'applications_count',
+            'is_active', 'expires_at', 'created_by', 'created_by_name',
+            'created_at', 'updated_at', 'is_expired','qr_code'
+        ]
+        read_only_fields = ['unique_token', 'views_count', 'applications_count','qr_code']
+    
+    def get_application_url(self, obj):
+        return obj.get_application_url()
+    
+    def get_is_expired(self, obj):
+        return obj.is_expired()
+
+
+class JobApplicationLinkCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating application links"""
+    
+    class Meta:
+        model = JobApplicationLink
+        fields = [
+            'job', 'platform', 'platform_name', 'title',
+            'description', 'expires_at'
+        ]
+    
+    def validate_job(self, value):
+        if not value.is_active:
+            raise serializers.ValidationError("Cannot create link for inactive job")
+        
+        if value.status not in ['open', 'assigned_to_consultancy', 'assigned_to_internal_hr','in_progress','assigned_to_both']:
+            raise serializers.ValidationError("Job is not accepting applications")
+        
+        return value
+    
+    def validate(self, data):
+        # If platform is 'other', platform_name is required
+        if data.get('platform') == 'other' and not data.get('platform_name'):
+            raise serializers.ValidationError({
+                'platform_name': 'Platform name is required when platform is "other"'
+            })
+        
+        return data
+    
+    def create(self, validated_data):
+        user = self.context['request'].user
+        
+        link = JobApplicationLink.objects.create(
+            **validated_data,
+            created_by=user
+        )
+        
+        return link
+
 class SimpleUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -40,6 +111,10 @@ class JobListSerializer(serializers.ModelSerializer):
         many=True,
         read_only=True
     )
+    application_links = JobApplicationLinkSerializer(
+        many=True,
+        read_only=True
+    )
 
     class Meta:
         model = Job
@@ -52,7 +127,7 @@ class JobListSerializer(serializers.ModelSerializer):
             'assigned_to_internal_hr', 'assigned_internal_name',
             'expected_closure_date', 'created_at', 'mrf_requisition_no',
             'applications_count', 'is_active', 'visible_to_consultancy',
-            'assigned_consultancies_details','assigned_internal_hrs_details'
+            'assigned_consultancies_details','assigned_internal_hrs_details','application_links'
         ]
     
     def get_applications_count(self, obj):
@@ -289,78 +364,6 @@ class CloseJobSerializer(serializers.Serializer):
     """Serializer for closing a job"""
     
     closure_notes = serializers.CharField(required=False, allow_blank=True)
-
-
-# ============= APPLICATION LINK SERIALIZERS =============
-
-class JobApplicationLinkSerializer(serializers.ModelSerializer):
-    """Serializer for job application links"""
-    
-    platform_display = serializers.CharField(source='get_platform_display', read_only=True)
-    application_url = serializers.SerializerMethodField()
-    created_by_name = serializers.CharField(
-        source='created_by.name',
-        read_only=True,
-        allow_null=True
-    )
-    job_title = serializers.CharField(source='job.job_title', read_only=True)
-    is_expired = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = JobApplicationLink
-        fields = [
-            'id', 'job', 'job_title', 'platform', 'platform_display',
-            'platform_name', 'title', 'description', 'unique_token',
-            'application_url', 'views_count', 'applications_count',
-            'is_active', 'expires_at', 'created_by', 'created_by_name',
-            'created_at', 'updated_at', 'is_expired','qr_code'
-        ]
-        read_only_fields = ['unique_token', 'views_count', 'applications_count','qr_code']
-    
-    def get_application_url(self, obj):
-        return obj.get_application_url()
-    
-    def get_is_expired(self, obj):
-        return obj.is_expired()
-
-
-class JobApplicationLinkCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating application links"""
-    
-    class Meta:
-        model = JobApplicationLink
-        fields = [
-            'job', 'platform', 'platform_name', 'title',
-            'description', 'expires_at'
-        ]
-    
-    def validate_job(self, value):
-        if not value.is_active:
-            raise serializers.ValidationError("Cannot create link for inactive job")
-        
-        if value.status not in ['open', 'assigned_to_consultancy', 'assigned_to_internal_hr','in_progress','assigned_to_both']:
-            raise serializers.ValidationError("Job is not accepting applications")
-        
-        return value
-    
-    def validate(self, data):
-        # If platform is 'other', platform_name is required
-        if data.get('platform') == 'other' and not data.get('platform_name'):
-            raise serializers.ValidationError({
-                'platform_name': 'Platform name is required when platform is "other"'
-            })
-        
-        return data
-    
-    def create(self, validated_data):
-        user = self.context['request'].user
-        
-        link = JobApplicationLink.objects.create(
-            **validated_data,
-            created_by=user
-        )
-        
-        return link
 
 
 # ============= APPLICATION SERIALIZERS =============
