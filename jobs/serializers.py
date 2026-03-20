@@ -971,6 +971,12 @@ class CareersApplicationCreateSerializer(serializers.ModelSerializer):
         job = Job.objects.filter(id=job_id).first()
         created_applications = []
 
+        if not job:
+            raise serializers.ValidationError(f"Job does not exist!")
+        
+        from onboarding.utils.task_queue import TASK_QUEUE
+        from .utils import pre_parse_resume_task
+
         try:
             with transaction.atomic():
                 for resume_file in resumes:
@@ -985,6 +991,7 @@ class CareersApplicationCreateSerializer(serializers.ModelSerializer):
                         source="career_page"
                     )
                     created_applications.append(career_application)
+                    TASK_QUEUE.enqueue(pre_parse_resume_task, career_application, career_application.resume, job)
 
         except IntegrityError as e:
             print(e)
@@ -1160,6 +1167,12 @@ class ApplicationCreateSerializer(serializers.ModelSerializer):
         job = Job.objects.filter(id=job_id).first()
         created = []
 
+        if not job:
+            raise serializers.ValidationError(f"Job does not exist!")
+
+        from onboarding.utils.task_queue import TASK_QUEUE
+        from .utils import pre_parse_resume_task
+
         with transaction.atomic():
             for file in resumes:
                 app = Application.objects.create(
@@ -1170,6 +1183,8 @@ class ApplicationCreateSerializer(serializers.ModelSerializer):
                     position_title=job.job_title if job else None
                 )
                 created.append(app)
+                
+                TASK_QUEUE.enqueue(pre_parse_resume_task, app, app.resume, job)
 
         return created
     
@@ -1196,6 +1211,11 @@ class ApplicationToJobSerializer(serializers.Serializer):
         application = validated_data['application']
         job = validated_data['job']
 
+        from onboarding.utils.engine import automation_engine
+        from django.utils import timezone
+        from datetime import timedelta
+        from .utils import build_candidate_history
+
         with transaction.atomic():
             job_app = JobApplication.objects.create(
                 job=job,
@@ -1206,11 +1226,41 @@ class ApplicationToJobSerializer(serializers.Serializer):
                 file_size=application.file_size,
             )
 
-            from onboarding.utils.task_queue import TASK_QUEUE
-            from .utils import parse_resume_task
+            history = []
+            if application.candidate_email:
+                today = timezone.now()
+                six_months_ago = today - timedelta(days=6*30)
+                duplicate_application = JobApplication.objects.filter(candidate_email=application.candidate_email,created_at__gte=six_months_ago).exclude(id=job_app.id)
+                duplicated = False
+                if duplicate_application.exists():
+                    print("Duplicate resume found!")
+                    history = build_candidate_history(application.candidate_email,job_app.id)
+                    duplicated = True
 
-            TASK_QUEUE.enqueue(parse_resume_task, job_app, application.resume, job)
+            job_app.candidate_name = application.candidate_name
+            job_app.candidate_email = application.candidate_email
+            job_app.candidate_phone = application.candidate_phone
+            job_app.relevant_experience_years = application.relevant_experience_years
+            job_app.experience_years = application.experience_years
+            job_app.linkedin_url = application.linkedin_url
+            job_app.current_ctc = application.current_ctc
+            job_app.expected_ctc = application.expected_ctc
+            job_app.portfolio_url = application.portfolio_url
+            job_app.skill = application.skill
+            job_app.education = application.education
+            job_app.current_employer = application.current_employer
+            job_app.location = application.location
+            job_app.match_score = application.match_score
+            job_app.resume_report = application.resume_report
+            job_app.is_duplicate = duplicated
+            job_app.candidate_history = history
+            job_app.save()
 
+            if job_app.is_duplicate:
+                automation_engine(job_app,job_app.status,'duplicate_rejected')
+            elif job_app.match_score >= 75:
+                automation_engine(job_app,job_app.status,'shortlisted')
+            
         return job_app
 
 class ApplicationSerializer(serializers.ModelSerializer):

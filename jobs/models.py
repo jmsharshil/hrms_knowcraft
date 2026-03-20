@@ -679,6 +679,44 @@ class Application(models.Model):
     notes = models.TextField(blank=True)
     position_title = models.CharField(null=True, blank=True)
 
+    candidate_name = models.CharField(max_length=255, blank=True)
+    candidate_email = models.EmailField(blank=True, null=True)
+    candidate_phone = models.CharField(max_length=20, blank=True,null=True)
+
+    location = models.CharField(max_length=255,blank=True,null=True)
+    current_employer = models.CharField(max_length=100,blank=True,null=True)
+
+    skill = models.JSONField(blank=True,null=True,default=list)
+    education = models.JSONField(blank=True,null=True,default=list)
+
+    experience_years = models.DecimalField(
+        max_digits=4,
+        decimal_places=1,
+        null=True,
+        blank=True
+    )
+    relevant_experience_years = models.DecimalField(
+        max_digits=4,
+        decimal_places=1,
+        null=True,
+        blank=True
+    )
+
+    cover_letter = models.TextField(blank=True,null=True)
+    availibility = models.CharField(blank=True,null=True)
+    notice_period = models.CharField(max_length=50, blank=True,null=True)
+
+    current_ctc = models.CharField(max_length=50, blank=True,null=True)
+    expected_ctc = models.CharField(max_length=50, blank=True,null=True)
+
+    linkedin_url = models.URLField(blank=True, max_length=500,null=True)
+    portfolio_url = models.URLField(blank=True, max_length=500,null=True)
+    
+    match_score = models.DecimalField(blank=True,null=True,max_digits=5,decimal_places=2,help_text="Score out of 0 to 100")
+    resume_report = models.FileField(blank=True,null=True,upload_to='reports/', help_text='Candidate resume report.')
+    is_duplicate = models.BooleanField(default=False)
+    candidate_history = models.JSONField(null=True,blank=True,default=list)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
