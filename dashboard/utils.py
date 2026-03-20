@@ -147,18 +147,12 @@ def calc_stage_turnaround_time(apps_qs):
 def calc_offer_to_join_ratio(apps_qs):
     offer_released = apps_qs.filter(
         status__in=['offer_sent', 'offer_accepted', 'offer_rejected',
-                     'docs_pending', 'docs_uploaded', 'review_docs',
-                     'docs_approved', 'docs_incomplete', 'docs_unclear',
-                     'joining_pending', 'joining_poned', 'joined',
-                     'salary_annexure_prep', 'salary_annexure_review',
-                     'approved_annexure', 'offer_pending']
+                    'joining_pending', 'joining_poned', 'joined','offer_pending']
     ).count()
 
     # Count only those whose current status reached offer_sent or beyond
     offer_accepted = apps_qs.filter(
-        status__in=['offer_accepted', 'docs_pending', 'docs_uploaded',
-                     'review_docs', 'docs_approved', 'docs_incomplete',
-                     'docs_unclear', 'joining_pending', 'joining_poned', 'joined']
+        status__in=['offer_accepted', 'joining_pending', 'joining_poned', 'joined']
     ).count()
 
     ratio = round((offer_accepted / offer_released) * 100, 2) if offer_released else 0

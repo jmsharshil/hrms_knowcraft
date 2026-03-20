@@ -45,7 +45,7 @@ class JobAdmin(admin.ModelAdmin):
         }),
         ('Assignment Details', {
             'fields': (
-                'assigned_consultancies', 'assigned_at', 'assigned_by'
+                'assigned_consultancies', 'assigned_internal_hrs', 'assigned_at', 'assigned_by'
             )
         }),
         # ('Closure Details', {
@@ -62,7 +62,7 @@ class JobAdmin(admin.ModelAdmin):
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
-            'department', 'designation', 'mrf', 'assigned_consultancies',
+            'department', 'designation', 'mrf',
             'posted_by', 'company'
         )
 
