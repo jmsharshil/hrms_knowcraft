@@ -4,12 +4,15 @@ from .models import JobApplication
 from django.db.models.functions import Cast
 from django.db.models import FloatField
 
+class UUIDInFilter(django_filters.BaseInFilter, django_filters.UUIDFilter):
+    """Filter for multiple UUIDs"""
+    pass
 
 class JobApplicationFilter(django_filters.FilterSet):
     # =============================
     # BASIC APPLICATION FILTERS
     # =============================
-    job = django_filters.UUIDFilter(field_name='job_id')
+    job = UUIDInFilter(field_name='job_id', lookup_expr='in')
     status = django_filters.CharFilter(field_name='status')
     source = django_filters.CharFilter(field_name='source')
     submitted_by = django_filters.UUIDFilter(field_name='submitted_by_id')

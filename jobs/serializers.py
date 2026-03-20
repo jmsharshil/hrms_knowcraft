@@ -1115,18 +1115,14 @@ class CareerToJobApplicationCreateSerializer(serializers.Serializer):
 
         return job_application
 
-class JobDropDownListSerializer(serializers.ModelSerializer):
-    department_name = serializers.CharField(source='department.name', read_only=True)
-    designation_name = serializers.CharField(source='designation.name', read_only=True)
-    posted_by_name = serializers.CharField(source='posted_by.name', read_only=True)
-    
-    class Meta:
-        model = Job
-        fields = [
-            'id', 'job_title','department', 'department_name',
-            'designation', 'designation_name', 'posted_by',"posted_by_name"
-            ]
-        
+class JobDropDownMergedSerializer(serializers.Serializer):
+    # Representative job for the merged group
+    id = serializers.UUIDField()
+    job_title = serializers.CharField(source='rep_job_title')
+
+    # Aggregation fields
+    job_ids = serializers.ListField()
+
 class ApplicationCreateSerializer(serializers.ModelSerializer):
     resumes = serializers.ListField(
         child=serializers.FileField(),
