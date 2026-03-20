@@ -3,6 +3,8 @@ from .models import Job, JobAssignmentHistory, JobApplication, ReferralApplicati
 
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
+    filter_horizontal = ('assigned_consultancies', 'assigned_internal_hrs')
+    
     list_display = [
         'job_title', 'department', 'location', 'no_of_positions',
         'status', 'priority', 'is_active',
