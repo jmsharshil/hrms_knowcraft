@@ -12,7 +12,7 @@ class JobApplicationFilter(django_filters.FilterSet):
     # =============================
     # BASIC APPLICATION FILTERS
     # =============================
-    job = UUIDInFilter(field_name='job_id', lookup_expr='in')
+    job_id = django_filters.CharFilter(method='filter_job')
     status = django_filters.CharFilter(field_name='status')
     source = django_filters.CharFilter(field_name='source')
     submitted_by = django_filters.UUIDFilter(field_name='submitted_by_id')
@@ -136,3 +136,31 @@ class JobApplicationFilter(django_filters.FilterSet):
             Q(candidate_phone__icontains=value) |
             Q(job__job_title__icontains=value)
         )
+
+    def filter_job(self, queryset, name, value):
+        request = self.request
+        import uuid
+
+        raw_values = request.GET.getlist('job_id')
+
+        job_ids = []
+
+        for val in raw_values:
+            if ',' in val:
+                job_ids.extend([v.strip() for v in val.split(',') if v.strip()])
+            else:
+                job_ids.append(val.strip())
+
+        # Validate UUIDs
+        valid_ids = []
+        for j in job_ids:
+            try:
+                valid_ids.append(str(uuid.UUID(j)))
+            except Exception:
+                pass
+
+        # 🚨 IMPORTANT: return EMPTY queryset if invalid input
+        if not valid_ids:
+            return queryset.none()
+
+        return queryset.filter(job_id__in=valid_ids)
