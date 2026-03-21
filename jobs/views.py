@@ -1190,13 +1190,12 @@ class CareersViewSet(viewsets.GenericViewSet):
             Q(expected_closure_date__gte=timezone.now())
         )
 
-        from django.contrib.postgres.aggregates import ArrayAgg
+        from django.contrib.postgres.aggregates import ArrayAgg, StringAgg
         from django.db.models import OuterRef, Subquery
 
         job_subquery = Job.objects.filter(
             designation=OuterRef('designation'),
             department=OuterRef('department'),
-            mrf__mrf_name=OuterRef('mrf__mrf_name')
         )
 
         queryset = queryset.values(
@@ -1204,15 +1203,14 @@ class CareersViewSet(viewsets.GenericViewSet):
             'designation__name',
             'department',
             'department__name',
-            'mrf__mrf_name',
-            'location',
-            'job_type',
         ).annotate(
             total_positions=Sum('no_of_positions'),
             total_filled=Sum('positions_filled'),
             applications_count=Count('applications', distinct=True),
-        ).annotate(
-            job_ids=ArrayAgg('id')
+            job_ids=ArrayAgg('id', distinct=True),
+            locations=StringAgg('location', delimiter=', ', distinct=True),
+            job_types=StringAgg('job_type', delimiter=', ', distinct=True),
+            youngest_created_at=Min('created_at')
         ).annotate(
             id=Subquery(job_subquery.values('id')[:1]),
             job_title=Subquery(job_subquery.values('job_title')[:1]),
@@ -1303,7 +1301,6 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
             'posted_by'
         ).only(
             'id',
-            'job_title',
             'department__name',
             'designation__name',
             'posted_by__name',
@@ -1340,11 +1337,15 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
         subquery = Job.objects.filter(
             designation=OuterRef('designation'),
             department=OuterRef('department'),
-            job_title=OuterRef('job_title')
-        )
+        ).order_by('-id')
 
-        merged_queryset = queryset.values('job_title').annotate(
-            job_ids=ArrayAgg('id'),
+        merged_queryset = queryset.values(
+                'designation',
+                'designation__name',
+                'department',
+                'department__name',
+            ).annotate(
+            job_ids=ArrayAgg('id',distinct=True),
             id=Subquery(subquery.values('id')[:1]),
             rep_job_title=Subquery(subquery.values('job_title')[:1]),  # renamed
         )

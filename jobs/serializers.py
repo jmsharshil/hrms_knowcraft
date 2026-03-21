@@ -1329,10 +1329,8 @@ class CareersMergedJobSerializer(serializers.Serializer):
     department = serializers.UUIDField()
     department_name = serializers.CharField(source='department__name')
 
-    mrf_name = serializers.CharField(source='mrf__mrf_name')
-
-    location = serializers.CharField()
-    job_type = serializers.CharField()
+    location = serializers.CharField(source='locations')
+    job_type = serializers.CharField(source='job_types')
 
     total_positions = serializers.IntegerField()
     total_filled = serializers.IntegerField()
@@ -1343,6 +1341,7 @@ class CareersMergedJobSerializer(serializers.Serializer):
 
     id = serializers.UUIDField()
     job_title = serializers.CharField()
+    created_at = serializers.DateTimeField(source='youngest_created_at')
 
     def get_remaining_positions(self, obj):
         return obj['total_positions'] - obj['total_filled']
