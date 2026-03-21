@@ -3,6 +3,77 @@ from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLin
 from accounts.models import User
 from django.db import IntegrityError, transaction
 
+# ============= APPLICATION LINK SERIALIZERS =============
+
+class JobApplicationLinkSerializer(serializers.ModelSerializer):
+    """Serializer for job application links"""
+    
+    platform_display = serializers.CharField(source='get_platform_display', read_only=True)
+    application_url = serializers.SerializerMethodField()
+    created_by_name = serializers.CharField(
+        source='created_by.name',
+        read_only=True,
+        allow_null=True
+    )
+    job_title = serializers.CharField(source='job.job_title', read_only=True)
+    is_expired = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = JobApplicationLink
+        fields = [
+            'id', 'job', 'job_title', 'platform', 'platform_display',
+            'platform_name', 'title', 'description', 'unique_token',
+            'application_url', 'views_count', 'applications_count',
+            'is_active', 'expires_at', 'created_by', 'created_by_name',
+            'created_at', 'updated_at', 'is_expired','qr_code'
+        ]
+        read_only_fields = ['unique_token', 'views_count', 'applications_count','qr_code']
+    
+    def get_application_url(self, obj):
+        return obj.get_application_url()
+    
+    def get_is_expired(self, obj):
+        return obj.is_expired()
+
+
+class JobApplicationLinkCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating application links"""
+    
+    class Meta:
+        model = JobApplicationLink
+        fields = [
+            'job', 'platform', 'platform_name', 'title',
+            'description', 'expires_at'
+        ]
+    
+    def validate_job(self, value):
+        if not value.is_active:
+            raise serializers.ValidationError("Cannot create link for inactive job")
+        
+        if value.status not in ['open', 'assigned_to_consultancy', 'assigned_to_internal_hr','in_progress','assigned_to_both']:
+            raise serializers.ValidationError("Job is not accepting applications")
+        
+        return value
+    
+    def validate(self, data):
+        # If platform is 'other', platform_name is required
+        if data.get('platform') == 'other' and not data.get('platform_name'):
+            raise serializers.ValidationError({
+                'platform_name': 'Platform name is required when platform is "other"'
+            })
+        
+        return data
+    
+    def create(self, validated_data):
+        user = self.context['request'].user
+        
+        link = JobApplicationLink.objects.create(
+            **validated_data,
+            created_by=user
+        )
+        
+        return link
+
 class SimpleUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -40,6 +111,10 @@ class JobListSerializer(serializers.ModelSerializer):
         many=True,
         read_only=True
     )
+    application_links = JobApplicationLinkSerializer(
+        many=True,
+        read_only=True
+    )
 
     class Meta:
         model = Job
@@ -52,7 +127,7 @@ class JobListSerializer(serializers.ModelSerializer):
             'assigned_to_internal_hr', 'assigned_internal_name',
             'expected_closure_date', 'created_at', 'mrf_requisition_no',
             'applications_count', 'is_active', 'visible_to_consultancy',
-            'assigned_consultancies_details','assigned_internal_hrs_details'
+            'assigned_consultancies_details','assigned_internal_hrs_details','application_links'
         ]
     
     def get_applications_count(self, obj):
@@ -291,78 +366,6 @@ class CloseJobSerializer(serializers.Serializer):
     closure_notes = serializers.CharField(required=False, allow_blank=True)
 
 
-# ============= APPLICATION LINK SERIALIZERS =============
-
-class JobApplicationLinkSerializer(serializers.ModelSerializer):
-    """Serializer for job application links"""
-    
-    platform_display = serializers.CharField(source='get_platform_display', read_only=True)
-    application_url = serializers.SerializerMethodField()
-    created_by_name = serializers.CharField(
-        source='created_by.name',
-        read_only=True,
-        allow_null=True
-    )
-    job_title = serializers.CharField(source='job.job_title', read_only=True)
-    is_expired = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = JobApplicationLink
-        fields = [
-            'id', 'job', 'job_title', 'platform', 'platform_display',
-            'platform_name', 'title', 'description', 'unique_token',
-            'application_url', 'views_count', 'applications_count',
-            'is_active', 'expires_at', 'created_by', 'created_by_name',
-            'created_at', 'updated_at', 'is_expired','qr_code'
-        ]
-        read_only_fields = ['unique_token', 'views_count', 'applications_count','qr_code']
-    
-    def get_application_url(self, obj):
-        return obj.get_application_url()
-    
-    def get_is_expired(self, obj):
-        return obj.is_expired()
-
-
-class JobApplicationLinkCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating application links"""
-    
-    class Meta:
-        model = JobApplicationLink
-        fields = [
-            'job', 'platform', 'platform_name', 'title',
-            'description', 'expires_at'
-        ]
-    
-    def validate_job(self, value):
-        if not value.is_active:
-            raise serializers.ValidationError("Cannot create link for inactive job")
-        
-        if value.status not in ['open', 'assigned_to_consultancy', 'assigned_to_internal_hr','in_progress','assigned_to_both']:
-            raise serializers.ValidationError("Job is not accepting applications")
-        
-        return value
-    
-    def validate(self, data):
-        # If platform is 'other', platform_name is required
-        if data.get('platform') == 'other' and not data.get('platform_name'):
-            raise serializers.ValidationError({
-                'platform_name': 'Platform name is required when platform is "other"'
-            })
-        
-        return data
-    
-    def create(self, validated_data):
-        user = self.context['request'].user
-        
-        link = JobApplicationLink.objects.create(
-            **validated_data,
-            created_by=user
-        )
-        
-        return link
-
-
 # ============= APPLICATION SERIALIZERS =============
 
 class JobApplicationSerializer(serializers.ModelSerializer):
@@ -375,6 +378,26 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     round_name_display = serializers.CharField(source='get_round_name_display', read_only=True)
     submitted_by_name = serializers.CharField(
         source='submitted_by.name',
+        read_only=True,
+        allow_null=True
+    )
+    uploaded_by_name = serializers.CharField(
+        source='application_link.created_by.name',
+        read_only=True,
+        allow_null=True
+    )
+    uploaded_by_email = serializers.CharField(
+        source='application_link.created_by.email',
+        read_only=True,
+        allow_null=True
+    )
+    uploaded_by_role = serializers.CharField(
+        source='application_link.created_by.role',
+        read_only=True,
+        allow_null=True
+    )
+    uploaded_by_phone = serializers.CharField(
+        source='application_link.created_by.phone',
         read_only=True,
         allow_null=True
     )
@@ -394,7 +417,8 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             "referral_emp_code","referral_designation","referral_department","is_shortlisted","consolidated_feedback_avg",
             'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report','slot_link','candidate_history',
             'created_at', 'updated_at','is_selected','is_approved','is_rejected','inperson_link',
-            'interview_scheduled_at','interviewer_name','interview_link','feedback_link','round_name','round_name_display'
+            'interview_scheduled_at','interviewer_name','interview_link','feedback_link','round_name','round_name_display',
+            "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone"
         ]
     
     def get_platform_name(self, obj):
@@ -613,7 +637,7 @@ class JobApplicationUpdateSerializer(serializers.ModelSerializer):
         model = JobApplication
         fields = ['status', 'notes', 'rating', 'candidate_name','candidate_phone','candidate_email',
                   'source','experience_years','relevant_experience_years','location','skill',
-                  'education','current_employer','linkedin_url'
+                  'education','current_employer','linkedin_url','job'
                   ]
     
     def validate_status(self, value):
@@ -947,6 +971,12 @@ class CareersApplicationCreateSerializer(serializers.ModelSerializer):
         job = Job.objects.filter(id=job_id).first()
         created_applications = []
 
+        if not job:
+            raise serializers.ValidationError(f"Job does not exist!")
+        
+        from onboarding.utils.task_queue import TASK_QUEUE
+        from .utils import pre_parse_resume_task
+
         try:
             with transaction.atomic():
                 for resume_file in resumes:
@@ -961,6 +991,7 @@ class CareersApplicationCreateSerializer(serializers.ModelSerializer):
                         source="career_page"
                     )
                     created_applications.append(career_application)
+                    TASK_QUEUE.enqueue(pre_parse_resume_task, career_application, career_application.resume, job)
 
         except IntegrityError as e:
             print(e)
@@ -1084,18 +1115,14 @@ class CareerToJobApplicationCreateSerializer(serializers.Serializer):
 
         return job_application
 
-class JobDropDownListSerializer(serializers.ModelSerializer):
-    department_name = serializers.CharField(source='department.name', read_only=True)
-    designation_name = serializers.CharField(source='designation.name', read_only=True)
-    posted_by_name = serializers.CharField(source='posted_by.name', read_only=True)
-    
-    class Meta:
-        model = Job
-        fields = [
-            'id', 'job_title','department', 'department_name',
-            'designation', 'designation_name', 'posted_by',"posted_by_name"
-            ]
-        
+class JobDropDownMergedSerializer(serializers.Serializer):
+    # Representative job for the merged group
+    id = serializers.UUIDField()
+    job_title = serializers.CharField(source='rep_job_title')
+
+    # Aggregation fields
+    job_ids = serializers.ListField()
+
 class ApplicationCreateSerializer(serializers.ModelSerializer):
     resumes = serializers.ListField(
         child=serializers.FileField(),
@@ -1136,6 +1163,12 @@ class ApplicationCreateSerializer(serializers.ModelSerializer):
         job = Job.objects.filter(id=job_id).first()
         created = []
 
+        if not job:
+            raise serializers.ValidationError(f"Job does not exist!")
+
+        from onboarding.utils.task_queue import TASK_QUEUE
+        from .utils import pre_parse_resume_task
+
         with transaction.atomic():
             for file in resumes:
                 app = Application.objects.create(
@@ -1146,6 +1179,8 @@ class ApplicationCreateSerializer(serializers.ModelSerializer):
                     position_title=job.job_title if job else None
                 )
                 created.append(app)
+                
+                TASK_QUEUE.enqueue(pre_parse_resume_task, app, app.resume, job)
 
         return created
     
@@ -1172,6 +1207,11 @@ class ApplicationToJobSerializer(serializers.Serializer):
         application = validated_data['application']
         job = validated_data['job']
 
+        from onboarding.utils.engine import automation_engine
+        from django.utils import timezone
+        from datetime import timedelta
+        from .utils import build_candidate_history
+
         with transaction.atomic():
             job_app = JobApplication.objects.create(
                 job=job,
@@ -1182,11 +1222,41 @@ class ApplicationToJobSerializer(serializers.Serializer):
                 file_size=application.file_size,
             )
 
-            from onboarding.utils.task_queue import TASK_QUEUE
-            from .utils import parse_resume_task
+            history = []
+            if application.candidate_email:
+                today = timezone.now()
+                six_months_ago = today - timedelta(days=6*30)
+                duplicate_application = JobApplication.objects.filter(candidate_email=application.candidate_email,created_at__gte=six_months_ago).exclude(id=job_app.id)
+                duplicated = False
+                if duplicate_application.exists():
+                    print("Duplicate resume found!")
+                    history = build_candidate_history(application.candidate_email,job_app.id)
+                    duplicated = True
 
-            TASK_QUEUE.enqueue(parse_resume_task, job_app, application.resume, job)
+            job_app.candidate_name = application.candidate_name
+            job_app.candidate_email = application.candidate_email
+            job_app.candidate_phone = application.candidate_phone
+            job_app.relevant_experience_years = application.relevant_experience_years
+            job_app.experience_years = application.experience_years
+            job_app.linkedin_url = application.linkedin_url
+            job_app.current_ctc = application.current_ctc
+            job_app.expected_ctc = application.expected_ctc
+            job_app.portfolio_url = application.portfolio_url
+            job_app.skill = application.skill
+            job_app.education = application.education
+            job_app.current_employer = application.current_employer
+            job_app.location = application.location
+            job_app.match_score = application.match_score
+            job_app.resume_report = application.resume_report
+            job_app.is_duplicate = duplicated
+            job_app.candidate_history = history
+            job_app.save()
 
+            if job_app.is_duplicate:
+                automation_engine(job_app,job_app.status,'duplicate_rejected')
+            elif job_app.match_score >= 75:
+                automation_engine(job_app,job_app.status,'shortlisted')
+            
         return job_app
 
 class ApplicationSerializer(serializers.ModelSerializer):
@@ -1251,3 +1321,30 @@ class AssignJobSerializer(serializers.Serializer):
                 raise serializers.ValidationError("Invalid internal HR users")
 
         return data
+
+class CareersMergedJobSerializer(serializers.Serializer):
+    designation = serializers.UUIDField()
+    designation_name = serializers.CharField(source='designation__name')
+
+    department = serializers.UUIDField()
+    department_name = serializers.CharField(source='department__name')
+
+    mrf_name = serializers.CharField(source='mrf__mrf_name')
+
+    location = serializers.CharField()
+    job_type = serializers.CharField()
+
+    total_positions = serializers.IntegerField()
+    total_filled = serializers.IntegerField()
+    applications_count = serializers.IntegerField()
+
+    remaining_positions = serializers.SerializerMethodField()
+    job_ids = serializers.ListField()
+
+    id = serializers.UUIDField()
+    job_title = serializers.CharField()
+
+    def get_remaining_positions(self, obj):
+        return obj['total_positions'] - obj['total_filled']
+
+    

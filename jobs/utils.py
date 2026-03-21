@@ -113,14 +113,6 @@ def parse_resume_ai(file_input):
     prompt = f"""
     You are an expert ATS resume parser.
 
-    IMPORTANT INSTRUCTIONS:
-    - Emails and phone numbers may contain OCR errors or duplicated characters.
-    - You MUST clean and normalize them.
-    - Remove repeated characters (e.g., gmgmaiali → gmail).
-    - Ensure email is valid (example: example@gmail.com).
-    - Ensure phone number is realistic (10–15 digits max, no repetition patterns) if not than set it to ''.
-    - If multiple versions exist, return the most valid one.
-
     Extract the following fields from this resume:
 
     - name
@@ -1155,3 +1147,68 @@ def send_job_unassignment_email(user, job, assigned_by):
 
     if user.phone:
         send_text(to=user.phone, text=text)
+
+
+def pre_parse_resume_task(application,resume_file,job):
+    # ---- AI extraction ----
+    parsed = parse_resume_ai(resume_file)
+    name = safe_str(parsed.get("name") or parsed.get("full_name")).capitalize()
+    email = safe_str(parsed.get("email"))
+    phone = parsed.get('phone_number') or parsed.get('phone')
+    if isinstance(phone, dict):
+      phone = phone.get('primary') or phone.get('number')
+    if phone:
+      phone = str(phone).replace(" ", "").replace("-", "")
+    else:
+      phone = None
+    total_experience_years = parsed.get("total_experience_years")
+    relevant_experience_years = parsed.get("relevant_experience_years")
+    skills = parsed.get('skills')
+    education = parsed.get("education")
+    current_ctc = safe_float(parsed.get("current_ctc"))
+    expected_ctc = safe_float(parsed.get("expected_ctc"))
+    linkedin_url = parsed.get("linkedin_url",'')
+    portfolio_url = parsed.get("portfolio_url",'')
+    location = parsed.get("location")
+    current_employer = parsed.get("current_employer")
+    history = []
+    if email:
+        today = timezone.now()
+        six_months_ago = today - timedelta(days=6*30)
+        duplicate_application = JobApplication.objects.filter(candidate_email=email,created_at__gte=six_months_ago).exclude(id=application.id)
+        duplicated = False
+        if duplicate_application.exists():
+            print("Duplicate resume found!")
+            history = build_candidate_history(email,application.id)
+            duplicated = True
+    # ---- AI scoring ----
+    ai_match = calculate_match_score(parsed, job)
+    ai_score = int(ai_match.get('score'))
+    match_reason = ai_match.get('reason')
+    parsed['match_reason'] = match_reason
+    # ---- AI Report ----
+    # html_report = create_resume_report_html(parsed,link.job)
+    html_report = render_beautiful_report(parsed,job,ai_score)
+    from onboarding.utils.pdf_maker import html_to_pdf
+    report_pdf = html_to_pdf(html_report)
+    from django.core.files.base import ContentFile
+    pdf_file = ContentFile(report_pdf, name=f"{name}_{email}_resume_report.pdf")
+    with transaction.atomic():
+        application.candidate_name = name
+        application.candidate_email = email
+        application.candidate_phone = phone
+        application.relevant_experience_years = relevant_experience_years
+        application.experience_years = total_experience_years
+        application.linkedin_url = linkedin_url
+        application.current_ctc = current_ctc
+        application.expected_ctc = expected_ctc
+        application.portfolio_url = portfolio_url
+        application.skill = skills
+        application.education = education
+        application.current_employer = current_employer
+        application.location = location
+        application.match_score = ai_score
+        application.resume_report.save(f"{name}_{email}_resume_report.pdf", pdf_file, save=True)
+        application.is_duplicate = duplicated
+        application.candidate_history = history
+        application.save()

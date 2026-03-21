@@ -3,7 +3,8 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.db.models import Q, Count, F
+from django.db.models import Q, Count, F, Sum, Min, OuterRef, Subquery
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.utils import timezone
 from django.db import transaction
 
@@ -17,7 +18,7 @@ from .serializers import (
     PublicJobApplicationCreateSerializer, AssignToInternalHRSerializer, AssignToBothSerializer,
     ReferralApplicationCreateSerializer,ReferralApplicationSerializer, ReferralToJobApplicationCreateSerializer,
     CareerToJobApplicationCreateSerializer,ApplicationSerializer,ApplicationCreateSerializer,
-    ApplicationToJobSerializer,JobDropDownListSerializer,AssignJobSerializer
+    ApplicationToJobSerializer,JobDropDownMergedSerializer,AssignJobSerializer
 )
 from .permissions import (
     CanViewJobs, CanCreateJobs, CanEditJobs, CanAssignToConsultancy,
@@ -1145,7 +1146,8 @@ class ReferralApplicationViewSet(viewsets.ModelViewSet):
 from .serializers import (
     CareersJobListSerializer,
     CareersJobDetailSerializer,
-    CareersApplicationCreateSerializer
+    CareersApplicationCreateSerializer,
+    CareersMergedJobSerializer
 )
 from django.shortcuts import get_object_or_404
 
@@ -1161,7 +1163,7 @@ class CareersViewSet(viewsets.GenericViewSet):
 
     def get_serializer_class(self):
         if self.action == 'list':
-            return CareersJobListSerializer
+            return CareersMergedJobSerializer
         elif self.action == 'retrieve':
             return CareersJobDetailSerializer
         elif self.action == 'apply':
@@ -1182,6 +1184,39 @@ class CareersViewSet(viewsets.GenericViewSet):
         designation_filter = self.request.query_params.get('designation')
         if designation_filter and designation_filter != '' and is_valid_uuid(designation_filter):
             queryset = queryset.filter(designation_id=designation_filter)
+
+        queryset = queryset.filter(
+            Q(expected_closure_date__isnull=True) |
+            Q(expected_closure_date__gte=timezone.now())
+        )
+
+        from django.contrib.postgres.aggregates import ArrayAgg
+        from django.db.models import OuterRef, Subquery
+
+        job_subquery = Job.objects.filter(
+            designation=OuterRef('designation'),
+            department=OuterRef('department'),
+            mrf__mrf_name=OuterRef('mrf__mrf_name')
+        )
+
+        queryset = queryset.values(
+            'designation',
+            'designation__name',
+            'department',
+            'department__name',
+            'mrf__mrf_name',
+            'location',
+            'job_type',
+        ).annotate(
+            total_positions=Sum('no_of_positions'),
+            total_filled=Sum('positions_filled'),
+            applications_count=Count('applications', distinct=True),
+        ).annotate(
+            job_ids=ArrayAgg('id')
+        ).annotate(
+            id=Subquery(job_subquery.values('id')[:1]),
+            job_title=Subquery(job_subquery.values('job_title')[:1]),
+        ).order_by('-total_positions')
         
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
@@ -1254,9 +1289,9 @@ class CareersViewSet(viewsets.GenericViewSet):
 
 class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    API to get job dropdown (no pagination)
+    API to get merged job dropdown (no pagination)
     """
-    serializer_class = JobDropDownListSerializer
+    serializer_class = JobDropDownMergedSerializer
     permission_classes = [AllowAny]
     pagination_class = None
 
@@ -1276,36 +1311,50 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
             'is_active'
         )
 
-        if not user.is_authenticated:
-            return queryset.filter(is_active=True)
-        
-        # Filter based on user role
-        if user.role in ['admin', 'hr_manager']:
-            # Can see all jobs
-            pass
-        elif user.role == 'department_head':
-            # Can see jobs from their department
-            if hasattr(user, 'headed_department'):
+        # Role-based filtering
+        if user.is_authenticated:
+            if user.role == 'department_head' and hasattr(user, 'headed_department'):
                 queryset = queryset.filter(department=user.headed_department)
+            elif user.role == 'hr':
+                queryset = queryset.filter(
+                    Q(assigned_to_internal_hr=user) |
+                    Q(posted_by=user) |
+                    Q(assigned_internal_hrs=user)
+                )
+            elif user.role == 'consultancy':
+                queryset = queryset.filter(
+                    Q(assigned_to_consultancy=user) |
+                    Q(assigned_consultancies=user)
+                )
+            elif user.role in ['admin', 'hr_manager']:
+                pass  # can see all jobs
             else:
                 queryset = queryset.none()
-        elif user.role == 'hr':
-            # Internal HR: only jobs assigned to them OR jobs they posted
-            queryset = queryset.filter(
-                Q(assigned_to_internal_hr=user) | Q(posted_by=user) | Q(assigned_internal_hrs=user)
-            )
-        elif user.role == 'consultancy':
-            # Can see assigned jobs or publicly visible jobs
-            queryset = queryset.filter(
-                Q(assigned_to_consultancy=user) | Q(assigned_consultancies=user)
-            )
+            
+            if hasattr(user, 'company'):
+                queryset = queryset.filter(company=user.company)
         else:
-            queryset = queryset.none()
-        
-        if hasattr(user, 'company'):
-            queryset = queryset.filter(company=user.company)
-        
-        return queryset.filter(is_active=True).order_by('job_title').distinct()
+            queryset = queryset.filter(is_active=True)
+
+        # Subquery to get representative job for merged group
+        subquery = Job.objects.filter(
+            designation=OuterRef('designation'),
+            department=OuterRef('department'),
+            job_title=OuterRef('job_title')
+        )
+
+        merged_queryset = queryset.values('job_title').annotate(
+            job_ids=ArrayAgg('id'),
+            id=Subquery(subquery.values('id')[:1]),
+            rep_job_title=Subquery(subquery.values('job_title')[:1]),  # renamed
+        )
+
+        return merged_queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
     
 class ApplicationViewSet(viewsets.GenericViewSet):
     queryset = Job.objects.filter(is_active=True)
