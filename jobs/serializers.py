@@ -1152,9 +1152,9 @@ class JobDropDownMergedSerializer(serializers.Serializer):
     # Aggregation fields
     job_ids = serializers.ListField()
 
-    jobs = serializers.SerializerMethodField()
+    job_details = serializers.SerializerMethodField()
 
-    def get_jobs(self, obj):
+    def get_job_details(self, obj):
         job_ids = obj.get('job_ids', [])
         job_map = self.context.get('job_map', {})
 
