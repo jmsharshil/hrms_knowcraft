@@ -1172,6 +1172,7 @@ class ApplicationCreateSerializer(serializers.ModelSerializer):
         with transaction.atomic():
             for file in resumes:
                 app = Application.objects.create(
+                    job=job,
                     source=source,
                     resume=file,
                     original_filename=file.name,
@@ -1262,6 +1263,7 @@ class ApplicationToJobSerializer(serializers.Serializer):
 class ApplicationSerializer(serializers.ModelSerializer):
     resume_url = serializers.SerializerMethodField()
     file_size_mb = serializers.SerializerMethodField()
+    candidate_id = serializers.UUIDField(source="id", read_only=True)
 
     class Meta:
         model = Application
@@ -1273,6 +1275,20 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
     def get_file_size_mb(self, obj):
         return round(obj.file_size / (1024 * 1024), 2)
+    
+class ApplicationListSerializer(serializers.ModelSerializer):
+    resume_url = serializers.SerializerMethodField()
+    candidate_id = serializers.UUIDField(source="id", read_only=True)
+
+    class Meta:
+        model = Application
+        fields = ['candidate_id','resume_url','source','position_title','candidate_name',
+                  'candidate_email','candidate_phone','location','match_score','job',
+                  'resume_report','is_duplicate','current_employer','created_at']
+
+    def get_resume_url(self, obj):
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.resume.url) if request else obj.resume.url
 
 class AssignJobSerializer(serializers.Serializer):
     consultancy_ids = serializers.ListField(

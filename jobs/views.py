@@ -12,7 +12,7 @@ from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLin
 from .serializers import (
     JobListSerializer, JobDetailSerializer, JobCreateSerializer,
     JobUpdateSerializer, AssignToConsultancySerializer, CloseJobSerializer,
-    JobAssignmentHistorySerializer, JobApplicationSerializer,
+    JobAssignmentHistorySerializer, JobApplicationSerializer,ApplicationListSerializer,
     JobApplicationCreateSerializer, JobApplicationUpdateSerializer,
     JobApplicationLinkSerializer, JobApplicationLinkCreateSerializer,
     PublicJobApplicationCreateSerializer, AssignToInternalHRSerializer, AssignToBothSerializer,
@@ -28,9 +28,10 @@ from .permissions import (
 from accounts.models import User
 from rest_framework.parsers import MultiPartParser, FormParser
 from django_filters.rest_framework import DjangoFilterBackend
-from .filters import JobApplicationFilter
+from .filters import JobApplicationFilter,ApplicationFilter
 from .utils import send_job_assignment_email,send_job_unassignment_email
 from mrf.utils import is_valid_uuid
+from django_filters.rest_framework import DjangoFilterBackend
 
 class JobViewSet(viewsets.ModelViewSet):
     """ViewSet for managing Jobs"""
@@ -1188,7 +1189,7 @@ class CareersViewSet(viewsets.GenericViewSet):
         queryset = queryset.filter(
             Q(expected_closure_date__isnull=True) |
             Q(expected_closure_date__gte=timezone.now())
-        )
+        ).distinct()
 
         from django.contrib.postgres.aggregates import ArrayAgg, StringAgg
         from django.db.models import OuterRef, Subquery
@@ -1356,10 +1357,12 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
-    
+
 class ApplicationViewSet(viewsets.GenericViewSet):
     queryset = Job.objects.filter(is_active=True)
     permission_classes = [AllowAny]
+    filterset_class = ApplicationFilter
+    filter_backends = [DjangoFilterBackend]
 
     def get_serializer_class(self):
         if self.action == 'apply':
@@ -1419,13 +1422,34 @@ class ApplicationViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['get'])
     def applications(self, request):
         source = request.query_params.get('source')
+        app_id = request.query_params.get('candidate_id')
 
         queryset = Application.objects.all()
+
+        if app_id:
+            app = get_object_or_404(queryset, id=app_id)
+            serializer = ApplicationSerializer(
+                app,
+                context={'request': request}
+            )
+            return Response(serializer.data)
 
         if source:
             queryset = queryset.filter(source=source)
 
-        serializer = ApplicationSerializer(
+        queryset = self.filter_queryset(queryset)
+
+        page = self.paginate_queryset(queryset)
+
+        if page is not None:
+            serializer = ApplicationListSerializer(
+                page,
+                many=True,
+                context={'request': request}
+            )
+            return self.get_paginated_response(serializer.data)
+
+        serializer = ApplicationListSerializer(
             queryset,
             many=True,
             context={'request': request}
