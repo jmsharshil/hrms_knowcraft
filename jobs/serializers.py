@@ -1115,6 +1115,35 @@ class CareerToJobApplicationCreateSerializer(serializers.Serializer):
 
         return job_application
 
+class JobMiniSerializer(serializers.ModelSerializer):
+    """Serializer for job mini view"""
+    
+    department_name = serializers.CharField(source='department.name', read_only=True)
+    designation_name = serializers.CharField(source='designation.name', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
+    mrf_requisition_no = serializers.CharField(source='mrf.requisition_no', read_only=True)
+    applications_count = serializers.SerializerMethodField()
+    remaining_positions = serializers.SerializerMethodField()
+    job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
+
+    class Meta:
+        model = Job
+        fields = [
+            'id', 'job_title', 'department', 'department_name',
+            'designation', 'designation_name', 'location','job_type', 'job_type_display',
+            'no_of_positions', 'positions_filled', 'remaining_positions',
+            'status', 'status_display', 'priority', 'priority_display',
+            'expected_closure_date', 'created_at', 'mrf_requisition_no',
+            'applications_count',
+        ]
+    
+    def get_applications_count(self, obj):
+        return obj.applications.count()
+    
+    def get_remaining_positions(self, obj):
+        return obj.remaining_positions()
+
 class JobDropDownMergedSerializer(serializers.Serializer):
     # Representative job for the merged group
     id = serializers.UUIDField()
@@ -1122,6 +1151,20 @@ class JobDropDownMergedSerializer(serializers.Serializer):
 
     # Aggregation fields
     job_ids = serializers.ListField()
+
+    jobs = serializers.SerializerMethodField()
+
+    def get_jobs(self, obj):
+        job_ids = obj.get('job_ids', [])
+        job_map = self.context.get('job_map', {})
+
+        jobs = [
+            job_map.get(str(jid))
+            for jid in job_ids
+            if job_map.get(str(jid))
+        ]
+
+        return JobMiniSerializer(jobs, many=True).data
 
 class ApplicationCreateSerializer(serializers.ModelSerializer):
     resumes = serializers.ListField(

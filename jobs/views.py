@@ -1355,7 +1355,20 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
+        all_job_ids = []
+        for item in queryset:
+            all_job_ids.extend(item['job_ids'])
+
+        # Fetch all jobs in ONE query
+        jobs = Job.objects.filter(id__in=all_job_ids)
+
+        job_map = {str(job.id): job for job in jobs}
+
+        serializer = self.get_serializer(
+            queryset,
+            many=True,
+            context={'job_map': job_map}
+        )
         return Response(serializer.data)
 
 class ApplicationViewSet(viewsets.GenericViewSet):
