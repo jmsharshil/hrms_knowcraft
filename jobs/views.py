@@ -1371,6 +1371,11 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
         )
         return Response(serializer.data)
 
+class ApplicationPagination(PageNumberPagination):
+    page_size = 300
+    page_size_query_param = 'page_size'
+    max_page_size = 500
+
 class ApplicationViewSet(viewsets.GenericViewSet):
     queryset = Job.objects.filter(is_active=True)
     permission_classes = [AllowAny]
@@ -1452,7 +1457,9 @@ class ApplicationViewSet(viewsets.GenericViewSet):
 
         queryset = self.filter_queryset(queryset)
 
-        page = self.paginate_queryset(queryset)
+        # page = self.paginate_queryset(queryset)
+        paginator = ApplicationPagination()   # 👈 custom paginator
+        page = paginator.paginate_queryset(queryset, request)
 
         if page is not None:
             serializer = ApplicationListSerializer(
@@ -1460,7 +1467,7 @@ class ApplicationViewSet(viewsets.GenericViewSet):
                 many=True,
                 context={'request': request}
             )
-            return self.get_paginated_response(serializer.data)
+            return paginator.get_paginated_response(serializer.data)
 
         serializer = ApplicationListSerializer(
             queryset,
