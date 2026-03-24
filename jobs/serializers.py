@@ -1123,6 +1123,9 @@ class JobMiniSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     mrf_requisition_no = serializers.CharField(source='mrf.requisition_no', read_only=True)
+    requested_by = serializers.CharField(source='mrf.requested_by', read_only=True)
+    requested_by_name = serializers.CharField(source='mrf.requested_by.name', read_only=True)
+    requested_by_email = serializers.CharField(source='mrf.requested_by.email', read_only=True)
     applications_count = serializers.SerializerMethodField()
     remaining_positions = serializers.SerializerMethodField()
     job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
@@ -1135,7 +1138,7 @@ class JobMiniSerializer(serializers.ModelSerializer):
             'no_of_positions', 'positions_filled', 'remaining_positions',
             'status', 'status_display', 'priority', 'priority_display',
             'expected_closure_date', 'created_at', 'mrf_requisition_no',
-            'applications_count',
+            'applications_count','requested_by','requested_by_name','requested_by_email'
         ]
     
     def get_applications_count(self, obj):

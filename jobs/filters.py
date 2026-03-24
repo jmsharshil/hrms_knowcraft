@@ -12,6 +12,7 @@ class JobApplicationFilter(django_filters.FilterSet):
     # =============================
     # BASIC APPLICATION FILTERS
     # =============================
+    job_id = django_filters.CharFilter(method='filter_job')
     status = django_filters.CharFilter(field_name='status')
     source = django_filters.CharFilter(field_name='source')
     submitted_by = django_filters.UUIDFilter(field_name='submitted_by_id')
