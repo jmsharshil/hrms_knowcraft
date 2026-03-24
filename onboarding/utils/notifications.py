@@ -1191,25 +1191,25 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
             # =========================
             if role == "interviewer" and mrf:
 
-                status = candidate.status
+            #     status = candidate.status
 
-                if status in ["interview_pending_1","interview_done_1","interview_rejected_1","shortlisted"]:
-                    add_email(getattr(mrf, "interviewer_email_1", None))
+            #     if status in ["interview_pending_1","interview_done_1","interview_rejected_1","shortlisted"]:
+            #         add_email(getattr(mrf, "interviewer_email_1", None))
 
-                elif status in ["interview_pending_2","interview_done_2","interview_rejected_2","interview_next_2"]:
-                    # support both field & M2M
-                    add_email(getattr(mrf, "interviewer_email_2", None))
-                    if hasattr(mrf, "technical_interviewers"):
-                        add_users(mrf.technical_interviewers.all())
+            #     elif status in ["interview_pending_2","interview_done_2","interview_rejected_2","interview_next_2"]:
+            #         # support both field & M2M
+            #         add_email(getattr(mrf, "interviewer_email_2", None))
+            #         if hasattr(mrf, "technical_interviewers"):
+            #             add_users(mrf.technical_interviewers.all())
 
-                elif status in ["interview_pending_3","interview_done_3","interview_rejected_3","interview_next_3"]:
-                    add_email(getattr(mrf, "interviewer_email_3", None))
+            #     elif status in ["interview_pending_3","interview_done_3","interview_rejected_3","interview_next_3"]:
+            #         add_email(getattr(mrf, "interviewer_email_3", None))
 
-                elif status in ["interview_pending_final","interview_done_final","interview_rejected_final","interview_next_final"]:
-                    add_email(getattr(mrf, "interviewer_email_final", None))
+            #     elif status in ["interview_pending_final","interview_done_final","interview_rejected_final","interview_next_final"]:
+            #         add_email(getattr(mrf, "interviewer_email_final", None))
 
-                elif status in ["interview_pending_management_client","interview_done_management_client","interview_rejected_management_client","interview_next_management_client"]:
-                    add_email(getattr(mrf, "interviewer_email_management_client", None))
+            #     elif status in ["interview_pending_management_client","interview_done_management_client","interview_rejected_management_client","interview_next_management_client"]:
+            #         add_email(getattr(mrf, "interviewer_email_management_client", None))
 
                 continue
 
