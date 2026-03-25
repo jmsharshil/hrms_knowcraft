@@ -1229,9 +1229,25 @@ def reparse_applications_missing_email(batch_size=50):
 
     for application in queryset.iterator(chunk_size=batch_size):
         try:
+            job = application.job
+            resume = application.resume
+            
+            # ✅ Fallback logic
+            if not job:
+                job = find_similar_job(application.position_title)
+
+                if not job:
+                    skipped += 1
+                    print(f"[SKIPPED] No job match for {application.id}")
+                    continue
+
+                # optional: attach found job
+                application.job = job
+                application.save(update_fields=['job'])
+            
             pre_parse_resume_task(
                 application=application,
-                resume_file=application.resume,
+                resume_file=resume,
                 job=application.job
             )
 
@@ -1246,3 +1262,26 @@ def reparse_applications_missing_email(batch_size=50):
         "updated": updated,
         "failed": failed
     }
+
+def find_similar_job(position_title):
+    if not position_title:
+        return None
+
+    # प्राथमिक simple match
+    job = Job.objects.filter(
+        is_active=True,
+        title__icontains=position_title
+    ).first()
+
+    if job:
+        return job
+
+    # fallback: word-based matching
+    words = position_title.split()
+    query = Q()
+
+    for word in words:
+        if len(word) > 2:  # ignore tiny words
+            query |= Q(title__icontains=word)
+
+    return Job.objects.filter(is_active=True).filter(query).first()
