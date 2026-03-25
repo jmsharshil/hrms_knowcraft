@@ -10,7 +10,6 @@ from slots.models import Interviewer,Slot
 from slots.graph import create_teams_meeting
 from zoneinfo import ZoneInfo
 from slots.availability import TEMP_SLOT_STORAGE
-from datetime import datetime, timedelta, date
 import requests
 from slots.graph import get_graph_token,fetch_meeting_recording,fetch_meeting_transcript
 from jobs.serializers import JobApplicationSerializer
@@ -18,98 +17,14 @@ from jobs.models import JobApplication
 from rest_framework import permissions
 from onboarding.utils.sender import send_email,send_text,send_document
 from onboarding.utils.resume_attachment import get_resume_attachment
-from django.utils.dateparse import parse_datetime as dj_parse_datetime,parse_date
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Q
 from django.utils import timezone
+from django.utils.dateparse import parse_date
+from .utils import *
 
 IST = ZoneInfo("Asia/Kolkata")
-
-def parse_datetime(value):
-    """
-    Accepts:
-    - ISO format (2026-03-13T13:00:00 or with timezone)
-    - DD-MM-YYYY HH:MM:SS (13-03-2026 13:00:00)
-
-    Converts everything to IST timezone.
-    Prevents past datetime booking.
-    """
-
-    if not value:
-        raise ValidationError("Datetime value is required")
-
-    dt = None
-
-    # 1️⃣ Try ISO format first
-    dt = dj_parse_datetime(value)
-
-    # 2️⃣ Try custom format if ISO fails
-    if not dt:
-        try:
-            dt = datetime.strptime(value, "%d-%m-%Y %H:%M:%S")
-        except ValueError:
-            raise ValidationError(
-                "Invalid datetime format. Use ISO format (YYYY-MM-DDTHH:MM:SS) "
-                "or DD-MM-YYYY HH:MM:SS"
-            )
-
-    # 3️⃣ Make timezone aware
-    if timezone.is_naive(dt):
-        dt = timezone.make_aware(dt, IST)
-
-    # 4️⃣ Convert everything to IST
-    dt = dt.astimezone(IST)
-    
-    # 5️⃣ Prevent past booking
-    now_ist = timezone.now().astimezone(IST)
-
-    if dt <= now_ist:
-        raise ValidationError("Interview time cannot be in the past")
-
-    return dt
-
-def create_calendar_event(organizer_email, attendee_emails, start_dt, end_dt, subject, location=None):
-    token = get_graph_token()
-
-    url = f"https://graph.microsoft.com/v1.0/users/{organizer_email}/events"
-
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
-
-    attendees = [
-        {
-            "emailAddress": {"address": email},
-            "type": "required"
-        }
-        for email in attendee_emails
-    ]
-
-    data = {
-        "subject": subject,
-        "start": {
-            "dateTime": start_dt.isoformat(),
-            "timeZone": "Asia/Kolkata"
-        },
-        "end": {
-            "dateTime": end_dt.isoformat(),
-            "timeZone": "Asia/Kolkata"
-        },
-        "attendees": attendees,
-        "location": {
-            "displayName": location or "Office"
-        }
-    }
-
-    response = requests.post(url, json=data, headers=headers)
-
-    if not response.ok:
-        print("Graph Error:", response.text)
-        return None
-
-    return response.json()
 
 class SendSlotSelectionEmailView(APIView):
     def post(self, request):
@@ -132,108 +47,6 @@ class SendSlotSelectionEmailView(APIView):
         message = f"Hello {candidate.candidate_name},\n\nClick to select your slot:\n{selection_link}\n\nThanks"
         send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [candidate.candidate_email], fail_silently=False)
         return Response({"detail": "Email sent", "candidate_id": candidate.id})
-
-
-# class CandidateBookSlotView(APIView):
-#     """
-#     POST /api/booking/candidate/<candidate_id>/book/
-#     Body: {"interviewer_id": "<uuid>", "start": "2025-11-20T15:00:00+05:30", "end": "2025-11-20T15:30:00+05:30"}
-#     """
-#     def post(self, request, candidate_id):
-#         candidate = Candidate.objects.filter(id=candidate_id).first()
-#         if not candidate:
-#             return Response({"detail": "Candidate not found"}, status=404)
-
-#         interviewer_id = request.data.get("interviewer_id")
-#         start_raw = request.data.get("start")
-#         end_raw = request.data.get("end")
-#         if not (interviewer_id and start_raw and end_raw):
-#             return Response({"detail": "interviewer_id, start and end are required"}, status=400)
-
-#         interviewer = Interviewer.objects.filter(id=interviewer_id).first()
-#         if not interviewer:
-#             return Response({"detail": "Interviewer not found"}, status=404)
-
-#         # parse datetimes
-#         start_dt = parser.isoparse(start_raw)
-#         end_dt = parser.isoparse(end_raw)
-
-#         # Create Teams meeting
-#         event = create_teams_meeting(interviewer.email, candidate.email, start_dt, end_dt, subject=f"Interview: {candidate.full_name}")
-#         meeting_id = event.get("id")
-#         meeting_link = None
-#         # Graph may provide onlineMeeting or onlineMeeting.joinUrl
-#         if event.get("onlineMeeting") and event["onlineMeeting"].get("joinUrl"):
-#             meeting_link = event["onlineMeeting"]["joinUrl"]
-#         elif event.get("onlineMeetingUrl"):
-#             meeting_link = event["onlineMeetingUrl"]
-#         elif event.get("onlineMeeting") and event["onlineMeeting"].get("joinWebUrl"):
-#             meeting_link = event["onlineMeeting"].get("joinWebUrl")
-
-#         # Save booking
-#         booking = Booking.objects.create(
-#             candidate=candidate,
-#             interviewer=interviewer,
-#             meeting_id=meeting_id,
-#             meeting_link=meeting_link,
-#             start=start_dt,
-#             end=end_dt
-#         )
-
-#         # Send emails
-#         start_str = start_dt.astimezone(IST).strftime("%d/%m/%Y %I:%M %p")
-#         subject_c = "Interview Confirmed"
-#         msg_c = f"Hello {candidate.full_name},\nYour interview is confirmed with {interviewer.name} at {start_str}.\nJoin link: {meeting_link}"
-#         send_mail(subject_c, msg_c, settings.DEFAULT_FROM_EMAIL, [candidate.email], fail_silently=False)
-
-#         subject_i = "New Interview Scheduled"
-#         msg_i = f"Hello {interviewer.name},\nYou have interview with {candidate.full_name} at {start_str}.\nJoin link: {meeting_link}"
-#         send_mail(subject_i, msg_i, settings.DEFAULT_FROM_EMAIL, [interviewer.email], fail_silently=False)
-
-#         serializer = BookingSerializer(booking)
-#         return Response(serializer.data, status=201)
-
-def create_teams_meeting(organizer_email, attendee_emails, start_dt, end_dt, subject):
-    token = get_graph_token()
-
-    url = f"https://graph.microsoft.com/v1.0/users/{organizer_email}/events"
-
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
-
-    attendees = [
-        {
-            "emailAddress": {"address": email},
-            "type": "required"
-        }
-        for email in attendee_emails
-    ]
-
-    data = {
-        "subject": subject,
-        "start": {
-            "dateTime": start_dt.isoformat(),
-            "timeZone": "Asia/Kolkata"
-        },
-        "end": {
-            "dateTime": end_dt.isoformat(),
-            "timeZone": "Asia/Kolkata"
-        },
-        "attendees": attendees,
-        "isOnlineMeeting": True,
-        "onlineMeetingProvider": "teamsForBusiness"
-    }
-
-    response = requests.post(url, json=data, headers=headers)
-    
-    if not response.ok:
-        print("Graph Error:", response.text)
-        return None
-
-    return response.json()
-
 
 class CandidateBookSlotView(APIView):
     """
@@ -337,149 +150,235 @@ class CandidateBookSlotView(APIView):
         )
 
         # 8) Save booking
-        booking = Booking.objects.create(
-            candidate=candidate,
-            interviewer=interviewer,
-            meeting_id=event.get("id"),
-            meeting_link=meeting_link,
-            # slot=slot,         # <-- IMPORTANT
-            start=start_dt,
-            end=end_dt
-        )
+        try:
+            with transaction.atomic():
+                booking = Booking.objects.create(
+                    candidate=candidate,
+                    interviewer=interviewer,
+                    meeting_id=event.get("id"),
+                    meeting_link=meeting_link,
+                    # slot=slot,         # <-- IMPORTANT
+                    start=start_dt,
+                    end=end_dt
+                )
+                
+                if not booking:
+                    return Response("Unable to book interview.Try again",status=status.HTTP_400_BAD_REQUEST)
         
-        if not booking:
-            return Response("Unable to book interview.Try again",status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(f"Unable to book interview:{e}")
         
         # Mark slot as booked
         # slot.is_booked = True
         # slot.save()
 
         # 9) Email notifications
-        start_str = start_dt.astimezone(IST).strftime("%d/%m/%Y %I:%M %p")
+        try:
+            transaction.on_commit(lambda: send_online_interview_notification(candidate,meeting_link,interviewer_id,start_dt,extra_attendees))
+        except Exception as e:
+            return Response({"Error":f"Unable to book an interview:{e}"},status=500)
+        return Response(BookingSerializer(booking).data, status=201)
+    
+def send_online_interview_notification(candidate,meeting_link,interviewer_id,start_dt,extra_attendees):
+    start_str = start_dt.astimezone(IST).strftime("%d/%m/%Y %I:%M %p")
 
-        round = None
-        round_name = ""
+    round = None
+    round_name = ""
 
-        designation = candidate.job.mrf.designation.name
-        level = get_experience_level(designation)
+    designation = candidate.job.mrf.designation.name
+    level = get_experience_level(designation)
 
-        BASE_URL = getattr(settings, 'FRONTEND_URL', 'https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net')
-        resume_attachment = get_resume_attachment(candidate)
-        # Determine round
-        if candidate.status in ['shortlisted', 'interview_pending_1']:
-            if candidate.job.mrf.interviewer_email_1:
-                round = "hr_round"
-                round_name = "HR Round"
-            elif candidate.job.mrf.interviewer_email_2:
-                round = "technical_round"
-                round_name = "Technical Round"
-            elif candidate.job.mrf.interviewer_email_3:
-                round = "case_study_round"
-                round_name = "Case Study Round"
-            elif candidate.job.mrf.interviewer_email_final:
-                round = "final_round"
-                round_name = "Final Round"
-
-        elif candidate.status in ['interview_next_2', 'interview_pending_2']:
+    BASE_URL = getattr(settings, 'FRONTEND_URL', 'https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net')
+    resume_attachment = get_resume_attachment(candidate)
+    # Determine round
+    if candidate.status in ['shortlisted', 'interview_pending_1']:
+        if candidate.job.mrf.interviewer_email_1:
+            round = "hr_round"
+            round_name = "HR Round"
+        elif candidate.job.mrf.interviewer_email_2:
             round = "technical_round"
             round_name = "Technical Round"
-            # if candidate.job.mrf.technical_interviewers.exists():
-            #     for interviewer in candidate.job.mrf.technical_interviewers.all():
-            #         if str(interviewer.id) == str(interviewer_id):
-            #             continue   
-
-        elif candidate.status in ['interview_next_3', 'interview_pending_3']:
+        elif candidate.job.mrf.interviewer_email_3:
             round = "case_study_round"
             round_name = "Case Study Round"
-
-        elif candidate.status in ['interview_next_final', 'interview_pending_final']:
+        elif candidate.job.mrf.interviewer_email_final:
             round = "final_round"
             round_name = "Final Round"
 
-        elif candidate.status in ['interview_next_management_client', 'interview_pending_management_client']:
-            round = "management_client_round"
-            round_name = "Management / Client Round"
+    elif candidate.status in ['interview_next_2', 'interview_pending_2']:
+        round = "technical_round"
+        round_name = "Technical Round"
+        # if candidate.job.mrf.technical_interviewers.exists():
+        #     for interviewer in candidate.job.mrf.technical_interviewers.all():
+        #         if str(interviewer.id) == str(interviewer_id):
+        #             continue   
 
-        # Resolve feedback path
-        base_path = FEEDBACK_PATHS.get(round, {}).get(level, "/api/slots/hrfresher/")
+    elif candidate.status in ['interview_next_3', 'interview_pending_3']:
+        round = "case_study_round"
+        round_name = "Case Study Round"
 
-        feedback_link = (
-            f"{BASE_URL}{base_path}"
-            f"?interview_round={round}&job_application={candidate.id}"
-        )
+    elif candidate.status in ['interview_next_final', 'interview_pending_final']:
+        round = "final_round"
+        round_name = "Final Round"
 
-        send_email(
-            subject=f"Interview Scheduled – {candidate.job.mrf.designation.name} at Knowcraft Analytics Private Limited",
-            text=f"""Dear {candidate.candidate_name},\nWe are pleased to inform you have been shortlisted for {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled at {start_str}.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
+    elif candidate.status in ['interview_next_management_client', 'interview_pending_management_client']:
+        round = "management_client_round"
+        round_name = "Management / Client Round"
+
+    # Resolve feedback path
+    base_path = FEEDBACK_PATHS.get(round, {}).get(level, "/api/slots/hrfresher/")
+
+    feedback_link = (
+        f"{BASE_URL}{base_path}"
+        f"?interview_round={round}&job_application={candidate.id}"
+    )
+
+    send_email(
+        subject=f"Interview Scheduled – {candidate.job.mrf.designation.name} at Knowcraft Analytics Private Limited",
+        text=f"""Dear {candidate.candidate_name},\nWe are pleased to inform you have been shortlisted for {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled at {start_str}.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
 \nWe look forward to speaking with you.
 \nPlease feel free to reach out if you have any questions or require further assistance.
 \nWarm regards,
 \nTeam-HR
 \nKnowcraft Analytics Private Limited""",
-            template=f"""<html>
-        <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
-            <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
-                <tr>
-                    <td align="center" style="padding:30px 15px;">
-                        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
-                            <!-- Logo -->
-                            <tr>
-                                <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                    <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
-                                </td>
-                            </tr>
-                            <!-- Separator -->
-                            <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
-                            <!-- Content -->
-                            <tr>
-                                <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
-                                    <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Interview Scheduled — {round_name}</h2>
-                                    <p style="margin:0 0 16px 0;">Dear {candidate.candidate_name},</p>
-                                    <p style="margin:0 0 20px 0;">We are pleased to inform you that your <strong>{round_name}</strong> interview for the position of <strong>{candidate.job.mrf.designation.name}</strong> has been scheduled on <strong>{start_str}</strong>.</p>
-                                    
-                                    <!-- Big Join Button -->
-                                    <p style="margin:30px 0 35px 0;text-align:center;">
-                                        <a href="{meeting_link}" 
-                                        style="background-color:#2563eb;color:#ffffff;padding:16px 36px;text-decoration:none;border-radius:8px;font-weight:600;font-size:17px;display:inline-block;">
-                                            Join Interview on MS Teams
-                                        </a>
-                                    </p>
-                                    
-                                    <p style="margin:0 0 16px 0;">Kindly ensure you join the interview via the link above on time using a laptop or desktop for the best experience.</p>
-                                    <p style="margin:0 0 16px 0;">We look forward to speaking with you.</p>
-                                    <p style="margin:0 0 16px 0;">Please feel free to reach out if you have any questions or require further assistance.</p>
-                                    <br>
-                                    <p style="margin:20px 0 6px 0;color:#555555;">Warm regards,</p>
-                                    <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                    <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
-                                </td>
-                            </tr>
-                            <!-- Footer -->
-                            <tr>
-                                <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                    © 2026 Knowcraft Analytics Private Limited
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </body>
-        </html>""",
-            to=candidate.candidate_email
-        )
-        send_text(to=candidate.candidate_phone,text=f"""Dear {candidate.candidate_name},\nWe are pleased to inform you have been shortlisted for {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled at {start_str}.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
+        template=f"""<html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Logo -->
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <!-- Separator -->
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Interview Scheduled — {round_name}</h2>
+                                <p style="margin:0 0 16px 0;">Dear {candidate.candidate_name},</p>
+                                <p style="margin:0 0 20px 0;">We are pleased to inform you that your <strong>{round_name}</strong> interview for the position of <strong>{candidate.job.mrf.designation.name}</strong> has been scheduled on <strong>{start_str}</strong>.</p>
+                                
+                                <!-- Big Join Button -->
+                                <p style="margin:30px 0 35px 0;text-align:center;">
+                                    <a href="{meeting_link}" 
+                                    style="background-color:#2563eb;color:#ffffff;padding:16px 36px;text-decoration:none;border-radius:8px;font-weight:600;font-size:17px;display:inline-block;">
+                                        Join Interview on MS Teams
+                                    </a>
+                                </p>
+                                
+                                <p style="margin:0 0 16px 0;">Kindly ensure you join the interview via the link above on time using a laptop or desktop for the best experience.</p>
+                                <p style="margin:0 0 16px 0;">We look forward to speaking with you.</p>
+                                <p style="margin:0 0 16px 0;">Please feel free to reach out if you have any questions or require further assistance.</p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>""",
+        to=candidate.candidate_email
+    )
+    send_text(to=candidate.candidate_phone,text=f"""Dear {candidate.candidate_name},\nWe are pleased to inform you have been shortlisted for {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled at {start_str}.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
 \nWe look forward to speaking with you.
 \nPlease feel free to reach out if you have any questions or require further assistance.
 \nWarm regards,
 \nTeam-HR
 \nKnowcraft Analytics Private Limited""")
-        interviewer,created = Interviewer.objects.get_or_create(id=interviewer_id)
+    interviewer,created = Interviewer.objects.get_or_create(id=interviewer_id)
+    send_email(
+        subject=f"Interview Scheduled - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
+        text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}",
+        template=f"""
+        <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Logo -->
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <!-- Separator -->
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Interview Scheduled — {round_name}</h2>
+                                <p style="margin:0 0 16px 0;">Dear {interviewer.name},</p>
+                                <p style="margin:0 0 16px 0;">This is to inform you that the interview for <strong>{candidate.candidate_name}</strong> for the role of <strong>{candidate.job.mrf.designation.name}</strong> has been scheduled on <strong>{start_str}</strong>.</p>
+                                <p style="margin:0 0 16px 0;">Please find below the MS Teams link and candidate details:</p>
+                                
+                                <table style="margin:20px 0;width:100%;border-collapse:collapse;">
+                                    <tr>
+                                        <td style="padding:12px 0;width:140px;font-weight:600;color:#475569;">Join Link:</td>
+                                        <td style="padding:12px 0;">
+                                            <a href="{meeting_link}" style="color:#2563eb;text-decoration:underline;font-weight:500;">Join Meeting</a>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:12px 0;width:140px;font-weight:600;color:#475569;">Feedback Link:</td>
+                                        <td style="padding:12px 0;">
+                                            <a href="{feedback_link}" style="color:#2563eb;text-decoration:underline;font-weight:500;">Give feedback</a>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:12px 0;width:140px;font-weight:600;color:#475569;">Resume:</td>
+                                        <td style="padding:12px 0;">
+                                            <a href="{candidate.resume.url}" style="color:#2563eb;text-decoration:underline;font-weight:500;">View / Download Resume</a>
+                                        </td>
+                                    </tr>
+                                </table>
+                                
+                                <p style="margin:25px 0 16px 0;">Kindly join the meeting on time.</p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>""",
+        to=interviewer.email,
+        attachments=[resume_attachment] if resume_attachment else None
+    )
+    if interviewer.phone:
+        send_text(to=interviewer.phone,text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}")
+        send_document(to=interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
+
+    for extra in extra_attendees:
         send_email(
-            subject=f"Interview Scheduled - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
-            text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}",
-            template=f"""
-            <html>
+        subject=f"Interview Scheduled - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
+        text=f"Dear {extra.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}",
+        template=f"""
+        <html>
         <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
             <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
                 <tr>
@@ -497,32 +396,27 @@ class CandidateBookSlotView(APIView):
                             <tr>
                                 <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
                                     <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Interview Scheduled — {round_name}</h2>
-                                    <p style="margin:0 0 16px 0;">Dear {interviewer.name},</p>
+                                    <p style="margin:0 0 16px 0;">Dear {extra.name},</p>
                                     <p style="margin:0 0 16px 0;">This is to inform you that the interview for <strong>{candidate.candidate_name}</strong> for the role of <strong>{candidate.job.mrf.designation.name}</strong> has been scheduled on <strong>{start_str}</strong>.</p>
                                     <p style="margin:0 0 16px 0;">Please find below the MS Teams link and candidate details:</p>
                                     
-                                    <table style="margin:20px 0;width:100%;border-collapse:collapse;">
+                                    <!-- Clean Link Table -->
+                                    <table style="margin:22px 0;width:100%;border-collapse:collapse;background:#f8fafc;border-radius:8px;overflow:hidden;">
                                         <tr>
-                                            <td style="padding:12px 0;width:140px;font-weight:600;color:#475569;">Join Link:</td>
-                                            <td style="padding:12px 0;">
+                                            <td style="padding:16px 20px;width:140px;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">Join Link</td>
+                                            <td style="padding:16px 20px;border-bottom:1px solid #e2e8f0;">
                                                 <a href="{meeting_link}" style="color:#2563eb;text-decoration:underline;font-weight:500;">Join Meeting</a>
                                             </td>
                                         </tr>
                                         <tr>
-                                            <td style="padding:12px 0;width:140px;font-weight:600;color:#475569;">Feedback Link:</td>
-                                            <td style="padding:12px 0;">
-                                                <a href="{feedback_link}" style="color:#2563eb;text-decoration:underline;font-weight:500;">Give feedback</a>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td style="padding:12px 0;width:140px;font-weight:600;color:#475569;">Resume:</td>
-                                            <td style="padding:12px 0;">
+                                            <td style="padding:16px 20px;width:140px;font-weight:600;color:#475569;">Resume</td>
+                                            <td style="padding:16px 20px;">
                                                 <a href="{candidate.resume.url}" style="color:#2563eb;text-decoration:underline;font-weight:500;">View / Download Resume</a>
                                             </td>
                                         </tr>
                                     </table>
                                     
-                                    <p style="margin:25px 0 16px 0;">Kindly join the meeting on time.</p>
+                                    <p style="margin:25px 0 16px 0;">Please join the meeting on time and keep the candidate’s resume handy.</p>
                                     <br>
                                     <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                     <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
@@ -541,107 +435,37 @@ class CandidateBookSlotView(APIView):
             </table>
         </body>
         </html>""",
-            to=interviewer.email,
-            attachments=[resume_attachment] if resume_attachment else None
-        )
-        if interviewer.phone:
-            send_text(to=interviewer.phone,text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}")
-            send_document(to=interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
+        to=extra.email,
+        attachments=[resume_attachment] if resume_attachment else None
+    )
+        if extra.phone:
+            send_text(to=extra.phone,text=f"Dear {extra.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}")
+            send_document(to=extra.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
 
-        for extra in extra_attendees:
-            send_email(
-            subject=f"Interview Scheduled - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
-            text=f"Dear {extra.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}",
-            template=f"""
-            <html>
-            <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
-                <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
-                    <tr>
-                        <td align="center" style="padding:30px 15px;">
-                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
-                                <!-- Logo -->
-                                <tr>
-                                    <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                        <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
-                                    </td>
-                                </tr>
-                                <!-- Separator -->
-                                <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
-                                <!-- Content -->
-                                <tr>
-                                    <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
-                                        <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Interview Scheduled — {round_name}</h2>
-                                        <p style="margin:0 0 16px 0;">Dear {extra.name},</p>
-                                        <p style="margin:0 0 16px 0;">This is to inform you that the interview for <strong>{candidate.candidate_name}</strong> for the role of <strong>{candidate.job.mrf.designation.name}</strong> has been scheduled on <strong>{start_str}</strong>.</p>
-                                        <p style="margin:0 0 16px 0;">Please find below the MS Teams link and candidate details:</p>
-                                        
-                                        <!-- Clean Link Table -->
-                                        <table style="margin:22px 0;width:100%;border-collapse:collapse;background:#f8fafc;border-radius:8px;overflow:hidden;">
-                                            <tr>
-                                                <td style="padding:16px 20px;width:140px;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">Join Link</td>
-                                                <td style="padding:16px 20px;border-bottom:1px solid #e2e8f0;">
-                                                    <a href="{meeting_link}" style="color:#2563eb;text-decoration:underline;font-weight:500;">Join Meeting</a>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td style="padding:16px 20px;width:140px;font-weight:600;color:#475569;">Resume</td>
-                                                <td style="padding:16px 20px;">
-                                                    <a href="{candidate.resume.url}" style="color:#2563eb;text-decoration:underline;font-weight:500;">View / Download Resume</a>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                        
-                                        <p style="margin:25px 0 16px 0;">Please join the meeting on time and keep the candidate’s resume handy.</p>
-                                        <br>
-                                        <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
-                                        <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                        <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
-                                    </td>
-                                </tr>
-                                <!-- Footer -->
-                                <tr>
-                                    <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                        © 2026 Knowcraft Analytics Private Limited • Confidential
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-                </table>
-            </body>
-            </html>""",
-            to=extra.email,
-            attachments=[resume_attachment] if resume_attachment else None
-        )
-            if extra.phone:
-                send_text(to=extra.phone,text=f"Dear {extra.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}")
-                send_document(to=extra.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
-
-        candidate.interview_link = meeting_link
-        candidate.interviewer_name = interviewer.name
-        candidate.interview_scheduled_at = start_dt
-        candidate.feedback_link = feedback_link
-        candidate.round_name = round_name
-        candidate.save()
-        from onboarding.utils.engine import automation_engine
-        if candidate.status == 'shortlisted':
-            if candidate.job.mrf.interviewer_email_1:
-                automation_engine(candidate,candidate.status,'interview_pending_1')
-            elif candidate.job.mrf.interviewer_email_2:
-                automation_engine(candidate,candidate.status,'interview_pending_2')
-            elif candidate.job.mrf.interviewer_email_3:
-                automation_engine(candidate,candidate.status,'interview_pending_3')
-            elif candidate.job.mrf.interviewer_email_final:
-                automation_engine(candidate,candidate.status,'interview_pending_final')
-        elif candidate.status == 'interview_next_2':
+    candidate.interview_link = meeting_link
+    candidate.interviewer_name = interviewer.name
+    candidate.interview_scheduled_at = start_dt
+    candidate.feedback_link = feedback_link
+    candidate.round_name = round_name
+    candidate.save()
+    from onboarding.utils.engine import automation_engine
+    if candidate.status == 'shortlisted':
+        if candidate.job.mrf.interviewer_email_1:
+            automation_engine(candidate,candidate.status,'interview_pending_1')
+        elif candidate.job.mrf.interviewer_email_2:
             automation_engine(candidate,candidate.status,'interview_pending_2')
-        elif candidate.status == 'interview_next_3':
+        elif candidate.job.mrf.interviewer_email_3:
             automation_engine(candidate,candidate.status,'interview_pending_3')
-        elif candidate.status == 'interview_next_final':
+        elif candidate.job.mrf.interviewer_email_final:
             automation_engine(candidate,candidate.status,'interview_pending_final')
-        elif candidate.status == 'interview_next_management_client':
-            automation_engine(candidate, candidate.status, 'interview_pending_management_client')
-        return Response(BookingSerializer(booking).data, status=201)
+    elif candidate.status == 'interview_next_2':
+        automation_engine(candidate,candidate.status,'interview_pending_2')
+    elif candidate.status == 'interview_next_3':
+        automation_engine(candidate,candidate.status,'interview_pending_3')
+    elif candidate.status == 'interview_next_final':
+        automation_engine(candidate,candidate.status,'interview_pending_final')
+    elif candidate.status == 'interview_next_management_client':
+        automation_engine(candidate, candidate.status, 'interview_pending_management_client')
 
 FRESHER_DESIGNATIONS = [
     "Analyst", "Associate", "Advanced Analyst", "Advanced Associate"
@@ -808,17 +632,6 @@ Goole Map Link:
 Warm Regards,
 Team – HR""")
             send_document(to=extra.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
-
-    attendees = list(set(attendees))
-
-    event = create_calendar_event(
-        interviewer.email,
-        attendees,
-        start_dt,
-        end_dt,
-        subject=f"In-Person Interview: {candidate.candidate_name}",
-        location= location_str
-    )
 
     if candidate.status in ['shortlisted', 'interview_pending_1']:
         if candidate.job.mrf.interviewer_email_1:
@@ -1210,6 +1023,23 @@ class CandidateBookInPersonInterviewView(APIView):
                 #         {"detail": "Candidate already has an interview scheduled in this time range"},
                 #         status=400
                 #     )
+                attendees = [candidate.candidate_email]
+                attendee_ids = request.data.get("attendees", [])
+                extra_attendees = Interviewer.objects.filter(id__in=attendee_ids)
+                for extra in extra_attendees:
+                    attendees.append(extra.email)
+                
+                attendees = list(set(attendees))
+                location_str = location.full_address if hasattr(location, 'full_address') else str(location)
+
+                event = create_calendar_event(
+                    interviewer.email,
+                    attendees,
+                    start_dt,
+                    end_dt,
+                    subject=f"In-Person Interview: {candidate.candidate_name}",
+                    location= location_str
+                )
 
                 # ✅ Create booking
                 booking = Booking.objects.create(
@@ -1218,7 +1048,8 @@ class CandidateBookInPersonInterviewView(APIView):
                     interview_type="in_person",
                     location=location,
                     start=start_dt,
-                    end=end_dt
+                    end=end_dt,
+                    meeting_id=event.get("id")
                 )
         except ValidationError as e:
             return Response({"detail": str(e)}, status=400)
@@ -1389,3 +1220,195 @@ class BranchWiseInterviewReportView(APIView):
             "online_without_branch": online_without_branch,
             "total_interviews": bookings.count()
         })
+
+class RescheduleBookingView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def patch(self, request, candidate_id):
+        booking = get_booking_by_candidate(candidate_id)
+        if not booking:
+            return Response({"detail": "Booking not found"}, status=404)
+        
+        candidate = JobApplication.objects.filter(id=candidate_id).first()
+
+        start = request.data.get("start")
+        end = request.data.get("end")
+
+        try:
+            start_dt = parse_datetime(start)
+            end_dt = parse_datetime(end)
+        except ValidationError as ve:
+            return Response({"detail": str(ve)}, status=400)
+
+        # ✅ ALWAYS update Graph (online + in-person)
+        res = update_teams_meeting(
+            organizer_email=booking.interviewer.email,
+            event_id=booking.meeting_id,
+            start_dt=start_dt,
+            end_dt=end_dt
+        )
+
+        if res is None:
+            return Response({"detail": "Failed to update event"}, status=500)
+
+        # ✅ Update DB
+        booking.start = start_dt
+        booking.end = end_dt
+        booking.save()
+
+        candidate.interview_scheduled_at = start_dt
+        candidate.save()
+
+        # 🔹 Email content differs
+        start_str = start_dt.astimezone(IST).strftime("%d/%m/%Y %I:%M %p")
+
+        if booking.interview_type == "online":
+            send_email(
+                subject=f"Interview Rescheduled – {candidate.job.mrf.designation.name} at Knowcraft Analytics",
+                text=f"""Dear {candidate.candidate_name},
+Your {candidate.round_name or ""} interview for the position of {candidate.job.mrf.designation.name} has been rescheduled to {start_str}.
+Join link: {candidate.interview_link}
+
+Kindly ensure you join the interview on time using a laptop/desktop.
+
+Warm regards,
+Team-HR
+Knowcraft Analytics""",
+                template=f"""<html>
+                <body style="font-family:Arial,sans-serif;background-color:#f4f4f7;margin:0;padding:0;">
+                    <table align="center" width="100%" style="max-width:620px;margin:0 auto;">
+                        <tr><td align="center" style="padding:30px;">
+                            <table width="100%" style="background:#fff;border-radius:12px;overflow:hidden;">
+                                <tr><td align="center" style="padding:40px;"><img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft" style="max-width:200px;"></td></tr>
+                                <tr><td style="padding:35px;color:#333;">
+                                    <h2>Interview Rescheduled — {candidate.round_name}</h2>
+                                    <p>Dear {candidate.candidate_name},</p>
+                                    <p>Your interview for <strong>{candidate.job.mrf.designation.name}</strong> has been rescheduled to <strong>{start_str}</strong>.</p>
+                                    <p style="text-align:center;margin:30px 0;">
+                                        <a href="{candidate.interview_link}" style="background-color:#2563eb;color:#fff;padding:16px 36px;text-decoration:none;border-radius:8px;font-weight:600;">Join Interview on MS Teams</a>
+                                    </p>
+                                    <p>Please join on time using a laptop/desktop for a smooth experience.</p>
+                                    <br>
+                                    <p>Warm regards,<br>Team-HR, Knowcraft Analytics</p>
+                                </td></tr>
+                            </table>
+                        </td></tr>
+                    </table>
+                </body>
+                </html>""",
+            to=candidate.candidate_email
+        )
+        else:
+            info = f"Location: {booking.location.name}"
+
+        return Response({"detail": "Rescheduled successfully"})
+
+class CancelBookingView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def delete(self, request, candidate_id):
+        booking = get_booking_by_candidate(candidate_id)
+        if not booking:
+            return Response({"detail": "Booking not found"}, status=404)
+
+        # ✅ ALWAYS cancel Graph event
+        if not cancel_meeting(booking.interviewer.email, booking.meeting_id):
+            return Response({"detail": "Failed to cancel event"}, status=500)
+
+        # 🔹 Email content differs
+        if booking.interview_type == "online":
+            send_email(
+    subject=f"Interview Cancelled – {candidate.job.mrf.designation.name} at Knowcraft Analytics",
+    text=f"""Dear {candidate.candidate_name},
+We regret to inform you that your {candidate.round_name} interview for the position of {candidate.job.mrf.designation.name} scheduled at {candidate.interview_scheduled_at} has been cancelled.
+
+Please reach out to the HR team for any questions or next steps.
+
+Warm regards,
+Team-HR""",
+    template=f"""<html>
+    <body style="font-family:Arial,sans-serif;background-color:#f4f4f7;margin:0;padding:0;">
+        <table align="center" width="100%" style="max-width:620px;margin:0 auto;">
+            <tr><td align="center" style="padding:30px;">
+                <table width="100%" style="background:#fff;border-radius:12px;overflow:hidden;">
+                    <tr><td align="center" style="padding:40px;"><img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft" style="max-width:200px;"></td></tr>
+                    <tr><td style="padding:35px;color:#333;">
+                        <h2>Interview Cancelled — {candidate.round_name}</h2>
+                        <p>Dear {candidate.candidate_name},</p>
+                        <p>We regret to inform you that your interview for <strong>{candidate.job.mrf.designation.name}</strong> scheduled at <strong>{candidate.interview_scheduled_at}</strong> has been cancelled.</p>
+                        <p>Please contact HR for next steps.</p>
+                        <br>
+                        <p>Warm regards,<br>Team-HR, Knowcraft Analytics</p>
+                    </td></tr>
+                </table>
+            </td></tr>
+        </table>
+    </body>
+    </html>""",
+    to=candidate.candidate_email
+)
+        else:
+            info = f"Location: {booking.location.name}"
+        
+        candidate = JobApplication.objects.filter(id=candidate_id).first()
+        candidate.inperson_link = None
+        candidate.interview_link = None
+        candidate.interview_scheduled_at = None
+        candidate.interviewer_name = None
+        candidate.save()
+
+        booking.delete()
+
+        return Response({"detail": "Cancelled successfully"})
+
+class UpdateAttendeesView(APIView):
+    def patch(self, request, candidate_id):
+        booking = get_booking_by_candidate(candidate_id)
+        if not booking:
+            return Response({"detail": "Booking not found"}, status=404)
+
+        attendee_ids = request.data.get("attendees", [])
+        attendees = Interviewer.objects.filter(id__in=attendee_ids)
+
+        if not attendees:
+            return Response({"Needs to add attendees to update them!"})
+
+        if not booking.meeting_id:
+            return Response(
+                {"detail": "No calendar event linked to this booking"},
+                status=400
+            )
+        
+        emails = [a.email for a in attendees]
+
+        candidate = JobApplication.objects.filter(id=candidate_id).first()
+        emails.append(candidate.candidate_email)
+
+        res = update_attendees(booking.interviewer.email, booking.meeting_id, emails)
+        if res is None:
+            return Response({"detail": "Failed to update attendees"}, status=500)
+
+        return Response({"detail": "Attendees updated"})
+
+from django.http import HttpResponse
+
+from onboarding.utils.task_queue import TASK_QUEUE
+
+class GraphWebhookView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        data = request.data
+
+        for notification in data.get("value", []):
+            # 🔥 Push to background queue
+            TASK_QUEUE.enqueue(process_graph_event, notification)
+
+        return Response({"status": "accepted"})
+
+def renew_subscriptions():
+    interviewers = Interviewer.objects.all()
+
+    for interviewer in interviewers:
+        TASK_QUEUE.enqueue(check_and_renew_subscription, interviewer.id)

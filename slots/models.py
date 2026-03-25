@@ -10,6 +10,8 @@ class Interviewer(models.Model):
     email = models.EmailField()
     phone = models.CharField(null=True,blank=True)
     company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
+    subscription_id = models.CharField(max_length=255, null=True, blank=True)
+    subscription_expiry = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['email']
