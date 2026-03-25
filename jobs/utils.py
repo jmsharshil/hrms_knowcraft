@@ -1227,7 +1227,8 @@ def reparse_applications_missing_email(batch_size=50):
     total = queryset.count()
     updated = 0
     failed = 0
-
+    skipped =0
+    
     for application in queryset.iterator(chunk_size=batch_size):
         try:
             job = application.job
