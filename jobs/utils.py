@@ -1212,3 +1212,37 @@ def pre_parse_resume_task(application,resume_file,job):
         application.is_duplicate = duplicated
         application.candidate_history = history
         application.save()
+
+def reparse_applications_missing_email(batch_size=50):
+    """
+    Reprocess applications where email is missing
+    """
+    from .models import Application
+    from django.db.models import Q
+    queryset = Application.objects.filter(
+        Q(candidate_email__isnull=True) | Q(candidate_email='')
+    ).select_related('job')
+
+    total = queryset.count()
+    updated = 0
+    failed = 0
+
+    for application in queryset.iterator(chunk_size=batch_size):
+        try:
+            pre_parse_resume_task(
+                application=application,
+                resume_file=application.resume,
+                job=application.job
+            )
+
+            updated += 1
+
+        except Exception as e:
+            failed += 1
+            print(f"[ERROR] Application {application.id}: {str(e)}")
+
+    return {
+        "total": total,
+        "updated": updated,
+        "failed": failed
+    }
