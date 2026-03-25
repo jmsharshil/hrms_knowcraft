@@ -1475,3 +1475,12 @@ class ApplicationViewSet(viewsets.GenericViewSet):
             context={'request': request}
         )
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'])
+    def reparse(self, request):
+        from .utils import reparse_applications_missing_email
+        result = reparse_applications_missing_email()
+        return Response({
+            "message": "Reparsing completed",
+            **result
+        })

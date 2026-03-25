@@ -1212,3 +1212,78 @@ def pre_parse_resume_task(application,resume_file,job):
         application.is_duplicate = duplicated
         application.candidate_history = history
         application.save()
+
+from .models import Application,Job
+from django.db.models import Q
+
+def reparse_applications_missing_email(batch_size=50):
+    """
+    Reprocess applications where email is missing
+    """
+    queryset = Application.objects.filter(
+        Q(candidate_email__isnull=True) | Q(candidate_email='')
+    ).select_related('job')
+
+    total = queryset.count()
+    updated = 0
+    failed = 0
+    skipped =0
+    
+    for application in queryset.iterator(chunk_size=batch_size):
+        try:
+            job = application.job
+            resume = application.resume
+
+            # ✅ Fallback logic
+            if not job:
+                job = find_similar_job(application.position_title)
+
+                if not job:
+                    skipped += 1
+                    print(f"[SKIPPED] No job match for {application.id}")
+                    continue
+
+                # optional: attach found job
+                application.job = job
+                application.save(update_fields=['job'])
+            
+            pre_parse_resume_task(
+                application=application,
+                resume_file=resume,
+                job=job
+            )
+
+            updated += 1
+
+        except Exception as e:
+            failed += 1
+            print(f"[ERROR] Application {application.id}: {str(e)}")
+
+    return {
+        "total": total,
+        "updated": updated,
+        "failed": failed
+    }
+
+def find_similar_job(position_title):
+    if not position_title:
+        return None
+
+    # प्राथमिक simple match
+    job = Job.objects.filter(
+        is_active=True,
+        job_title__icontains=position_title
+    ).first()
+
+    if job:
+        return job
+
+    # fallback: word-based matching
+    words = position_title.split()
+    query = Q()
+
+    for word in words:
+        if len(word) > 2:  # ignore tiny words
+            query |= Q(job_title__icontains=word)
+
+    return Job.objects.filter(is_active=True).filter(query).first()
