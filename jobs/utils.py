@@ -1231,7 +1231,7 @@ def reparse_applications_missing_email(batch_size=50):
         try:
             job = application.job
             resume = application.resume
-            
+
             # ✅ Fallback logic
             if not job:
                 job = find_similar_job(application.position_title)
@@ -1248,7 +1248,7 @@ def reparse_applications_missing_email(batch_size=50):
             pre_parse_resume_task(
                 application=application,
                 resume_file=resume,
-                job=application.job
+                job=job
             )
 
             updated += 1
