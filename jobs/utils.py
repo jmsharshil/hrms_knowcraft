@@ -1213,12 +1213,13 @@ def pre_parse_resume_task(application,resume_file,job):
         application.candidate_history = history
         application.save()
 
+from .models import Application,Job
+from django.db.models import Q
+
 def reparse_applications_missing_email(batch_size=50):
     """
     Reprocess applications where email is missing
     """
-    from .models import Application
-    from django.db.models import Q
     queryset = Application.objects.filter(
         Q(candidate_email__isnull=True) | Q(candidate_email='')
     ).select_related('job')
