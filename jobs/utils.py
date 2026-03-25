@@ -1271,7 +1271,7 @@ def find_similar_job(position_title):
     # प्राथमिक simple match
     job = Job.objects.filter(
         is_active=True,
-        title__icontains=position_title
+        job_title__icontains=position_title
     ).first()
 
     if job:
@@ -1283,6 +1283,6 @@ def find_similar_job(position_title):
 
     for word in words:
         if len(word) > 2:  # ignore tiny words
-            query |= Q(title__icontains=word)
+            query |= Q(job_title__icontains=word)
 
     return Job.objects.filter(is_active=True).filter(query).first()
