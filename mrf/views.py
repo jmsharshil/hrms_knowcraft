@@ -309,10 +309,8 @@ class MRFViewSet(viewsets.ModelViewSet):
                     ]
                 )
             
-            approved_by_user_q = Q(approvals__approver=user)
-
             queryset = queryset.filter(
-                Q(requested_by=user) | approval_q | department_q | approved_by_user_q
+                Q(requested_by=user) | approval_q | department_q
             )
         elif user.role in ['admin', 'hr_manager']:
             pass  # Can see all
