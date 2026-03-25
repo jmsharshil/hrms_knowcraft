@@ -56,6 +56,9 @@ class CanViewMRF(permissions.BasePermission):
         # Creator can always view
         if obj.requested_by == user:
             return True
+
+        if obj.approvals.approver == user:
+            return True
         
         # Approved MRFs visible to all authorized users
         if obj.status == 'approved':
