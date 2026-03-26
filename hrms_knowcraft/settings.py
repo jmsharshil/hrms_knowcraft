@@ -251,6 +251,12 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 # Frontend URL for magic links (Update based on your frontend)
 FRONTEND_URL = os.getenv("FRONTEND_URL")  # Change to your frontend URL
 
+#Backend URL
+if DEBUG:
+    BACKEND_URL = os.getenv("BACKEND_URL")
+else:
+    BACKEND_URL = "https://hireproknowcraft-crhacdc8dxd7dfhh.centralindia-01.azurewebsites.net"
+
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # CORS Settings (if frontend is on different domain)

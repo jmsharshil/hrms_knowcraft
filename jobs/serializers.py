@@ -111,10 +111,7 @@ class JobListSerializer(serializers.ModelSerializer):
         many=True,
         read_only=True
     )
-    application_links = JobApplicationLinkSerializer(
-        many=True,
-        read_only=True
-    )
+    application_links = serializers.SerializerMethodField()
 
     class Meta:
         model = Job
@@ -129,6 +126,24 @@ class JobListSerializer(serializers.ModelSerializer):
             'applications_count', 'is_active', 'visible_to_consultancy',
             'assigned_consultancies_details','assigned_internal_hrs_details','application_links'
         ]
+    
+    def get_application_links(self, obj):
+        request = self.context.get('request')
+
+        if not request or not request.user.is_authenticated:
+            return []
+
+        user = request.user
+        if user.role== 'consultancy':
+            links = obj.application_links.filter(created_by=user) if hasattr(obj, 'application_links') else obj.jobapplicationlink_set.filter(created_by=user)
+        else:
+            links = obj.application_links.all()
+
+        return JobApplicationLinkSerializer(
+            links,
+            many=True,
+            context=self.context
+        ).data
     
     def get_applications_count(self, obj):
         return obj.applications.count()
@@ -418,7 +433,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report','slot_link','candidate_history',
             'created_at', 'updated_at','is_selected','is_approved','is_rejected','inperson_link',
             'interview_scheduled_at','interviewer_name','interview_link','feedback_link','round_name','round_name_display',
-            "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone"
+            "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone","interview_end_at"
         ]
     
     def get_platform_name(self, obj):

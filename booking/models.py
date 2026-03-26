@@ -3,15 +3,6 @@ import uuid
 from slots.models import Slot
 from jobs.models import JobApplication
 
-# class Candidate(models.Model):
-#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-#     full_name = models.CharField(max_length=255)
-#     email = models.EmailField(unique=True)
-
-#     def __str__(self):
-#         return self.full_name
-
-
 class Booking(models.Model):
     INTERVIEW_TYPE_CHOICES = (
         ("online", "Online"),
@@ -30,6 +21,7 @@ class Booking(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     transcript = models.TextField(null=True, blank=True)
     recording_url = models.TextField(null=True, blank=True)
+    attendees = models.ManyToManyField("slots.Interviewer", related_name="attendees",blank=True)
 
 
     def __str__(self):
@@ -42,3 +34,18 @@ class Booking(models.Model):
             models.Index(fields=["location"]),
             models.Index(fields=["interview_type"]),
         ]
+
+class GraphEventLog(models.Model):
+    event_id = models.CharField(max_length=255)
+    change_type = models.CharField(max_length=50)
+    subscription_id = models.CharField(max_length=255)
+    resource = models.TextField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("event_id", "change_type", "subscription_id")
+
+class SystemLock(models.Model):
+    key = models.CharField(max_length=100, unique=True)
+    locked_at = models.DateTimeField(auto_now_add=True)

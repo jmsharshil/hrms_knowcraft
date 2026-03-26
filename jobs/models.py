@@ -555,6 +555,7 @@ class JobApplication(models.Model):
 
     #Interview Details
     interview_scheduled_at = models.DateTimeField(null=True,blank=True)
+    interview_end_at = models.DateTimeField(null=True,blank=True)
     interviewer_name = models.CharField(null=True,blank=True)
     interview_link = models.TextField(null=True,blank=True)
     feedback_link = models.TextField(null=True,blank=True)

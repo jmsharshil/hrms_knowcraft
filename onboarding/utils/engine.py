@@ -171,6 +171,7 @@ def automation_engine(candidate, old, new):
         candidate.interview_link = None
         candidate.interviewer_name = None
         candidate.interview_scheduled_at = None
+        candidate.interview_end_at = None
         # candidate.feedback_link = None
         candidate.round_name = None
 
