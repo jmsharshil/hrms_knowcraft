@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import CandidateBookSlotView,SendSlotSelectionEmailView,FetchMeetingData,MeetingWebhookView,CandidateBookInPersonInterviewView,BranchWiseInterviewReportView
-from .views import GraphWebhookView,RescheduleBookingView,CancelBookingView,UpdateAttendeesView,ManageBookingView
+from .views import GraphWebhookView,ManageBookingView
 urlpatterns = [
     path("send-email/", SendSlotSelectionEmailView.as_view()),
     path("candidate/<uuid:candidate_id>/book/", CandidateBookSlotView.as_view()),
