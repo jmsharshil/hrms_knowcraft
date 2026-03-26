@@ -111,10 +111,7 @@ class JobListSerializer(serializers.ModelSerializer):
         many=True,
         read_only=True
     )
-    application_links = JobApplicationLinkSerializer(
-        many=True,
-        read_only=True
-    )
+    application_links = serializers.SerializerMethodField()
 
     class Meta:
         model = Job
@@ -129,6 +126,24 @@ class JobListSerializer(serializers.ModelSerializer):
             'applications_count', 'is_active', 'visible_to_consultancy',
             'assigned_consultancies_details','assigned_internal_hrs_details','application_links'
         ]
+    
+    def get_application_links(self, obj):
+        request = self.context.get('request')
+
+        if not request or not request.user.is_authenticated:
+            return []
+
+        user = request.user
+        if user.role== 'consultancy':
+            links = obj.application_links.filter(created_by=user) if hasattr(obj, 'application_links') else obj.jobapplicationlink_set.filter(created_by=user)
+        else:
+            links = obj.application_links.all()
+
+        return JobApplicationLinkSerializer(
+            links,
+            many=True,
+            context=self.context
+        ).data
     
     def get_applications_count(self, obj):
         return obj.applications.count()
