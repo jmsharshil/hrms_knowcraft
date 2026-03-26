@@ -21,6 +21,7 @@ class Booking(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     transcript = models.TextField(null=True, blank=True)
     recording_url = models.TextField(null=True, blank=True)
+    attendees = models.ManyToManyField("slots.Interviewer", related_name="attendees",blank=True)
 
 
     def __str__(self):

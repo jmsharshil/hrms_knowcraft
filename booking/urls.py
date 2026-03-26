@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import CandidateBookSlotView,SendSlotSelectionEmailView,FetchMeetingData,MeetingWebhookView,CandidateBookInPersonInterviewView,BranchWiseInterviewReportView
-from .views import GraphWebhookView,RescheduleBookingView,CancelBookingView,UpdateAttendeesView
+from .views import GraphWebhookView,RescheduleBookingView,CancelBookingView,UpdateAttendeesView,ManageBookingView
 urlpatterns = [
     path("send-email/", SendSlotSelectionEmailView.as_view()),
     path("candidate/<uuid:candidate_id>/book/", CandidateBookSlotView.as_view()),
@@ -9,7 +9,8 @@ urlpatterns = [
     path("fetch-data/", FetchMeetingData.as_view()),
     path("meeting-webhook/", MeetingWebhookView.as_view()),
     path("webhooks/graph/", GraphWebhookView.as_view()),
-    path("<uuid:candidate_id>/reschedule/", RescheduleBookingView.as_view()),
-    path("<uuid:candidate_id>/cancel/", CancelBookingView.as_view()),
-    path("<uuid:candidate_id>/update-attendees/", UpdateAttendeesView.as_view())
+    # path("<uuid:candidate_id>/reschedule/", RescheduleBookingView.as_view()),
+    # path("<uuid:candidate_id>/cancel/", CancelBookingView.as_view()),
+    # path("<uuid:candidate_id>/update-attendees/", UpdateAttendeesView.as_view())
+    path("<uuid:candidate_id>/manage-interview/",ManageBookingView.as_view())
 ]

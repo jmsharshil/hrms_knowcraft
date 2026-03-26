@@ -418,7 +418,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report','slot_link','candidate_history',
             'created_at', 'updated_at','is_selected','is_approved','is_rejected','inperson_link',
             'interview_scheduled_at','interviewer_name','interview_link','feedback_link','round_name','round_name_display',
-            "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone"
+            "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone","interview_end_at"
         ]
     
     def get_platform_name(self, obj):

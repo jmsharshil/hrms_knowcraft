@@ -23,6 +23,7 @@ from django.db.models import Count, Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from .utils import *
+from .email_templates import *
 
 IST = ZoneInfo("Asia/Kolkata")
 
@@ -161,12 +162,12 @@ class CandidateBookSlotView(APIView):
                     start=start_dt,
                     end=end_dt
                 )
-                
+                booking.attendees.set(extra_attendees)
                 if not booking:
                     return Response("Unable to book interview.Try again",status=status.HTTP_400_BAD_REQUEST)
         
         except Exception as e:
-            return Response(f"Unable to book interview:{e}")
+            return Response(f"Unable to book interview:{e}",status=400)
         
         # Mark slot as booked
         # slot.is_booked = True
@@ -174,12 +175,12 @@ class CandidateBookSlotView(APIView):
 
         # 9) Email notifications
         try:
-            transaction.on_commit(lambda: send_online_interview_notification(candidate,meeting_link,interviewer_id,start_dt,extra_attendees))
+            transaction.on_commit(lambda: send_online_interview_notification(candidate,meeting_link,interviewer_id,start_dt,extra_attendees,end_dt))
         except Exception as e:
             return Response({"Error":f"Unable to book an interview:{e}"},status=500)
         return Response(BookingSerializer(booking).data, status=201)
     
-def send_online_interview_notification(candidate,meeting_link,interviewer_id,start_dt,extra_attendees):
+def send_online_interview_notification(candidate,meeting_link,interviewer_id,start_dt,extra_attendees,end_dt):
     start_str = start_dt.astimezone(IST).strftime("%d/%m/%Y %I:%M %p")
 
     round = None
@@ -445,6 +446,7 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
     candidate.interview_link = meeting_link
     candidate.interviewer_name = interviewer.name
     candidate.interview_scheduled_at = start_dt
+    candidate.interview_end_at = end_dt
     candidate.feedback_link = feedback_link
     candidate.round_name = round_name
     candidate.save()
@@ -884,6 +886,7 @@ Team – HR""")
     # Update candidate fields
     candidate.interviewer_name = interviewer.name
     candidate.interview_scheduled_at = start_dt
+    candidate.interview_end_at = end_dt
     candidate.feedback_link = feedback_link
     candidate.interview_link = None
     candidate.round_name = round_name
@@ -1049,8 +1052,9 @@ class CandidateBookInPersonInterviewView(APIView):
                     location=location,
                     start=start_dt,
                     end=end_dt,
-                    meeting_id=event.get("id")
+                    meeting_id=event.get("id"),
                 )
+                booking.attendees.set(extra_attendees)
         except ValidationError as e:
             return Response({"detail": str(e)}, status=400)
 
@@ -1221,139 +1225,442 @@ class BranchWiseInterviewReportView(APIView):
             "total_interviews": bookings.count()
         })
 
-class RescheduleBookingView(APIView):
+# #Reschedule date-time of the interview
+# class RescheduleBookingView(APIView):
+#     permission_classes = [permissions.AllowAny]
+
+#     def patch(self, request, candidate_id):
+#         booking = get_booking_by_candidate(candidate_id)
+#         if not booking:
+#             return Response({"detail": "Booking not found"}, status=404)
+        
+#         candidate = JobApplication.objects.filter(id=candidate_id).first()
+
+#         start = request.data.get("start")
+#         end = request.data.get("end")
+
+#         try:
+#             start_dt = parse_datetime(start)
+#             end_dt = parse_datetime(end)
+#         except ValidationError as ve:
+#             return Response({"detail": str(ve)}, status=400)
+
+#         # ✅ ALWAYS update Graph (online + in-person)
+#         res = update_teams_meeting(
+#             organizer_email=booking.interviewer.email,
+#             event_id=booking.meeting_id,
+#             start_dt=start_dt,
+#             end_dt=end_dt
+#         )
+
+#         if res is None:
+#             return Response({"detail": "Failed to update event"}, status=500)
+
+#         # ✅ Update DB
+#         booking.start = start_dt
+#         booking.end = end_dt
+#         booking.save()
+
+#         candidate.interview_scheduled_at = start_dt
+#         candidate.interview_end_at = end_dt
+#         candidate.save()
+
+#         # 🔹 Email content differs
+#         start_str = start_dt.astimezone(IST).strftime("%d/%m/%Y %I:%M %p")
+
+#         resume_attachment = get_resume_attachment(candidate)
+
+#         if booking.interview_type == "online":
+#             html_content = get_interviewer_email_template(
+#                 action="rescheduled",
+#                 candidate=candidate,
+#                 interviewer=booking.interviewer,
+#                 start_str=start_str,
+#                 meeting_link=booking.meeting_link,
+#                 feedback_link=candidate.feedback_link,
+#                 resume_attachment_url=candidate.resume.url
+#             )
+#             send_email(
+#                 subject=f"Interview Rescheduled - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
+#                 text=f"Dear {booking.interviewer.name}, your interview scheduled has been rescheduled at {start_str}.\n Join: {booking.meeting_link} \n Give feedback: {candidate.feedback_link}",
+#                 template=html_content,
+#                 to=booking.interviewer.email,
+#                 attachments=[resume_attachment] if resume_attachment else None
+#             )
+#             if booking.interviewer.phone:
+#                 send_text(booking.interviewer.phone,f"Dear {booking.interviewer.name}, your interview scheduled has been rescheduled at {start_str}.\n Join: {booking.meeting_link} \n Give feedback: {candidate.feedback_link}")
+#                 send_document(to=booking.interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
+
+#             send_email(
+#                 subject=f"Interview Rescheduled – {candidate.job.mrf.designation.name} at Knowcraft Analytics",
+#                 text=reschedule_online_interview_text.format(candidate=candidate,start_str=start_str),
+#                 template=reschedule_online_interview_template.format(candidate=candidate,start_str=start_str),
+#                 to=candidate.candidate_email
+#             )
+#             if candidate.candidate_phone:
+#                 send_text(to=candidate.candidate_phone,text=reschedule_online_interview_text.format(candidate=candidate,start_str=start_str))
+
+#             attendees = booking.attendees.all()
+#             if attendees.exists():
+#                 for extra in attendees:
+#                     send_email(
+#                         subject=f"Online Interview Rescheduled - {candidate.candidate_name}",
+#                         text=reschedule_online_interview_extra_text.format(candidate=candidate,booking=booking,start_str=start_str,extra=extra),
+#                         to=extra.email,
+#                         template=reschedule_online_interview_extra_template.format(candidate=candidate,booking=booking,start_str=start_str,extra=extra),
+#                         attachments=[resume_attachment] if resume_attachment else None
+#                     )
+#                     if extra.phone:
+#                         send_text(extra.phone,reschedule_online_interview_extra_text.format(candidate=candidate,booking=booking,start_str=start_str,extra=extra))
+#         else:
+#             location_str = booking.location.full_address if hasattr(booking, 'location') and hasattr(booking.location, 'full_address') else str(booking.location or "")
+#             maps_link = booking.location.google_maps_link if hasattr(booking,"location") and hasattr(booking.location, 'google_maps_link') else None
+
+#             send_email(
+#                 subject=f"In-Person Interview Rescheduled - {candidate.candidate_name}",
+#                 text= reschedule_offline_interview_text.format(booking=booking,candidate=candidate,start_str=start_str,maps_link=maps_link,location_str=location_str),
+#                 to=booking.interviewer.email,
+#                 template=reschedule_offline_interview_template.format(booking=booking,candidate=candidate,start_str=start_str,maps_link=maps_link,location_str=location_str),
+#                 attachments=[resume_attachment] if resume_attachment else None
+#             )
+
+#             if booking.interviewer.phone:
+#                 send_text(booking.interviewer.phone,f"Dear {booking.interviewer.name}, your interview scheduled has been rescheduled at {start_str}.\n Location: {location_str}\nGoole Map Link: {maps_link} \n Give feedback: {candidate.feedback_link}")
+#                 send_document(to=booking.interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
+
+#             send_email(
+#                 subject=f"In-Person Interview Rescheduled – {candidate.job.mrf.designation.name}",
+#                 text=reschedule_offline_interview_candidate_text.format(candidate=candidate,start_str=start_str,maps_link=maps_link,location_str=location_str),
+#                 to=candidate.candidate_email,
+#                 template= reschedule_offline_interview_candidate_template.format(candidate=candidate,start_str=start_str,maps_link=maps_link,location_str=location_str)
+#             )
+
+#             if candidate.candidate_phone:
+#                 send_text(candidate.candidate_phone,reschedule_offline_interview_candidate_text.format(candidate=candidate,start_str=start_str,maps_link=maps_link,location_str=location_str))
+            
+#             attendees = booking.attendees.all()
+#             if attendees.exists():
+#                 for extra in attendees:
+#                     send_email(
+#                         subject=f"In-Person Interview Rescheduled - {candidate.candidate_name}",
+#                         text=reschedule_offline_interview_extra_text.format(candidate=candidate,start_str=start_str,extra=extra,location_str=location_str,maps_link=maps_link),
+#                         to=extra.email,
+#                         template=reschedule_offline_interview_extra_template.format(candidate=candidate,start_str=start_str,extra=extra,location_str=location_str,maps_link=maps_link),
+#                         attachments=[resume_attachment] if resume_attachment else None
+#                     )
+#                     if extra.phone:
+#                         send_text(extra.phone,reschedule_offline_interview_extra_text.format(candidate=candidate,start_str=start_str,extra=extra,location_str=location_str,maps_link=maps_link))
+        
+#         return Response({"detail": "Rescheduled successfully"})
+
+# #Cancel Scheduled Interview
+# class CancelBookingView(APIView):
+#     permission_classes = [permissions.AllowAny]
+
+#     def delete(self, request, candidate_id):
+#         booking = get_booking_by_candidate(candidate_id)
+#         if not booking:
+#             return Response({"detail": "Booking not found"}, status=404)
+
+#         # ✅ ALWAYS cancel Graph event
+#         if not cancel_meeting(booking.interviewer.email, booking.meeting_id):
+#             return Response({"detail": "Failed to cancel event"}, status=500)
+
+#         candidate = JobApplication.objects.filter(id=candidate_id).first()
+
+#         # 🔹 Email content differs
+#         if booking.interview_type == "online":
+#             html_content = get_interviewer_email_template(
+#                 action="cancelled",
+#                 candidate=candidate,
+#                 interviewer=booking.interviewer,
+#                 start_str=candidate.interview_scheduled_at,
+#                 meeting_link="",
+#                 feedback_link="",
+#                 resume_attachment_url=""
+#             )
+#             send_email(
+#                 subject=f"Interview Cancelled - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
+#                 text=f"Dear {booking.interviewer.name}, your interview scheduled at {candidate.interview_scheduled_at} has been cancelled.",
+#                 template=html_content,
+#                 to=booking.interviewer.email
+#             )
+
+#             send_email(
+#                 subject=f"Interview Cancelled – {candidate.job.mrf.designation.name} at Knowcraft Analytics",
+#                 text=cancel_online_interview_text.format(candidate=candidate),
+#                 template=cancel_online_interview_template.format(candidate=candidate),
+#                 to=candidate.candidate_email
+#             )
+
+#             attendees = booking.attendees.all()
+#             if attendees.exists():
+#                 for extra in attendees:
+#                     send_email(
+#                         subject=f"Interview Cancelled - {candidate.candidate_name}",
+#                         text=cancel_online_interview_extra_text.format(candidate=candidate,extra=extra),
+#                         to=extra.email,
+#                         template=cancel_online_interview_extra_template.format(candidate=candidate,extra=extra),
+#                     )
+#                     if extra.phone:
+#                         send_text(extra.phone,cancel_online_interview_extra_text.format(candidate=candidate,extra=extra))
+            
+#         else:
+#             location_str = booking.location.full_address if hasattr(booking, 'location') and hasattr(booking.location, 'full_address') else str(booking.location or "")
+#             maps_link = booking.location.google_maps_link if hasattr(booking,"location") and hasattr(booking.location, 'google_maps_link') else None
+
+#             send_email(
+#                 subject=f"In-Person Interview Cancelled - {candidate.candidate_name}",
+#                 text=cancel_offline_interview_text.format(candidate=candidate,booking=booking,location_str=location_str,maps_link=maps_link),
+#                 to=booking.interviewer.email,
+#                 template=cancel_offline_interview_template.format(candidate=candidate,booking=booking,location_str=location_str,maps_link=maps_link)
+#             )
+
+#             send_email(
+#                 subject=f"In-Person Interview Cancelled – {candidate.job.mrf.designation.name}",
+#                 text=cancel_offline_interview_candidate_text.format(candidate=candidate,location_str=location_str),
+#                 to=candidate.candidate_email,
+#                 template=cancel_offline_interview_candidate_template.format(candidate=candidate,location_str=location_str)
+#             )
+
+#             attendees = booking.attendees.all()
+#             if attendees.exists():
+#                 for extra in attendees:
+#                     send_email(
+#                         subject=f"In-Person Interview Cancelled - {candidate.candidate_name}",
+#                         text=cancel_offline_interview_extra_text.format(candidate=candidate,extra=extra,location_str=location_str,maps_link=maps_link),
+#                         to=extra.email,
+#                         template=cancel_offline_interview_extra_template.format(candidate=candidate,extra=extra,location_str=location_str,maps_link=maps_link),
+#                     )
+#                     if extra.phone:
+#                         send_text(extra.phone,cancel_offline_interview_extra_text.format(candidate=candidate,extra=extra,location_str=location_str,maps_link=maps_link))
+        
+
+#         if booking.interviewer.phone:
+#             send_text(booking.interviewer.phone,f"Dear {booking.interviewer.name}, your interview scheduled at {candidate.interview_scheduled_at} has been cancelled.")
+        
+#         if candidate.candidate_phone:
+#             send_text(to=candidate.candidate_phone,text=cancel_online_interview_text.format(candidate=candidate))
+                    
+#         candidate.inperson_link = None
+#         candidate.interview_link = None
+#         candidate.interview_scheduled_at = None
+#         candidate.interview_end_at = None
+#         candidate.interviewer_name = None
+#         candidate.save()
+
+#         booking.delete()
+
+#         return Response({"detail": "Cancelled successfully"})
+
+# #Update Attendess of the scheduled interview
+# class UpdateAttendeesView(APIView):
+#     def patch(self, request, candidate_id):
+#         booking = get_booking_by_candidate(candidate_id)
+#         if not booking:
+#             return Response({"detail": "Booking not found"}, status=404)
+
+#         attendee_ids = request.data.get("attendees", [])
+#         attendees = Interviewer.objects.filter(id__in=attendee_ids)
+
+#         if not attendees:
+#             return Response({"Needs to add attendees to update them!"})
+
+#         if not booking.meeting_id:
+#             return Response(
+#                 {"detail": "No calendar event linked to this booking"},
+#                 status=400
+#             )
+        
+#         emails = [a.email for a in attendees]
+
+#         candidate = JobApplication.objects.filter(id=candidate_id).first()
+#         emails.append(candidate.candidate_email)
+
+#         res = update_attendees(booking.interviewer.email, booking.meeting_id, emails)
+        
+#         if res is None:
+#             return Response({"detail": "Failed to update attendees"}, status=500)
+        
+#         resume_attachment = get_resume_attachment(candidate)
+
+#         if booking.interview_type == 'online':
+#             html_content = get_interviewer_email_template(
+#                 action="attendees_updated",
+#                 candidate=candidate,
+#                 interviewer=booking.interviewer,
+#                 start_str=candidate.interview_scheduled_at,
+#                 meeting_link=booking.meeting_link,
+#                 feedback_link=candidate.feedback_link,
+#                 resume_attachment_url=candidate.resume.url
+#             )
+
+#             send_email(
+#                 subject=f"Attendees Updated - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
+#                 text=f"Dear {booking.interviewer.name}, your interview attendees has been updated for interview scheduled at {candidate.interview_scheduled_at}",
+#                 template=html_content,
+#                 to=booking.interviewer.email
+#             )
+#             if booking.interviewer.phone:
+#                 send_text(booking.interviewer.phone,f"Dear {booking.interviewer.name}, your interview attendees has been updated for interview scheduled at {candidate.interview_scheduled_at}")
+            
+#             for extra in attendees:
+#                 send_email(
+#                     subject=f"You’ve been added to an Online Interview - {candidate.candidate_name}",
+#                     text=attendees_update_online_text.format(candidate=candidate,booking=booking,extra=extra),
+#                     to=extra.email,
+#                     template=attendees_update_online_template.format(candidate=candidate,booking=booking,extra=extra),
+#                     attachments=[resume_attachment] if resume_attachment else None
+#                 )
+#                 if extra.phone:
+#                     send_text(extra.phone,attendees_update_online_text.format(candidate=candidate,booking=booking,extra=extra))
+
+#         else:
+#             location_str = booking.location.full_address if hasattr(booking, 'location') and hasattr(booking.location, 'full_address') else str(booking.location or "")
+#             maps_link = booking.location.google_maps_link if hasattr(booking,"location") and hasattr(booking.location, 'google_maps_link') else None
+#             send_email(
+#                 subject=f"In-Person Interview Updated (Attendees) - {candidate.candidate_name}",
+#                 text=attendees_update_interviewer_text.format(booking=booking,candidate=candidate,location_str=location_str),
+#                 to=booking.interviewer.email,
+#                 template=attendees_update_interviewer_template.format(booking=booking,candidate=candidate,location_str=location_str,maps_link=maps_link)
+#             )
+#             if booking.interviewer.phone:
+#                 send_text(booking.interviewer.phone,attendees_update_interviewer_text.format(booking=booking,candidate=candidate,location_str=location_str))
+            
+#             for extra in attendees:            
+#                 send_email(
+#                     subject=f"You’ve been added to an Interview - {candidate.candidate_name}",
+#                     text=attendees_update_text.format(candidate=candidate,extra=extra,location_str=location_str,maps_link=maps_link),
+#                     to=extra.email,
+#                     template=attendees_update_template.format(candidate=candidate,extra=extra,location_str=location_str,maps_link=maps_link),
+#                     attachments=[resume_attachment] if resume_attachment else None
+#                 )
+#                 if extra.phone:
+#                     send_text(extra.phone,attendees_update_text.format(candidate=candidate,extra=extra,location_str=location_str,maps_link=maps_link))
+
+#         return Response({"detail": "Attendees updated"})
+
+#All in one for the Booked interview api
+class ManageBookingView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def patch(self, request, candidate_id):
         booking = get_booking_by_candidate(candidate_id)
         if not booking:
             return Response({"detail": "Booking not found"}, status=404)
-        
+
         candidate = JobApplication.objects.filter(id=candidate_id).first()
 
         start = request.data.get("start")
         end = request.data.get("end")
+        attendee_ids = request.data.get("attendees", None)
 
-        try:
-            start_dt = parse_datetime(start)
-            end_dt = parse_datetime(end)
-        except ValidationError as ve:
-            return Response({"detail": str(ve)}, status=400)
+        updated_fields = []
+        attendees = None
 
-        # ✅ ALWAYS update Graph (online + in-person)
-        res = update_teams_meeting(
-            organizer_email=booking.interviewer.email,
-            event_id=booking.meeting_id,
-            start_dt=start_dt,
-            end_dt=end_dt
+        # ================= RESCHEDULE =================
+        if start and end:
+            try:
+                start_dt = parse_datetime(start)
+                end_dt = parse_datetime(end)
+            except ValidationError as ve:
+                return Response({"detail": str(ve)}, status=400)
+
+            res = update_teams_meeting(
+                organizer_email=booking.interviewer.email,
+                event_id=booking.meeting_id,
+                start_dt=start_dt,
+                end_dt=end_dt
+            )
+
+            if res is None:
+                return Response({"detail": "Failed to update event"}, status=500)
+
+            # Update DB
+            booking.start = start_dt
+            booking.end = end_dt
+            booking.save()
+
+            candidate.interview_scheduled_at = start_dt
+            candidate.interview_end_at = end_dt
+            candidate.save()
+
+            updated_fields.append("rescheduled")
+
+        # ================= UPDATE ATTENDEES =================
+        if attendee_ids is not None:
+            attendees = Interviewer.objects.filter(id__in=attendee_ids)
+
+            if not attendees.exists():
+                return Response({"detail": "Add valid attendees"}, status=400)
+
+            # ✅ Check if actually changed
+            existing_ids = set(booking.attendees.values_list("id", flat=True))
+            new_ids = set(attendee_ids)
+
+            if existing_ids != new_ids:
+                newly_added_attendees = [a for a in attendees if a.id not in existing_ids]
+
+                emails = [a.email for a in attendees]
+                emails.append(candidate.candidate_email)
+
+                res = update_attendees(
+                    booking.interviewer.email,
+                    booking.meeting_id,
+                    emails
+                )
+
+                if res is None:
+                    return Response({"detail": "Failed to update attendees"}, status=500)
+
+                booking.attendees.set(attendees)
+                updated_fields.append("attendees_updated")
+
+        # ================= NOTHING PROVIDED =================
+        if not updated_fields:
+            return Response(
+                {"detail": "Provide 'start/end' or 'attendees' to update"},
+                status=400
+            )
+
+        # ================= NOTIFICATIONS =================
+        start_dt = booking.start
+        start_str = (
+            start_dt.astimezone(IST).strftime("%d/%m/%Y %I:%M %p")
+            if start_dt else None
         )
 
-        if res is None:
-            return Response({"detail": "Failed to update event"}, status=500)
+        if "rescheduled" in updated_fields and "attendees_updated" in updated_fields:
+            self._send_combined_notifications(booking, candidate, newly_added_attendees, start_str)
 
-        # ✅ Update DB
-        booking.start = start_dt
-        booking.end = end_dt
-        booking.save()
+        elif "rescheduled" in updated_fields:
+            self._send_reschedule_notifications(booking, candidate, start_str)
 
-        candidate.interview_scheduled_at = start_dt
-        candidate.save()
+        elif "attendees_updated" in updated_fields:
+            self._send_attendee_notifications(booking, candidate, newly_added_attendees)
 
-        # 🔹 Email content differs
-        start_str = start_dt.astimezone(IST).strftime("%d/%m/%Y %I:%M %p")
+        return Response({
+            "detail": "Updated successfully",
+            "updated": updated_fields
+        })
 
-        if booking.interview_type == "online":
-            send_email(
-                subject=f"Interview Rescheduled – {candidate.job.mrf.designation.name} at Knowcraft Analytics",
-                text=f"""Dear {candidate.candidate_name},
-Your {candidate.round_name or ""} interview for the position of {candidate.job.mrf.designation.name} has been rescheduled to {start_str}.
-Join link: {candidate.interview_link}
-
-Kindly ensure you join the interview on time using a laptop/desktop.
-
-Warm regards,
-Team-HR
-Knowcraft Analytics""",
-                template=f"""<html>
-                <body style="font-family:Arial,sans-serif;background-color:#f4f4f7;margin:0;padding:0;">
-                    <table align="center" width="100%" style="max-width:620px;margin:0 auto;">
-                        <tr><td align="center" style="padding:30px;">
-                            <table width="100%" style="background:#fff;border-radius:12px;overflow:hidden;">
-                                <tr><td align="center" style="padding:40px;"><img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft" style="max-width:200px;"></td></tr>
-                                <tr><td style="padding:35px;color:#333;">
-                                    <h2>Interview Rescheduled — {candidate.round_name}</h2>
-                                    <p>Dear {candidate.candidate_name},</p>
-                                    <p>Your interview for <strong>{candidate.job.mrf.designation.name}</strong> has been rescheduled to <strong>{start_str}</strong>.</p>
-                                    <p style="text-align:center;margin:30px 0;">
-                                        <a href="{candidate.interview_link}" style="background-color:#2563eb;color:#fff;padding:16px 36px;text-decoration:none;border-radius:8px;font-weight:600;">Join Interview on MS Teams</a>
-                                    </p>
-                                    <p>Please join on time using a laptop/desktop for a smooth experience.</p>
-                                    <br>
-                                    <p>Warm regards,<br>Team-HR, Knowcraft Analytics</p>
-                                </td></tr>
-                            </table>
-                        </td></tr>
-                    </table>
-                </body>
-                </html>""",
-            to=candidate.candidate_email
-        )
-        else:
-            info = f"Location: {booking.location.name}"
-
-        return Response({"detail": "Rescheduled successfully"})
-
-class CancelBookingView(APIView):
-    permission_classes = [permissions.AllowAny]
-
+    # ================= CANCEL =================
     def delete(self, request, candidate_id):
         booking = get_booking_by_candidate(candidate_id)
         if not booking:
             return Response({"detail": "Booking not found"}, status=404)
 
-        # ✅ ALWAYS cancel Graph event
+        candidate = JobApplication.objects.filter(id=candidate_id).first()
+
         if not cancel_meeting(booking.interviewer.email, booking.meeting_id):
             return Response({"detail": "Failed to cancel event"}, status=500)
 
-        # 🔹 Email content differs
-        if booking.interview_type == "online":
-            send_email(
-    subject=f"Interview Cancelled – {candidate.job.mrf.designation.name} at Knowcraft Analytics",
-    text=f"""Dear {candidate.candidate_name},
-We regret to inform you that your {candidate.round_name} interview for the position of {candidate.job.mrf.designation.name} scheduled at {candidate.interview_scheduled_at} has been cancelled.
+        self._send_cancel_notifications(booking, candidate)
 
-Please reach out to the HR team for any questions or next steps.
-
-Warm regards,
-Team-HR""",
-    template=f"""<html>
-    <body style="font-family:Arial,sans-serif;background-color:#f4f4f7;margin:0;padding:0;">
-        <table align="center" width="100%" style="max-width:620px;margin:0 auto;">
-            <tr><td align="center" style="padding:30px;">
-                <table width="100%" style="background:#fff;border-radius:12px;overflow:hidden;">
-                    <tr><td align="center" style="padding:40px;"><img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft" style="max-width:200px;"></td></tr>
-                    <tr><td style="padding:35px;color:#333;">
-                        <h2>Interview Cancelled — {candidate.round_name}</h2>
-                        <p>Dear {candidate.candidate_name},</p>
-                        <p>We regret to inform you that your interview for <strong>{candidate.job.mrf.designation.name}</strong> scheduled at <strong>{candidate.interview_scheduled_at}</strong> has been cancelled.</p>
-                        <p>Please contact HR for next steps.</p>
-                        <br>
-                        <p>Warm regards,<br>Team-HR, Knowcraft Analytics</p>
-                    </td></tr>
-                </table>
-            </td></tr>
-        </table>
-    </body>
-    </html>""",
-    to=candidate.candidate_email
-)
-        else:
-            info = f"Location: {booking.location.name}"
-        
-        candidate = JobApplication.objects.filter(id=candidate_id).first()
         candidate.inperson_link = None
         candidate.interview_link = None
         candidate.interview_scheduled_at = None
+        candidate.interview_end_at = None
         candidate.interviewer_name = None
         candidate.save()
 
@@ -1361,37 +1668,227 @@ Team-HR""",
 
         return Response({"detail": "Cancelled successfully"})
 
-class UpdateAttendeesView(APIView):
-    def patch(self, request, candidate_id):
-        booking = get_booking_by_candidate(candidate_id)
-        if not booking:
-            return Response({"detail": "Booking not found"}, status=404)
+    def _send_reschedule_notifications(self, booking, candidate, start_str):
+        resume_attachment = get_resume_attachment(candidate)
 
-        attendee_ids = request.data.get("attendees", [])
-        attendees = Interviewer.objects.filter(id__in=attendee_ids)
-
-        if not attendees:
-            return Response({"Needs to add attendees to update them!"})
-
-        if not booking.meeting_id:
-            return Response(
-                {"detail": "No calendar event linked to this booking"},
-                status=400
+        if booking.interview_type == "online":
+            html_content = get_interviewer_email_template(
+                action="rescheduled",
+                candidate=candidate,
+                interviewer=booking.interviewer,
+                start_str=start_str,
+                meeting_link=booking.meeting_link,
+                feedback_link=candidate.feedback_link,
+                resume_attachment_url=candidate.resume.url
             )
+            send_email(
+                subject=f"Interview Rescheduled - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
+                text=f"Dear {booking.interviewer.name}, your interview scheduled has been rescheduled at {start_str}.\n Join: {booking.meeting_link} \n Give feedback: {candidate.feedback_link}",
+                template=html_content,
+                to=booking.interviewer.email,
+                attachments=[resume_attachment] if resume_attachment else None
+            )
+            if booking.interviewer.phone:
+                send_text(booking.interviewer.phone,f"Dear {booking.interviewer.name}, your interview scheduled has been rescheduled at {start_str}.\n Join: {booking.meeting_link} \n Give feedback: {candidate.feedback_link}")
+                send_document(to=booking.interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
+
+            send_email(
+                subject=f"Interview Rescheduled – {candidate.job.mrf.designation.name} at Knowcraft Analytics",
+                text=reschedule_online_interview_text.format(candidate=candidate,start_str=start_str),
+                template=reschedule_online_interview_template.format(candidate=candidate,start_str=start_str),
+                to=candidate.candidate_email
+            )
+            if candidate.candidate_phone:
+                send_text(to=candidate.candidate_phone,text=reschedule_online_interview_text.format(candidate=candidate,start_str=start_str))
+
+            attendees = booking.attendees.all()
+            if attendees.exists():
+                for extra in attendees:
+                    send_email(
+                        subject=f"Online Interview Rescheduled - {candidate.candidate_name}",
+                        text=reschedule_online_interview_extra_text.format(candidate=candidate,booking=booking,start_str=start_str,extra=extra),
+                        to=extra.email,
+                        template=reschedule_online_interview_extra_template.format(candidate=candidate,booking=booking,start_str=start_str,extra=extra),
+                        attachments=[resume_attachment] if resume_attachment else None
+                    )
+                    if extra.phone:
+                        send_text(extra.phone,reschedule_online_interview_extra_text.format(candidate=candidate,booking=booking,start_str=start_str,extra=extra))
+        else:
+            location_str = booking.location.full_address if hasattr(booking, 'location') and hasattr(booking.location, 'full_address') else str(booking.location or "")
+            maps_link = booking.location.google_maps_link if hasattr(booking,"location") and hasattr(booking.location, 'google_maps_link') else None
+
+            send_email(
+                subject=f"In-Person Interview Rescheduled - {candidate.candidate_name}",
+                text= reschedule_offline_interview_text.format(booking=booking,candidate=candidate,start_str=start_str,maps_link=maps_link,location_str=location_str),
+                to=booking.interviewer.email,
+                template=reschedule_offline_interview_template.format(booking=booking,candidate=candidate,start_str=start_str,maps_link=maps_link,location_str=location_str),
+                attachments=[resume_attachment] if resume_attachment else None
+            )
+
+            if booking.interviewer.phone:
+                send_text(booking.interviewer.phone,f"Dear {booking.interviewer.name}, your interview scheduled has been rescheduled at {start_str}.\n Location: {location_str}\nGoole Map Link: {maps_link} \n Give feedback: {candidate.feedback_link}")
+                send_document(to=booking.interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
+
+            send_email(
+                subject=f"In-Person Interview Rescheduled – {candidate.job.mrf.designation.name}",
+                text=reschedule_offline_interview_candidate_text.format(candidate=candidate,start_str=start_str,maps_link=maps_link,location_str=location_str),
+                to=candidate.candidate_email,
+                template= reschedule_offline_interview_candidate_template.format(candidate=candidate,start_str=start_str,maps_link=maps_link,location_str=location_str)
+            )
+
+            if candidate.candidate_phone:
+                send_text(candidate.candidate_phone,reschedule_offline_interview_candidate_text.format(candidate=candidate,start_str=start_str,maps_link=maps_link,location_str=location_str))
+            
+            attendees = booking.attendees.all()
+            if attendees.exists():
+                for extra in attendees:
+                    send_email(
+                        subject=f"In-Person Interview Rescheduled - {candidate.candidate_name}",
+                        text=reschedule_offline_interview_extra_text.format(candidate=candidate,start_str=start_str,extra=extra,location_str=location_str,maps_link=maps_link),
+                        to=extra.email,
+                        template=reschedule_offline_interview_extra_template.format(candidate=candidate,start_str=start_str,extra=extra,location_str=location_str,maps_link=maps_link),
+                        attachments=[resume_attachment] if resume_attachment else None
+                    )
+                    if extra.phone:
+                        send_text(extra.phone,reschedule_offline_interview_extra_text.format(candidate=candidate,start_str=start_str,extra=extra,location_str=location_str,maps_link=maps_link))
         
-        emails = [a.email for a in attendees]
+    def _send_attendee_notifications(self,booking, candidate, attendees):
+        resume_attachment = get_resume_attachment(candidate)
 
-        candidate = JobApplication.objects.filter(id=candidate_id).first()
-        emails.append(candidate.candidate_email)
+        if booking.interview_type == 'online':
+            html_content = get_interviewer_email_template(
+                action="attendees_updated",
+                candidate=candidate,
+                interviewer=booking.interviewer,
+                start_str=candidate.interview_scheduled_at,
+                meeting_link=booking.meeting_link,
+                feedback_link=candidate.feedback_link,
+                resume_attachment_url=candidate.resume.url
+            )
 
-        res = update_attendees(booking.interviewer.email, booking.meeting_id, emails)
-        if res is None:
-            return Response({"detail": "Failed to update attendees"}, status=500)
+            send_email(
+                subject=f"Attendees Updated - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
+                text=f"Dear {booking.interviewer.name}, your interview attendees has been updated for interview scheduled at {candidate.interview_scheduled_at}",
+                template=html_content,
+                to=booking.interviewer.email
+            )
+            if booking.interviewer.phone:
+                send_text(booking.interviewer.phone,f"Dear {booking.interviewer.name}, your interview attendees has been updated for interview scheduled at {candidate.interview_scheduled_at}")
+            
+            for extra in attendees:
+                send_email(
+                    subject=f"You’ve been added to an Online Interview - {candidate.candidate_name}",
+                    text=attendees_update_online_text.format(candidate=candidate,booking=booking,extra=extra),
+                    to=extra.email,
+                    template=attendees_update_online_template.format(candidate=candidate,booking=booking,extra=extra),
+                    attachments=[resume_attachment] if resume_attachment else None
+                )
+                if extra.phone:
+                    send_text(extra.phone,attendees_update_online_text.format(candidate=candidate,booking=booking,extra=extra))
 
-        return Response({"detail": "Attendees updated"})
+        else:
+            location_str = booking.location.full_address if hasattr(booking, 'location') and hasattr(booking.location, 'full_address') else str(booking.location or "")
+            maps_link = booking.location.google_maps_link if hasattr(booking,"location") and hasattr(booking.location, 'google_maps_link') else None
+            send_email(
+                subject=f"In-Person Interview Updated (Attendees) - {candidate.candidate_name}",
+                text=attendees_update_interviewer_text.format(booking=booking,candidate=candidate,location_str=location_str),
+                to=booking.interviewer.email,
+                template=attendees_update_interviewer_template.format(booking=booking,candidate=candidate,location_str=location_str,maps_link=maps_link)
+            )
+            if booking.interviewer.phone:
+                send_text(booking.interviewer.phone,attendees_update_interviewer_text.format(booking=booking,candidate=candidate,location_str=location_str))
+            
+            for extra in attendees:            
+                send_email(
+                    subject=f"You’ve been added to an Interview - {candidate.candidate_name}",
+                    text=attendees_update_text.format(candidate=candidate,extra=extra,location_str=location_str,maps_link=maps_link),
+                    to=extra.email,
+                    template=attendees_update_template.format(candidate=candidate,extra=extra,location_str=location_str,maps_link=maps_link),
+                    attachments=[resume_attachment] if resume_attachment else None
+                )
+                if extra.phone:
+                    send_text(extra.phone,attendees_update_text.format(candidate=candidate,extra=extra,location_str=location_str,maps_link=maps_link))
 
+    def _send_combined_notifications(self,booking, candidate, attendees, start_str):
+        self._send_attendee_notifications(booking, candidate, attendees)
+        self._send_reschedule_notifications(booking, candidate, start_str)
+
+    def _send_cancel_notifications(self, booking, candidate):
+        if booking.interview_type == "online":
+            html_content = get_interviewer_email_template(
+                action="cancelled",
+                candidate=candidate,
+                interviewer=booking.interviewer,
+                start_str=candidate.interview_scheduled_at,
+                meeting_link="",
+                feedback_link="",
+                resume_attachment_url=""
+            )
+            send_email(
+                subject=f"Interview Cancelled - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
+                text=f"Dear {booking.interviewer.name}, your interview scheduled at {candidate.interview_scheduled_at} has been cancelled.",
+                template=html_content,
+                to=booking.interviewer.email
+            )
+
+            send_email(
+                subject=f"Interview Cancelled – {candidate.job.mrf.designation.name} at Knowcraft Analytics",
+                text=cancel_online_interview_text.format(candidate=candidate),
+                template=cancel_online_interview_template.format(candidate=candidate),
+                to=candidate.candidate_email
+            )
+
+            attendees = booking.attendees.all()
+            if attendees.exists():
+                for extra in attendees:
+                    send_email(
+                        subject=f"Interview Cancelled - {candidate.candidate_name}",
+                        text=cancel_online_interview_extra_text.format(candidate=candidate,extra=extra),
+                        to=extra.email,
+                        template=cancel_online_interview_extra_template.format(candidate=candidate,extra=extra),
+                    )
+                    if extra.phone:
+                        send_text(extra.phone,cancel_online_interview_extra_text.format(candidate=candidate,extra=extra))
+            
+        else:
+            location_str = booking.location.full_address if hasattr(booking, 'location') and hasattr(booking.location, 'full_address') else str(booking.location or "")
+            maps_link = booking.location.google_maps_link if hasattr(booking,"location") and hasattr(booking.location, 'google_maps_link') else None
+
+            send_email(
+                subject=f"In-Person Interview Cancelled - {candidate.candidate_name}",
+                text=cancel_offline_interview_text.format(candidate=candidate,booking=booking,location_str=location_str,maps_link=maps_link),
+                to=booking.interviewer.email,
+                template=cancel_offline_interview_template.format(candidate=candidate,booking=booking,location_str=location_str,maps_link=maps_link)
+            )
+
+            send_email(
+                subject=f"In-Person Interview Cancelled – {candidate.job.mrf.designation.name}",
+                text=cancel_offline_interview_candidate_text.format(candidate=candidate,location_str=location_str),
+                to=candidate.candidate_email,
+                template=cancel_offline_interview_candidate_template.format(candidate=candidate,location_str=location_str)
+            )
+
+            attendees = booking.attendees.all()
+            if attendees.exists():
+                for extra in attendees:
+                    send_email(
+                        subject=f"In-Person Interview Cancelled - {candidate.candidate_name}",
+                        text=cancel_offline_interview_extra_text.format(candidate=candidate,extra=extra,location_str=location_str,maps_link=maps_link),
+                        to=extra.email,
+                        template=cancel_offline_interview_extra_template.format(candidate=candidate,extra=extra,location_str=location_str,maps_link=maps_link),
+                    )
+                    if extra.phone:
+                        send_text(extra.phone,cancel_offline_interview_extra_text.format(candidate=candidate,extra=extra,location_str=location_str,maps_link=maps_link))
+        
+
+        if booking.interviewer.phone:
+            send_text(booking.interviewer.phone,f"Dear {booking.interviewer.name}, your interview scheduled at {candidate.interview_scheduled_at} has been cancelled.")
+        
+        if candidate.candidate_phone:
+            send_text(to=candidate.candidate_phone,text=cancel_online_interview_text.format(candidate=candidate))
+
+#teams grapgh api webhook (Not working)
 from django.http import HttpResponse
-
 from onboarding.utils.task_queue import TASK_QUEUE
 
 class GraphWebhookView(APIView):
