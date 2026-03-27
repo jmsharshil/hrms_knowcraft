@@ -388,6 +388,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     
     job_title = serializers.CharField(source='job.job_title', read_only=True)
     department_name = serializers.CharField(source='job.department.name', read_only=True)
+    designation_name = serializers.CharField(source='job.designation.name', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     source_display = serializers.CharField(source='get_source_display', read_only=True)
     round_name_display = serializers.CharField(source='get_round_name_display', read_only=True)
@@ -423,7 +424,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobApplication
         fields = [
-            'id', 'job', 'job_title', 'department_name', 'candidate_name',
+            'id', 'job', 'job_title', 'department_name', 'candidate_name','designation_name',
             'candidate_email', 'candidate_phone', 'resume', 'resume_url',
             'original_filename', 'file_size', 'file_size_mb', 'cover_letter',"rejection_reason",
             'experience_years','relevant_experience_years', 'current_ctc', 'expected_ctc', 'notice_period',
