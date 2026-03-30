@@ -1175,7 +1175,7 @@ def pre_parse_resume_task(application,resume_file,job):
     if email:
         today = timezone.now()
         six_months_ago = today - timedelta(days=6*30)
-        duplicate_application = JobApplication.objects.filter(candidate_email=email,created_at__gte=six_months_ago).exclude(id=application.id)
+        duplicate_application = Application.objects.filter(candidate_email=email,created_at__gte=six_months_ago).exclude(id=application.id)
         duplicated = False
         if duplicate_application.exists():
             print("Duplicate resume found!")

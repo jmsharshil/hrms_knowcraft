@@ -1583,6 +1583,7 @@ class ManageBookingView(APIView):
 
             candidate.interview_scheduled_at = start_dt
             candidate.interview_end_at = end_dt
+            candidate.reschedule_count += 1
             candidate.save()
 
             updated_fields.append("rescheduled")
