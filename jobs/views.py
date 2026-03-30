@@ -987,10 +987,11 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
             pass
         elif user.role == 'hr':
             # Internal HR: only applications for jobs assigned to them
-            queryset = queryset.filter(job__assigned_to_internal_hr=user)
+            queryset = queryset.filter(Q(assigned_to_internal_hr=user) | Q(assigned_internal_hrs=user))
         elif user.role == 'consultancy':
             # Can see applications for jobs assigned to them
-            queryset = queryset.filter(job__assigned_to_consultancy=user,source='consultancy')
+            queryset = queryset.filter(Q(job__assigned_to_consultancy=user) |
+                Q(job__assigned_consultancies=user),source='consultancy')
         else:
             queryset = queryset.none()
         # Apply filters
@@ -1307,7 +1308,7 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
             'posted_by__name',
             'company',
             'is_active'
-        )
+        ).exclude(status='on_hold')
 
         # Role-based filtering
         if user.is_authenticated:

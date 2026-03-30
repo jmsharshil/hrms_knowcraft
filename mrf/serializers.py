@@ -9,6 +9,7 @@ from accounts.models import User
 from django.db import transaction
 from datetime import datetime
 from slots.serializers import InterviewerSerializer
+from django.utils import timezone
 
 class DesignationSerializer(serializers.ModelSerializer):
     department = serializers.PrimaryKeyRelatedField(
@@ -655,3 +656,72 @@ class MRFApproveRejectSerializer(serializers.Serializer):
         if mrf.company != user.company:
             raise serializers.ValidationError("Cannot approve/reject MRF outside your company")
         return data
+
+class MRFHoldUnholdSerializer(serializers.Serializer):
+    """Serializer for holding or unholding MRF"""
+    target_status = serializers.ChoiceField(
+        choices=[(choice[0], choice[1]) for choice in MRF.STATUS_CHOICES if choice[0] != 'on_hold'],
+        required=False,
+        help_text="Target status on unhold (optional; defaults to previous_status or 'draft')"
+    )
+    hold_reason = serializers.CharField(required=False, allow_blank=True)
+    
+    def validate(self, data):
+        mrf = self.context.get('mrf')
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        action_type = self.context.get('action_type')
+
+        if action_type == 'hold' and not data.get('hold_reason'):
+            raise serializers.ValidationError({
+                'rejection_reason': 'Rejection reason is required when rejecting an MRF'
+            })
+        elif action_type == 'unhold' and data.get('target_status') not in dict(MRF.STATUS_CHOICES):
+                raise serializers.ValidationError({"target_status": f"Invalid status: {data.get('target_status')}. Must be a valid MRF status excluding 'on_hold'."})
+        
+        if not mrf or not user:
+            return data
+        if mrf.company != user.company:
+            raise serializers.ValidationError("Cannot approve/reject MRF outside your company")
+        return data
+    
+    def update(self, instance, validated_data):
+        action_type = self.context.get('action_type')
+
+        if action_type == 'hold':
+            return self._handle_hold(instance, validated_data)
+
+        elif action_type == 'unhold':
+            return self._handle_unhold(instance, validated_data)
+
+        return instance
+
+    def _handle_hold(self, mrf, validated_data):
+        # Store previous state
+        mrf.previous_status = mrf.status
+
+        # Update fields
+        mrf.status = 'on_hold'
+        mrf.hold_reason = validated_data.get('hold_reason', '')
+        mrf.held_by = self.context['request'].user
+        mrf.held_at = timezone.now()
+
+        mrf.save(update_fields=['status', 'hold_reason', 'previous_status', 'updated_at','held_at','held_by'])
+        return mrf
+
+    def _handle_unhold(self, mrf, validated_data):
+        # Decide target status
+        target_status = validated_data.get('target_status') or mrf.previous_status or 'draft'
+
+        # Restore state
+        mrf.status = target_status
+
+        # Clear hold-related fields
+        mrf.hold_reason = ''
+        mrf.previous_status = None
+
+        mrf.save(update_fields=['status', 'hold_reason', 'previous_status', 'updated_at'])
+        return mrf
+
+    def create(self, validated_data):
+        raise NotImplementedError("Create is not supported for this serializer")

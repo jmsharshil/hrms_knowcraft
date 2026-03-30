@@ -1175,12 +1175,10 @@ def pre_parse_resume_task(application,resume_file,job):
     if email:
         today = timezone.now()
         six_months_ago = today - timedelta(days=6*30)
-        duplicate_application = Application.objects.filter(candidate_email=email,created_at__gte=six_months_ago).exclude(id=application.id)
-        duplicated = False
-        if duplicate_application.exists():
+        duplicated = (Application.objects.filter(candidate_email=email,created_at__gte=six_months_ago).exclude(id=application.id).exists() or JobApplication.objects.filter(candidate_email=email,created_at__gte=six_months_ago).exists())
+        if duplicated:
             print("Duplicate resume found!")
             history = build_candidate_history(email,application.id)
-            duplicated = True
     # ---- AI scoring ----
     ai_match = calculate_match_score(parsed, job)
     ai_score = int(ai_match.get('score'))

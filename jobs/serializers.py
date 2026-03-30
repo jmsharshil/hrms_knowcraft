@@ -432,7 +432,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'source', 'source_display', 'platform_name', 'application_link','is_duplicate',"referral_name","referral_email","referral_phone",
             "referral_emp_code","referral_designation","referral_department","is_shortlisted","consolidated_feedback_avg",
             'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report','slot_link','candidate_history',
-            'created_at', 'updated_at','is_selected','is_approved','is_rejected','inperson_link',
+            'created_at', 'updated_at','is_selected','is_approved','is_rejected','inperson_link','reschedule_count','no_show_count',
             'interview_scheduled_at','interviewer_name','interview_link','feedback_link','round_name','round_name_display',
             "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone","interview_end_at"
         ]
