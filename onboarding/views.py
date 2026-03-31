@@ -612,7 +612,7 @@ class SendApprovalNoteAPIView(APIView):
             "requested_by_role":requested_by_role,
 
             "candidate_name": candidate.candidate_name,
-            "candidate_resume_link":candidate.resume,
+            "candidate_resume_link":candidate.resume.url,
             "designation": designation.name,
             "department": department.name,
 
@@ -745,7 +745,7 @@ Knowcraft Analytics Private Limited
                 print(reason)
 
         except Exception as e:
-            print(f"Unable to send the Approval Note:{e}")
+            return Response(f"Unable to send the Approval Note:{e}",status=400)
 
         return Response(
             {"status": "Approval note sent successfully"},
