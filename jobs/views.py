@@ -18,7 +18,7 @@ from .serializers import (
     PublicJobApplicationCreateSerializer, AssignToInternalHRSerializer, AssignToBothSerializer,
     ReferralApplicationCreateSerializer,ReferralApplicationSerializer, ReferralToJobApplicationCreateSerializer,
     CareerToJobApplicationCreateSerializer,ApplicationSerializer,ApplicationCreateSerializer,
-    ApplicationToJobSerializer,JobDropDownMergedSerializer,AssignJobSerializer
+    ApplicationToJobSerializer,JobDropDownMergedSerializer,AssignJobSerializer,SendRejectionNotificationSerializer
 )
 from .permissions import (
     CanViewJobs, CanCreateJobs, CanEditJobs, CanAssignToConsultancy,
@@ -1485,3 +1485,44 @@ class ApplicationViewSet(viewsets.GenericViewSet):
             "message": "Reparsing completed",
             **result
         })
+    
+    @action(detail=False, methods=['post'])
+    def send_rejection_notification(self, request):
+        from .utils import send_rejection_notification
+
+        serializer = SendRejectionNotificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        application_ids = serializer.validated_data['application_ids']
+        rejection_reason = serializer.validated_data.get('rejection_reason', '')
+
+        sent_count = 0
+        failed = []
+
+        for app_id in application_ids:
+            try:
+                application = Application.objects.get(id=app_id)
+
+                if application.is_rejected:
+                    failed.append({'id': str(app_id), 'reason': 'Already rejected'})
+                    continue
+
+                application.rejection_reason = rejection_reason
+                application.is_rejected = True
+                application.save()
+
+                if send_rejection_notification(application, rejection_reason):
+                    sent_count += 1
+                else:
+                    failed.append({'id': str(app_id), 'reason': 'Failed to send email'})
+
+            except Application.DoesNotExist:
+                failed.append({'id': str(app_id), 'reason': 'Application not found'})
+            except Exception as e:
+                failed.append({'id': str(app_id), 'reason': str(e)})
+
+        return Response({
+            'message': f'Processed {len(application_ids)} applications. Sent {sent_count} emails.',
+            'sent': sent_count,
+            'failed': failed
+        }, status=status.HTTP_200_OK)

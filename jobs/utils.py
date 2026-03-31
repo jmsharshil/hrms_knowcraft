@@ -1285,3 +1285,125 @@ def find_similar_job(position_title):
             query |= Q(job_title__icontains=word)
 
     return Job.objects.filter(is_active=True).filter(query).first()
+
+# New rejection email template and function
+email_html_templates["application_rejected"] = f"""
+<html>
+<body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+    <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+        <tr>
+            <td align="center" style="padding:30px 15px;">
+                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                    <!-- Logo -->
+                    <tr>
+                        <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                            <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                        </td>
+                    </tr>
+                    <!-- Separator -->
+                    <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                            <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Application Update</h2>
+                            
+                            <p style="margin:0 0 16px 0;">Dear <strong>{{candidate_name}}</strong>,</p>
+                            
+                            <p style="margin:0 0 20px 0;">
+                                Thank you for your interest in the <strong>{{job_title}}</strong> position at Knowcraft Analytics. We appreciate the time you took to apply and submit your resume.
+                            </p>
+                            
+                            <p style="margin:0 0 20px 0;">
+                                After careful consideration, we have decided to move forward with other candidates whose qualifications more closely match our current requirements.
+                            </p>
+                            
+                            {{rejection_reason_html}}
+                            
+                            <p style="margin:0 0 20px 0;">
+                                We encourage you to continue applying for other positions that may be a better fit. Your profile has been saved in our system, and we may reach out if future opportunities arise that match your skills and experience.
+                            </p>
+                            
+                            <p style="margin:0 0 20px 0;">
+                                Thank you again for your interest in Knowcraft Analytics. We wish you all the best in your career search.
+                            </p>
+                            
+                            <p style="margin:20px 0 6px 0;color:#555555;">Best regards,</p>
+                            <p style="margin:0;font-weight:700;color:#1f2937;">Hiring Team</p>
+                            <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                            © 2024 Knowcraft Analytics Private Limited • Confidential
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+"""
+
+email_alt_text["application_rejected"] = f"""Dear {{candidate_name}},
+
+Thank you for applying for the {{job_title}} position at Knowcraft Analytics.
+
+After careful review, we have decided to pursue other candidates whose experience more closely aligns with our current needs.
+
+{{rejection_reason_text}}
+
+We appreciate your interest and encourage you to apply for other positions. We wish you success in your job search.
+
+Best regards,
+Hiring Team
+Knowcraft Analytics
+"""
+
+def send_rejection_notification(application, rejection_reason=""):
+    """Send rejection notification to candidate"""
+    if not application.candidate_email:
+        print(f"No email for application {application.id}")
+        return False
+
+    subject = f"Update on Your Application for {application.job.job_title}"
+
+    reason_html = ""
+    reason_text = ""
+    if rejection_reason:
+        reason_html = f"""
+        <p style="margin:0 0 20px 0;">
+            <strong>Reason:</strong> {rejection_reason}
+        </p>
+        """
+        reason_text = f"\nReason: {rejection_reason}\n"
+
+    template = email_html_templates['application_rejected'].format(
+        candidate_name=application.candidate_name or "Candidate",
+        job_title=application.job.job_title,
+        rejection_reason_html=reason_html,
+    )
+    
+    text = email_alt_text['application_rejected'].format(
+        candidate_name=application.candidate_name or "Candidate",
+        job_title=application.job.job_title,
+        rejection_reason_text=reason_text,
+    )
+
+    try:
+        send_email(
+            to=application.candidate_email,
+            subject=subject,
+            template=template,
+            text=text,
+            cc=['talent@knowcraft.in']  # Optional: CC to HR
+        )
+        print(f"Rejection email sent to {application.candidate_email}")
+        if application.candidate_phone:
+            send_text(application.candidate_phone,text)
+            print(f"Rejection message sent to {application.candidate_phone}")   
+        return True
+    except Exception as e:
+        print(f"Failed to send rejection email to {application.candidate_email}: {e}")
+        return False

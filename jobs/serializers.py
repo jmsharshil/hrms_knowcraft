@@ -1424,4 +1424,25 @@ class CareersMergedJobSerializer(serializers.Serializer):
     def get_remaining_positions(self, obj):
         return obj['total_positions'] - obj['total_filled']
 
-    
+class SendRejectionNotificationSerializer(serializers.Serializer):
+    application_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False
+    )
+    application_id = serializers.UUIDField(required=False)
+    rejection_reason = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, data):
+        application_ids = data.get('application_ids')
+        application_id = data.get('application_id')
+
+        if not application_ids and not application_id:
+            raise serializers.ValidationError(
+                "At least one of application_id or application_ids is required."
+            )
+
+        # Normalize to application_ids list
+        if not application_ids and application_id:
+            data['application_ids'] = [application_id]
+
+        return data

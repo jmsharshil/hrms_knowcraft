@@ -733,6 +733,9 @@ class Application(models.Model):
     is_duplicate = models.BooleanField(default=False)
     candidate_history = models.JSONField(null=True,blank=True,default=list)
 
+    is_rejected = models.BooleanField(default=False)
+    rejection_reason = models.TextField(null=True,blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
