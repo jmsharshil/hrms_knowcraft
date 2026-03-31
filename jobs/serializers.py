@@ -1354,7 +1354,7 @@ class ApplicationListSerializer(serializers.ModelSerializer):
         model = Application
         fields = ['candidate_id','resume_url','source','position_title','candidate_name',
                   'candidate_email','candidate_phone','location','match_score','job',
-                  'resume_report','is_duplicate','current_employer','created_at']
+                  'resume_report','is_duplicate','current_employer','created_at','is_rejected']
 
     def get_resume_url(self, obj):
         request = self.context.get('request')
