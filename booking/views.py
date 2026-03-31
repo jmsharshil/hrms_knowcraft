@@ -116,7 +116,7 @@ class CandidateBookSlotView(APIView):
         if not candidate.candidate_email:
             return Response("Candidate Email Not Found!Please Add email in Candidate to continue.",status=400)
     
-        attendees = [candidate.candidate_email]
+        attendees = []
 
         # Add all technical interviewers
         # if candidate.status in ['interview_next_2', 'interview_pending_2'] and candidate.job.mrf.technical_interviewers.exists():
@@ -533,7 +533,7 @@ def send_notifications(candidate,start_dt,end_dt,interviewer,location,request):
 
     if not candidate.candidate_email:
         return Response("Candidate Email Not Found!Please Add email in Candidate to continue.",status=400)
-    attendees = [candidate.candidate_email]
+    attendees = []
 
     # Add all technical interviewers
     # if candidate.status in ['interview_next_2', 'interview_pending_2'] and candidate.job.mrf.technical_interviewers.exists():
@@ -1026,7 +1026,7 @@ class CandidateBookInPersonInterviewView(APIView):
                 #         {"detail": "Candidate already has an interview scheduled in this time range"},
                 #         status=400
                 #     )
-                attendees = [candidate.candidate_email]
+                attendees = []
                 attendee_ids = request.data.get("attendees", [])
                 extra_attendees = Interviewer.objects.filter(id__in=attendee_ids)
                 for extra in extra_attendees:
@@ -1583,6 +1583,7 @@ class ManageBookingView(APIView):
 
             candidate.interview_scheduled_at = start_dt
             candidate.interview_end_at = end_dt
+            candidate.reschedule_count += 1
             candidate.save()
 
             updated_fields.append("rescheduled")

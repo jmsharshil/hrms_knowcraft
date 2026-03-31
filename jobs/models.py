@@ -18,6 +18,7 @@ class Job(models.Model):
         ('assigned_to_consultancy', 'Assigned to Consultancy'),
         ('assigned_to_internal_hr', 'Assigned to Internal HR'),
         ('assigned_to_both',"Assigned to Both"),
+        ('on_hold', 'On Hold'),
         # ('in_progress', 'In Progress'),
         ('filled', 'Position Filled'),
         ('closed', 'Closed'),
@@ -173,6 +174,17 @@ class Job(models.Model):
         related_name='internal_hr_jobs',
         limit_choices_to={'role__in': ['hr', 'hr_manager','admin']}
     )
+
+    # NEW: Fields for Hold Tracking
+    previous_status = models.CharField(
+        max_length=50, 
+        choices=[(choice[0], choice[1]) for choice in JOB_STATUS_CHOICES if choice[0] != 'on_hold'],  # Exclude 'on_hold'
+        blank=True, 
+        null=True, 
+        help_text="Status before being put on hold (for restoration)"
+    )
+    held_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when put on hold")
+    hold_reason = models.TextField(blank=True, help_text="Reason for holding the job")
     
     class Meta:
         db_table = 'jobs'
@@ -200,6 +212,8 @@ class Job(models.Model):
         """Get remaining positions to fill"""
         return self.no_of_positions - self.positions_filled
 
+    def is_on_hold(self):
+        return self.status == 'on_hold'
 
 class JobApplicationLink(models.Model):
     """Unique application links for different platforms"""
@@ -718,6 +732,10 @@ class Application(models.Model):
     resume_report = models.FileField(blank=True,null=True,upload_to='reports/', help_text='Candidate resume report.')
     is_duplicate = models.BooleanField(default=False)
     candidate_history = models.JSONField(null=True,blank=True,default=list)
+
+    is_rejected = models.BooleanField(default=False)
+    rejected_by = models.ForeignKey("accounts.user",on_delete=models.SET_NULL,null=True,blank=True)
+    rejection_reason = models.TextField(null=True,blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

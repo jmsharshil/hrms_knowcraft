@@ -14,7 +14,7 @@ from .serializers import (
     DepartmentSerializer, DesignationSerializer, MRFListSerializer,
     MRFDetailSerializer, MRFCreateUpdateSerializer, MRFApproveRejectSerializer,
     MRFSubmitSerializer, ApprovalWorkflowSerializer, WorkflowTemplateSerializer,
-    WorkflowTemplateSummarySerializer
+    WorkflowTemplateSummarySerializer,MRFHoldUnholdSerializer
 )
 from .permissions import (
     CanManageMasterData, CanManageWorkflow, CanViewMRF, CanEditMRF,
@@ -264,6 +264,10 @@ class MRFViewSet(viewsets.ModelViewSet):
             return MRFSubmitSerializer
         elif self.action == 'approve_reject':
             return MRFApproveRejectSerializer
+        elif self.action == 'duplicate':
+            return MRFCreateUpdateSerializer
+        elif self.action in ['hold','unhold']:
+            return MRFHoldUnholdSerializer
         return MRFDetailSerializer
     
     def get_permissions(self):
@@ -275,6 +279,8 @@ class MRFViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated(), CanSubmitMRF()]
         elif self.action == 'approve_reject':
             return [IsAuthenticated(), CanApproveMRF()]
+        elif self.action in ['hold', 'unhold','duplicate']:
+            return [IsAuthenticated(), CanEditMRF()]
         return [IsAuthenticated(), CanViewMRF()]
     
     def get_queryset(self):
@@ -662,6 +668,154 @@ class MRFViewSet(viewsets.ModelViewSet):
             'message': message,
             'data': serializer.data
         }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanEditMRF])
+    def duplicate(self, request, pk=None):
+        """Duplicate an existing MRF as a new draft"""
+        original = self.get_object()
+
+        if original.status == 'draft':
+            return Response(
+                {'error': 'Cannot duplicate a draft MRF. Create a new one instead.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if original.company != getattr(request.user, 'company', None):
+            return Response(
+                {'error': 'You cannot duplicate MRFs from another company.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Create new MRF instance with copied fields
+        new_mrf = MRF(
+            company=original.company,
+            workflow_template=original.workflow_template,
+            mrf_name=original.mrf_name,
+            department=original.department,
+            date_of_request=original.date_of_request,
+            requested_by=original.requested_by,
+            requested_by_name=original.requested_by_name,
+            requested_by_designation=original.requested_by_designation,
+            designation=original.designation,
+            team=original.team,
+            position_department=original.position_department,
+            no_of_vacancies=original.no_of_vacancies,
+            location=original.location,
+            job_type=original.job_type,
+            resigned_crafter_name=original.resigned_crafter_name,
+            resigned_crafter_ecode=original.resigned_crafter_ecode,
+            resigned_crafter_designation=original.resigned_crafter_designation,
+            key_responsibility=original.key_responsibility,
+            required_qualifications=original.required_qualifications,
+            experience_range=original.experience_range,
+            skills_competencies=original.skills_competencies,
+            business_justification=original.business_justification,
+            salary_range=original.salary_range,
+            expected_date_of_joining=original.expected_date_of_joining,
+            case_study_required=original.case_study_required,
+            technical_interview_1=original.technical_interview_1,
+            technical_interview_2=original.technical_interview_2,
+            final_interview=original.final_interview,
+            status='draft',
+            priority=original.priority,
+            current_approval_level=0,
+        )
+
+        new_mrf.save()  # Sets created_at, updated_at, and email fields
+
+        # Copy interviewer relationships
+        new_mrf.hr_interviewer = original.hr_interviewer
+        new_mrf.case_study_interviewer = original.case_study_interviewer
+        new_mrf.final_interviewer = original.final_interviewer
+        new_mrf.management_client_interviewer = original.management_client_interviewer
+        new_mrf.technical_interviewers.set(original.technical_interviewers.all())
+
+        new_mrf.save()  # Update email fields based on new relationships
+
+        # Date fields like submitted_at, approved_at, rejected_at, date_received, requisition_no remain None
+
+        serializer = MRFDetailSerializer(new_mrf, context={'request': request})
+        return Response({
+            'message': 'MRF duplicated successfully as a new draft.',
+            'data': serializer.data
+        }, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanApproveMRF])
+    def hold(self, request, pk=None):
+        """
+        POST /api/mrf/{id}/hold/
+        Put MRF on hold. Triggers Job sync and link deactivation.
+        Optional body: {"reason": "Budget review needed"}
+        """
+        mrf = self.get_object()
+        
+        if mrf.status == 'on_hold':
+            return Response({"detail": "MRF is already on hold."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if mrf.status == 'rejected':  # Prevent on terminal statuses
+            return Response({"detail": "Cannot hold a rejected MRF."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        reason = request.data.get('reason', '')  # Optional
+        
+        # Update via serializer for validation
+        data = {'status': 'on_hold', 'hold_reason': reason}
+        serializer = self.get_serializer(mrf,data=data,partial=True,
+            context={
+                'action_type': 'hold',
+                'mrf': mrf,
+                'request': request
+            }
+        )
+        if serializer.is_valid():
+            serializer.save()
+            # Signal will handle Job sync
+            return Response({
+                "detail": f"MRF {mrf.mrf_name} put on hold.",
+                "reason": reason if reason else "No reason provided",
+                "data": serializer.data
+            }, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    # NEW: Unhold Action
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanApproveMRF])
+    def unhold(self, request, pk=None):
+        """
+        POST /api/mrf/{id}/unhold/
+        Resume MRF from on hold. Restores previous status and syncs Job.
+        Optional body: {"target_status": "pending_level_1"} (overrides previous)
+        """
+        mrf = self.get_object()
+        
+        if mrf.status != 'on_hold':
+            return Response({"detail": "MRF is not on hold."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Default to previous_status or 'draft'
+        target_status = request.data.get('target_status', mrf.previous_status or 'draft')
+        
+        if target_status not in dict(MRF.STATUS_CHOICES):
+            return Response({"detail": f"Invalid target status: {target_status}"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Update via serializer
+        data = {'target_status': target_status}
+        serializer = self.get_serializer(mrf,data=data,partial=True,
+            context={
+                'action_type': 'unhold',
+                'mrf': mrf,
+                'request': request
+            }
+        )
+        if serializer.is_valid():
+            serializer.save()
+            # Signal will handle Job resume and link reactivation
+            return Response({
+                "detail": f"MRF {mrf.mrf_name} resumed from hold.",
+                "previous_status": mrf.previous_status,
+                "new_status": target_status,
+                "data": serializer.data
+            }, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=False, methods=['get'])
     def statistics(self, request):

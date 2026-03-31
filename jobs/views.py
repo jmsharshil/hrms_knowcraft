@@ -18,7 +18,7 @@ from .serializers import (
     PublicJobApplicationCreateSerializer, AssignToInternalHRSerializer, AssignToBothSerializer,
     ReferralApplicationCreateSerializer,ReferralApplicationSerializer, ReferralToJobApplicationCreateSerializer,
     CareerToJobApplicationCreateSerializer,ApplicationSerializer,ApplicationCreateSerializer,
-    ApplicationToJobSerializer,JobDropDownMergedSerializer,AssignJobSerializer
+    ApplicationToJobSerializer,JobDropDownMergedSerializer,AssignJobSerializer,SendRejectionNotificationSerializer
 )
 from .permissions import (
     CanViewJobs, CanCreateJobs, CanEditJobs, CanAssignToConsultancy,
@@ -987,10 +987,11 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
             pass
         elif user.role == 'hr':
             # Internal HR: only applications for jobs assigned to them
-            queryset = queryset.filter(job__assigned_to_internal_hr=user)
+            queryset = queryset.filter(Q(assigned_to_internal_hr=user) | Q(assigned_internal_hrs=user))
         elif user.role == 'consultancy':
             # Can see applications for jobs assigned to them
-            queryset = queryset.filter(job__assigned_to_consultancy=user,source='consultancy')
+            queryset = queryset.filter(Q(job__assigned_to_consultancy=user) |
+                Q(job__assigned_consultancies=user),source='consultancy')
         else:
             queryset = queryset.none()
         # Apply filters
@@ -1307,7 +1308,7 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
             'posted_by__name',
             'company',
             'is_active'
-        )
+        ).exclude(status='on_hold')
 
         # Role-based filtering
         if user.is_authenticated:
@@ -1430,11 +1431,11 @@ class ApplicationViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        job_app = serializer.save()
+        results = serializer.save()
 
         return Response({
             "message": "Converted successfully",
-            "job_application_id": str(job_app.id)
+            "job_application_ids": [str(obj.id) for obj in results]
         })
 
     @action(detail=False, methods=['get'])
@@ -1484,3 +1485,45 @@ class ApplicationViewSet(viewsets.GenericViewSet):
             "message": "Reparsing completed",
             **result
         })
+    
+    @action(detail=False, methods=['post'])
+    def send_rejection_notification(self, request):
+        from .utils import send_rejection_notification
+
+        serializer = SendRejectionNotificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        candidate_ids = serializer.validated_data['candidate_ids']
+        rejection_reason = serializer.validated_data.get('rejection_reason', '')
+
+        sent_count = 0
+        failed = []
+
+        for app_id in candidate_ids:
+            try:
+                application = Application.objects.get(id=app_id)
+
+                if application.is_rejected:
+                    failed.append({'id': str(app_id), 'reason': 'Already rejected'})
+                    continue
+
+                application.rejection_reason = rejection_reason
+                application.is_rejected = True
+                application.rejected_by = request.user
+                application.save()
+
+                if send_rejection_notification(application, rejection_reason):
+                    sent_count += 1
+                else:
+                    failed.append({'id': str(app_id), 'reason': 'Failed to send email'})
+
+            except Application.DoesNotExist:
+                failed.append({'id': str(app_id), 'reason': 'Application not found'})
+            except Exception as e:
+                failed.append({'id': str(app_id), 'reason': str(e)})
+
+        return Response({
+            'message': f'Processed {len(candidate_ids)} applications. Sent {sent_count} emails.',
+            'sent': sent_count,
+            'failed': failed
+        }, status=status.HTTP_200_OK)

@@ -134,7 +134,7 @@
 #     # You can extend this to log specific field changes
 #     pass
 
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save,pre_save
 from django.dispatch import receiver
 from .models import MRF
 from onboarding.utils.task_queue import TASK_QUEUE
@@ -147,3 +147,52 @@ def schedule_mrf_reminder(sender, instance, created, **kwargs):
     if created:
         print("reminder started!")
         TASK_QUEUE.enqueue(mrf_approval_reminder_task, instance.id)
+
+@receiver(pre_save, sender=MRF)
+def store_previous_status(sender, instance, **kwargs):
+    if instance.pk:
+        try:
+            old_instance = MRF.objects.get(pk=instance.pk)
+            instance._previous_status = old_instance.status
+        except MRF.DoesNotExist:
+            instance._previous_status = None
+    else:
+        instance._previous_status = None
+
+@receiver(post_save, sender=MRF)
+def sync_mrf_to_job_status(sender, instance, created, **kwargs):
+    """
+    Signal to sync MRF status changes to related Job.
+    - When MRF goes to 'on_hold': Set Job to 'on_hold' and save previous status.
+    - When MRF resumes from 'on_hold': Restore Job's previous status.
+    """
+    if created:
+        # New MRF - no sync needed yet (Job created separately)
+        return
+    
+    previous_status = getattr(instance, '_previous_status', None)
+
+    # Only sync if status changed
+    if instance.status == previous_status:
+        return
+
+    job = getattr(instance, 'job', None)
+    if not job:
+        return
+    
+    if instance.status == 'on_hold' and previous_status != 'on_hold':
+        if job.status != 'on_hold':
+            job.previous_status = job.status
+            job.held_at = timezone.now()
+            job.hold_reason = instance.hold_reason
+            job.status = 'on_hold'
+            job.save(update_fields=['previous_status', 'held_at', 'hold_reason', 'status'])
+
+    elif previous_status == 'on_hold' and instance.status != 'on_hold':
+        if job.status == 'on_hold':
+            restore_status = job.previous_status or 'open'
+            job.status = restore_status
+            job.previous_status = None
+            job.held_at = None
+            job.hold_reason = ''
+            job.save(update_fields=['status', 'previous_status', 'held_at', 'hold_reason'])

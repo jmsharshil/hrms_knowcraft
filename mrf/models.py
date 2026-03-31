@@ -174,6 +174,7 @@ class MRF(models.Model):
         ('pending_level_1', 'Pending Level 1 Approval'),
         ('pending_level_2', 'Pending Level 2 Approval'),
         ('pending_level_3', 'Pending Level 3 Approval'),
+        ('on_hold', 'On Hold'),
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
         ('revision_required', 'Revision Required'),
@@ -306,6 +307,18 @@ class MRF(models.Model):
         default='medium'
     )
     current_approval_level = models.IntegerField(default=0)
+
+    #Hold
+    previous_status = models.CharField(
+        max_length=50, 
+        choices=[(choice[0], choice[1]) for choice in STATUS_CHOICES if choice[0] != 'on_hold'],  # Exclude 'on_hold'
+        blank=True, 
+        null=True, 
+        help_text="Status before being put on hold (for restoration)"
+    )
+    held_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when put on hold")
+    hold_reason = models.TextField(blank=True, help_text="Reason for holding the job")
+    held_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='mrf_holder',null=True,blank=True)
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)

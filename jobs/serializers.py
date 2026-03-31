@@ -388,6 +388,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     
     job_title = serializers.CharField(source='job.job_title', read_only=True)
     department_name = serializers.CharField(source='job.department.name', read_only=True)
+    designation_name = serializers.CharField(source='job.designation.name', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     source_display = serializers.CharField(source='get_source_display', read_only=True)
     round_name_display = serializers.CharField(source='get_round_name_display', read_only=True)
@@ -423,7 +424,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobApplication
         fields = [
-            'id', 'job', 'job_title', 'department_name', 'candidate_name',
+            'id', 'job', 'job_title', 'department_name', 'candidate_name','designation_name',
             'candidate_email', 'candidate_phone', 'resume', 'resume_url',
             'original_filename', 'file_size', 'file_size_mb', 'cover_letter',"rejection_reason",
             'experience_years','relevant_experience_years', 'current_ctc', 'expected_ctc', 'notice_period',
@@ -431,7 +432,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'source', 'source_display', 'platform_name', 'application_link','is_duplicate',"referral_name","referral_email","referral_phone",
             "referral_emp_code","referral_designation","referral_department","is_shortlisted","consolidated_feedback_avg",
             'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report','slot_link','candidate_history',
-            'created_at', 'updated_at','is_selected','is_approved','is_rejected','inperson_link',
+            'created_at', 'updated_at','is_selected','is_approved','is_rejected','inperson_link','reschedule_count','no_show_count',
             'interview_scheduled_at','interviewer_name','interview_link','feedback_link','round_name','round_name_display',
             "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone","interview_end_at"
         ]
@@ -1247,12 +1248,15 @@ class ApplicationCreateSerializer(serializers.ModelSerializer):
         return created
     
 class ApplicationToJobSerializer(serializers.Serializer):
-    application_id = serializers.UUIDField()
+    application_ids = serializers.ListField(child=serializers.UUIDField())
     job_id = serializers.UUIDField()
 
     def validate(self, data):
         try:
-            application = Application.objects.get(id=data['application_id'])
+            application_ids = data['application_ids']
+            applications = Application.objects.filter(id__in=application_ids)
+            if len(applications) != len(application_ids):
+                raise serializers.ValidationError("One or more applications not found")
         except Application.DoesNotExist:
             raise serializers.ValidationError("Application not found")
 
@@ -1261,13 +1265,14 @@ class ApplicationToJobSerializer(serializers.Serializer):
         except Job.DoesNotExist:
             raise serializers.ValidationError("Job not found")
 
-        data['application'] = application
+        data['applications'] = applications
         data['job'] = job
         return data
 
     def create(self, validated_data):
-        application = validated_data['application']
+        applications = validated_data['applications']
         job = validated_data['job']
+        results = []
 
         from onboarding.utils.engine import automation_engine
         from django.utils import timezone
@@ -1275,56 +1280,60 @@ class ApplicationToJobSerializer(serializers.Serializer):
         from .utils import build_candidate_history
 
         with transaction.atomic():
-            job_app = JobApplication.objects.create(
-                job=job,
-                resume=application.resume,
-                source=application.source,  # dynamic
-                status='received',
-                original_filename=application.original_filename,
-                file_size=application.file_size,
-            )
+            for application in applications:
+                job_app = JobApplication.objects.create(
+                    job=job,
+                    resume=application.resume,
+                    source=application.source,  # dynamic
+                    status='received',
+                    original_filename=application.original_filename,
+                    file_size=application.file_size,
+                )
 
-            history = []
-            if application.candidate_email:
-                today = timezone.now()
-                six_months_ago = today - timedelta(days=6*30)
-                duplicate_application = JobApplication.objects.filter(candidate_email=application.candidate_email,created_at__gte=six_months_ago).exclude(id=job_app.id)
-                duplicated = False
-                if duplicate_application.exists():
-                    print("Duplicate resume found!")
-                    history = build_candidate_history(application.candidate_email,job_app.id)
-                    duplicated = True
+                history = []
+                if application.candidate_email:
+                    today = timezone.now()
+                    six_months_ago = today - timedelta(days=6*30)
+                    duplicate_application = JobApplication.objects.filter(candidate_email=application.candidate_email,created_at__gte=six_months_ago).exclude(id=job_app.id)
+                    duplicated = False
+                    if duplicate_application.exists():
+                        print("Duplicate resume found!")
+                        history = build_candidate_history(application.candidate_email,job_app.id)
+                        duplicated = True
 
-            job_app.candidate_name = application.candidate_name
-            job_app.candidate_email = application.candidate_email
-            job_app.candidate_phone = application.candidate_phone
-            job_app.relevant_experience_years = application.relevant_experience_years
-            job_app.experience_years = application.experience_years
-            job_app.linkedin_url = application.linkedin_url
-            job_app.current_ctc = application.current_ctc
-            job_app.expected_ctc = application.expected_ctc
-            job_app.portfolio_url = application.portfolio_url
-            job_app.skill = application.skill
-            job_app.education = application.education
-            job_app.current_employer = application.current_employer
-            job_app.location = application.location
-            job_app.match_score = application.match_score
-            job_app.resume_report = application.resume_report
-            job_app.is_duplicate = duplicated
-            job_app.candidate_history = history
-            job_app.save()
+                job_app.candidate_name = application.candidate_name
+                job_app.candidate_email = application.candidate_email
+                job_app.candidate_phone = application.candidate_phone
+                job_app.relevant_experience_years = application.relevant_experience_years
+                job_app.experience_years = application.experience_years
+                job_app.linkedin_url = application.linkedin_url
+                job_app.current_ctc = application.current_ctc
+                job_app.expected_ctc = application.expected_ctc
+                job_app.portfolio_url = application.portfolio_url
+                job_app.skill = application.skill
+                job_app.education = application.education
+                job_app.current_employer = application.current_employer
+                job_app.location = application.location
+                job_app.match_score = application.match_score
+                job_app.resume_report = application.resume_report
+                job_app.is_duplicate = duplicated
+                job_app.candidate_history = history
+                job_app.save()
 
-            if job_app.is_duplicate:
-                automation_engine(job_app,job_app.status,'duplicate_rejected')
-            elif job_app.match_score >= 75:
-                automation_engine(job_app,job_app.status,'shortlisted')
-            
-        return job_app
+                if job_app.is_duplicate:
+                    automation_engine(job_app,job_app.status,'duplicate_rejected')
+                elif job_app.match_score >= 75:
+                    automation_engine(job_app,job_app.status,'shortlisted')
+                results.append(job_app)
+        
+        return results
 
 class ApplicationSerializer(serializers.ModelSerializer):
     resume_url = serializers.SerializerMethodField()
     file_size_mb = serializers.SerializerMethodField()
     candidate_id = serializers.UUIDField(source="id", read_only=True)
+    rejected_by_name = serializers.CharField(source='rejected_by.name', read_only=True)
+    rejected_by_email = serializers.CharField(source='rejected_by.email', read_only=True)
 
     class Meta:
         model = Application
@@ -1345,7 +1354,7 @@ class ApplicationListSerializer(serializers.ModelSerializer):
         model = Application
         fields = ['candidate_id','resume_url','source','position_title','candidate_name',
                   'candidate_email','candidate_phone','location','match_score','job',
-                  'resume_report','is_duplicate','current_employer','created_at']
+                  'resume_report','is_duplicate','current_employer','created_at','is_rejected']
 
     def get_resume_url(self, obj):
         request = self.context.get('request')
@@ -1423,4 +1432,25 @@ class CareersMergedJobSerializer(serializers.Serializer):
     def get_remaining_positions(self, obj):
         return obj['total_positions'] - obj['total_filled']
 
-    
+class SendRejectionNotificationSerializer(serializers.Serializer):
+    candidate_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False
+    )
+    candidate_id = serializers.UUIDField(required=False)
+    rejection_reason = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, data):
+        candidate_ids = data.get('candidate_ids')
+        candidate_id = data.get('candidate_id')
+
+        if not candidate_ids and not candidate_id:
+            raise serializers.ValidationError(
+                "At least one of candidate_id or candidate_ids is required."
+            )
+
+        # Normalize to candidate_ids list
+        if not candidate_ids and candidate_id:
+            data['candidate_ids'] = [candidate_id]
+
+        return data

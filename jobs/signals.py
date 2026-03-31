@@ -3,7 +3,7 @@ Signal to automatically create Job when MRF is approved
 Add this to your MRF app's signals.py file
 """
 
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save,pre_save
 from django.dispatch import receiver
 from mrf.models import MRF
 
@@ -52,15 +52,38 @@ def create_job_on_mrf_approval(sender, instance, created, **kwargs):
     except Exception as e:
         print(f"Error creating job for MRF {instance.requisition_no}: {str(e)}")
 
+from .models import Job
 
-# Add this to your MRF app's apps.py
-"""
-from django.apps import AppConfig
+@receiver(pre_save, sender=Job)
+def store_previous_job_status(sender, instance, **kwargs):
+    if instance.pk:
+        try:
+            old_instance = Job.objects.get(pk=instance.pk)
+            instance._previous_status = old_instance.status
+        except Job.DoesNotExist:
+            instance._previous_status = None
+    else:
+        instance._previous_status = None
 
-class MrfsConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'mrfs'
-    
-    def ready(self):
-        import mrfs.signals  # Import signals when app is ready
-"""
+@receiver(post_save, sender=Job)
+def sync_job_status_to_links(sender, instance, created, **kwargs):
+    if created:
+        return
+
+    previous_status = getattr(instance, '_previous_status', None)
+
+    # Only sync if status changed
+    if instance.status == previous_status:
+        return
+
+    links = instance.application_links.all()
+    if not links.exists():
+        return
+
+    if instance.status == 'on_hold' and previous_status != 'on_hold':
+        updated_count = links.update(is_active=False)
+        print(f"Deactivated {updated_count} links for on-hold Job {instance.id}")
+
+    elif previous_status == 'on_hold' and instance.status != 'on_hold':
+        updated_count = links.update(is_active=True)
+        print(f"Reactivated {updated_count} links for resumed Job {instance.id}")
