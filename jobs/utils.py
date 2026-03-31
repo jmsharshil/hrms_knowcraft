@@ -1335,7 +1335,7 @@ email_html_templates["application_rejected"] = f"""
                     <!-- Footer -->
                     <tr>
                         <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                            © 2024 Knowcraft Analytics Private Limited • Confidential
+                            © 2026 Knowcraft Analytics Private Limited • Confidential
                         </td>
                     </tr>
                 </table>
