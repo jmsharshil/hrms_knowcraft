@@ -1431,11 +1431,11 @@ class ApplicationViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        job_app = serializer.save()
+        results = serializer.save()
 
         return Response({
             "message": "Converted successfully",
-            "job_application_id": str(job_app.id)
+            "job_application_ids": [str(obj.id) for obj in results]
         })
 
     @action(detail=False, methods=['get'])
@@ -1493,13 +1493,13 @@ class ApplicationViewSet(viewsets.GenericViewSet):
         serializer = SendRejectionNotificationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        application_ids = serializer.validated_data['application_ids']
+        candidate_ids = serializer.validated_data['candidate_ids']
         rejection_reason = serializer.validated_data.get('rejection_reason', '')
 
         sent_count = 0
         failed = []
 
-        for app_id in application_ids:
+        for app_id in candidate_ids:
             try:
                 application = Application.objects.get(id=app_id)
 
@@ -1509,6 +1509,7 @@ class ApplicationViewSet(viewsets.GenericViewSet):
 
                 application.rejection_reason = rejection_reason
                 application.is_rejected = True
+                application.rejected_by = request.user
                 application.save()
 
                 if send_rejection_notification(application, rejection_reason):
@@ -1522,7 +1523,7 @@ class ApplicationViewSet(viewsets.GenericViewSet):
                 failed.append({'id': str(app_id), 'reason': str(e)})
 
         return Response({
-            'message': f'Processed {len(application_ids)} applications. Sent {sent_count} emails.',
+            'message': f'Processed {len(candidate_ids)} applications. Sent {sent_count} emails.',
             'sent': sent_count,
             'failed': failed
         }, status=status.HTTP_200_OK)

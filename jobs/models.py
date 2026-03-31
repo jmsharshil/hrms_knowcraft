@@ -734,6 +734,7 @@ class Application(models.Model):
     candidate_history = models.JSONField(null=True,blank=True,default=list)
 
     is_rejected = models.BooleanField(default=False)
+    rejected_by = models.ForeignKey("accounts.user",on_delete=models.SET_NULL,null=True,blank=True)
     rejection_reason = models.TextField(null=True,blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
