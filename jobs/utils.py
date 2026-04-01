@@ -1227,6 +1227,7 @@ def reparse_applications_missing_email(batch_size=50):
     failed = 0
     skipped =0
     
+    from onboarding.utils.task_queue import TASK_QUEUE
     for application in queryset.iterator(chunk_size=batch_size):
         try:
             job = application.job
@@ -1245,11 +1246,7 @@ def reparse_applications_missing_email(batch_size=50):
                 application.job = job
                 application.save(update_fields=['job'])
             
-            pre_parse_resume_task(
-                application=application,
-                resume_file=resume,
-                job=job
-            )
+            TASK_QUEUE.enqueue(pre_parse_resume_task,application,resume,job)
 
             updated += 1
 
@@ -1407,3 +1404,28 @@ def send_rejection_notification(application, rejection_reason=""):
     except Exception as e:
         print(f"Failed to send rejection email to {application.candidate_email}: {e}")
         return False
+    
+def reparse_applictaion(application: Application):
+    try:
+        job = application.job
+        resume = application.resume
+
+        from onboarding.utils.task_queue import TASK_QUEUE
+
+        # ✅ Fallback logic
+        if not job:
+            job = find_similar_job(application.position_title)
+
+            if not job:
+                Response(f"[SKIPPED] No job match for {application.id}")
+
+            # optional: attach found job
+            application.job = job
+            application.save(update_fields=['job'])
+        
+        TASK_QUEUE.enqueue(pre_parse_resume_task,application,resume,job)
+        
+        return f"Application {application.id} re-parsed sucessfully"
+
+    except Exception as e:
+        return f"Error reparsing application: {str(e)}"
