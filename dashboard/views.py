@@ -273,7 +273,8 @@ class BaseAnalyticsView(APIView):
         else:
             section2['avg_time_to_assign_hours'] = 0
 
-        status_breakdown = dict(job_qs.values('status').annotate(count=Count('id')))
+        status_qs = job_qs.values('status').annotate(count=Count('id'))
+        status_breakdown = {item['status']: item['count'] for item in status_qs}
         for key in ['open', 'in_progress', 'closed', 'on_hold']:
             status_breakdown.setdefault(key, 0)
         section2['job_status_breakdown'] = status_breakdown
@@ -508,6 +509,15 @@ class BaseAnalyticsView(APIView):
         """Override this in subclasses to return filters."""
         return Q(), Q(), Q()
 
+    def calc_summary_totals(self, mrf_qs, job_qs, app_qs):
+        """Standard summary totals for quick dashboard cards."""
+        return {
+            "total_mrfs": mrf_qs.count(),
+            "total_jobs": job_qs.count(),
+            "total_cvs": app_qs.count(),
+            "total_open_positions": sum((j.no_of_positions - j.positions_filled) for j in job_qs)
+        }
+
     def get(self, request):
         ctx, err = self.get_common_querysets(request)
         if err:
@@ -523,7 +533,9 @@ class BaseAnalyticsView(APIView):
         else:
             requested_sections = [s for s in requested_sections if s in allowed_sections]
 
-        data = {}
+        data = {
+            "summary": self.calc_summary_totals(mrf_qs, job_qs, app_qs)
+        }
         if 'mrf_analytics' in requested_sections:
             data['mrf_analytics'] = self.calc_mrf_analytics(mrf_qs)
         if 'job_assignment_analytics' in requested_sections:
