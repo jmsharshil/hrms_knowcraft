@@ -134,12 +134,55 @@ class AnalyticsAPIView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
+    def get_role_based_filters(self, user):
+        role = user.role
+
+        mrf_q = Q()
+        job_q = Q()
+        app_q = Q()
+
+        if role == 'hr':
+            mrf_q = Q(requested_by=user) | Q(approvals__approver=user)
+
+            job_q = (
+                Q(assigned_to_internal_hr=user) |
+                Q(assigned_internal_hrs=user) |
+                Q(posted_by=user) |
+                Q(closed_by=user)
+            )
+
+            app_q = Q(job__assigned_to_internal_hr=user) | Q(submitted_by=user)
+
+        elif role == 'department_head':
+            mrf_q = Q(department=user.department)
+
+            job_q = Q(department=user.department)
+
+            app_q = Q(job__department=user.department)
+
+        elif role == 'consultancy':
+            job_q = (
+                Q(assigned_to_consultancy=user) |
+                Q(assigned_consultancies=user)
+            )
+
+            app_q = (
+                Q(job__assigned_to_consultancy=user) |
+                Q(job__assigned_consultancies=user) |
+                Q(submitted_by=user)
+            )
+
+        elif role in ['admin', 'hr_manager']:
+            # Full access
+            pass
+
+        return mrf_q, job_q, app_q
+
     def get(self, request):
         user = request.user
-        if user.role not in ('admin', 'hr_manager'):
-            return Response({"detail": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
-
         company = user.company
+
+        role_mrf_q, role_job_q, role_app_q = self.get_role_based_filters(user)
 
         # Parse query params
         date_from_str = request.query_params.get('date_from')
@@ -168,7 +211,7 @@ class AnalyticsAPIView(APIView):
                 return Response({"detail": "Invalid user_id"}, status=status.HTTP_400_BAD_REQUEST)
 
         # MRF queryset
-        mrf_filter = Q(company=company) & date_filter
+        mrf_filter = Q(company=company) & date_filter  & role_mrf_q
         if department_id:
             mrf_filter &= Q(department_id=department_id)
         if user_id:
@@ -176,7 +219,7 @@ class AnalyticsAPIView(APIView):
         mrf_qs = MRF.objects.filter(mrf_filter).distinct()
 
         # Job queryset - filter for jobs assigned to the user
-        job_filter = Q(company=company) & date_filter
+        job_filter = Q(company=company) & date_filter & role_job_q
         if job_id:
             job_filter &= Q(id=job_id)
         if department_id:
@@ -200,7 +243,7 @@ class AnalyticsAPIView(APIView):
         job_qs = Job.objects.filter(job_filter).distinct()
 
         # JobApplication queryset - filter for applications on jobs assigned to the user
-        app_filter = Q(job__in=job_qs) & date_filter
+        app_filter = Q(job__in=job_qs) & date_filter & role_app_q
         if source_filter:
             app_filter &= Q(source=source_filter)
         if user_id:
