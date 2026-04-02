@@ -143,6 +143,26 @@ def automation_engine(candidate, old, new):
             logger.info(f"AUTO: Internal Notification sent for {candidate.candidate_name} → {new}")
         except Exception as e:
             logger.exception(f"❌ Internal Notification Error: {e}")
+
+    # 4️⃣ Separate Feedback Email (if applicable)
+    FEEDBACK_REJECTION_STATES = {
+        "interview_rejected_1",
+        "interview_rejected_2",
+        "interview_rejected_3",
+        "interview_rejected_final",
+        "interview_rejected_management_client",
+        "approval_rejected",
+        "rejected",
+        "offer_rejected",
+    }
+    
+    if new in FEEDBACK_REJECTION_STATES:
+        from .notifications import trigger_feedback_email
+        trigger_feedback_email(candidate, 'rejection')
+    elif new == "offer_accepted":
+        from .notifications import trigger_feedback_email
+        trigger_feedback_email(candidate, 'offer')
+
     # # 3️⃣ Internal broadcasting for key events
     # if new == "joined" and BROADCAST_ON_JOIN:
     #     logger.info(
