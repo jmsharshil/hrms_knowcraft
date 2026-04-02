@@ -9,7 +9,7 @@ from django.db.models import Count, Avg, Q, F, Sum, Case, When, IntegerField, Fl
 from django.db.models.functions import TruncMonth, TruncDate
 from datetime import timedelta
 
-from jobs.models import Job, JobApplication, JobAssignmentHistory
+from jobs.models import Job, JobApplication, JobAssignmentHistory, Application
 from mrf.models import MRF, MRFApproval, Department
 from booking.models import Booking
 from slots.models import InterviewFeedback, Interviewer
@@ -200,11 +200,25 @@ class BaseAnalyticsView(APIView):
                 Q(job__assigned_internal_hrs__id=user_id)
             )
         app_qs = JobApplication.objects.filter(app_filter).distinct()
+        
+        # Platform Application queryset (LinkedIn, Indeed, etc.)
+        platform_app_filter = Q(job__in=job_qs) & date_filter
+        if source_filter:
+            platform_app_filter &= Q(source=source_filter)
+        if user_id:
+            platform_app_filter &= (
+                Q(job__assigned_to_consultancy_id=user_id) |
+                Q(job__assigned_consultancies__id=user_id) |
+                Q(job__assigned_to_internal_hr_id=user_id) |
+                Q(job__assigned_internal_hrs__id=user_id)
+            )
+        platform_app_qs = Application.objects.filter(platform_app_filter).distinct()
 
         return {
             "mrf_qs": mrf_qs,
             "job_qs": job_qs,
             "app_qs": app_qs,
+            "platform_app_qs": platform_app_qs,
             "company": company,
             "user": user
         }, None
@@ -294,24 +308,57 @@ class BaseAnalyticsView(APIView):
         section2['jobs_by_consultancy'] = [{'consultancy_name': c['consultancy_name'] or 'Unknown', 'job_count': c['job_count']} for c in cons_stats]
         return section2
 
-    def calc_cv_resume_source_analytics(self, app_qs):
+    def calc_cv_resume_source_analytics(self, app_qs, platform_app_qs):
         section3 = {}
-        total_cvs = app_qs.count()
+        # Union-like total count of unique candidates across both models
+        total_cvs = app_qs.count() + platform_app_qs.count()
         section3['total_cvs_received'] = total_cvs
 
-        source_stats = app_qs.values('source').annotate(count=Count('id'))
-        cvs_by_source = []
-        for s in source_stats:
-            percentage = round((s['count'] / total_cvs * 100), 2) if total_cvs else 0
-            cvs_by_source.append({'source': s['source'], 'count': s['count'], 'percentage': percentage})
-        section3['cvs_by_source'] = cvs_by_source
+        # Aggregated Source Stats
+        # Combine JobApplication sources and Application sources
+        source_counts = {}
+        for s in app_qs.values('source').annotate(count=Count('id')):
+            source_counts[s['source']] = source_counts.get(s['source'], 0) + s['count']
+        for s in platform_app_qs.values('source').annotate(count=Count('id')):
+            source_counts[s['source']] = source_counts.get(s['source'], 0) + s['count']
 
-        job_stats = app_qs.values('job__job_title').annotate(
-            total_cvs=Count('id'),
-            shortlisted=Count('id', filter=Q(status='shortlisted')),
-            rejected=Count('id', filter=Q(status__icontains='rejected') | Q(status='duplicate_rejected'))
+        cvs_by_source = []
+        for source, count in source_counts.items():
+            percentage = round((count / total_cvs * 100), 2) if total_cvs else 0
+            cvs_by_source.append({'source': source, 'count': count, 'percentage': percentage})
+        
+        # Sort by count desc and limit to top 10
+        cvs_by_source.sort(key=lambda x: x['count'], reverse=True)
+        section3['cvs_by_source'] = cvs_by_source[:10]
+
+        # Deduplicated Job Stats (Unique Candidate Email per Job Title)
+        # We merge counts for the same job title from both models
+        job_counts = {}
+        
+        # 1. JobApplication unique candidates per job title
+        ja_stats = app_qs.values('job__job_title').annotate(
+            unique_cvs=Count('candidate_email', distinct=True)
         )
-        section3['cvs_by_job'] = [{'job_title': j['job__job_title'] or 'Unknown', 'total_cvs': j['total_cvs'], 'shortlisted': j['shortlisted'], 'rejected': j['rejected']} for j in job_stats]
+        for j in ja_stats:
+            title = j['job__job_title'] or 'Unknown'
+            job_counts[title] = job_counts.get(title, 0) + j['unique_cvs']
+            
+        # 2. Application unique candidates per job title
+        pa_stats = platform_app_qs.values('job__job_title').annotate(
+            unique_cvs=Count('candidate_email', distinct=True)
+        )
+        for j in pa_stats:
+            title = j['job__job_title'] or 'Unknown'
+            job_counts[title] = job_counts.get(title, 0) + j['unique_cvs']
+
+        # Simplified output: only job_title and total_cvs
+        cvs_by_job_list = []
+        for title, count in job_counts.items():
+            cvs_by_job_list.append({'job_title': title, 'total_cvs': count})
+        
+        # Sort by total_cvs desc and limit to top 10
+        cvs_by_job_list.sort(key=lambda x: x['total_cvs'], reverse=True)
+        section3['cvs_by_job'] = cvs_by_job_list[:10]
 
         month_stats = app_qs.annotate(month=TruncMonth('created_at')).values('month').annotate(count=Count('id')).order_by('month')
         cvs_by_month = []
@@ -475,9 +522,9 @@ class BaseAnalyticsView(APIView):
         section7['bottleneck_stage'] = {'stage_name': 'Document Upload to Approval', 'avg_hours': 48.0}
         return section7
 
-    def calc_overall_summary_kpis(self, mrf_qs, job_qs, app_qs, company):
+    def calc_overall_summary_kpis(self, mrf_qs, job_qs, app_qs, platform_app_qs, company):
         section8 = {}
-        section8['total_candidates'] = app_qs.count()
+        section8['total_candidates'] = app_qs.count() + platform_app_qs.count()
         section8['total_positions_filled'] = sum(j.positions_filled for j in job_qs)
         section8['total_positions_open'] = sum((j.no_of_positions - j.positions_filled) for j in job_qs)
         
@@ -489,8 +536,18 @@ class BaseAnalyticsView(APIView):
         durations_hire = [(app.updated_at - app.created_at).total_seconds() / 86400 for app in joined_apps if app.updated_at and app.created_at]
         section8['avg_time_to_hire_days'] = round(sum(durations_hire) / len(durations_hire), 2) if durations_hire else 0
 
-        top_source_stat = app_qs.values('source').annotate(c=Count('id')).order_by('-c').first()
-        section8['top_sourcing_channel'] = {'source': top_source_stat['source'], 'count': top_source_stat['c']} if top_source_stat else {'source': 'N/A', 'count': 0}
+        # Include platform_app_qs in top sourcing channel
+        all_sources = {}
+        for s in app_qs.values('source').annotate(c=Count('id')):
+            all_sources[s['source']] = all_sources.get(s['source'], 0) + s['c']
+        for s in platform_app_qs.values('source').annotate(c=Count('id')):
+            all_sources[s['source']] = all_sources.get(s['source'], 0) + s['c']
+        
+        if all_sources:
+            top_source = max(all_sources, key=all_sources.get)
+            section8['top_sourcing_channel'] = {'source': top_source, 'count': all_sources[top_source]}
+        else:
+            section8['top_sourcing_channel'] = {'source': 'N/A', 'count': 0}
 
         section8['active_jobs_count'] = job_qs.filter(is_active=True).count()
         section8['active_consultancies_count'] = User.objects.filter(role='consultancy', company=company, is_active=True).filter(assigned_jobs__in=job_qs).distinct().count()
@@ -509,12 +566,12 @@ class BaseAnalyticsView(APIView):
         """Override this in subclasses to return filters."""
         return Q(), Q(), Q()
 
-    def calc_summary_totals(self, mrf_qs, job_qs, app_qs):
+    def calc_summary_totals(self, mrf_qs, job_qs, app_qs, platform_app_qs):
         """Standard summary totals for quick dashboard cards."""
         return {
             "total_mrfs": mrf_qs.count(),
             "total_jobs": job_qs.count(),
-            "total_cvs": app_qs.count(),
+            "total_cvs": app_qs.count() + platform_app_qs.count(),
             "total_open_positions": sum((j.no_of_positions - j.positions_filled) for j in job_qs)
         }
 
@@ -523,7 +580,7 @@ class BaseAnalyticsView(APIView):
         if err:
             return Response({"detail": err}, status=status.HTTP_400_BAD_REQUEST)
 
-        mrf_qs, job_qs, app_qs, company = ctx["mrf_qs"], ctx["job_qs"], ctx["app_qs"], ctx["company"]
+        mrf_qs, job_qs, app_qs, platform_app_qs, company = ctx["mrf_qs"], ctx["job_qs"], ctx["app_qs"], ctx["platform_app_qs"], ctx["company"]
         allowed_sections = self.get_sections()
         
         # Determine which sections to return
@@ -534,14 +591,14 @@ class BaseAnalyticsView(APIView):
             requested_sections = [s for s in requested_sections if s in allowed_sections]
 
         data = {
-            "summary": self.calc_summary_totals(mrf_qs, job_qs, app_qs)
+            "summary": self.calc_summary_totals(mrf_qs, job_qs, app_qs, platform_app_qs)
         }
         if 'mrf_analytics' in requested_sections:
             data['mrf_analytics'] = self.calc_mrf_analytics(mrf_qs)
         if 'job_assignment_analytics' in requested_sections:
             data['job_assignment_analytics'] = self.calc_job_assignment_analytics(job_qs)
         if 'cv_resume_source_analytics' in requested_sections:
-            data['cv_resume_source_analytics'] = self.calc_cv_resume_source_analytics(app_qs)
+            data['cv_resume_source_analytics'] = self.calc_cv_resume_source_analytics(app_qs, platform_app_qs)
         if 'candidate_pipeline_funnel' in requested_sections:
             data['candidate_pipeline_funnel'] = self.calc_candidate_pipeline_funnel(app_qs)
         if 'interview_round_time_analytics' in requested_sections:
@@ -551,7 +608,7 @@ class BaseAnalyticsView(APIView):
         if 'document_offer_process_timeline' in requested_sections:
             data['document_offer_process_timeline'] = self.calc_document_offer_process_timeline(app_qs)
         if 'overall_summary_kpis' in requested_sections:
-            data['overall_summary_kpis'] = self.calc_overall_summary_kpis(mrf_qs, job_qs, app_qs, company)
+            data['overall_summary_kpis'] = self.calc_overall_summary_kpis(mrf_qs, job_qs, app_qs, platform_app_qs, company)
 
         return Response(data, status=status.HTTP_200_OK)
 
