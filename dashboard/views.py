@@ -20,7 +20,6 @@ from .serializers import (
     RecruitmentCostSerializer,
     CandidateExperienceFeedbackSerializer,
     CandidateExperienceFeedbackSubmitSerializer,
-    CandidateExperienceFeedbackInfoSerializer,
 )
 from .utils import (
     calc_stage_passthrough_rates,
@@ -727,36 +726,33 @@ class CandidateExperienceFeedbackSubmitView(APIView):
 
     permission_classes = [AllowAny]
 
-    def get(self, request, *args, **kwargs):
+    def get(self, request):
         """
         Handle GET requests to retrieve the candidate info by token.
         Example: GET /api/dashboard/feedback/submit/?token=...
         """
-        token = request.query_params.get('token')
-        if not token:
-            return Response(
-                {"detail": "Feedback token is required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        token = self.request.query_params.get('token')
+        candidate_id = self.request.query_params.get('candidate_id')
         
+        fb = CandidateExperienceFeedback.objects.all()
         try:
-            fb = CandidateExperienceFeedback.objects.select_related('application', 'application__job').get(
-                feedback_token=token
-            )
-        except CandidateExperienceFeedback.DoesNotExist:
-            return Response(
-                {"detail": "Invalid or expired feedback link."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            if token:
+                fb = CandidateExperienceFeedback.objects.filter(
+                    feedback_token=token
+                )
+            elif candidate_id:
+                fb = CandidateExperienceFeedback.objects.filter(
+                    application=candidate_id
+                )
+            
+            if fb.exists():
+                serializer = CandidateExperienceFeedbackSerializer(fb, many=True)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            else:
+                return Response({"detail": "No feedback found."}, status=status.HTTP_404_NOT_FOUND)
 
-        if fb.is_submitted:
-             return Response(
-                {"detail": "This feedback has already been submitted. Thank you!"},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        serializer = CandidateExperienceFeedbackInfoSerializer(fb)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def post(self, request):
         serializer = CandidateExperienceFeedbackSubmitSerializer(data=request.data)

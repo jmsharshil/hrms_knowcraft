@@ -1467,7 +1467,7 @@ def trigger_feedback_email(candidate: Any, feedback_type: str):
             defaults={'is_submitted': False}
         )
         
-        feedback_link = f"{FRONTEND_URL}/candidate/feedback/{feedback.feedback_token}"
+        feedback_link = f"{FRONTEND_URL}/candidate/feedback/{candidate.id}"
         
         logger.info("Triggering separate feedback email for %s (type=%s)", candidate.candidate_email, feedback_type)
         
