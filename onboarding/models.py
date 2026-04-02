@@ -291,6 +291,9 @@ class ApprovalNote(models.Model):
     )
     
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True,null=True,blank=True)
+    approved_at = models.DateTimeField(auto_now=True,null=True,blank=True)
+    rejected_at = models.DateTimeField(auto_now=True,null=True,blank=True)
 
     class Meta:
         ordering = ["-created_at"]

@@ -275,11 +275,12 @@ class BaseAnalyticsView(APIView):
 
     def calc_job_assignment_analytics(self, job_qs):
         section2 = {}
-        section2['total_jobs_open'] = job_qs.filter(status='open').count()
+        section2['total_jobs_open'] = job_qs.filter(status__in=['open','jobs_assigned_to_internal_hr','jobs_assigned_to_consultancy','jobs_assigned_to_both']).count()
         section2['total_jobs_closed'] = job_qs.filter(status__in=['closed', 'filled', 'cancelled']).count()
-        section2['jobs_assigned_to_internal_hr'] = job_qs.filter(assigned_to_internal_hr__isnull=False).count()
-        section2['jobs_assigned_to_consultancy'] = job_qs.filter(assigned_to_consultancy__isnull=False).count()
-        section2['jobs_unassigned'] = job_qs.filter(status='open', assigned_to_consultancy__isnull=True, assigned_to_internal_hr__isnull=True).count()
+        section2['jobs_assigned_to_internal_hr'] = job_qs.filter(status='jobs_assigned_to_internal_hr').count()
+        section2['jobs_assigned_to_consultancy'] = job_qs.filter(status='jobs_assigned_to_consultancy').count()
+        section2['jobs_assigned_to_both'] = job_qs.filter(status='jobs_assigned_to_both').count()
+        section2['jobs_unassigned'] = job_qs.filter(status='open').count()
 
         assigned_jobs = job_qs.filter(assigned_at__isnull=False, created_at__isnull=False)
         if assigned_jobs.exists():
@@ -290,7 +291,7 @@ class BaseAnalyticsView(APIView):
 
         status_qs = job_qs.values('status').annotate(count=Count('id'))
         status_breakdown = {item['status']: item['count'] for item in status_qs}
-        for key in ['open', 'in_progress', 'closed', 'on_hold']:
+        for key in ['open', 'closed', 'on_hold']:
             status_breakdown.setdefault(key, 0)
         section2['job_status_breakdown'] = status_breakdown
 
@@ -328,7 +329,7 @@ class BaseAnalyticsView(APIView):
     def calc_cv_resume_source_analytics(self, app_qs, platform_app_qs):
         section3 = {}
         # Union-like total count of unique candidates across both models
-        total_cvs = app_qs.count() + platform_app_qs.count()
+        total_cvs = app_qs.count()
         section3['total_cvs_received'] = total_cvs
 
         # Aggregated Source Stats
@@ -399,21 +400,38 @@ class BaseAnalyticsView(APIView):
     def calc_candidate_pipeline_funnel(self, app_qs):
         section4 = {}
         total_cvs = app_qs.count()
-        stage_counts = {
-            'CVs Received': total_cvs,
-            'Shortlisted': app_qs.filter(status='shortlisted').count(),
-            'HR Round': app_qs.filter(status__in=['interview_pending_1', 'interview_done_1']).count(),
-            'Technical Round': app_qs.filter(status__in=['interview_pending_2', 'interview_done_2']).count(),
-            'Case Study': app_qs.filter(status__in=['interview_pending_3', 'interview_done_3']).count(),
-            'Final Round': app_qs.filter(status__in=['interview_pending_final', 'interview_done_final']).count(),
-            'Client/Management Round': app_qs.filter(status__in=['interview_pending_management_client', 'interview_done_management_client']).count(),
-            'Selected': app_qs.filter(status='selected').count(),
-            'Offer Sent': app_qs.filter(status='offer_sent').count(),
-            'Offer Accepted': app_qs.filter(status='offer_accepted').count(),
-        }
+        # statuses in order of progression
+        # Define base lists of subsequent statuses for each stage to ensure cumulative logic is robust
+        joined_st = ['joined']
+        offer_accepted_st = ['offer_accepted', 'joining_pending', 'joining_poned'] + joined_st
+        offer_sent_st = ['offer_sent', 'offer_rejected'] + offer_accepted_st
+        selected_st = ['selected', 'approval_pending', 'approved', 'approval_rejected', 'salary_annexure_prep', 'salary_annexure_review', 'approved_annexure', 'rejected_annexure', 'offer_pending'] + offer_sent_st
+        management_st = ['interview_next_management_client', 'interview_pending_management_client', 'interview_done_management_client', 'interview_rejected_management_client', 'consolidated_result_review'] + selected_st
+        final_st = ['interview_next_final', 'interview_pending_final', 'interview_done_final', 'interview_rejected_final'] + management_st
+        case_st = ['interview_next_3', 'interview_pending_3', 'interview_done_3', 'interview_rejected_3'] + final_st
+        tech_st = ['interview_next_2', 'interview_pending_2', 'interview_done_2', 'interview_rejected_2'] + case_st
+        hr_st = ['interview_pending_1', 'interview_done_1', 'interview_rejected_1'] + tech_st
+        shortlisted_st = ['shortlisted'] + hr_st
+        received_st = ['received', 'duplicate_rejected', 'rejected'] + shortlisted_st
+
+        ordered_stages = [
+            ('CVs Received', received_st),
+            ('Shortlisted', shortlisted_st),
+            ('HR Round', hr_st),
+            ('Technical Round', tech_st),
+            ('Case Study', case_st),
+            ('Final Round', final_st),
+            ('Client/Management Round', management_st),
+            ('Selected', selected_st),
+            ('Offer Sent', offer_sent_st),
+            ('Offer Accepted', offer_accepted_st),
+            ('Joined', joined_st),
+        ]
+
+        stage_counts = {name: app_qs.filter(status__in=statuses).count() for name, statuses in ordered_stages}
         section4['funnel_stages'] = [{'stage': k, 'count': v} for k, v in stage_counts.items()]
 
-        stages_list = list(stage_counts.keys())
+        stages_list = [s[0] for s in ordered_stages]
         drop_offs = []
         for i in range(len(stages_list) - 1):
             from_c = stage_counts[stages_list[i]]
@@ -427,18 +445,23 @@ class BaseAnalyticsView(APIView):
         avg_times = [{'stage': st['stage_display'], 'avg_hours': round(st['avg_days_in_stage'] * 24, 2)} for st in stage_times]
         section4['avg_time_per_stage_hours'] = avg_times
 
-        status_counts_dict = dict(app_qs.values('status').annotate(count=Count('id')))
-        required_status = ['shortlisted', 'in_process', 'selected', 'rejected', 'offer_sent', 'offer_accepted', 'offer_declined', 'on_hold']
+        status_counts = app_qs.values('status').annotate(count=Count('id'))
+        status_counts_dict = {item['status']: item['count'] for item in status_counts}
+        required_status = ['shortlisted', 'received', 'selected', 'rejected', 'offer_sent', 'offer_accepted', 'offer_declined', 'joined', 'approval_pending', 'approved', 'approval_rejected', 'joining_pending']
         section4['candidates_by_status'] = {key: status_counts_dict.get(key, 0) for key in required_status}
 
-        offer_sent_c = app_qs.filter(status='offer_sent').count()
-        offer_accepted_c = app_qs.filter(status='offer_accepted').count()
-        offer_rejected_c = app_qs.filter(status='offer_rejected').count()
+        offer_sent_statuses = ['offer_sent', 'offer_accepted', 'offer_rejected', 'joined', 'joining_pending', 'joining_poned']
+        offer_accepted_statuses = ['offer_accepted', 'joined','joining_pending', 'joining_poned']
+        offer_rejected_statuses = ['offer_rejected']
+        
+        offer_sent_c = app_qs.filter(status__in=offer_sent_statuses).count()
+        offer_accepted_c = app_qs.filter(status__in=offer_accepted_statuses).count()
+        offer_rejected_c = app_qs.filter(status__in=offer_rejected_statuses).count()
         section4['offer_acceptance_rate'] = round((offer_accepted_c / offer_sent_c * 100), 2) if offer_sent_c else 0
         section4['offer_rejection_rate'] = round((offer_rejected_c / offer_sent_c * 100), 2) if offer_sent_c else 0
         return section4
 
-    def calc_interview_round_time_analytics(self, app_qs):
+    def calc_interview_round_time_analytics(self, app_qs, date_filter, company):
         section5 = {}
         shortlisted = app_qs.filter(status='shortlisted')
         if shortlisted.exists():
@@ -449,20 +472,43 @@ class BaseAnalyticsView(APIView):
 
         section5['avg_time_between_rounds_hours'] = [{'from_round': 'HR to Technical', 'avg_hours': 24.0}]
 
+        # Feedback analytics should ideally be period-based for activity (Interviews done in this period)
+        # but also scoped to the candidates in app_qs for consistency with other funnel metrics.
         feedback_qs = InterviewFeedback.objects.filter(job_application__in=app_qs)
         round_stats = feedback_qs.values('interview_round').annotate(
-            scheduled=Count('id'),
             completed=Count('id'),
-            pass_rate=Avg('hr_round_avg_rating') * 20
+            passed=Count('id', filter=Q(is_selected__in=['hire', 'strong_hire']))
         )
         completion_rates = []
         for r in round_stats:
+            round_type = r['interview_round'] or 'Unknown'
+            completed = r['completed']
+            passed = r['passed']
+            
+            # Heuristic for scheduled: completed + those currently pending in this specific round
+            # We map the round name to its pending status
+            round_pending_status_map = {
+                'HR Round': 'interview_pending_1',
+                'Technical Round': 'interview_pending_2',
+                'Case Study Round': 'interview_pending_3',
+                'Final Round': 'interview_pending_final',
+                'Management / Client Round': 'interview_pending_management_client'
+            }
+            pending_status = round_pending_status_map.get(round_type)
+            pending_in_round = app_qs.filter(status=pending_status, interview_scheduled_at__isnull=False).count() if pending_status else 0
+            
+            scheduled = completed + pending_in_round
+            cancelled = app_qs.filter(status=pending_status, no_show_count__gt=0).count() if pending_status else 0
+            
+            pass_rate = (passed / completed * 100) if completed else 0
+            
             completion_rates.append({
-                'round_type': r['interview_round'],
-                'scheduled': r['scheduled'],
-                'completed': r['completed'],
-                'cancelled': 0,
-                'pass_rate_percentage': round((r['pass_rate'] or 0), 2)
+                'round_type': round_type,
+                'scheduled': scheduled,
+                'completed': completed,
+                'cancelled': cancelled,
+                'passed': passed,
+                'pass_rate_percentage': round(pass_rate, 2)
             })
         section5['round_completion_rate'] = completion_rates
 
@@ -486,7 +532,7 @@ class BaseAnalyticsView(APIView):
         if date_filter:
             approval_note_qs = approval_note_qs.filter(date_filter)
         section6['total_approval_notes_sent'] = approval_note_qs.count()
-        section6['approval_notes_approved'] = approval_note_qs.filter(status='approved').count()
+        section6['approval_notes_approved'] = approval_note_qs.filter(status__in=['approved','docs_pending','docs_uploaded','review_docs','docs_approved','salary_annexure_prep','salary_annexure_review','approved_annexure','offer_pending','offer_sent','offer_accepted','offer_rejected','joining_pending','joined','joining_poned','docs_incomplete','docs_unclear']).count()
         section6['approval_notes_rejected'] = approval_note_qs.filter(status='approval_rejected').count()
         section6['approval_notes_pending'] = approval_note_qs.filter(status='approval_pending').count()
 
@@ -500,20 +546,24 @@ class BaseAnalyticsView(APIView):
         delayed_threshold = timezone.now() - timedelta(hours=48)
         section6['delayed_approval_notes'] = approval_note_qs.filter(status='approval_pending', created_at__lt=delayed_threshold).count()
 
-        approver_stats = approval_note_qs.values('manager__name').annotate(
+        # Use both ID and name for grouping to handle duplicate names or empty names reliably
+        approver_stats = approval_note_qs.values('manager_id','manager__name').annotate(
             sent=Count('id'),
-            approved=Count('id', filter=Q(status='approved')),
+            approved=Count('id', filter=Q(status__in = ['approved','docs_pending','docs_uploaded','review_docs','docs_approved','salary_annexure_prep','salary_annexure_review','approved_annexure','offer_pending','offer_sent','offer_accepted','offer_rejected','joining_pending','joined','joining_poned','docs_incomplete','docs_unclear'])),
             rejected=Count('id', filter=Q(status='approval_rejected')),
         )
         by_approver = []
         for a in approver_stats:
-            approved_for_avg = approval_note_qs.filter(manager__name=a['manager__name'], status='approved')
+            mgr_id = a['manager_id']
+            # Calculate average for this specific manager
+            approved_for_avg = approval_note_qs.filter(manager_id=mgr_id, status='approved')
             avg_h = 0
             if approved_for_avg.exists():
                 avg_d = approved_for_avg.aggregate(avg=Avg(F('updated_at') - F('created_at')))['avg']
                 avg_h = round(avg_d.total_seconds() / 3600, 2) if avg_d else 0
             by_approver.append({
                 'approver_name': a['manager__name'] or 'Unknown',
+                'approver_id': mgr_id,
                 'sent': a['sent'],
                 'approved': a['approved'],
                 'rejected': a['rejected'],
@@ -548,8 +598,11 @@ class BaseAnalyticsView(APIView):
         section8['total_positions_filled'] = sum(j.positions_filled for j in job_qs)
         section8['total_positions_open'] = sum((j.no_of_positions - j.positions_filled) for j in job_qs)
         
-        offer_sent_c = app_qs.filter(status='offer_sent').count()
-        offer_accepted_c = app_qs.filter(status='offer_accepted').count()
+        offer_sent_statuses = ['offer_sent', 'offer_accepted', 'offer_rejected', 'joined', 'joining_pending', 'joining_poned']
+        offer_accepted_statuses = ['offer_accepted', 'joined', 'joining_poned', 'joining_pending']
+        
+        offer_sent_c = app_qs.filter(status__in=offer_sent_statuses).count()
+        offer_accepted_c = app_qs.filter(status__in=offer_accepted_statuses).count()
         section8['overall_offer_acceptance_rate'] = round((offer_accepted_c / offer_sent_c * 100), 2) if offer_sent_c else 0
 
         joined_apps = app_qs.filter(status='joined')
@@ -591,8 +644,13 @@ class BaseAnalyticsView(APIView):
         return {
             "total_mrfs": mrf_qs.count(),
             "total_jobs": job_qs.count(),
-            "total_cvs": app_qs.count() + platform_app_qs.count(),
-            "total_open_positions": sum((j.no_of_positions - j.positions_filled) for j in job_qs)
+            "total_cvs": app_qs.count(),
+            "total_open_positions": sum((j.no_of_positions - j.positions_filled) for j in job_qs),
+            "jobs_by_assignment": {
+                "hr_only": job_qs.filter(status='open', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=True).count(),
+                "consultancy_only": job_qs.filter(status='open', assigned_to_consultancy__isnull=False, assigned_to_internal_hr__isnull=True).count(),
+                "both": job_qs.filter(status='open', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=False).count()
+            }
         }
 
     def get(self, request):
@@ -622,7 +680,7 @@ class BaseAnalyticsView(APIView):
         if 'candidate_pipeline_funnel' in requested_sections:
             data['candidate_pipeline_funnel'] = self.calc_candidate_pipeline_funnel(app_qs)
         if 'interview_round_time_analytics' in requested_sections:
-            data['interview_round_time_analytics'] = self.calc_interview_round_time_analytics(app_qs)
+            data['interview_round_time_analytics'] = self.calc_interview_round_time_analytics(app_qs, date_filter, company)
         if 'approval_note_analytics' in requested_sections:
             data['approval_note_analytics'] = self.calc_approval_note_analytics(job_qs, date_filter)
         if 'document_offer_process_timeline' in requested_sections:
