@@ -220,7 +220,8 @@ class BaseAnalyticsView(APIView):
             "app_qs": app_qs,
             "platform_app_qs": platform_app_qs,
             "company": company,
-            "user": user
+            "user": user,
+            "date_filter": date_filter
         }, None
 
     def get_role_filters(self, user):
@@ -294,18 +295,34 @@ class BaseAnalyticsView(APIView):
         section2['job_status_breakdown'] = status_breakdown
 
         hr_stats = job_qs.filter(assigned_to_internal_hr__isnull=False).values(
+            hr_id=F('assigned_to_internal_hr__id'),
             hr_name=F('assigned_to_internal_hr__name')
         ).annotate(
-            job_count=Count('id'),
-            active_jobs=Count('id', filter=Q(status__in=['open', 'assigned_to_internal_hr'])),
-            closed_jobs=Count('id', filter=Q(status__in=['closed', 'filled']))
+            job_count=Count('id', distinct=True),
+            active_jobs=Count('id', distinct=True, filter=Q(status__in=['open', 'assigned_to_internal_hr'])),
+            closed_jobs=Count('id', distinct=True, filter=Q(status__in=['closed', 'filled']))
         )
-        section2['jobs_by_hr'] = [{'hr_name': h['hr_name'] or 'Unknown', 'job_count': h['job_count'], 'active_jobs': h['active_jobs'], 'closed_jobs': h['closed_jobs']} for h in hr_stats]
+        section2['jobs_by_hr'] = [
+            {
+                'hr_id': h['hr_id'],
+                'hr_name': h['hr_name'] or 'Unknown', 
+                'job_count': h['job_count'], 
+                'active_jobs': h['active_jobs'], 
+                'closed_jobs': h['closed_jobs']
+            } for h in hr_stats
+        ]
 
         cons_stats = job_qs.filter(assigned_to_consultancy__isnull=False).values(
+            consultancy_id=F('assigned_to_consultancy__id'),
             consultancy_name=F('assigned_to_consultancy__name')
-        ).annotate(job_count=Count('id'))
-        section2['jobs_by_consultancy'] = [{'consultancy_name': c['consultancy_name'] or 'Unknown', 'job_count': c['job_count']} for c in cons_stats]
+        ).annotate(job_count=Count('id', distinct=True))
+        section2['jobs_by_consultancy'] = [
+            {
+                'consultancy_id': c['consultancy_id'],
+                'consultancy_name': c['consultancy_name'] or 'Unknown', 
+                'job_count': c['job_count']
+            } for c in cons_stats
+        ]
         return section2
 
     def calc_cv_resume_source_analytics(self, app_qs, platform_app_qs):
@@ -462,9 +479,12 @@ class BaseAnalyticsView(APIView):
             section5['fastest_stage'] = {'stage_name': 'N/A', 'avg_hours': 0}
         return section5
 
-    def calc_approval_note_analytics(self, app_qs):
+    def calc_approval_note_analytics(self, job_qs, date_filter):
         section6 = {}
-        approval_note_qs = ApprovalNote.objects.filter(candidate__in=app_qs)
+        # Filter by related jobs but use ApprovalNote's own date for real-time tracking
+        approval_note_qs = ApprovalNote.objects.filter(candidate__job__in=job_qs)
+        if date_filter:
+            approval_note_qs = approval_note_qs.filter(date_filter)
         section6['total_approval_notes_sent'] = approval_note_qs.count()
         section6['approval_notes_approved'] = approval_note_qs.filter(status='approved').count()
         section6['approval_notes_rejected'] = approval_note_qs.filter(status='approval_rejected').count()
@@ -580,7 +600,7 @@ class BaseAnalyticsView(APIView):
         if err:
             return Response({"detail": err}, status=status.HTTP_400_BAD_REQUEST)
 
-        mrf_qs, job_qs, app_qs, platform_app_qs, company = ctx["mrf_qs"], ctx["job_qs"], ctx["app_qs"], ctx["platform_app_qs"], ctx["company"]
+        mrf_qs, job_qs, app_qs, platform_app_qs, company, date_filter = ctx["mrf_qs"], ctx["job_qs"], ctx["app_qs"], ctx["platform_app_qs"], ctx["company"], ctx["date_filter"]
         allowed_sections = self.get_sections()
         
         # Determine which sections to return
@@ -604,7 +624,7 @@ class BaseAnalyticsView(APIView):
         if 'interview_round_time_analytics' in requested_sections:
             data['interview_round_time_analytics'] = self.calc_interview_round_time_analytics(app_qs)
         if 'approval_note_analytics' in requested_sections:
-            data['approval_note_analytics'] = self.calc_approval_note_analytics(app_qs)
+            data['approval_note_analytics'] = self.calc_approval_note_analytics(job_qs, date_filter)
         if 'document_offer_process_timeline' in requested_sections:
             data['document_offer_process_timeline'] = self.calc_document_offer_process_timeline(app_qs)
         if 'overall_summary_kpis' in requested_sections:
@@ -633,7 +653,7 @@ class HRAnalyticsAPIView(BaseAnalyticsView):
     """HR Focus: CVs, Pipeline, Interviews, KPIs."""
     def get_role_filters(self, user):
         job_q = (Q(assigned_to_internal_hr=user) | Q(assigned_internal_hrs=user) | Q(posted_by=user) | Q(closed_by=user))
-        app_q = Q(job__assigned_to_internal_hr=user) | Q(submitted_by=user)
+        app_q = Q(job__assigned_to_internal_hr=user) | Q(job__assigned_internal_hrs=user) | Q(submitted_by=user)
         mrf_q = Q(requested_by=user) | Q(approvals__approver=user)
         return mrf_q, job_q, app_q
 
@@ -659,7 +679,7 @@ class ConsultancyAnalyticsAPIView(BaseAnalyticsView):
         return Q(id=None), job_q, app_q
 
     def get_sections(self):
-        return ['cv_resume_source_analytics', 'candidate_pipeline_funnel', 'overall_summary_kpis']
+        return ['candidate_pipeline_funnel', 'overall_summary_kpis']
 
 
 # Legacy / Redirect dispatcher
