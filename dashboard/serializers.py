@@ -82,6 +82,24 @@ class CandidateExperienceFeedbackSerializer(serializers.ModelSerializer):
         ]
 
 
+class CandidateExperienceFeedbackInfoSerializer(serializers.ModelSerializer):
+    """
+    Public info serializer for candidates visiting their feedback link.
+    Returns only high-level info like candidate name, job title, and type.
+    """
+
+    candidate_name = serializers.CharField(
+        source='application.candidate_name', read_only=True
+    )
+    job_title = serializers.CharField(
+        source='application.job.job_title', read_only=True
+    )
+
+    class Meta:
+        model = CandidateExperienceFeedback
+        fields = ['candidate_name', 'job_title', 'feedback_type', 'is_submitted']
+
+
 class CandidateExperienceFeedbackSubmitSerializer(serializers.Serializer):
     """
     Public serializer for candidates to submit the full survey via token.
