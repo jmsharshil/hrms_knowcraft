@@ -1453,6 +1453,7 @@ def notify_internal(candidate: Any, stage: str, cc: list) -> bool:
     except Exception as e:
         logger.exception(f"Failed internal notification: {e}")
         return False
+
 def trigger_feedback_email(candidate: Any, feedback_type: str):
     """
     Creates/fetches CandidateExperienceFeedback and sends a separate feedback email.
@@ -1460,13 +1461,6 @@ def trigger_feedback_email(candidate: Any, feedback_type: str):
     from dashboard.models import CandidateExperienceFeedback
     
     try:
-        # Create or get feedback record
-        feedback, created = CandidateExperienceFeedback.objects.get_or_create(
-            application=candidate,
-            feedback_type=feedback_type,
-            defaults={'is_submitted': False}
-        )
-        
         feedback_link = f"{FRONTEND_URL}/candidate/feedback/{candidate.id}"
         
         logger.info("Triggering separate feedback email for %s (type=%s)", candidate.candidate_email, feedback_type)
