@@ -111,23 +111,30 @@ class DashboardAPIView(APIView):
                 jobs_qs = jobs_qs.filter(created_at__date__lte=d)
 
         if user_id:
-            assignment_q = (
-                Q(assigned_to_consultancy_id=user_id) |
-                Q(assigned_consultancies__id=user_id) |
-                Q(assigned_to_internal_hr_id=user_id) |
-                Q(assigned_internal_hrs__id=user_id) |
-                Q(assigned_by_id=user_id) |
-                Q(posted_by_id=user_id) |
-                Q(closed_by_id=user_id)
-            )
-            jobs_qs = jobs_qs.filter(assignment_q)
-            apps_qs = apps_qs.filter(
-                Q(submitted_by_id=user_id) |
-                Q(job__assigned_to_consultancy_id=user_id) |
-                Q(job__assigned_consultancies__id=user_id) |
-                Q(job__assigned_to_internal_hr_id=user_id) |
-                Q(job__assigned_internal_hrs__id=user_id)
-            )
+            if target_user.role == 'consultancy':
+                jobs_qs = jobs_qs.filter(Q(assigned_to_consultancy_id=user_id) | Q(assigned_consultancies__id=user_id))
+                apps_qs = apps_qs.filter(submitted_by_id=user_id)
+            elif target_user.role in ['hr', 'hr_manager']:
+                jobs_qs = jobs_qs.filter(Q(assigned_to_internal_hr_id=user_id) | Q(assigned_internal_hrs__id=user_id) | Q(posted_by_id=user_id))
+                apps_qs = apps_qs.filter(Q(submitted_by_id=user_id) | Q(job__assigned_to_internal_hr_id=user_id) | Q(job__assigned_internal_hrs__id=user_id))
+            else:
+                assignment_q = (
+                    Q(assigned_to_consultancy_id=user_id) |
+                    Q(assigned_consultancies__id=user_id) |
+                    Q(assigned_to_internal_hr_id=user_id) |
+                    Q(assigned_internal_hrs__id=user_id) |
+                    Q(assigned_by_id=user_id) |
+                    Q(posted_by_id=user_id) |
+                    Q(closed_by_id=user_id)
+                )
+                jobs_qs = jobs_qs.filter(assignment_q)
+                apps_qs = apps_qs.filter(
+                    Q(submitted_by_id=user_id) |
+                    Q(job__assigned_to_consultancy_id=user_id) |
+                    Q(job__assigned_consultancies__id=user_id) |
+                    Q(job__assigned_to_internal_hr_id=user_id) |
+                    Q(job__assigned_internal_hrs__id=user_id)
+                )
 
         # ── compute all metrics ──
         data = {
@@ -207,17 +214,22 @@ class BaseAnalyticsView(APIView):
         if designation_id:
             job_filter &= Q(designation_id=designation_id)
         if user_id:
-            assignment_q = (
-                Q(assigned_to_consultancy_id=user_id) |
-                Q(assigned_consultancies__id=user_id) |
-                Q(assigned_to_internal_hr_id=user_id) |
-                Q(assigned_internal_hrs__id=user_id) |
-                Q(assigned_by_id=user_id) |
-                Q(posted_by_id=user_id) |
-                Q(closed_by_id=user_id)
-            )
-            job_filter &= assignment_q
-        if mrf_qs.exists():
+            if target_user.role == 'consultancy':
+                job_filter &= (Q(assigned_to_consultancy_id=user_id) | Q(assigned_consultancies__id=user_id))
+            elif target_user.role in ['hr', 'hr_manager']:
+                job_filter &= (Q(assigned_to_internal_hr_id=user_id) | Q(assigned_internal_hrs__id=user_id) | Q(posted_by_id=user_id))
+            else:
+                assignment_q = (
+                    Q(assigned_to_consultancy_id=user_id) |
+                    Q(assigned_consultancies__id=user_id) |
+                    Q(assigned_to_internal_hr_id=user_id) |
+                    Q(assigned_internal_hrs__id=user_id) |
+                    Q(assigned_by_id=user_id) |
+                    Q(posted_by_id=user_id) |
+                    Q(closed_by_id=user_id)
+                )
+                job_filter &= assignment_q
+        if mrf_qs.exists() and not (user_id and target_user.role == 'consultancy'):
             job_filter &= Q(mrf__in=mrf_qs)
         job_qs = Job.objects.filter(job_filter).distinct()
 
@@ -226,13 +238,18 @@ class BaseAnalyticsView(APIView):
         if source_filter:
             app_filter &= Q(source=source_filter)
         if user_id:
-            app_filter &= (
-                Q(submitted_by_id=user_id) |
-                Q(job__assigned_to_consultancy_id=user_id) |
-                Q(job__assigned_consultancies__id=user_id) |
-                Q(job__assigned_to_internal_hr_id=user_id) |
-                Q(job__assigned_internal_hrs__id=user_id)
-            )
+            if target_user.role == 'consultancy':
+                app_filter &= Q(submitted_by_id=user_id)
+            elif target_user.role in ['hr', 'hr_manager', 'admin']:
+                app_filter &= (Q(submitted_by_id=user_id) | Q(job__assigned_to_internal_hr_id=user_id) | Q(job__assigned_internal_hrs__id=user_id))
+            else:
+                 app_filter &= (
+                    Q(submitted_by_id=user_id) |
+                    Q(job__assigned_to_consultancy_id=user_id) |
+                    Q(job__assigned_consultancies__id=user_id) |
+                    Q(job__assigned_to_internal_hr_id=user_id) |
+                    Q(job__assigned_internal_hrs__id=user_id)
+                )
         app_qs = JobApplication.objects.filter(app_filter).distinct()
         
         # Platform Application queryset (LinkedIn, Indeed, etc.)
@@ -240,13 +257,22 @@ class BaseAnalyticsView(APIView):
         if source_filter:
             platform_app_filter &= Q(source=source_filter)
         if user_id:
-            platform_app_filter &= (
-                Q(job__assigned_to_consultancy_id=user_id) |
-                Q(job__assigned_consultancies__id=user_id) |
-                Q(job__assigned_to_internal_hr_id=user_id) |
-                Q(job__assigned_internal_hrs__id=user_id)
-            )
-        platform_app_qs = Application.objects.filter(platform_app_filter).distinct()
+            if target_user.role == 'consultancy':
+                # EXCLUDE platform apps when filtering by a specific consultancy's "uploaded CVs"
+                platform_app_qs = Application.objects.none()
+            else:
+                if target_user.role in ['hr', 'hr_manager', 'admin']:
+                    platform_app_filter &= (Q(job__assigned_to_internal_hr_id=user_id) | Q(job__assigned_internal_hrs__id=user_id))
+                else:
+                    platform_app_filter &= (
+                        Q(job__assigned_to_consultancy_id=user_id) |
+                        Q(job__assigned_consultancies__id=user_id) |
+                        Q(job__assigned_to_internal_hr_id=user_id) |
+                        Q(job__assigned_internal_hrs__id=user_id)
+                    )
+                platform_app_qs = Application.objects.filter(platform_app_filter).distinct()
+        else:
+            platform_app_qs = Application.objects.filter(platform_app_filter).distinct()
 
         return {
             "mrf_qs": mrf_qs,
