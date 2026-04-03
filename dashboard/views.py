@@ -34,6 +34,7 @@ from .utils import (
     calc_candidate_experience,
 )
 
+from accounts.serializers import UserSerializer
 
 class IsDashboardUser:
     """Inline permission mixin – admin or hr_manager only."""
@@ -54,6 +55,7 @@ class DashboardAPIView(APIView):
     Returns all 10 recruitment metrics in one JSON response.
 
     Optional query params for filtering:
+      - user_id      : UUID of a recruiter/consultancy for performance
       - job_id       : UUID of a specific job
       - department_id: UUID of a department
       - date_from    : YYYY-MM-DD
@@ -75,10 +77,18 @@ class DashboardAPIView(APIView):
         apps_qs = JobApplication.objects.filter(job__company=user.company)
 
         # ── optional filters ──
+        user_id = request.query_params.get('user_id')
         job_id = request.query_params.get('job_id')
         department_id = request.query_params.get('department_id')
         date_from = request.query_params.get('date_from')
         date_to = request.query_params.get('date_to')
+
+        target_user = None
+        if user_id:
+            try:
+                target_user = User.objects.get(id=user_id, company=user.company)
+            except User.DoesNotExist:
+                return Response({"detail": "Invalid user_id"}, status=status.HTTP_400_BAD_REQUEST)
 
         if job_id:
             jobs_qs = jobs_qs.filter(id=job_id)
@@ -100,8 +110,28 @@ class DashboardAPIView(APIView):
                 apps_qs = apps_qs.filter(created_at__date__lte=d)
                 jobs_qs = jobs_qs.filter(created_at__date__lte=d)
 
+        if user_id:
+            assignment_q = (
+                Q(assigned_to_consultancy_id=user_id) |
+                Q(assigned_consultancies__id=user_id) |
+                Q(assigned_to_internal_hr_id=user_id) |
+                Q(assigned_internal_hrs__id=user_id) |
+                Q(assigned_by_id=user_id) |
+                Q(posted_by_id=user_id) |
+                Q(closed_by_id=user_id)
+            )
+            jobs_qs = jobs_qs.filter(assignment_q)
+            apps_qs = apps_qs.filter(
+                Q(submitted_by_id=user_id) |
+                Q(job__assigned_to_consultancy_id=user_id) |
+                Q(job__assigned_consultancies__id=user_id) |
+                Q(job__assigned_to_internal_hr_id=user_id) |
+                Q(job__assigned_internal_hrs__id=user_id)
+            )
+
         # ── compute all metrics ──
         data = {
+            "user_details": UserSerializer(target_user).data if target_user else UserSerializer(user).data,
             "stage_passthrough_rates": calc_stage_passthrough_rates(apps_qs),
             "stage_turnaround_time": calc_stage_turnaround_time(apps_qs),
             "offer_to_join_ratio": calc_offer_to_join_ratio(apps_qs),
@@ -153,8 +183,12 @@ class BaseAnalyticsView(APIView):
             date_filter &= Q(created_at__date__lte=date_to)
 
         # User filter Q (validation)
-        if user_id and not User.objects.filter(id=user_id, company=company).exists():
-            return None, "Invalid user_id"
+        target_user = None
+        if user_id:
+            try:
+                target_user = User.objects.get(id=user_id, company=company)
+            except User.DoesNotExist:
+                return None, "Invalid user_id"
 
         # MRF queryset
         mrf_filter = Q(company=company) & date_filter & role_mrf_q
@@ -221,6 +255,7 @@ class BaseAnalyticsView(APIView):
             "platform_app_qs": platform_app_qs,
             "company": company,
             "user": user,
+            "target_user": target_user,
             "date_filter": date_filter
         }, None
 
@@ -669,7 +704,8 @@ class BaseAnalyticsView(APIView):
             requested_sections = [s for s in requested_sections if s in allowed_sections]
 
         data = {
-            "summary": self.calc_summary_totals(mrf_qs, job_qs, app_qs, platform_app_qs)
+            "summary": self.calc_summary_totals(mrf_qs, job_qs, app_qs, platform_app_qs),
+            "user_details": UserSerializer(ctx["target_user"]).data if ctx.get("target_user") else UserSerializer(ctx["user"]).data
         }
         if 'mrf_analytics' in requested_sections:
             data['mrf_analytics'] = self.calc_mrf_analytics(mrf_qs)
