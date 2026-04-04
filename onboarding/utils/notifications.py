@@ -649,9 +649,16 @@ Team – HR
 Knowcraft Analytics Private Limited""",
         "log": "Final rejection sent to {candidate.candidate_email}",
     },
+    "candidate_feedback": {
+        "email": {
+            "subject": "Candidate Experience Feedback - Knowcraft Analytics",
+            "text": "Thank you for your time during our recruitment process. We'd love to hear about your experience.",
+        },
+        "log": "Feedback request sent to {candidate.candidate_email}",
+    },
 }
 
-def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
+def notify_candidate(candidate: Any, stage: str,cc:list, feedback_link: str = None) -> bool:
     """
     Unified notification dispatcher.
 
@@ -761,7 +768,12 @@ def notify_candidate(candidate: Any, stage: str,cc:list) -> bool:
                 subject=email_cfg["subject"],
                 text=email_cfg["text"],
                 cc= cc,
-                template=html_template.format(candidate=candidate,sign_url=sign_url,schedule_link=schedule_link),
+                template=html_template.format(
+                    candidate=candidate,
+                    sign_url=sign_url,
+                    schedule_link=schedule_link,
+                    feedback_link=feedback_link
+                ),
                 attachments=attachments,
             )
         except Exception as exc:
@@ -1440,4 +1452,22 @@ def notify_internal(candidate: Any, stage: str, cc: list) -> bool:
 
     except Exception as e:
         logger.exception(f"Failed internal notification: {e}")
+        return False
+
+def trigger_feedback_email(candidate: Any, feedback_type: str):
+    """
+    Creates/fetches CandidateExperienceFeedback and sends a separate feedback email.
+    """
+    from dashboard.models import CandidateExperienceFeedback
+    
+    try:
+        feedback_link = f"{FRONTEND_URL}/candidate/feedback/{candidate.id}"
+        
+        logger.info("Triggering separate feedback email for %s (type=%s)", candidate.candidate_email, feedback_type)
+        
+        # Send the email
+        # We pass cc=[] because feedback is usually private to the candidate
+        return notify_candidate(candidate, 'candidate_feedback', cc=[], feedback_link=feedback_link)
+    except Exception as e:
+        logger.exception("Failed to trigger feedback email for %s: %s", candidate.candidate_email, e)
         return False

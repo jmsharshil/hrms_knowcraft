@@ -8,15 +8,25 @@ from django.db import transaction
 from mrf.models import MRF
 from slots.models import Interviewer
 from django.conf import settings
+from django.utils import timezone
 
 @receiver(post_save, sender=JobApplication)
 def update_approval_note_status(sender, instance, created, **kwargs):
     if created:
         return  # skip on create
 
-    ApprovalNote.objects.filter(
-        candidate=instance
-    ).update(status=instance.status)
+    if instance.status == 'approved':
+        ApprovalNote.objects.filter(
+            candidate=instance
+        ).update(status=instance.status,approved_at=timezone.now())
+    elif instance.status == 'approval_rejected':
+        ApprovalNote.objects.filter(
+            candidate=instance
+        ).update(status=instance.status,rejected_at=timezone.now())
+    else:
+        ApprovalNote.objects.filter(
+            candidate=instance
+        ).update(status=instance.status)
 
 @receiver(pre_save, sender=JobApplicationDocument)
 def store_old_annexure(sender, instance, **kwargs):

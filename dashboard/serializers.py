@@ -1,3 +1,5 @@
+from openpyxl.worksheet._reader import PRINT_TAG
+from jobs.models import JobApplication
 from rest_framework import serializers
 from .models import RecruitmentCost, CandidateExperienceFeedback
 
@@ -60,8 +62,7 @@ class CandidateExperienceFeedbackSerializer(serializers.ModelSerializer):
     class Meta:
         model = CandidateExperienceFeedback
         fields = [
-            'id', 'application', 'candidate_name', 'job_title',
-            'feedback_type',
+            'id', 'candidate_name', 'job_title',
             # Q1 - NPS
             'nps_score', 'nps_category',
             # Q2 - CSAT
@@ -81,14 +82,12 @@ class CandidateExperienceFeedbackSerializer(serializers.ModelSerializer):
             'is_submitted', 'submitted_at', 'created_at',
         ]
 
-
 class CandidateExperienceFeedbackSubmitSerializer(serializers.Serializer):
     """
     Public serializer for candidates to submit the full survey via token.
     Validates all 7 questions according to the specified scales.
     """
-
-    feedback_token = serializers.CharField()
+    candidate_id = serializers.UUIDField()
 
     # Q1 – NPS (0-10)
     nps_score = serializers.IntegerField(min_value=0, max_value=10)
@@ -111,8 +110,10 @@ class CandidateExperienceFeedbackSubmitSerializer(serializers.Serializer):
     # Q6b – Stage Reached
     stage_reached = serializers.ChoiceField(
         choices=[
-            'application', 'hr_interview',
-            'technical_interview', 'final_interview', 'offer',
+            'application', 'hr_round', 'case_study_round',
+            'technical_round', 'final_round', 'offer_accepted',
+            'offer_rejected','management_client_round','rejected',
+            'approval_rejected'
         ]
     )
 
@@ -138,35 +139,34 @@ class CandidateExperienceFeedbackSubmitSerializer(serializers.Serializer):
     def validate_better_handling(self, value):
         return self._validate_min_words(value, "Better handling feedback")
 
-    def validate_feedback_token(self, value):
-        try:
-            fb = CandidateExperienceFeedback.objects.get(
-                feedback_token=value, is_submitted=False
-            )
-        except CandidateExperienceFeedback.DoesNotExist:
-            raise serializers.ValidationError(
-                "Invalid or already used feedback token."
-            )
-        self.context['feedback'] = fb
-        return value
 
-    def save(self, **kwargs):
+    def create(self, validated_data):
         from django.utils import timezone
 
-        fb = self.context['feedback']
-        data = self.validated_data
+        data = validated_data
 
-        fb.nps_score = data['nps_score']
-        fb.overall_satisfaction = data['overall_satisfaction']
-        fb.process_ease = data['process_ease']
-        fb.communication = data['communication']
-        fb.interviewer_quality = data['interviewer_quality']
-        fb.recruitment_speed = data['recruitment_speed']
-        fb.stage_reached = data['stage_reached']
-        fb.improvement_suggestion = data['improvement_suggestion']
-        fb.most_frustrating = data['most_frustrating']
-        fb.better_handling = data['better_handling']
-        fb.is_submitted = True
-        fb.submitted_at = timezone.now()
-        fb.save()
-        return fb
+        if not data.get('candidate_id'):
+            raise serializers.ValidationError("Candidate ID is required")
+
+        if not JobApplication.objects.filter(id=data['candidate_id']).exists():
+            raise serializers.ValidationError("Candidate ID is invalid")
+        
+        if CandidateExperienceFeedback.objects.filter(id=data.get('candidate_id')).exists():
+            raise serializers.ValidationError("Candidate ID already exists")
+            
+        return CandidateExperienceFeedback.objects.create(
+            application_id=data['candidate_id'],
+            feedback_type='offer' if data['stage_reached'] == 'offer_accepted' else 'rejection',
+            nps_score=data['nps_score'],
+            overall_satisfaction=data['overall_satisfaction'],
+            process_ease=data['process_ease'],
+            communication=data['communication'],
+            interviewer_quality=data['interviewer_quality'],
+            recruitment_speed=data['recruitment_speed'],
+            stage_reached=data['stage_reached'],
+            improvement_suggestion=data['improvement_suggestion'],
+            most_frustrating=data['most_frustrating'],
+            better_handling=data['better_handling'],
+            is_submitted=True,
+            submitted_at=timezone.now(),
+        )

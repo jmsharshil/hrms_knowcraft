@@ -1487,6 +1487,16 @@ class ApplicationViewSet(viewsets.GenericViewSet):
         })
     
     @action(detail=False, methods=['post'])
+    def reparse_application(self, request):
+        from .utils import reparse_applictaion
+        candidate_id = request.data.get("candidate_id")
+        if not candidate_id:
+            return Response("Unable to parse the application! Candidate ID Not Found")
+        candidate = get_object_or_404(Application, id=candidate_id)
+        result = reparse_applictaion(candidate)
+        return Response(result)
+    
+    @action(detail=False, methods=['post'])
     def send_rejection_notification(self, request):
         from .utils import send_rejection_notification
 

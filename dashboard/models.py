@@ -102,10 +102,15 @@ class CandidateExperienceFeedback(models.Model):
     # ── Q6b: Stage Reached ──
     STAGE_REACHED_CHOICES = [
         ('application', 'Application Stage'),
-        ('hr_interview', 'HR Interview'),
-        ('technical_interview', 'Technical Interview'),
-        ('final_interview', 'Final Interview'),
-        ('offer', 'Offer Stage'),
+        ('hr_round', 'HR Round'),
+        ('technical_round', 'Technical Round'),
+        ('case_study_round', 'Case Study Round'),
+        ('final_round', 'Final Round'),
+        ('offer_accepted', 'Offer Accepted'),
+        ('offer_rejected', 'Offer Rejected'),
+        ('management_client_round', 'Management Client Round'),
+        ('approval_rejected', 'Approval Rejected'),
+        ('rejected', 'Rejected'),
     ]
 
     # ── Identity & Link ──
@@ -116,7 +121,7 @@ class CandidateExperienceFeedback(models.Model):
         related_name='experience_feedbacks',
     )
     feedback_token = models.CharField(max_length=64, unique=True, editable=False)
-    feedback_type = models.CharField(max_length=20, choices=FEEDBACK_TYPE_CHOICES)
+    feedback_type = models.CharField(max_length=50, choices=FEEDBACK_TYPE_CHOICES)
 
     # ── Q1: Net Promoter Score (NPS) – 0 to 10 ──
     nps_score = models.PositiveIntegerField(
