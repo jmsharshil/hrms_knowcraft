@@ -93,29 +93,22 @@ class CandidateExperienceFeedbackSubmitSerializer(serializers.Serializer):
     nps_score = serializers.IntegerField(min_value=0, max_value=10)
 
     # Q2 – Overall Satisfaction (1-4)
-    overall_satisfaction = serializers.IntegerField(min_value=1, max_value=4)
+    overall_satisfaction = serializers.ChoiceField(choices=CandidateExperienceFeedback.SATISFACTION_CHOICES)
 
     # Q3 – Process Ease (1-4)
-    process_ease = serializers.IntegerField(min_value=1, max_value=4)
+    process_ease = serializers.ChoiceField(choices=CandidateExperienceFeedback.PROCESS_EASE_CHOICES)
 
     # Q4 – Communication (1-4)
-    communication = serializers.IntegerField(min_value=1, max_value=4)
+    communication = serializers.ChoiceField(choices=CandidateExperienceFeedback.COMMUNICATION_CHOICES)
 
     # Q5 – Interviewer Quality (1-5)
-    interviewer_quality = serializers.IntegerField(min_value=1, max_value=5)
+    interviewer_quality = serializers.ChoiceField(choices=CandidateExperienceFeedback.INTERVIEWER_QUALITY_CHOICES)
 
     # Q6a – Recruitment Speed (1-5)
-    recruitment_speed = serializers.IntegerField(min_value=1, max_value=5)
+    recruitment_speed = serializers.ChoiceField(choices=CandidateExperienceFeedback.SPEED_CHOICES)
 
     # Q6b – Stage Reached
-    stage_reached = serializers.ChoiceField(
-        choices=[
-            'application', 'hr_round', 'case_study_round',
-            'technical_round', 'final_round', 'offer_accepted',
-            'offer_rejected','management_client_round','rejected',
-            'approval_rejected'
-        ]
-    )
+    stage_reached = serializers.ChoiceField(choices=CandidateExperienceFeedback.STAGE_REACHED_CHOICES)
 
     # Q7 – Open Feedback (min 15 words each)
     improvement_suggestion = serializers.CharField()
@@ -151,10 +144,11 @@ class CandidateExperienceFeedbackSubmitSerializer(serializers.Serializer):
         if not JobApplication.objects.filter(id=data['candidate_id']).exists():
             raise serializers.ValidationError("Candidate ID is invalid")
         
-        if CandidateExperienceFeedback.objects.filter(id=data.get('candidate_id')).exists():
-            raise serializers.ValidationError("Candidate ID already exists")
+        # Fixed: filter by application_id instead of id
+        if CandidateExperienceFeedback.objects.filter(application_id=data.get('candidate_id')).exists():
+            raise serializers.ValidationError("Feedback already submitted for this candidate")
             
-        return CandidateExperienceFeedback.objects.create(
+        feedback = CandidateExperienceFeedback.objects.create(
             application_id=data['candidate_id'],
             feedback_type='offer' if data['stage_reached'] == 'offer_accepted' else 'rejection',
             nps_score=data['nps_score'],
@@ -170,3 +164,4 @@ class CandidateExperienceFeedbackSubmitSerializer(serializers.Serializer):
             is_submitted=True,
             submitted_at=timezone.now(),
         )
+        return feedback

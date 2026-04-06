@@ -59,44 +59,44 @@ class CandidateExperienceFeedback(models.Model):
 
     # ── Q2: Overall Satisfaction (CSAT) ──
     SATISFACTION_CHOICES = [
-        (1, 'Very Dissatisfied'),
-        (2, 'Dissatisfied'),
-        (3, 'Satisfied'),
-        (4, 'Very Satisfied'),
+        ('very_dissatisfied', 'Very Dissatisfied'),
+        ('dissatisfied', 'Dissatisfied'),
+        ('satisfied', 'Satisfied'),
+        ('very_satisfied', 'Very Satisfied'),
     ]
 
     # ── Q3: Process Ease ──
     PROCESS_EASE_CHOICES = [
-        (1, 'Very Difficult'),
-        (2, 'Difficult'),
-        (3, 'Easy'),
-        (4, 'Very Easy'),
+        ('very_difficult', 'Very Difficult'),
+        ('difficult', 'Difficult'),
+        ('easy', 'Easy'),
+        ('very_easy', 'Very Easy'),
     ]
 
     # ── Q4: Communication ──
     COMMUNICATION_CHOICES = [
-        (1, 'Very Dissatisfied'),
-        (2, 'Dissatisfied'),
-        (3, 'Satisfied'),
-        (4, 'Very Satisfied'),
+        ('very_dissatisfied', 'Very Dissatisfied'),
+        ('dissatisfied', 'Dissatisfied'),
+        ('satisfied', 'Satisfied'),
+        ('very_satisfied', 'Very Satisfied'),
     ]
 
     # ── Q5: Interviewer Quality ──
     INTERVIEWER_QUALITY_CHOICES = [
-        (1, 'Very Poor'),
-        (2, 'Poor'),
-        (3, 'Average'),
-        (4, 'Good'),
-        (5, 'Excellent'),
+        ('very_poor', 'Very Poor'),
+        ('poor', 'Poor'),
+        ('average', 'Average'),
+        ('good', 'Good'),
+        ('excellent', 'Excellent'),
     ]
 
     # ── Q6: Recruitment Speed ──
     SPEED_CHOICES = [
-        (1, 'Very Slow'),
-        (2, 'Slow'),
-        (3, 'Acceptable'),
-        (4, 'Fast'),
-        (5, 'Very Fast'),
+        ('very_slow', 'Very Slow'),
+        ('slow', 'Slow'),
+        ('acceptable', 'Acceptable'),
+        ('fast', 'Fast'),
+        ('very_fast', 'Very Fast'),
     ]
 
     # ── Q6b: Stage Reached ──
@@ -130,38 +130,43 @@ class CandidateExperienceFeedback(models.Model):
     )
 
     # ── Q2: Overall Satisfaction (CSAT) ──
-    overall_satisfaction = models.PositiveIntegerField(
+    overall_satisfaction = models.CharField(
+        max_length=20,
         null=True, blank=True,
         choices=SATISFACTION_CHOICES,
     )
 
     # ── Q3: Process Ease ──
-    process_ease = models.PositiveIntegerField(
+    process_ease = models.CharField(
+        max_length=20,
         null=True, blank=True,
         choices=PROCESS_EASE_CHOICES,
     )
 
     # ── Q4: Communication ──
-    communication = models.PositiveIntegerField(
+    communication = models.CharField(
+        max_length=20,
         null=True, blank=True,
         choices=COMMUNICATION_CHOICES,
     )
 
     # ── Q5: Interviewer Quality ──
-    interviewer_quality = models.PositiveIntegerField(
+    interviewer_quality = models.CharField(
+        max_length=20,
         null=True, blank=True,
         choices=INTERVIEWER_QUALITY_CHOICES,
     )
 
     # ── Q6a: Recruitment Speed ──
-    recruitment_speed = models.PositiveIntegerField(
+    recruitment_speed = models.CharField(
+        max_length=20,
         null=True, blank=True,
         choices=SPEED_CHOICES,
     )
 
     # ── Q6b: Stage Reached ──
     stage_reached = models.CharField(
-        max_length=30, blank=True,
+        max_length=50, blank=True,
         choices=STAGE_REACHED_CHOICES,
     )
 
@@ -210,5 +215,7 @@ class CandidateExperienceFeedback(models.Model):
 
     @property
     def is_csat_satisfied(self):
-        """True if Satisfied or Very Satisfied (values 3, 4)."""
-        return self.overall_satisfaction in (3, 4) if self.overall_satisfaction else False
+        """True if Satisfied or Very Satisfied."""
+        if not self.overall_satisfaction:
+            return False
+        return self.overall_satisfaction in ('satisfied', 'very_satisfied')
