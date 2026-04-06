@@ -299,6 +299,9 @@ class MRFDetailSerializer(serializers.ModelSerializer):
     case_study_interviewer = InterviewerSerializer(read_only=True)
     final_interviewer = InterviewerSerializer(read_only=True)
     management_client_interviewer = InterviewerSerializer(read_only=True)
+
+    held_by_name = serializers.CharField(source='held_by.name', read_only=True)
+    held_by_email = serializers.CharField(source='held_by.email', read_only=True)
     
     class Meta:
         model = MRF
@@ -308,7 +311,8 @@ class MRFDetailSerializer(serializers.ModelSerializer):
             'id', 'requisition_no', 'date_received', 'status',
             'current_approval_level', 'created_at', 'updated_at', 
             'submitted_at', 'approved_at', 'requested_by','rejected_at',
-            'requested_by_name', 'requested_by_designation', 'workflow_template'
+            'requested_by_name', 'requested_by_designation', 'workflow_template',
+            'held_at','held_by'
         ]
     
     def get_workflow_summary(self, obj):
