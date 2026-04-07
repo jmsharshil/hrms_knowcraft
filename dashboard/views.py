@@ -5,7 +5,8 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from django.utils.dateparse import parse_date
 from django.utils import timezone
-from django.db.models import Count, Avg, Q, F, Sum, Case, When, IntegerField, FloatField, ExpressionWrapper, DurationField
+from django.db.models import Count, Avg, Q, F, Sum, Case, When, IntegerField, FloatField, ExpressionWrapper, DurationField, OuterRef, Subquery
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models.functions import TruncMonth, TruncDate
 from datetime import timedelta
 
@@ -112,8 +113,9 @@ class DashboardAPIView(APIView):
 
         if user_id:
             if target_user.role == 'consultancy':
-                jobs_qs = jobs_qs.filter(Q(assigned_to_consultancy_id=user_id) | Q(assigned_consultancies__id=user_id))
-                apps_qs = apps_qs.filter(submitted_by_id=user_id)
+                assignment_q = Q(assigned_to_consultancy_id=user_id) | Q(assigned_consultancies__id=user_id)
+                jobs_qs = jobs_qs.filter(assignment_q)
+                apps_qs = apps_qs.filter(Q(submitted_by_id=user_id) | Q(job__assigned_to_consultancy_id=user_id) | Q(job__assigned_consultancies__id=user_id))
             elif target_user.role in ['hr', 'hr_manager']:
                 jobs_qs = jobs_qs.filter(Q(assigned_to_internal_hr_id=user_id) | Q(assigned_internal_hrs__id=user_id) | Q(posted_by_id=user_id))
                 apps_qs = apps_qs.filter(Q(submitted_by_id=user_id) | Q(job__assigned_to_internal_hr_id=user_id) | Q(job__assigned_internal_hrs__id=user_id))
@@ -149,6 +151,45 @@ class DashboardAPIView(APIView):
             "offer_analytics": calc_offer_analytics(apps_qs),
             "recruiter_productivity": calc_recruiter_productivity(apps_qs),
             "candidate_experience": calc_candidate_experience(apps_qs),
+        }
+
+        # Special case for recruiter productivity when filtering by specific user (consultancy/hr)
+        if target_user and target_user.role in ('consultancy', 'hr', 'hr_manager'):
+            now = timezone.now()
+            week_start = now - timedelta(days=now.weekday())
+            month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+            total_cvs = apps_qs.count()
+            cvs_this_week = apps_qs.filter(created_at__gte=week_start).count()
+
+            interview_statuses = [
+                'interview_pending_1', 'interview_done_1',
+                'interview_pending_2', 'interview_done_2',
+                'interview_pending_3', 'interview_done_3',
+                'interview_pending_final', 'interview_done_final',
+                'interview_pending_management_client', 'interview_done_management_client',
+            ]
+            interviews_this_week = apps_qs.filter(
+                created_at__gte=week_start,
+                status__in=interview_statuses
+            ).count()
+
+            offer_statuses = ['offer_sent', 'offer_accepted', 'offer_rejected']
+            offers_this_month = apps_qs.filter(
+                created_at__gte=month_start,
+                status__in=offer_statuses
+            ).count()
+
+            data["recruiter_productivity"] = {
+                "recruiters": [{
+                    "recruiter_id": str(target_user.id),
+                    "recruiter_name": target_user.name or "N/A",
+                    "recruiter_email": target_user.email or "N/A",
+                    "total_cvs": total_cvs,
+                    "cvs_this_week": cvs_this_week,
+                    "interviews_this_week": interviews_this_week,
+                    "offers_this_month": offers_this_month,
+                }]
         }
 
         return Response(data, status=status.HTTP_200_OK)
@@ -239,7 +280,7 @@ class BaseAnalyticsView(APIView):
             app_filter &= Q(source=source_filter)
         if user_id:
             if target_user.role == 'consultancy':
-                app_filter &= Q(submitted_by_id=user_id)
+                app_filter &= Q(submitted_by_id=user_id) | Q(application_link__created_by_id=user_id)
             elif target_user.role in ['hr', 'hr_manager', 'admin']:
                 app_filter &= (Q(submitted_by_id=user_id) | Q(job__assigned_to_internal_hr_id=user_id) | Q(job__assigned_internal_hrs__id=user_id))
             else:
@@ -454,8 +495,40 @@ class BaseAnalyticsView(APIView):
 
         untouched = app_qs.filter(status='received').count()
         section3['untouched_cvs_count'] = untouched
-        untouched_by_job = app_qs.filter(status='received').values('job__job_title').annotate(count=Count('id'))
-        section3['untouched_cvs_by_job'] = [{'job_title': u['job__job_title'] or 'Unknown', 'untouched_count': u['count']} for u in untouched_by_job]
+        subquery = Job.objects.filter(
+            job_title=OuterRef('job__job_title'),
+        ).order_by('-id')
+        
+        untouched_filter = Q(status='received')
+        # Untouched by designation + dept (filtered, with rep job)
+        untouched_by_desig_dept = app_qs.filter(untouched_filter).values(
+            'job__designation',
+            'job__designation__name',
+            'job__department',
+            'job__department__name',
+            'job__job_title'
+        ).annotate(
+            untouched_count=Count('id'),
+            job_ids=ArrayAgg('job__id', distinct=True),
+            rep_job_id=Subquery(subquery.values('id')[:1]),
+            rep_job_title=Subquery(subquery.values('job_title')[:1]),
+        ).filter(untouched_count__gt=0).order_by('-untouched_count')
+        
+        untouched_list = []
+        for u in untouched_by_desig_dept:
+            untouched_list.append({
+                'designation_name': u['job__designation__name'] or 'Unknown',
+                'department_name': u['job__department__name'] or 'Unknown',
+                'untouched_count': u['untouched_count'],
+                'job_title': u['rep_job_title'] or 'Unknown',
+                'job_ids': u['job_ids'] or [],
+            })
+        
+        # DEBUG: Sample and sum check
+        sum_untouched = sum(u['untouched_count'] for u in untouched_list)
+
+        # Limit to top 10 (already ordered desc)
+        section3['untouched_cvs_by_job'] = untouched_list
         return section3
 
     def calc_candidate_pipeline_funnel(self, app_qs):
@@ -795,7 +868,7 @@ class ConsultancyAnalyticsAPIView(BaseAnalyticsView):
     """Consultancy Focus: CVs, Pipeline, KPIs."""
     def get_role_filters(self, user):
         job_q = (Q(assigned_to_consultancy=user) | Q(assigned_consultancies=user))
-        app_q = (Q(job__assigned_to_consultancy=user) | Q(job__assigned_consultancies=user) | Q(submitted_by=user))
+        app_q = (Q(application_link__created_by_id=user) | Q(submitted_by=user))
         return Q(id=None), job_q, app_q
 
     def get_sections(self):
