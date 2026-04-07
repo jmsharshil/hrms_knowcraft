@@ -153,6 +153,26 @@ class DashboardAPIView(APIView):
             "candidate_experience": calc_candidate_experience(apps_qs),
         }
 
+        assigned_jobs_list = []
+        if user_id:
+            # Annotate with application count
+            annotated_jobs = jobs_qs.annotate(
+                number_of_applications=Count('jobapplication')  # Adjust relation name if needed (e.g., 'applications')
+            ).order_by('-created_at')[:50]  # Recent first, limit 50
+
+            for job in annotated_jobs:
+                assigned_jobs_list.append({
+                    'id': job.id,
+                    'job_title': job.job_title or 'Unknown',
+                    'department_name': getattr(job.department, 'name', None) or 'Unknown',  # Assumes department.name
+                    'status': job.status or 'Unknown',
+                    'created_at': job.created_at.isoformat() if job.created_at else None,
+                    'number_of_applications': job.number_of_applications,
+                    'assigned_to': target_user.role,  # Simple role indicator; enhance if needed (e.g., full user details)
+                    # Optional: Add more like 'posted_by_id', 'closed_at', etc.
+                })
+            data["assigned_jobs"] = assigned_jobs_list
+
         # Special case for recruiter productivity when filtering by specific user (consultancy/hr)
         if target_user and target_user.role in ('consultancy', 'hr', 'hr_manager'):
             now = timezone.now()
@@ -942,7 +962,7 @@ class CandidateExperienceFeedbackSubmitView(APIView):
                 serializer = CandidateExperienceFeedbackSerializer(fb, many=True)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             else:
-                return Response({"detail": "No feedback found."}, status=status.HTTP_404_NOT_FOUND)
+                return Response({"detail": "No feedback has been given till now."}, status=status.HTTP_204_NO_CONTENT)
 
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
