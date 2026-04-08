@@ -2,6 +2,7 @@
 Signal to automatically create Job when MRF is approved
 Add this to your MRF app's signals.py file
 """
+from django.utils import timezone
 
 from django.db.models.signals import post_save,pre_save
 from django.dispatch import receiver
@@ -87,3 +88,24 @@ def sync_job_status_to_links(sender, instance, created, **kwargs):
     elif previous_status == 'on_hold' and instance.status != 'on_hold':
         updated_count = links.update(is_active=True)
         print(f"Reactivated {updated_count} links for resumed Job {instance.id}")
+
+@receiver(pre_save, sender=Job)
+def handle_job_expiry_revert(sender, instance, **kwargs):
+    """
+    Before saving Job: If closed due to expiry but new expiry > today, revert to pre_expiry_status.
+    """
+    if instance.pk:  # Existing instance
+        try:
+            old_instance = Job.objects.get(pk=instance.pk)
+            today = timezone.now().date()
+            if (old_instance.status == 'closed' and
+                old_instance.closed_reason == 'expiry' and
+                instance.expected_closure_date and instance.expected_closure_date > today and
+                old_instance.previous_status):
+                
+                # Revert
+                instance.status = old_instance.previous_status
+                instance.previous_status = None
+                instance.closed_reason = ''
+        except Exception as e:
+            print(e)
