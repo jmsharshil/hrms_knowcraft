@@ -412,6 +412,7 @@ def calc_candidate_experience(apps_qs):
       - Recent open feedback
     """
     from .models import CandidateExperienceFeedback
+    from django.db.models import Case, When, IntegerField
 
     feedbacks = CandidateExperienceFeedback.objects.filter(
         application__in=apps_qs,
@@ -430,6 +431,54 @@ def calc_candidate_experience(apps_qs):
             "recent_feedbacks": [],
         }
 
+    # Numeric mappings for averages
+    satisfaction_numeric = Case(
+        When(overall_satisfaction='very_dissatisfied', then=1),
+        When(overall_satisfaction='dissatisfied', then=2),
+        When(overall_satisfaction='satisfied', then=3),
+        When(overall_satisfaction='very_satisfied', then=4),
+        default=None,
+        output_field=IntegerField(null=True)
+    )
+
+    ease_numeric = Case(
+        When(process_ease='very_difficult', then=1),
+        When(process_ease='difficult', then=2),
+        When(process_ease='easy', then=3),
+        When(process_ease='very_easy', then=4),
+        default=None,
+        output_field=IntegerField(null=True)
+    )
+
+    communication_numeric = Case(
+        When(communication='very_dissatisfied', then=1),
+        When(communication='dissatisfied', then=2),
+        When(communication='satisfied', then=3),
+        When(communication='very_satisfied', then=4),
+        default=None,
+        output_field=IntegerField(null=True)
+    )
+
+    interviewer_numeric = Case(
+        When(interviewer_quality='very_poor', then=1),
+        When(interviewer_quality='poor', then=2),
+        When(interviewer_quality='average', then=3),
+        When(interviewer_quality='good', then=4),
+        When(interviewer_quality='excellent', then=5),
+        default=None,
+        output_field=IntegerField(null=True)
+    )
+
+    speed_numeric = Case(
+        When(recruitment_speed='very_slow', then=1),
+        When(recruitment_speed='slow', then=2),
+        When(recruitment_speed='acceptable', then=3),
+        When(recruitment_speed='fast', then=4),
+        When(recruitment_speed='very_fast', then=5),
+        default=None,
+        output_field=IntegerField(null=True)
+    )
+
     # ── NPS from Q1 (nps_score 0-10) ──
     promoters = feedbacks.filter(nps_score__gte=9).count()
     detractors = feedbacks.filter(nps_score__lte=6).count()
@@ -437,18 +486,20 @@ def calc_candidate_experience(apps_qs):
 
     nps_value = round(((promoters - detractors) / total) * 100, 1)
 
-    # ── CSAT from Q2 (overall_satisfaction: 3=Satisfied, 4=Very Satisfied) ──
-    satisfied = feedbacks.filter(overall_satisfaction__gte=3).count()
+    # ── CSAT from Q2 (overall_satisfaction: satisfied or very_satisfied) ──
+    satisfied = feedbacks.filter(
+        overall_satisfaction__in=['satisfied', 'very_satisfied']
+    ).count()
     csat_percent = round((satisfied / total) * 100, 1)
 
     # ── Averages for scaled questions ──
     averages_agg = feedbacks.aggregate(
         avg_nps=Avg('nps_score'),
-        avg_overall_satisfaction=Avg('overall_satisfaction'),
-        avg_process_ease=Avg('process_ease'),
-        avg_communication=Avg('communication'),
-        avg_interviewer_quality=Avg('interviewer_quality'),
-        avg_recruitment_speed=Avg('recruitment_speed'),
+        avg_overall_satisfaction=Avg(satisfaction_numeric),
+        avg_process_ease=Avg(ease_numeric),
+        avg_communication=Avg(communication_numeric),
+        avg_interviewer_quality=Avg(interviewer_numeric),
+        avg_recruitment_speed=Avg(speed_numeric),
     )
 
     averages = {}
