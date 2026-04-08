@@ -219,9 +219,9 @@ class Job(models.Model):
     @transaction.atomic
     def close_expired_jobs(cls):
         """
-        Close all jobs where expiry_date <= today and status != 'closed'.
-        Updates pre_expiry_status, closed_reason, saves job.
-        Syncs expiry_date to applications and sets their status='expired'.
+        Close all jobs where expected_closure_date <= today and status != 'closed'.
+        Updates previous_status, closure_notes, saves job.
+        Syncs expected_closure_date to applications and sets their status='expired'.
         Logs to JobAssignmentHistory if available.
         Returns (closed_count, app_updated_count)
         """
@@ -240,7 +240,7 @@ class Job(models.Model):
 
             # Close job
             job.previous_status = old_status
-            job.closed_reason = 'expiry'
+            job.closure_notes = 'expiry'
             job.status = 'closed'
             job.save()
 

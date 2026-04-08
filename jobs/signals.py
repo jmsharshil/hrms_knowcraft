@@ -99,13 +99,13 @@ def handle_job_expiry_revert(sender, instance, **kwargs):
             old_instance = Job.objects.get(pk=instance.pk)
             today = timezone.now().date()
             if (old_instance.status == 'closed' and
-                old_instance.closed_reason == 'expiry' and
+                old_instance.closure_notes == 'expiry' and
                 instance.expected_closure_date and instance.expected_closure_date > today and
                 old_instance.previous_status):
                 
                 # Revert
                 instance.status = old_instance.previous_status
                 instance.previous_status = None
-                instance.closed_reason = ''
+                instance.closure_notes = ''
         except Exception as e:
             print(e)
