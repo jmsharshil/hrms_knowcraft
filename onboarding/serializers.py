@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import JobApplicationDocument,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent
+from .models import DocuSignOffer, JobApplicationDocument,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent
 from jobs.models import JobApplication
 # class CandidateSerializer(serializers.ModelSerializer):
 #     class Meta:
@@ -163,3 +163,8 @@ class SalaryAnnexureHistorySerializer(serializers.ModelSerializer):
         if obj.performed_by:
             return obj.performed_by.name
         return None
+
+class DocuSignOfferSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DocuSignOffer
+        fields = '__all__'

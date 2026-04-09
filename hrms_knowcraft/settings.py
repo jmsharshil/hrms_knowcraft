@@ -30,7 +30,7 @@ SECRET_KEY = 'django-insecure-0(s=ka%+mzk+5n3*t-h8l0#6yh7$bnt*y)=a!zy!7_q192j%$t
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net','127.0.0.1','localhost','demp-hrms-hzdme4brg0dgfxa3.centralindia-01.azurewebsites.net','hireproknowcraft-crhacdc8dxd7dfhh.centralindia-01.azurewebsites.net','c08e-2405-201-2005-1965-3101-8b6a-99b5-c944.ngrok-free.app']
+ALLOWED_HOSTS = ['hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net','127.0.0.1','localhost','demp-hrms-hzdme4brg0dgfxa3.centralindia-01.azurewebsites.net','hireproknowcraft-crhacdc8dxd7dfhh.centralindia-01.azurewebsites.net','bf86-2405-201-2005-1965-6426-2cc1-d361-8da4.ngrok-free.app']
 
 AUTH_USER_MODEL = 'accounts.User'
 # Application definition
@@ -347,3 +347,13 @@ GRAPH_API_SCOPE = ["https://graph.microsoft.com/.default"]
 GRAPH_API_TOKEN_URL = f"https://login.microsoftonline.com/{MICROSOFT_TENANT_ID}/oauth2/v2.0/token"
 
 USE_L10N = True
+
+#Docusign
+DOCUSIGN_INTEGRATION_KEY = os.getenv("DOCUSIGN_INTEGRATION_KEY")
+DOCUSIGN_USER_ID = os.getenv("DOCUSIGN_USER_ID")
+DOCUSIGN_ACCOUNT_ID = os.getenv("DOCUSIGN_ACCOUNT_ID")
+# DOCUSIGN_AUTH_SERVER = "account.docusign.com"
+# DOCUSIGN_BASE_URL = "https://www.docusign.net/restapi"
+DOCUSIGN_AUTH_SERVER = "account-d.docusign.com"
+DOCUSIGN_BASE_URL = "https://demo.docusign.net/restapi"
+DOCUSIGN_TEMPLATE_ID ="b2959f26-b5c3-4268-928b-422347796b31"
