@@ -638,6 +638,7 @@ class BaseAnalyticsView(APIView):
             round_type = r['interview_round'] or 'Unknown'
             completed = r['completed']
             passed = r['passed']
+            rejected = r['completed'] - r['passed']
             
             # Heuristic for scheduled: completed + those currently pending in this specific round
             # We map the round name to its pending status
@@ -662,6 +663,7 @@ class BaseAnalyticsView(APIView):
                 'completed': completed,
                 'cancelled': cancelled,
                 'passed': passed,
+                'rejected': rejected,
                 'pass_rate_percentage': round(pass_rate, 2)
             })
         section5['round_completion_rate'] = completion_rates
@@ -801,9 +803,9 @@ class BaseAnalyticsView(APIView):
             "total_cvs": app_qs.count(),
             "total_open_positions": sum((j.no_of_positions - j.positions_filled) for j in job_qs),
             "jobs_by_assignment": {
-                "hr_only": job_qs.filter(status='open', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=True).count(),
-                "consultancy_only": job_qs.filter(status='open', assigned_to_consultancy__isnull=False, assigned_to_internal_hr__isnull=True).count(),
-                "both": job_qs.filter(status='open', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=False).count()
+                "hr_only": job_qs.filter(status='assigned_to_internal_hr', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=True).count(),
+                "consultancy_only": job_qs.filter(status='assigned_to_consultancy', assigned_to_consultancy__isnull=False, assigned_to_internal_hr__isnull=True).count(),
+                "both": job_qs.filter(status='assigned_to_both', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=False).count()
             }
         }
 
