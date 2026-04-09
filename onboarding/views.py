@@ -1310,81 +1310,81 @@ Thank you.
         )
 
 from .models import DocuSignOffer
-from .serializers import DocuSignOfferSerializer
-from onboarding.utils.docusign import send_offer_via_docusign
-import hmac
-import hashlib
+# from .serializers import DocuSignOfferSerializer
+# from onboarding.utils.docusign import send_offer_via_docusign
+# import hmac
+# import hashlib
 
-class BulkSendOffersAPI(APIView):
-    permission_classes = [permissions.IsAuthenticated]  # Adjust as needed
+# class BulkSendOffersAPI(APIView):
+#     permission_classes = [permissions.IsAuthenticated]  # Adjust as needed
     
-    def post(self, request):
-        application_ids = request.data.get('application_ids', [])
-        if not application_ids:
-            return Response({"error": "No application IDs provided"}, status=400)
+#     def post(self, request):
+#         application_ids = request.data.get('application_ids', [])
+#         if not application_ids:
+#             return Response({"error": "No application IDs provided"}, status=400)
         
-        results = {'success': [], 'failed': []}
-        for app_id in application_ids:
-            try:
-                application = JobApplication.objects.get(id=app_id)
-                if application.docusign_offer and application.docusign_offer.status == 'sent':
-                    results['failed'].append({'id': app_id, 'reason': 'Already sent'})
-                    continue
+#         results = {'success': [], 'failed': []}
+#         for app_id in application_ids:
+#             try:
+#                 application = JobApplication.objects.get(id=app_id)
+#                 if application.docusign_offer and application.docusign_offer.status == 'sent':
+#                     results['failed'].append({'id': app_id, 'reason': 'Already sent'})
+#                     continue
                 
-                # Assume offer exists; generate if not (extend OfferDocument logic if needed)
-                if not hasattr(application, 'offerdocument') or not application.offerdocument:
-                    # Placeholder: create offer doc if missing
-                    pass  # Implement offer generation
+#                 # Assume offer exists; generate if not (extend OfferDocument logic if needed)
+#                 if not hasattr(application, 'offerdocument') or not application.offerdocument:
+#                     # Placeholder: create offer doc if missing
+#                     pass  # Implement offer generation
                 
-                ok, result = send_offer_via_docusign(application)
-                if ok:
-                    results['success'].append({'id': app_id, 'envelope_id': result})
-                    # Trigger automation if needed
-                    automation_engine(application, application.status, 'offer_sent')
-                else:
-                    results['failed'].append({'id': app_id, 'reason': result})
-            except JobApplication.DoesNotExist:
-                results['failed'].append({'id': app_id, 'reason': 'Application not found'})
+#                 ok, result = send_offer_via_docusign(application)
+#                 if ok:
+#                     results['success'].append({'id': app_id, 'envelope_id': result})
+#                     # Trigger automation if needed
+#                     automation_engine(application, application.status, 'offer_sent')
+#                 else:
+#                     results['failed'].append({'id': app_id, 'reason': result})
+#             except JobApplication.DoesNotExist:
+#                 results['failed'].append({'id': app_id, 'reason': 'Application not found'})
         
-        return Response(results)
+#         return Response(results)
 
-class DocuSignWebhookAPI(APIView):
-    permission_classes = [permissions.AllowAny]  # Webhook no auth, but verify below
+# class DocuSignWebhookAPI(APIView):
+#     permission_classes = [permissions.AllowAny]  # Webhook no auth, but verify below
     
-    def post(self, request):
-        data = request.data
-        if not isinstance(data, list):
-            return Response(status=400)
+#     def post(self, request):
+#         data = request.data
+#         if not isinstance(data, list):
+#             return Response(status=400)
         
-        for event in data:
-            envelope_id = event.get('envelopeId')
-            status = event.get('status')
+#         for event in data:
+#             envelope_id = event.get('envelopeId')
+#             status = event.get('status')
             
-            try:
-                docusign_offer = DocuSignOffer.objects.get(envelope_id=envelope_id)
-                old_status = docusign_offer.status
-                docusign_offer.status = status.lower()
+#             try:
+#                 docusign_offer = DocuSignOffer.objects.get(envelope_id=envelope_id)
+#                 old_status = docusign_offer.status
+#                 docusign_offer.status = status.lower()
                 
-                if status.lower() == 'completed':
-                    docusign_offer.signed_date = event.get('completedDateTime')
-                    # Get signing URL or details if needed
-                    docusign_offer.signed_url = event.get('signedUrl', '')  # Adjust from event
+#                 if status.lower() == 'completed':
+#                     docusign_offer.signed_date = event.get('completedDateTime')
+#                     # Get signing URL or details if needed
+#                     docusign_offer.signed_url = event.get('signedUrl', '')  # Adjust from event
                 
-                docusign_offer.save()
+#                 docusign_offer.save()
                 
-                application = docusign_offer.job_application
-                # Trigger status update based on DocuSign status
-                if status.lower() == 'completed':
-                    automation_engine(application, application.status, 'offer_signed')
-                elif status.lower() in ['declined', 'voided']:
-                    automation_engine(application, application.status, 'offer_declined')
+#                 application = docusign_offer.job_application
+#                 # Trigger status update based on DocuSign status
+#                 if status.lower() == 'completed':
+#                     automation_engine(application, application.status, 'offer_signed')
+#                 elif status.lower() in ['declined', 'voided']:
+#                     automation_engine(application, application.status, 'offer_declined')
                 
-                logger.info(f"Webhook updated {envelope_id}: {old_status} -> {status}")
+#                 logger.info(f"Webhook updated {envelope_id}: {old_status} -> {status}")
                 
-            except DocuSignOffer.DoesNotExist:
-                logger.warning(f"Webhook for unknown envelope: {envelope_id}")
+#             except DocuSignOffer.DoesNotExist:
+#                 logger.warning(f"Webhook for unknown envelope: {envelope_id}")
         
-        return Response({"status": "received"}, status=200)
+#         return Response({"status": "received"}, status=200)
 
 
 from .utils.docusign import DocuSignService

@@ -3,7 +3,7 @@ import json
 import pdfplumber
 import docx2txt
 from pathlib import Path
-from openai import AzureOpenAI
+from openai import OpenAI
 from pydantic import BaseModel
 from django.conf import settings
 from onboarding.utils.sender import send_email,send_text
@@ -13,7 +13,7 @@ from onboarding.utils.engine import automation_engine
 
 FRONTEND_URL = getattr(settings,"FRONTEND_URL")
 
-client = AzureOpenAI(api_key=settings.OPENAI_API_KEY,azure_endpoint=settings.ENDPOINT_URL,api_version='2024-05-01-preview')
+client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 def extract_text(file_path):
     ext = Path(file_path).suffix.lower()
@@ -725,7 +725,7 @@ def create_resume_report_html(parsed_resume, job):
     return res.choices[0].message.content.strip()
 
 from django.db import transaction
-from .models import JobApplication
+from .models import Application, JobApplication
 from django.utils import timezone
 from datetime import timedelta
 
@@ -1179,6 +1179,16 @@ def pre_parse_resume_task(application,resume_file,job):
         if duplicated:
             print("Duplicate resume found!")
             history = build_candidate_history(email,application.id)
+            apps =Application.objects.filter(candidate_email=email,created_at__gte=six_months_ago).exclude(id=application.id)
+            for app in apps:
+                history.append({
+                    "application_id": str(app.id),
+                    "job_id": str(app.job.id) if app.job else None,
+                    "job_title": app.job.job_title if app.job else None,
+                    "match_score": float(app.match_score) if app.match_score else None,
+                    "created_at": app.created_at.isoformat(),
+                    "source": app.source,
+                    })
     # ---- AI scoring ----
     ai_match = calculate_match_score(parsed, job)
     ai_score = int(ai_match.get('score'))

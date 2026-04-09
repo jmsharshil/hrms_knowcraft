@@ -1,6 +1,6 @@
 from django.urls import path,include
 from rest_framework.routers import DefaultRouter
-from .views import UploadJobApplicationDocumentAPI,UpdatestatusAPI,SendApprovalNoteAPIView,CandidateInterviewSummaryAPIView,SalaryAnnexureHistoryViewSet,SalaryAnnexureViewSet,ReviewJobApplicationDocumentsAPI,SendForOfferLetterEmailAPI,SendForSalaryAnnexureEmailAPI,BulkSendOffersAPI,DocuSignWebhookAPI
+from .views import UploadJobApplicationDocumentAPI,UpdatestatusAPI,SendApprovalNoteAPIView,CandidateInterviewSummaryAPIView,SalaryAnnexureHistoryViewSet,SalaryAnnexureViewSet,ReviewJobApplicationDocumentsAPI,SendForOfferLetterEmailAPI,SendForSalaryAnnexureEmailAPI
 from .utils.opensign import opensign_webhook
 from .utils.zoho_sign import zoho_sign_webhook
 from .views import send_offer_letter_view, bulk_send_offers, docusign_webhook
@@ -21,8 +21,6 @@ urlpatterns = [
     path('send-for-offer-letter/<str:id>/',SendForOfferLetterEmailAPI.as_view(),name='send-for-offer-letter'),
     path('send-for-salary-annexure/<str:id>/',SendForSalaryAnnexureEmailAPI.as_view(),name='send-for-salary-annexure'),
     # path("", include(router.urls)),
-    # path('bulk-send-offers/', BulkSendOffersAPI.as_view(), name='bulk-send-offers'),
-    # path('docusign-webhook/', DocuSignWebhookAPI.as_view(), name='docusign-webhook')
     path("send-offer/<uuid:application_id>/", send_offer_letter_view),
     path("bulk-send-offers/", bulk_send_offers),
     path("docusign/webhook/", docusign_webhook)
