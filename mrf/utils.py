@@ -785,14 +785,12 @@ def mrf_fields_auto_fill(department, designation):
 
     return data
 
-from openai import AzureOpenAI
+from openai import OpenAI
 from django.conf import settings
 import json
 
-client = AzureOpenAI(
-    api_key=settings.OPENAI_API_KEY,
-    azure_endpoint=settings.ENDPOINT_URL,
-    api_version='2024-05-01-preview'
+client = OpenAI(
+    api_key=settings.OPENAI_API_KEY
 )
 
 def parse_expirience(text):

@@ -1,4 +1,4 @@
-from openai import AzureOpenAI
+from openai import OpenAI
 import json
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -7,7 +7,7 @@ from django.shortcuts import render
 import os
 import re
 from .utils.engine import retrieve_context
-client = AzureOpenAI(api_key=settings.OPENAI_API_KEY,azure_endpoint=settings.ENDPOINT_URL,api_version="2024-05-01-preview")
+client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 def load_kb_file(relative_path):
     """
