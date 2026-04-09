@@ -2,7 +2,7 @@ import os
 import tempfile
 from django.conf import settings
 
-from langchain_openai import AzureOpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 
 from .vector_storage import download_vector_files
@@ -20,11 +20,9 @@ def load_db():
     # ⭐ Download from Azure instead of local
     faiss_path, meta_path = download_vector_files("support_index")
 
-    embeddings = AzureOpenAIEmbeddings(
-        azure_endpoint=settings.ENDPOINT_URL,
+    embeddings = OpenAIEmbeddings(
         api_key=settings.OPENAI_API_KEY,
-        api_version="2024-05-01-preview",
-        azure_deployment="text-embedding-3-large"
+        model="text-embedding-3-large"
     )
 
     folder = os.path.dirname(faiss_path)
