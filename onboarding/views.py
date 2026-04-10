@@ -1308,3 +1308,210 @@ Thank you.
             {"message": "Salary Annexure review email sent successfully!"},
             status=status.HTTP_200_OK
         )
+
+from .models import DocuSignOffer
+# from .serializers import DocuSignOfferSerializer
+# from onboarding.utils.docusign import send_offer_via_docusign
+# import hmac
+# import hashlib
+
+# class BulkSendOffersAPI(APIView):
+#     permission_classes = [permissions.IsAuthenticated]  # Adjust as needed
+    
+#     def post(self, request):
+#         application_ids = request.data.get('application_ids', [])
+#         if not application_ids:
+#             return Response({"error": "No application IDs provided"}, status=400)
+        
+#         results = {'success': [], 'failed': []}
+#         for app_id in application_ids:
+#             try:
+#                 application = JobApplication.objects.get(id=app_id)
+#                 if application.docusign_offer and application.docusign_offer.status == 'sent':
+#                     results['failed'].append({'id': app_id, 'reason': 'Already sent'})
+#                     continue
+                
+#                 # Assume offer exists; generate if not (extend OfferDocument logic if needed)
+#                 if not hasattr(application, 'offerdocument') or not application.offerdocument:
+#                     # Placeholder: create offer doc if missing
+#                     pass  # Implement offer generation
+                
+#                 ok, result = send_offer_via_docusign(application)
+#                 if ok:
+#                     results['success'].append({'id': app_id, 'envelope_id': result})
+#                     # Trigger automation if needed
+#                     automation_engine(application, application.status, 'offer_sent')
+#                 else:
+#                     results['failed'].append({'id': app_id, 'reason': result})
+#             except JobApplication.DoesNotExist:
+#                 results['failed'].append({'id': app_id, 'reason': 'Application not found'})
+        
+#         return Response(results)
+
+# class DocuSignWebhookAPI(APIView):
+#     permission_classes = [permissions.AllowAny]  # Webhook no auth, but verify below
+    
+#     def post(self, request):
+#         data = request.data
+#         if not isinstance(data, list):
+#             return Response(status=400)
+        
+#         for event in data:
+#             envelope_id = event.get('envelopeId')
+#             status = event.get('status')
+            
+#             try:
+#                 docusign_offer = DocuSignOffer.objects.get(envelope_id=envelope_id)
+#                 old_status = docusign_offer.status
+#                 docusign_offer.status = status.lower()
+                
+#                 if status.lower() == 'completed':
+#                     docusign_offer.signed_date = event.get('completedDateTime')
+#                     # Get signing URL or details if needed
+#                     docusign_offer.signed_url = event.get('signedUrl', '')  # Adjust from event
+                
+#                 docusign_offer.save()
+                
+#                 application = docusign_offer.job_application
+#                 # Trigger status update based on DocuSign status
+#                 if status.lower() == 'completed':
+#                     automation_engine(application, application.status, 'offer_signed')
+#                 elif status.lower() in ['declined', 'voided']:
+#                     automation_engine(application, application.status, 'offer_declined')
+                
+#                 logger.info(f"Webhook updated {envelope_id}: {old_status} -> {status}")
+                
+#             except DocuSignOffer.DoesNotExist:
+#                 logger.warning(f"Webhook for unknown envelope: {envelope_id}")
+        
+#         return Response({"status": "received"}, status=200)
+
+
+from .utils.docusign import DocuSignService
+from django.utils import timezone
+from django.http import JsonResponse
+def send_offer_letter_view(request, application_id):
+    try:
+        application = JobApplication.objects.get(id=application_id)
+
+        if not application.candidate_email:
+            return JsonResponse({"error": "Candidate email missing"}, status=400)
+
+        service = DocuSignService()
+        envelope_id = service.send_offer(application)
+
+        # Create or update DocuSignOffer
+        offer, created = DocuSignOffer.objects.update_or_create(
+            job_application=application,
+            defaults={
+                "envelope_id": envelope_id,
+                "status": "sent",
+                "signer_email": application.candidate_email,
+            }
+        )
+
+        # Update main status
+        application.status = "offer_sent"
+        application.save()
+
+        return JsonResponse({
+            "message": "Offer sent successfully",
+            "envelope_id": envelope_id,
+            "created": created
+        })
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+def bulk_send_offers(request):
+    applications = JobApplication.objects.filter(
+        status="approved",
+        candidate_email__isnull=False
+    )
+
+    service = DocuSignService()
+    success_count = 0
+
+    for app in applications:
+        try:
+            envelope_id = service.send_offer(app)
+
+            DocuSignOffer.objects.update_or_create(
+                job_application=app,
+                defaults={
+                    "envelope_id": envelope_id,
+                    "status": "sent",
+                    "signer_email": app.candidate_email,
+                }
+            )
+
+            app.status = "offer_sent"
+            app.save()
+
+            success_count += 1
+
+        except Exception as e:
+            print(f"Error sending to {app.id}: {str(e)}")
+
+    return JsonResponse({
+        "message": "Bulk offers sent",
+        "count": success_count
+    })
+
+import json
+from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse
+import xmltodict
+
+@csrf_exempt
+def docusign_webhook(request):
+    try:
+        print("🔥 WEBHOOK HIT")
+
+        content_type = request.content_ytpe
+        print("Content-Type:", content_type)
+
+        # 🧠 Handle JSON
+        if "application/json" in content_type:
+            data = json.loads(request.body)
+
+        # 🧠 Handle XML (DocuSign default)
+        else:
+            data = xmltodict.parse(request.body)
+
+            # Extract actual data
+            data = data.get("DocuSignEnvelopeInformation", {})
+        
+        print("Parsed Data:", data)
+
+        envelope_id = data.get("envelopeId")
+        status = data.get("status")
+
+        print(f"Envelope: {envelope_id}, Status: {status}")
+
+        offer = DocuSignOffer.objects.filter(envelope_id=envelope_id).first()
+
+        if not offer:
+            print("Offer not found")
+            return HttpResponse(status=200)
+
+        # ✅ Status mapping
+        if status == "completed":
+            offer.status = "signed"
+            offer.signed_date = timezone.now()
+            automation_engine(offer.job_application, offer.job_application.status, "offer_accepted")
+
+        elif status == "declined":
+            offer.status = "declined"
+            automation_engine(offer.job_application, offer.job_application.status, "offer_rejected")
+
+        elif status == "voided":
+            offer.status = "voided"
+
+        offer.save()
+
+        return HttpResponse(status=200)
+
+    except Exception as e:
+        print("❌ Webhook Error:", str(e))
+        return HttpResponse(status=400)

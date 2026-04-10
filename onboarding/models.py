@@ -485,3 +485,25 @@ class OfferDocument(models.Model):
 
     def __str__(self):
         return self.application.candidate_name
+
+class DocuSignOffer(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('sent', 'Sent'),
+        ('signed', 'Signed'),
+        ('declined', 'Declined'),
+        ('voided', 'Voided'),
+        ('error', 'Error'),
+    ]
+    
+    job_application = models.OneToOneField(JobApplication, on_delete=models.CASCADE, related_name='docusign_offer')
+    envelope_id = models.CharField(max_length=100, unique=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    signer_email = models.EmailField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    signed_date = models.DateTimeField(null=True, blank=True)
+    signed_url = models.URLField(null=True, blank=True)  # For completed envelopes
+
+    def __str__(self):
+        return f"DocuSign Offer for {self.job_application.candidate_name} - {self.status}"

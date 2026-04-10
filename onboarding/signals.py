@@ -126,6 +126,41 @@ def auto_send_offer_to_zoho(sender, instance, created, **kwargs):
     if not old_file and new_file:
         transaction.on_commit(lambda: process_offer_letter(instance))
 
+# from .utils.docusign import process_offer_letter_docusign
+# from .models import DocuSignOffer
+# #docusign
+# @receiver(post_save, sender=JobApplicationDocument)
+# def auto_send_offer_to_docusign(sender, instance, created, **kwargs):
+#     """
+#     Auto send offer letter via DocuSign when file is added.
+#     """
+
+#     new_file = instance.created_offer_letter
+#     old_file = getattr(instance, "_old_file", None)
+
+#     # ❌ No file → do nothing
+#     if not new_file:
+#         return
+
+#     application = instance.job_application
+
+#     # ❌ Prevent duplicate sending (UPDATED)
+#     if DocuSignOffer.objects.filter(job_application=application).exists():
+#         return
+
+#     # 🚀 Trigger function
+#     def trigger_docusign():
+#         process_offer_letter_docusign(instance)
+
+#     # Case 1: Object created with file
+#     if created and new_file:
+#         transaction.on_commit(trigger_docusign)
+#         return
+
+#     # Case 2: File added later
+#     if not old_file and new_file:
+#         transaction.on_commit(trigger_docusign)
+
 @receiver(post_save, sender=MRF)
 def update_slot_links_when_interviewer_assigned(sender, instance, **kwargs):
     """

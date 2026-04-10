@@ -9,6 +9,8 @@ from django.db.models import Count, Avg, Q, F, Sum, Case, When, IntegerField, Fl
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db.models.functions import TruncMonth, TruncDate
 from datetime import timedelta
+from collections import defaultdict
+import statistics
 
 from jobs.models import Job, JobApplication, JobAssignmentHistory, Application
 from mrf.models import MRF, MRFApproval, Department
@@ -624,11 +626,67 @@ class BaseAnalyticsView(APIView):
         else:
             section5['avg_time_to_shortlist_hours'] = 0
 
-        section5['avg_time_between_rounds_hours'] = [{'from_round': 'HR to Technical', 'avg_hours': 24.0}]
-
-        # Feedback analytics should ideally be period-based for activity (Interviews done in this period)
-        # but also scoped to the candidates in app_qs for consistency with other funnel metrics.
+        # Dynamic average time between rounds with fixed sequence and defaults to 0
         feedback_qs = InterviewFeedback.objects.filter(job_application__in=app_qs)
+        feedbacks = list(feedback_qs.select_related('job_application').values('job_application_id', 'interview_round', 'created_at'))
+        app_feedbacks = defaultdict(list)
+        for fb in feedbacks:
+            app_feedbacks[fb['job_application_id']].append({
+                'round': fb['interview_round'] or 'Unknown',
+                'completed_at': fb['created_at']
+            })
+        between_deltas = defaultdict(list)  # key: (from_round, to_round), value: list of hours
+        for app_id, fbs in app_feedbacks.items():
+            if len(fbs) < 2:
+                continue
+            # Sort by completed_at
+            fbs.sort(key=lambda x: x['completed_at'])
+            for i in range(1, len(fbs)):
+                prev = fbs[i-1]['round']
+                curr = fbs[i]['round']
+                delta = (fbs[i]['completed_at'] - fbs[i-1]['completed_at']).total_seconds() / 3600
+                between_deltas[(prev, curr)].append(delta)
+
+        # Define standard round order
+        ordered_rounds = [
+            'HR Round', 'Technical Round', 'Case Study Round',
+            'Final Round', 'Management / Client Round'
+        ]
+        # Compute avgs for consecutive pairs, default to 0 if no data
+        avg_between = []
+        for i in range(len(ordered_rounds) - 1):
+            from_round = ordered_rounds[i]
+            to_round = ordered_rounds[i + 1]
+            deltas = between_deltas.get((from_round, to_round), [])
+            avg_h = round(statistics.mean(deltas), 2) if deltas else 0.0
+            num = len(deltas)
+            avg_between.append({
+                'from_round': from_round,
+                'to_round': to_round,
+                'avg_hours': avg_h,
+                'num_applications': num
+            })
+
+        # Additional observed transitions, e.g., Technical to Final (skipping Case Study)
+        extra_pairs = [
+            ('Technical Round', 'Final Round'),
+        ]
+        for from_round, to_round in extra_pairs:
+            deltas = between_deltas.get((from_round, to_round), [])
+            avg_h = round(statistics.mean(deltas), 2) if deltas else 0.0
+            num = len(deltas)
+            avg_between.append({
+                'from_round': from_round,
+                'to_round': to_round,
+                'avg_hours': avg_h,
+                'num_applications': num
+            })
+
+        # Sort by from_round then to_round for consistent ordering
+        avg_between.sort(key=lambda x: (x['from_round'], x['to_round']))
+        section5['avg_time_between_rounds_hours'] = avg_between
+
+        # Feedback analytics - dynamic without static map
         round_stats = feedback_qs.values('interview_round').annotate(
             completed=Count('id'),
             passed=Count('id', filter=Q(is_selected__in=['hire', 'strong_hire']))
@@ -638,30 +696,13 @@ class BaseAnalyticsView(APIView):
             round_type = r['interview_round'] or 'Unknown'
             completed = r['completed']
             passed = r['passed']
-            
-            # Heuristic for scheduled: completed + those currently pending in this specific round
-            # We map the round name to its pending status
-            round_pending_status_map = {
-                'HR Round': 'interview_pending_1',
-                'Technical Round': 'interview_pending_2',
-                'Case Study Round': 'interview_pending_3',
-                'Final Round': 'interview_pending_final',
-                'Management / Client Round': 'interview_pending_management_client'
-            }
-            pending_status = round_pending_status_map.get(round_type)
-            pending_in_round = app_qs.filter(status=pending_status, interview_scheduled_at__isnull=False).count() if pending_status else 0
-            
-            scheduled = completed + pending_in_round
-            cancelled = app_qs.filter(status=pending_status, no_show_count__gt=0).count() if pending_status else 0
-            
+            rejected = completed - passed
             pass_rate = (passed / completed * 100) if completed else 0
-            
             completion_rates.append({
                 'round_type': round_type,
-                'scheduled': scheduled,
                 'completed': completed,
-                'cancelled': cancelled,
                 'passed': passed,
+                'rejected': rejected,
                 'pass_rate_percentage': round(pass_rate, 2)
             })
         section5['round_completion_rate'] = completion_rates
@@ -801,9 +842,9 @@ class BaseAnalyticsView(APIView):
             "total_cvs": app_qs.count(),
             "total_open_positions": sum((j.no_of_positions - j.positions_filled) for j in job_qs),
             "jobs_by_assignment": {
-                "hr_only": job_qs.filter(status='open', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=True).count(),
-                "consultancy_only": job_qs.filter(status='open', assigned_to_consultancy__isnull=False, assigned_to_internal_hr__isnull=True).count(),
-                "both": job_qs.filter(status='open', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=False).count()
+                "hr_only": job_qs.filter(status='assigned_to_internal_hr', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=True).count(),
+                "consultancy_only": job_qs.filter(status='assigned_to_consultancy', assigned_to_consultancy__isnull=False, assigned_to_internal_hr__isnull=True).count(),
+                "both": job_qs.filter(status='assigned_to_both', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=False).count()
             }
         }
 
