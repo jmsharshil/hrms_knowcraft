@@ -552,6 +552,7 @@ class BaseAnalyticsView(APIView):
 
         # Limit to top 10 (already ordered desc)
         section3['untouched_cvs_by_job'] = untouched_list
+        section3['interview_no_show_reschedule'] = calc_interview_no_show_reschedule(app_qs)
         return section3
 
     def calc_candidate_pipeline_funnel(self, app_qs):

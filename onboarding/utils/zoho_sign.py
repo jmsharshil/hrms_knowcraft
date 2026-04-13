@@ -335,6 +335,7 @@ def send_offer_letter_autofill(template_id, candidate):
 def zoho_sign_webhook(request):
 
     payload = json.loads(request.body.decode("utf-8"))
+    print("Zoho Webhook Payload:", payload)
 
     event_type = payload.get("event_type")
     request_data = payload.get("request", {})
