@@ -311,7 +311,8 @@ class BaseAnalyticsView(APIView):
                     Q(job__assigned_to_consultancy_id=user_id) |
                     Q(job__assigned_consultancies__id=user_id) |
                     Q(job__assigned_to_internal_hr_id=user_id) |
-                    Q(job__assigned_internal_hrs__id=user_id)
+                    Q(job__assigned_internal_hrs__id=user_id) |
+                    Q(job__mrf__requested_by_id=user_id)
                 )
         app_qs = JobApplication.objects.filter(app_filter).distinct()
         
@@ -551,6 +552,7 @@ class BaseAnalyticsView(APIView):
 
         # Limit to top 10 (already ordered desc)
         section3['untouched_cvs_by_job'] = untouched_list
+        section3['interview_no_show_reschedule'] = calc_interview_no_show_reschedule(app_qs)
         return section3
 
     def calc_candidate_pipeline_funnel(self, app_qs):
@@ -1006,7 +1008,7 @@ class CandidateExperienceFeedbackSubmitView(APIView):
                 return Response({"detail": "No feedback has been given till now."}, status=status.HTTP_204_NO_CONTENT)
 
         except Exception as e:
-            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request):
         serializer = CandidateExperienceFeedbackSubmitSerializer(data=request.data)
