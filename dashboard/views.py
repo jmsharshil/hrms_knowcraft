@@ -425,30 +425,47 @@ class BaseAnalyticsView(APIView):
             hr_name=F('assigned_to_internal_hr__name')
         ).annotate(
             job_count=Count('id', distinct=True),
-            active_jobs=Count('id', distinct=True, filter=Q(status__in=['open', 'assigned_to_internal_hr'])),
+            active_jobs=Count('id', distinct=True, filter=Q(status__in=['open', 'assigned_to_internal_hr','jobs_assigned_to_both'])),
             closed_jobs=Count('id', distinct=True, filter=Q(status__in=['closed', 'filled']))
-        )
-        section2['jobs_by_hr'] = [
-            {
-                'hr_id': h['hr_id'],
-                'hr_name': h['hr_name'] or 'Unknown', 
-                'job_count': h['job_count'], 
-                'active_jobs': h['active_jobs'], 
-                'closed_jobs': h['closed_jobs']
-            } for h in hr_stats
-        ]
+        ).order_by('hr_name')
+        
+        # In case we still get duplicates due to some edge cases, we will uniquely map them
+        hr_dict = {}
+        for h in hr_stats:
+            hid = h['hr_id']
+            if hid not in hr_dict:
+                hr_dict[hid] = {
+                    'hr_id': hid,
+                    'hr_name': h['hr_name'] or 'Unknown', 
+                    'job_count': h['job_count'], 
+                    'active_jobs': h['active_jobs'], 
+                    'closed_jobs': h['closed_jobs']
+                }
+            else:
+                hr_dict[hid]['job_count'] += h['job_count']
+                hr_dict[hid]['active_jobs'] += h['active_jobs']
+                hr_dict[hid]['closed_jobs'] += h['closed_jobs']
+                
+        section2['jobs_by_hr'] = list(hr_dict.values())
 
         cons_stats = job_qs.filter(assigned_to_consultancy__isnull=False).values(
             consultancy_id=F('assigned_to_consultancy__id'),
             consultancy_name=F('assigned_to_consultancy__name')
-        ).annotate(job_count=Count('id', distinct=True))
-        section2['jobs_by_consultancy'] = [
-            {
-                'consultancy_id': c['consultancy_id'],
-                'consultancy_name': c['consultancy_name'] or 'Unknown', 
-                'job_count': c['job_count']
-            } for c in cons_stats
-        ]
+        ).annotate(job_count=Count('id', distinct=True)).order_by('consultancy_name')
+        
+        cons_dict = {}
+        for c in cons_stats:
+            cid = c['consultancy_id']
+            if cid not in cons_dict:
+                cons_dict[cid] = {
+                    'consultancy_id': cid,
+                    'consultancy_name': c['consultancy_name'] or 'Unknown', 
+                    'job_count': c['job_count']
+                }
+            else:
+                cons_dict[cid]['job_count'] += c['job_count']
+                
+        section2['jobs_by_consultancy'] = list(cons_dict.values())
         return section2
 
     def calc_cv_resume_source_analytics(self, app_qs, platform_app_qs):
@@ -651,37 +668,46 @@ class BaseAnalyticsView(APIView):
                 delta = (fbs[i]['completed_at'] - fbs[i-1]['completed_at']).total_seconds() / 3600
                 between_deltas[(prev, curr)].append(delta)
 
-        # Define standard round order
+        # Define standard round order with actual DB values
         ordered_rounds = [
-            'HR Round', 'Technical Round', 'Case Study Round',
-            'Final Round', 'Management / Client Round'
+            'hr_round', 'technical_round', 'case_study_round',
+            'final_round', 'management_client_round'
         ]
+        
+        round_display = {
+            'hr_round': 'HR Round',
+            'technical_round': 'Technical Round',
+            'case_study_round': 'Case Study Round',
+            'final_round': 'Final Round',
+            'management_client_round': 'Management / Client Round'
+        }
+
         # Compute avgs for consecutive pairs, default to 0 if no data
         avg_between = []
         for i in range(len(ordered_rounds) - 1):
             from_round = ordered_rounds[i]
             to_round = ordered_rounds[i + 1]
             deltas = between_deltas.get((from_round, to_round), [])
-            avg_h = round(statistics.mean(deltas), 2) if deltas else 0.0
+            avg_h = round(sum(deltas) / len(deltas), 2) if deltas else 0.0
             num = len(deltas)
             avg_between.append({
-                'from_round': from_round,
-                'to_round': to_round,
+                'from_round': round_display.get(from_round, from_round),
+                'to_round': round_display.get(to_round, to_round),
                 'avg_hours': avg_h,
                 'num_applications': num
             })
 
         # Additional observed transitions, e.g., Technical to Final (skipping Case Study)
         extra_pairs = [
-            ('Technical Round', 'Final Round'),
+            ('technical_round', 'final_round'),
         ]
         for from_round, to_round in extra_pairs:
             deltas = between_deltas.get((from_round, to_round), [])
-            avg_h = round(statistics.mean(deltas), 2) if deltas else 0.0
+            avg_h = round(sum(deltas) / len(deltas), 2) if deltas else 0.0
             num = len(deltas)
             avg_between.append({
-                'from_round': from_round,
-                'to_round': to_round,
+                'from_round': round_display.get(from_round, from_round),
+                'to_round': round_display.get(to_round, to_round),
                 'avg_hours': avg_h,
                 'num_applications': num
             })
@@ -698,6 +724,7 @@ class BaseAnalyticsView(APIView):
         completion_rates = []
         for r in round_stats:
             round_type = r['interview_round'] or 'Unknown'
+            display_round = round_display.get(round_type, round_type)
             completed = r['completed']
             passed = r['passed']
             rejected = completed - passed
@@ -772,14 +799,91 @@ class BaseAnalyticsView(APIView):
         return section6
 
     def calc_document_offer_process_timeline(self, app_qs):
+        from onboarding.models import JobApplicationDocument, ApprovalNote, SalaryAnnexure, OfferDocument
+        from collections import defaultdict
+        
         section7 = {}
-        section7['avg_time_document_request_to_upload_hours'] = 24.0
-        section7['avg_time_document_upload_to_approval_hours'] = 48.0
-        section7['avg_time_approval_to_salary_annexure_hours'] = 12.0
-        section7['avg_time_salary_annexure_to_approval_hours'] = 24.0
-        section7['avg_time_to_offer_letter_creation_hours'] = 36.0
-        section7['avg_time_offer_letter_to_approval_hours'] = 18.0
-        section7['avg_time_offer_letter_sent_to_response_hours'] = 72.0
+        
+        app_ids = list(app_qs.values_list('id', flat=True)[:5000])  # limit to prevent massive memory usage
+        
+        jads = list(JobApplicationDocument.objects.filter(job_application_id__in=app_ids).values('job_application_id', 'joining_docs_status', 'created_at', 'updated_at'))
+        notes = list(ApprovalNote.objects.filter(candidate_id__in=app_ids, status='approved', approved_at__isnull=False).values('candidate_id', 'approved_at'))
+        annexures = list(SalaryAnnexure.objects.filter(job_application_id__in=app_ids).values('job_application_id', 'created_at', 'updated_at', 'status'))
+        offers = list(OfferDocument.objects.filter(application_id__in=app_ids).values('application_id', 'created_at', 'sent_at', 'completed_at', 'status', 'updated_at'))
+        
+        apps_data = defaultdict(dict)
+        for j in jads:
+            apps_data[j['job_application_id']]['jad'] = j
+        for n in notes:
+            apps_data[n['candidate_id']]['note'] = n
+        for a in annexures:
+            apps_data[a['job_application_id']]['annexure'] = a
+        for o in offers:
+            apps_data[o['application_id']]['offer'] = o
+            
+        req_to_up_hours = []
+        up_to_appr_hours = []
+        appr_to_sal_hours = []
+        sal_to_appr_hours = []
+        offer_create_hours = []
+        offer_sent_to_resp_hours = []
+        offer_internal_appr = []
+
+        for app_id, data in apps_data.items():
+            jad = data.get('jad')
+            note = data.get('note')
+            annex = data.get('annexure')
+            offer = data.get('offer')
+            
+            if jad:
+                td = (jad['updated_at'] - jad['created_at']).total_seconds() / 3600
+                if td >= 0:
+                    if jad['joining_docs_status'] == 'uploaded':
+                        req_to_up_hours.append(td)
+                    elif jad['joining_docs_status'] in ['approved', 'review_docs']:
+                        req_to_up_hours.append(td / 2)
+                        up_to_appr_hours.append(td / 2)
+
+            if note and annex:
+                td = (annex['created_at'] - note['approved_at']).total_seconds() / 3600
+                if td >= 0:
+                    appr_to_sal_hours.append(td)
+            
+            if annex and annex['status'] == 'approved':
+                td = (annex['updated_at'] - annex['created_at']).total_seconds() / 3600
+                if td >= 0:
+                    sal_to_appr_hours.append(td)
+
+            if annex and offer:
+                td = (offer['created_at'] - annex['updated_at']).total_seconds() / 3600
+                if td >= 0:
+                    offer_create_hours.append(td)
+
+            if offer:
+                start = offer.get('created_at')
+                sent = offer.get('sent_at')
+                comp = offer.get('completed_at') or offer.get('updated_at')
+                
+                if sent and start:
+                    td = (sent - start).total_seconds() / 3600
+                    if td >= 0:
+                        offer_internal_appr.append(td)
+                        
+                if offer['status'] in ['completed', 'signed', 'declined'] and sent and comp:
+                    td = (comp - sent).total_seconds() / 3600
+                    if td >= 0:
+                        offer_sent_to_resp_hours.append(td)
+
+        def avg_h(lst):
+            return round(sum(lst) / len(lst), 2) if lst else 0.0
+
+        section7['avg_time_document_request_to_upload_hours'] = avg_h(req_to_up_hours)
+        section7['avg_time_document_upload_to_approval_hours'] = avg_h(up_to_appr_hours)
+        section7['avg_time_approval_to_salary_annexure_hours'] = avg_h(appr_to_sal_hours)
+        section7['avg_time_salary_annexure_to_approval_hours'] = avg_h(sal_to_appr_hours)
+        section7['avg_time_to_offer_letter_creation_hours'] = avg_h(offer_create_hours)
+        section7['avg_time_offer_letter_to_approval_hours'] = avg_h(offer_internal_appr)
+        section7['avg_time_offer_letter_sent_to_response_hours'] = avg_h(offer_sent_to_resp_hours)
 
         joined_apps = app_qs.filter(status='joined')
         durations_days = []
@@ -788,7 +892,18 @@ class BaseAnalyticsView(APIView):
                 days = (app.updated_at - app.job.mrf.created_at).total_seconds() / 86400
                 durations_days.append(days)
         section7['full_pipeline_avg_days'] = round(sum(durations_days) / len(durations_days), 2) if durations_days else 0
-        section7['bottleneck_stage'] = {'stage_name': 'Document Upload to Approval', 'avg_hours': 48.0}
+        
+        stages = [
+            ('Document Request to Upload', section7['avg_time_document_request_to_upload_hours']),
+            ('Document Upload to Approval', section7['avg_time_document_upload_to_approval_hours']),
+            ('Approval to Salary Annexure', section7['avg_time_approval_to_salary_annexure_hours']),
+            ('Salary Annexure to Approval', section7['avg_time_salary_annexure_to_approval_hours']),
+            ('Offer Letter Creation', section7['avg_time_to_offer_letter_creation_hours']),
+            ('Offer Letter Approval/Sent', section7['avg_time_offer_letter_to_approval_hours']),
+            ('Offer Sent to Response', section7['avg_time_offer_letter_sent_to_response_hours']),
+        ]
+        bottleneck = max(stages, key=lambda x: x[1]) if any(s[1] > 0 for s in stages) else ('None', 0.0)
+        section7['bottleneck_stage'] = {'stage_name': bottleneck[0], 'avg_hours': bottleneck[1]}
         return section7
 
     def calc_overall_summary_kpis(self, mrf_qs, job_qs, app_qs, platform_app_qs, company):
