@@ -617,6 +617,8 @@ class BaseAnalyticsView(APIView):
         offer_rejected_c = app_qs.filter(status__in=offer_rejected_statuses).count()
         section4['offer_acceptance_rate'] = round((offer_accepted_c / offer_sent_c * 100), 2) if offer_sent_c else 0
         section4['offer_rejection_rate'] = round((offer_rejected_c / offer_sent_c * 100), 2) if offer_sent_c else 0
+        section4['candidate_experience'] = calc_candidate_experience(app_qs)
+        section4['recruiter_productivity'] = calc_recruiter_productivity(app_qs)
         return section4
 
     def calc_interview_round_time_analytics(self, app_qs, date_filter, company):
