@@ -326,7 +326,7 @@ class BaseAnalyticsView(APIView):
             if target_user.role == 'consultancy':
                 app_filter &= Q(submitted_by_id=user_id) | Q(application_link__created_by_id=user_id)
             elif target_user.role in ['hr', 'hr_manager', 'admin']:
-                app_filter &= (Q(submitted_by_id=user_id) | Q(job__assigned_to_internal_hr_id=user_id) | Q(job__assigned_internal_hrs__id=user_id))
+                app_filter &= (Q(submitted_by_id=user_id) | Q(job__assigned_to_internal_hr_id=user_id) | Q(job__assigned_internal_hrs__id=user_id) | Q(job__posted_by_id=user_id) | Q(job__closed_by_id=user_id))
             else:
                  app_filter &= (
                     Q(submitted_by_id=user_id) |
@@ -334,6 +334,8 @@ class BaseAnalyticsView(APIView):
                     Q(job__assigned_consultancies__id=user_id) |
                     Q(job__assigned_to_internal_hr_id=user_id) |
                     Q(job__assigned_internal_hrs__id=user_id) |
+                    Q(job__posted_by_id=user_id) |
+                    Q(job__closed_by_id=user_id) |
                     Q(job__mrf__requested_by_id=user_id)
                 )
         app_qs = JobApplication.objects.filter(app_filter).distinct()
@@ -347,13 +349,15 @@ class BaseAnalyticsView(APIView):
                 platform_app_qs = Application.objects.none()
             else:
                 if target_user.role in ['hr', 'hr_manager', 'admin']:
-                    platform_app_filter &= (Q(job__assigned_to_internal_hr_id=user_id) | Q(job__assigned_internal_hrs__id=user_id))
+                    platform_app_filter &= (Q(job__assigned_to_internal_hr_id=user_id) | Q(job__assigned_internal_hrs__id=user_id) | Q(job__posted_by_id=user_id) | Q(job__closed_by_id=user_id))
                 else:
                     platform_app_filter &= (
                         Q(job__assigned_to_consultancy_id=user_id) |
                         Q(job__assigned_consultancies__id=user_id) |
                         Q(job__assigned_to_internal_hr_id=user_id) |
-                        Q(job__assigned_internal_hrs__id=user_id)
+                        Q(job__assigned_internal_hrs__id=user_id) |
+                        Q(job__posted_by_id=user_id) |
+                        Q(job__closed_by_id=user_id)
                     )
                 platform_app_qs = Application.objects.filter(platform_app_filter).distinct()
         else:
@@ -1131,7 +1135,7 @@ class HRAnalyticsAPIView(BaseAnalyticsView):
     """HR Focus: CVs, Pipeline, Interviews, KPIs."""
     def get_role_filters(self, user):
         job_q = (Q(assigned_to_internal_hr=user) | Q(assigned_internal_hrs=user) | Q(posted_by=user) | Q(closed_by=user))
-        app_q = Q(job__assigned_to_internal_hr=user) | Q(job__assigned_internal_hrs=user) | Q(submitted_by=user)
+        app_q = Q(job__assigned_to_internal_hr=user) | Q(job__assigned_internal_hrs=user) | Q(job__posted_by=user) | Q(job__closed_by=user) | Q(submitted_by=user)
         mrf_q = Q(requested_by=user) | Q(approvals__approver=user)
         return mrf_q, job_q, app_q
 
