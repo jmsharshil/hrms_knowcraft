@@ -630,8 +630,13 @@ class BaseAnalyticsView(APIView):
         section3['interview_no_show_reschedule'] = calc_interview_no_show_reschedule(app_qs)
         return section3
 
-    def calc_candidate_pipeline_funnel(self, app_qs):
+    def calc_candidate_pipeline_funnel(self, app_qs, target_user=None, interviewer_names=None):
         section4 = {}
+        
+        # If filtering by interviewer, narrow down candidates experience to those they actually touched
+        experience_app_qs = app_qs
+        if interviewer_names:
+            experience_app_qs = app_qs.filter(interview_feedbacks__interviewer_name__in=interviewer_names).distinct()
         total_cvs = app_qs.count()
         # statuses in order of progression
         # Define base lists of subsequent statuses for each stage to ensure cumulative logic is robust
@@ -692,11 +697,11 @@ class BaseAnalyticsView(APIView):
         offer_rejected_c = app_qs.filter(status__in=offer_rejected_statuses).count()
         section4['offer_acceptance_rate'] = round((offer_accepted_c / offer_sent_c * 100), 2) if offer_sent_c else 0
         section4['offer_rejection_rate'] = round((offer_rejected_c / offer_sent_c * 100), 2) if offer_sent_c else 0
-        section4['candidate_experience'] = calc_candidate_experience(app_qs)
-        section4['recruiter_productivity'] = calc_recruiter_productivity(app_qs)
+        section4['candidate_experience'] = calc_candidate_experience(experience_app_qs)
+        section4['recruiter_productivity'] = calc_recruiter_productivity(app_qs, target_user.id if target_user else None)
         return section4
 
-    def calc_interview_round_time_analytics(self, app_qs, date_filter, company):
+    def calc_interview_round_time_analytics(self, app_qs, date_filter, company, interviewer_names=None):
         section5 = {}
         shortlisted = app_qs.filter(status='shortlisted')
         if shortlisted.exists():
@@ -706,7 +711,11 @@ class BaseAnalyticsView(APIView):
             section5['avg_time_to_shortlist_hours'] = 0
 
         # Dynamic average time between rounds with fixed sequence and defaults to 0
-        feedback_qs = InterviewFeedback.objects.filter(job_application__in=app_qs)
+        feedback_filter = Q(job_application__in=app_qs)
+        if interviewer_names:
+            feedback_filter &= Q(interviewer_name__in=interviewer_names)
+        
+        feedback_qs = InterviewFeedback.objects.filter(feedback_filter)
         feedbacks = list(feedback_qs.select_related('job_application').values('job_application_id', 'interview_round', 'created_at'))
         app_feedbacks = defaultdict(list)
         for fb in feedbacks:
@@ -809,10 +818,14 @@ class BaseAnalyticsView(APIView):
             section5['fastest_stage'] = {'stage_name': 'N/A', 'avg_hours': 0}
         return section5
 
-    def calc_approval_note_analytics(self, job_qs, date_filter):
+    def calc_approval_note_analytics(self, job_qs, date_filter, target_user=None):
         section6 = {}
         # Filter by related jobs but use ApprovalNote's own date for real-time tracking
-        approval_note_qs = ApprovalNote.objects.filter(candidate__job__in=job_qs)
+        note_filter = Q(candidate__job__in=job_qs)
+        if target_user:
+            note_filter &= Q(manager=target_user)
+            
+        approval_note_qs = ApprovalNote.objects.filter(note_filter)
         if date_filter:
             approval_note_qs = approval_note_qs.filter(date_filter)
         section6['total_approval_notes_sent'] = approval_note_qs.count()
@@ -1030,8 +1043,16 @@ class BaseAnalyticsView(APIView):
         if err:
             return Response({"detail": err}, status=status.HTTP_400_BAD_REQUEST)
 
-        mrf_qs, job_qs, app_qs, platform_app_qs, company, date_filter = ctx["mrf_qs"], ctx["job_qs"], ctx["app_qs"], ctx["platform_app_qs"], ctx["company"], ctx["date_filter"]
+        mrf_qs, job_qs, app_qs, platform_app_qs, company, date_filter, target_user = ctx["mrf_qs"], ctx["job_qs"], ctx["app_qs"], ctx["platform_app_qs"], ctx["company"], ctx["date_filter"], ctx.get("target_user")
         allowed_sections = self.get_sections()
+
+        # Resolve Interviewer Names using Email for reliability
+        interviewer_names = []
+        if target_user:
+            from slots.models import Interviewer
+            interviewer_names = list(Interviewer.objects.filter(email=target_user.email).values_list('name', flat=True))
+            if target_user.name and target_user.name not in interviewer_names:
+                interviewer_names.append(target_user.name)
         
         # Determine which sections to return
         requested_sections = request.query_params.get('sections', '').split(',')
@@ -1052,11 +1073,11 @@ class BaseAnalyticsView(APIView):
         if 'cv_resume_source_analytics' in requested_sections:
             data['cv_resume_source_analytics'] = self.calc_cv_resume_source_analytics(app_qs, platform_app_qs)
         if 'candidate_pipeline_funnel' in requested_sections:
-            data['candidate_pipeline_funnel'] = self.calc_candidate_pipeline_funnel(app_qs)
+            data['candidate_pipeline_funnel'] = self.calc_candidate_pipeline_funnel(app_qs, target_user, interviewer_names)
         if 'interview_round_time_analytics' in requested_sections:
-            data['interview_round_time_analytics'] = self.calc_interview_round_time_analytics(app_qs, date_filter, company)
+            data['interview_round_time_analytics'] = self.calc_interview_round_time_analytics(app_qs, date_filter, company, interviewer_names)
         if 'approval_note_analytics' in requested_sections:
-            data['approval_note_analytics'] = self.calc_approval_note_analytics(job_qs, date_filter)
+            data['approval_note_analytics'] = self.calc_approval_note_analytics(job_qs, date_filter, target_user)
         if 'document_offer_process_timeline' in requested_sections:
             data['document_offer_process_timeline'] = self.calc_document_offer_process_timeline(app_qs)
         if 'overall_summary_kpis' in requested_sections:
