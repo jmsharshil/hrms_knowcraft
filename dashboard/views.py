@@ -539,12 +539,10 @@ class BaseAnalyticsView(APIView):
         source_counts = {}
         for s in app_qs.values('source').annotate(count=Count('id')):
             source_counts[s['source']] = source_counts.get(s['source'], 0) + s['count']
-        for s in platform_app_qs.values('source').annotate(count=Count('id')):
-            source_counts[s['source']] = source_counts.get(s['source'], 0) + s['count']
 
         cvs_by_source = []
         for source, count in source_counts.items():
-            percentage = round((count / total_cvs * 100), 2) if total_cvs else 0
+            percentage = round((count / ja_count * 100), 2) if ja_count else 0
             cvs_by_source.append({'source': source, 'count': count, 'percentage': percentage})
         
         # Sort by count desc and limit to top 10
