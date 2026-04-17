@@ -502,7 +502,8 @@ class BaseAnalyticsView(APIView):
                         'consultancy_name': cons.name or cons.email or 'Unknown',
                         'job_count': 0,
                         'active_jobs': 0,
-                        'closed_jobs': 0
+                        'closed_jobs': 0,
+                        'jobs': []
                     }
                 
                 cons_dict[cid]['job_count'] += 1
@@ -510,6 +511,7 @@ class BaseAnalyticsView(APIView):
                     cons_dict[cid]['closed_jobs'] += 1
                 else:
                     cons_dict[cid]['active_jobs'] += 1
+                cons_dict[cid]['jobs'].append(job_detail)
 
         section2['jobs_by_hr'] = sorted(list(hr_dict.values()), key=lambda x: x['hr_name'])
         section2['jobs_by_consultancy'] = sorted(list(cons_dict.values()), key=lambda x: x['consultancy_name'])
