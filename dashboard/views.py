@@ -411,7 +411,7 @@ class BaseAnalyticsView(APIView):
         section1['mrf_rejection_reasons'] = [{'approver_level': r['level'], 'rejected_count': r['rejected_count']} for r in rejection_stats]
         return section1
 
-    def calc_job_assignment_analytics(self, job_qs):
+    def calc_job_assignment_analytics(self, job_qs, user_role=None, target_user_id=None):
         section2 = {}
         section2['total_jobs_open'] = job_qs.filter(status__in=['open','jobs_assigned_to_internal_hr','jobs_assigned_to_consultancy','jobs_assigned_to_both']).count()
         section2['total_jobs_closed'] = job_qs.filter(status__in=['closed', 'filled', 'cancelled']).count()
@@ -468,6 +468,9 @@ class BaseAnalyticsView(APIView):
 
             for hr in hrs:
                 hid = str(hr.id)
+                if target_user_id and hid != str(target_user_id):
+                    continue
+
                 if hid not in hr_dict:
                     hr_dict[hid] = {
                         'hr_id': hid,
@@ -496,6 +499,9 @@ class BaseAnalyticsView(APIView):
             
             for cons in conss:
                 cid = str(cons.id)
+                if target_user_id and cid != str(target_user_id):
+                    continue
+
                 if cid not in cons_dict:
                     cons_dict[cid] = {
                         'consultancy_id': cid,
@@ -513,7 +519,8 @@ class BaseAnalyticsView(APIView):
                     cons_dict[cid]['active_jobs'] += 1
                 cons_dict[cid]['jobs'].append(job_detail)
 
-        section2['jobs_by_hr'] = sorted(list(hr_dict.values()), key=lambda x: x['hr_name'])
+        if user_role != 'consultancy':
+            section2['jobs_by_hr'] = sorted(list(hr_dict.values()), key=lambda x: x['hr_name'])
         section2['jobs_by_consultancy'] = sorted(list(cons_dict.values()), key=lambda x: x['consultancy_name'])
         
         return section2
@@ -1039,7 +1046,8 @@ class BaseAnalyticsView(APIView):
         if 'mrf_analytics' in requested_sections:
             data['mrf_analytics'] = self.calc_mrf_analytics(mrf_qs)
         if 'job_assignment_analytics' in requested_sections:
-            data['job_assignment_analytics'] = self.calc_job_assignment_analytics(job_qs)
+            target_user_id = ctx['target_user'].id if ctx.get('target_user') else None
+            data['job_assignment_analytics'] = self.calc_job_assignment_analytics(job_qs, request.user.role, target_user_id)
         if 'cv_resume_source_analytics' in requested_sections:
             data['cv_resume_source_analytics'] = self.calc_cv_resume_source_analytics(app_qs, platform_app_qs)
         if 'candidate_pipeline_funnel' in requested_sections:
