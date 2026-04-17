@@ -1081,7 +1081,7 @@ class HRAnalyticsAPIView(BaseAnalyticsView):
         return mrf_q, job_q, app_q
 
     def get_sections(self):
-        return ['cv_resume_source_analytics', 'candidate_pipeline_funnel', 'interview_round_time_analytics', 'overall_summary_kpis']
+        return ['cv_resume_source_analytics', 'candidate_pipeline_funnel', 'interview_round_time_analytics', 'overall_summary_kpis','job_assignment_analytics']
 
 class DeptHeadAnalyticsAPIView(BaseAnalyticsView):
     """Dept Head Focus: MRFs, Jobs, Pipeline, KPIs."""
@@ -1102,7 +1102,7 @@ class ConsultancyAnalyticsAPIView(BaseAnalyticsView):
         return Q(id=None), job_q, app_q
 
     def get_sections(self):
-        return ['candidate_pipeline_funnel', 'overall_summary_kpis']
+        return ['candidate_pipeline_funnel', 'overall_summary_kpis', 'job_assignment_analytics']
 
 
 # Legacy / Redirect dispatcher
