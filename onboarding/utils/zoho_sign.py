@@ -337,8 +337,8 @@ def zoho_sign_webhook(request):
     payload = json.loads(request.body.decode("utf-8"))
     print("Zoho Webhook Payload:", payload)
 
-    event_type = payload.get("event_type")
-    request_data = payload.get("request", {})
+    event_type = payload.get("notifications", {}).get("operation_type")
+    request_data = payload.get("requests", {})
 
     request_id = request_data.get("request_id")
     document_status = request_data.get("request_status")
@@ -358,14 +358,14 @@ def zoho_sign_webhook(request):
     # EVENT MAPPING
     # -------------------------
 
-    if event_type == "request.viewed":
+    if event_type == "RequestViewed":
         doc.status = "viewed"
 
-    elif event_type == "request.signed":
+    elif event_type == "RequestSigningSuccess":
         doc.status = "signed"
         doc.signed_at = timezone.now()
 
-    elif event_type == "request.completed":
+    elif event_type == "RequestCompleted":
         doc.status = "completed"
         doc.completed_at = timezone.now()
 
@@ -377,7 +377,7 @@ def zoho_sign_webhook(request):
         else:
             return JsonResponse({"error":reason})
 
-    elif event_type == "request.declined":
+    elif event_type == "RequestRejected":
         doc.status = "declined"
         ok,reason = automation_engine(application,application.status,'offer_rejected')
         if ok:
@@ -386,7 +386,7 @@ def zoho_sign_webhook(request):
         else:
             return JsonResponse({"error":reason})
 
-    elif event_type == "request.expired":
+    elif event_type == "RequestExpired":
         doc.status = "expired"
 
     doc.save()
@@ -441,7 +441,8 @@ def send_to_zoho_sign(candidate, file_stream, filename,other_signers=[]):
                 "is_sequential": True,  # True → signers sign in order
                 "actions": actions
             }
-        })
+        }),
+        "is_quicksend": True
     }
 
 
