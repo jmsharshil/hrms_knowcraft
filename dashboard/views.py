@@ -273,27 +273,29 @@ class BaseAnalyticsView(APIView):
             except User.DoesNotExist:
                 return None, "Invalid user_id"
 
-        # MRF queryset
-        mrf_filter = Q(company=company) & date_filter & role_mrf_q
+        # 3. MRF queryset (Filtered by Period Activity)
+        mrf_base_filter = Q(company=company) & role_mrf_q
         if department_id:
-            mrf_filter &= Q(department_id=department_id)
+            mrf_base_filter &= Q(department_id=department_id)
         if user_id:
-            mrf_filter &= (Q(requested_by_id=user_id) | Q(approvals__approver_id=user_id))
-        mrf_qs = MRF.objects.filter(mrf_filter).distinct()
+            mrf_base_filter &= (Q(requested_by_id=user_id) | Q(approvals__approver_id=user_id))
+        
+        mrf_qs = MRF.objects.filter(mrf_base_filter & date_filter).distinct()
 
-        # Job queryset
-        job_filter = Q(company=company) & date_filter & role_job_q
+        # 4. Job queryset
+        # Base filter includes company, role, dept, desig, and user but NO date
+        job_base_filter = Q(company=company) & role_job_q
         if job_id:
-            job_filter &= Q(id=job_id)
+            job_base_filter &= Q(id=job_id)
         if department_id:
-            job_filter &= Q(department_id=department_id)
+            job_base_filter &= Q(department_id=department_id)
         if designation_id:
-            job_filter &= Q(designation_id=designation_id)
+            job_base_filter &= Q(designation_id=designation_id)
         if user_id:
             if target_user.role == 'consultancy':
-                job_filter &= (Q(assigned_to_consultancy_id=user_id) | Q(assigned_consultancies__id=user_id))
+                job_base_filter &= (Q(assigned_to_consultancy_id=user_id) | Q(assigned_consultancies__id=user_id))
             elif target_user.role in ['hr', 'hr_manager']:
-                job_filter &= (Q(assigned_to_internal_hr_id=user_id) | Q(assigned_internal_hrs__id=user_id) | Q(posted_by_id=user_id))
+                job_base_filter &= (Q(assigned_to_internal_hr_id=user_id) | Q(assigned_internal_hrs__id=user_id) | Q(posted_by_id=user_id))
             else:
                 assignment_q = (
                     Q(assigned_to_consultancy_id=user_id) |
@@ -304,13 +306,20 @@ class BaseAnalyticsView(APIView):
                     Q(posted_by_id=user_id) |
                     Q(closed_by_id=user_id)
                 )
-                job_filter &= assignment_q
-        if mrf_qs.exists() and not (user_id and target_user.role == 'consultancy'):
-            job_filter &= Q(mrf__in=mrf_qs)
-        job_qs = Job.objects.filter(job_filter).distinct()
+                job_base_filter &= assignment_q
+        
+        # broad_job_qs: Used for activity tracking (apps, notes) across all relevant jobs
+        broad_job_qs = Job.objects.filter(job_base_filter).distinct()
+        
+        # job_qs: Used for "Job Analytics" (new jobs created in period)
+        job_period_filter = job_base_filter & date_filter
+        # Conditional MRF link: keep logic but use the broad base for jobs
+        # unless you specifically only want jobs for THIS month's MRFs.
+        # Fixed: Jobs are shown if created in period, regardless of MRF date.
+        job_qs = Job.objects.filter(job_period_filter).distinct()
 
-        # JobApplication queryset
-        app_filter = Q(job__in=job_qs) & date_filter & role_app_q
+        # 5. JobApplication queryset (Filtered by Period Activity)
+        app_filter = Q(job__in=broad_job_qs) & date_filter & role_app_q
         if source_filter:
             app_filter &= Q(source=source_filter)
         if user_id:
@@ -329,13 +338,12 @@ class BaseAnalyticsView(APIView):
                 )
         app_qs = JobApplication.objects.filter(app_filter).distinct()
         
-        # Platform Application queryset (LinkedIn, Indeed, etc.)
-        platform_app_filter = Q(job__in=job_qs) & date_filter
+        # 6. Platform Application queryset (LinkedIn, Indeed, etc.)
+        platform_app_filter = Q(job__in=broad_job_qs) & date_filter
         if source_filter:
             platform_app_filter &= Q(source=source_filter)
         if user_id:
             if target_user.role == 'consultancy':
-                # EXCLUDE platform apps when filtering by a specific consultancy's "uploaded CVs"
                 platform_app_qs = Application.objects.none()
             else:
                 if target_user.role in ['hr', 'hr_manager', 'admin']:
@@ -354,6 +362,7 @@ class BaseAnalyticsView(APIView):
         return {
             "mrf_qs": mrf_qs,
             "job_qs": job_qs,
+            "broad_job_qs": broad_job_qs,
             "app_qs": app_qs,
             "platform_app_qs": platform_app_qs,
             "company": company,
@@ -547,7 +556,7 @@ class BaseAnalyticsView(APIView):
         
         # Sort by count desc and limit to top 10
         cvs_by_source.sort(key=lambda x: x['count'], reverse=True)
-        section3['cvs_by_source'] = cvs_by_source[:10]
+        section3['candidate_cvs_by_source'] = cvs_by_source[:10]
 
         # Platform Sources Stats
         platform_source_counts = {}
@@ -1059,7 +1068,7 @@ class BaseAnalyticsView(APIView):
         if err:
             return Response({"detail": err}, status=status.HTTP_400_BAD_REQUEST)
 
-        mrf_qs, job_qs, app_qs, platform_app_qs, company, date_filter, target_user = ctx["mrf_qs"], ctx["job_qs"], ctx["app_qs"], ctx["platform_app_qs"], ctx["company"], ctx["date_filter"], ctx.get("target_user")
+        mrf_qs, job_qs, broad_job_qs, app_qs, platform_app_qs, company, date_filter, target_user = ctx["mrf_qs"], ctx["job_qs"], ctx["broad_job_qs"], ctx["app_qs"], ctx["platform_app_qs"], ctx["company"], ctx["date_filter"], ctx.get("target_user")
         allowed_sections = self.get_sections()
 
         # Resolve Interviewer Names using Email for reliability
@@ -1093,7 +1102,7 @@ class BaseAnalyticsView(APIView):
         if 'interview_round_time_analytics' in requested_sections:
             data['interview_round_time_analytics'] = self.calc_interview_round_time_analytics(app_qs, date_filter, company, interviewer_names)
         if 'approval_note_analytics' in requested_sections:
-            data['approval_note_analytics'] = self.calc_approval_note_analytics(job_qs, date_filter, target_user)
+            data['approval_note_analytics'] = self.calc_approval_note_analytics(broad_job_qs, date_filter, target_user)
         if 'document_offer_process_timeline' in requested_sections:
             data['document_offer_process_timeline'] = self.calc_document_offer_process_timeline(app_qs)
         if 'overall_summary_kpis' in requested_sections:
