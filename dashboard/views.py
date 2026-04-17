@@ -528,8 +528,10 @@ class BaseAnalyticsView(APIView):
 
     def calc_cv_resume_source_analytics(self, app_qs, platform_app_qs):
         section3 = {}
-        # Union-like total count of unique candidates across both models
-        total_cvs = app_qs.count()
+        # Union-like total count across both models
+        ja_count = app_qs.count()
+        pa_count = platform_app_qs.count()
+        total_cvs = ja_count + pa_count
         section3['total_cvs_received'] = total_cvs
 
         # Aggregated Source Stats
@@ -552,46 +554,49 @@ class BaseAnalyticsView(APIView):
         # Deduplicated Job Stats (Unique Candidate Email per Job Title)
         # We merge counts for the same job title from both models
         job_counts = {}
-        
-        # 1. JobApplication unique candidates per job title
-        ja_stats = app_qs.values('job__job_title').annotate(
-            unique_cvs=Count('candidate_email', distinct=True)
-        )
+        ja_stats = app_qs.values('job__job_title').annotate(unique_cvs=Count('candidate_email', distinct=True))
         for j in ja_stats:
             title = j['job__job_title'] or 'Unknown'
             job_counts[title] = job_counts.get(title, 0) + j['unique_cvs']
             
-        # 2. Application unique candidates per job title
-        pa_stats = platform_app_qs.values('job__job_title').annotate(
-            unique_cvs=Count('candidate_email', distinct=True)
-        )
+        pa_stats = platform_app_qs.values('job__job_title').annotate(unique_cvs=Count('candidate_email', distinct=True))
         for j in pa_stats:
             title = j['job__job_title'] or 'Unknown'
             job_counts[title] = job_counts.get(title, 0) + j['unique_cvs']
 
-        # Simplified output: only job_title and total_cvs
-        cvs_by_job_list = []
-        for title, count in job_counts.items():
-            cvs_by_job_list.append({'job_title': title, 'total_cvs': count})
-        
-        # Sort by total_cvs desc and limit to top 10
+        cvs_by_job_list = [{'job_title': title, 'total_cvs': count} for title, count in job_counts.items()]
         cvs_by_job_list.sort(key=lambda x: x['total_cvs'], reverse=True)
         section3['cvs_by_job'] = cvs_by_job_list[:10]
 
-        month_stats = app_qs.annotate(month=TruncMonth('created_at')).values('month').annotate(count=Count('id')).order_by('month')
+        # Monthly Matrix Breakdown (Combined)
+        months_ja = app_qs.annotate(month=TruncMonth('created_at')).values_list('month', flat=True).distinct()
+        months_pa = platform_app_qs.annotate(month=TruncMonth('created_at')).values_list('month', flat=True).distinct()
+        all_months = sorted(list(set(filter(None, list(months_ja) + list(months_pa)))))
+
         cvs_by_month = []
-        for m in month_stats:
-            month_filter = Q(created_at__month=m['month'].month, created_at__year=m['month'].year)
-            month_cvs = app_qs.filter(month_filter)
-            source_break = dict(month_cvs.values('source').annotate(c=Count('id')))
-            cvs_by_month.append({'month': m['month'].strftime('%Y-%m'), 'count': m['count'], 'source_breakdown': source_break})
+        for m_date in all_months:
+            m_ja = app_qs.filter(created_at__month=m_date.month, created_at__year=m_date.year)
+            m_pa = platform_app_qs.filter(created_at__month=m_date.month, created_at__year=m_date.year)
+            
+            m_count = m_ja.count() + m_pa.count()
+            source_break = {}
+            for s in m_ja.values('source').annotate(c=Count('id')):
+                source_break[s['source']] = source_break.get(s['source'], 0) + s['c']
+            for s in m_pa.values('source').annotate(c=Count('id')):
+                source_break[s['source']] = source_break.get(s['source'], 0) + s['c']
+                
+            cvs_by_month.append({
+                'month': m_date.strftime('%Y-%m'),
+                'count': m_count,
+                'source_breakdown': source_break
+            })
         section3['cvs_by_month'] = cvs_by_month
 
-        dups = app_qs.filter(is_duplicate=True).count()
+        dups = app_qs.filter(is_duplicate=True).count() + platform_app_qs.filter(is_duplicate=True).count()
         section3['duplicate_cvs_count'] = dups
         section3['duplicate_cvs_percentage'] = round((dups / total_cvs * 100), 2) if total_cvs else 0
 
-        untouched = app_qs.filter(status='received').count()
+        untouched = app_qs.filter(status='received').count() + platform_app_qs.filter(is_rejected=False).count()
         section3['untouched_cvs_count'] = untouched
         subquery = Job.objects.filter(
             job_title=OuterRef('job__job_title'),
@@ -1029,7 +1034,7 @@ class BaseAnalyticsView(APIView):
         return {
             "total_mrfs": mrf_qs.count(),
             "total_jobs": job_qs.count(),
-            "total_cvs": app_qs.count(),
+            "total_cvs": app_qs.count() + platform_app_qs.count(),
             "total_open_positions": sum((j.no_of_positions - j.positions_filled) for j in job_qs),
             "jobs_by_assignment": {
                 "hr_only": job_qs.filter(status='assigned_to_internal_hr', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=True).count(),
