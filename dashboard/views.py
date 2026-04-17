@@ -463,7 +463,8 @@ class BaseAnalyticsView(APIView):
                 'department_name': job.department.name if job.department else 'N/A',
                 'no_of_positions': job.no_of_positions,
                 'positions_filled': job.positions_filled,
-                'created_at': job.created_at.isoformat() if job.created_at else None
+                'created_at': job.created_at.isoformat() if job.created_at else None,
+                'assignment_date': (job.assigned_at or job.assigned_internal_at).isoformat() if (job.assigned_at or job.assigned_internal_at) else None
             }
 
             for hr in hrs:
