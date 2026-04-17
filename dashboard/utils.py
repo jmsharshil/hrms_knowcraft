@@ -484,7 +484,7 @@ def calc_candidate_experience(apps_qs):
     detractors = feedbacks.filter(nps_score__lte=6).count()
     passives = total - promoters - detractors
 
-    nps_value = round(((promoters - detractors) / total) * 100, 1)
+    nps_value = max(0, round(((promoters - detractors) / total) * 100, 1))
 
     # ── CSAT from Q2 (overall_satisfaction: satisfied or very_satisfied) ──
     satisfied = feedbacks.filter(

@@ -654,6 +654,7 @@ Knowcraft Analytics Private Limited""",
             "subject": "Candidate Experience Feedback - Knowcraft Analytics",
             "text": "Thank you for your time during our recruitment process. We'd love to hear about your experience.",
         },
+        "sms": "Dear {candidate.candidate_name},\n\nThank you for your time during our recruitment process. We'd love to hear about your experience.\nPlease fill the feedback form:\n {FRONTEND_URL}/candidate/feedback/{candidate.id}",
         "log": "Feedback request sent to {candidate.candidate_email}",
     },
 }

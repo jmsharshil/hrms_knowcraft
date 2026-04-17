@@ -21,7 +21,7 @@ urlpatterns = [
     path('send-for-offer-letter/<str:id>/',SendForOfferLetterEmailAPI.as_view(),name='send-for-offer-letter'),
     path('send-for-salary-annexure/<str:id>/',SendForSalaryAnnexureEmailAPI.as_view(),name='send-for-salary-annexure'),
     # path("", include(router.urls)),
-    path("send-offer/<uuid:application_id>/", send_offer_letter_view),
-    path("bulk-send-offers/", bulk_send_offers),
-    path("docusign/webhook/", docusign_webhook)
+    # path("send-offer/<uuid:application_id>/", send_offer_letter_view),
+    # path("bulk-send-offers/", bulk_send_offers),
+    # path("docusign/webhook/", docusign_webhook)
 ]

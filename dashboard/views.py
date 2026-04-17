@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from django.utils.dateparse import parse_date
+from dateutil import parser
 from django.utils import timezone
 from django.db.models import Count, Avg, Q, F, Sum, Case, When, IntegerField, FloatField, ExpressionWrapper, DurationField, OuterRef, Subquery
 from django.contrib.postgres.aggregates import ArrayAgg
@@ -38,6 +39,18 @@ from .utils import (
 )
 
 from accounts.serializers import UserSerializer
+
+def safe_parse_date(date_str):
+    """
+    Parses a date string into a date object using dateutil.parser.
+    Favors DD-MM-YYYY if ambiguous (dayfirst=True).
+    """
+    if not date_str:
+        return None
+    try:
+        return parser.parse(date_str, dayfirst=True).date()
+    except (ValueError, TypeError, OverflowError):
+        return None
 
 class IsDashboardUser:
     """Inline permission mixin – admin or hr_manager only."""
@@ -102,13 +115,13 @@ class DashboardAPIView(APIView):
             apps_qs = apps_qs.filter(job__department_id=department_id)
 
         if date_from:
-            d = parse_date(date_from)
+            d = safe_parse_date(date_from)
             if d:
                 apps_qs = apps_qs.filter(created_at__date__gte=d)
                 jobs_qs = jobs_qs.filter(created_at__date__gte=d)
 
         if date_to:
-            d = parse_date(date_to)
+            d = safe_parse_date(date_to)
             if d:
                 apps_qs = apps_qs.filter(created_at__date__lte=d)
                 jobs_qs = jobs_qs.filter(created_at__date__lte=d)
@@ -242,8 +255,8 @@ class BaseAnalyticsView(APIView):
         user_id = request.query_params.get('user_id')
         source_filter = request.query_params.get('source')
 
-        date_from = parse_date(date_from_str) if date_from_str else None
-        date_to = parse_date(date_to_str) if date_to_str else None
+        date_from = safe_parse_date(date_from_str)
+        date_to = safe_parse_date(date_to_str)
 
         # Date filter Q
         date_filter = Q()
@@ -398,7 +411,7 @@ class BaseAnalyticsView(APIView):
         section1['mrf_rejection_reasons'] = [{'approver_level': r['level'], 'rejected_count': r['rejected_count']} for r in rejection_stats]
         return section1
 
-    def calc_job_assignment_analytics(self, job_qs):
+    def calc_job_assignment_analytics(self, job_qs, user_role=None, target_user_id=None):
         section2 = {}
         section2['total_jobs_open'] = job_qs.filter(status__in=['open','jobs_assigned_to_internal_hr','jobs_assigned_to_consultancy','jobs_assigned_to_both']).count()
         section2['total_jobs_closed'] = job_qs.filter(status__in=['closed', 'filled', 'cancelled']).count()
@@ -420,35 +433,97 @@ class BaseAnalyticsView(APIView):
             status_breakdown.setdefault(key, 0)
         section2['job_status_breakdown'] = status_breakdown
 
-        hr_stats = job_qs.filter(assigned_to_internal_hr__isnull=False).values(
-            hr_id=F('assigned_to_internal_hr__id'),
-            hr_name=F('assigned_to_internal_hr__name')
-        ).annotate(
-            job_count=Count('id', distinct=True),
-            active_jobs=Count('id', distinct=True, filter=Q(status__in=['open', 'assigned_to_internal_hr'])),
-            closed_jobs=Count('id', distinct=True, filter=Q(status__in=['closed', 'filled']))
-        )
-        section2['jobs_by_hr'] = [
-            {
-                'hr_id': h['hr_id'],
-                'hr_name': h['hr_name'] or 'Unknown', 
-                'job_count': h['job_count'], 
-                'active_jobs': h['active_jobs'], 
-                'closed_jobs': h['closed_jobs']
-            } for h in hr_stats
-        ]
+        hr_dict = {}
+        cons_dict = {}
 
-        cons_stats = job_qs.filter(assigned_to_consultancy__isnull=False).values(
-            consultancy_id=F('assigned_to_consultancy__id'),
-            consultancy_name=F('assigned_to_consultancy__name')
-        ).annotate(job_count=Count('id', distinct=True))
-        section2['jobs_by_consultancy'] = [
-            {
-                'consultancy_id': c['consultancy_id'],
-                'consultancy_name': c['consultancy_name'] or 'Unknown', 
-                'job_count': c['job_count']
-            } for c in cons_stats
-        ]
+        # Efficiently fetch all assigned jobs with necessary relations
+        jobs_with_details = job_qs.select_related(
+            'assigned_to_internal_hr', 
+            'assigned_to_consultancy', 
+            'department'
+        ).prefetch_related(
+            'assigned_internal_hrs', 
+            'assigned_consultancies'
+        )
+
+        for job in jobs_with_details:
+            # 1. Process HRs (Both primary and M2M)
+            hrs = []
+            if job.assigned_to_internal_hr:
+                hrs.append(job.assigned_to_internal_hr)
+            for m2m_hr in job.assigned_internal_hrs.all():
+                if job.assigned_to_internal_hr and m2m_hr.id == job.assigned_to_internal_hr.id:
+                    continue
+                hrs.append(m2m_hr)
+            
+            job_detail = {
+                'id': str(job.id),
+                'job_title': job.job_title,
+                'status': job.status,
+                'department_name': job.department.name if job.department else 'N/A',
+                'no_of_positions': job.no_of_positions,
+                'positions_filled': job.positions_filled,
+                'created_at': job.created_at.isoformat() if job.created_at else None,
+                'assignment_date': (job.assigned_at or job.assigned_internal_at).isoformat() if (job.assigned_at or job.assigned_internal_at) else None
+            }
+
+            for hr in hrs:
+                hid = str(hr.id)
+                if target_user_id and hid != str(target_user_id):
+                    continue
+
+                if hid not in hr_dict:
+                    hr_dict[hid] = {
+                        'hr_id': hid,
+                        'hr_name': hr.name or hr.email or 'Unknown',
+                        'job_count': 0,
+                        'active_jobs': 0,
+                        'closed_jobs': 0,
+                        'jobs': []
+                    }
+                
+                hr_dict[hid]['job_count'] += 1
+                if job.status in ['closed', 'filled', 'cancelled']:
+                    hr_dict[hid]['closed_jobs'] += 1
+                else:
+                    hr_dict[hid]['active_jobs'] += 1
+                hr_dict[hid]['jobs'].append(job_detail)
+
+            # 2. Process Consultancies (Both primary and M2M)
+            conss = []
+            if job.assigned_to_consultancy:
+                conss.append(job.assigned_to_consultancy)
+            for m2m_cons in job.assigned_consultancies.all():
+                if job.assigned_to_consultancy and m2m_cons.id == job.assigned_to_consultancy.id:
+                    continue
+                conss.append(m2m_cons)
+            
+            for cons in conss:
+                cid = str(cons.id)
+                if target_user_id and cid != str(target_user_id):
+                    continue
+
+                if cid not in cons_dict:
+                    cons_dict[cid] = {
+                        'consultancy_id': cid,
+                        'consultancy_name': cons.name or cons.email or 'Unknown',
+                        'job_count': 0,
+                        'active_jobs': 0,
+                        'closed_jobs': 0,
+                        'jobs': []
+                    }
+                
+                cons_dict[cid]['job_count'] += 1
+                if job.status in ['closed', 'filled', 'cancelled']:
+                    cons_dict[cid]['closed_jobs'] += 1
+                else:
+                    cons_dict[cid]['active_jobs'] += 1
+                cons_dict[cid]['jobs'].append(job_detail)
+
+        if user_role != 'consultancy':
+            section2['jobs_by_hr'] = sorted(list(hr_dict.values()), key=lambda x: x['hr_name'])
+        section2['jobs_by_consultancy'] = sorted(list(cons_dict.values()), key=lambda x: x['consultancy_name'])
+        
         return section2
 
     def calc_cv_resume_source_analytics(self, app_qs, platform_app_qs):
@@ -617,6 +692,8 @@ class BaseAnalyticsView(APIView):
         offer_rejected_c = app_qs.filter(status__in=offer_rejected_statuses).count()
         section4['offer_acceptance_rate'] = round((offer_accepted_c / offer_sent_c * 100), 2) if offer_sent_c else 0
         section4['offer_rejection_rate'] = round((offer_rejected_c / offer_sent_c * 100), 2) if offer_sent_c else 0
+        section4['candidate_experience'] = calc_candidate_experience(app_qs)
+        section4['recruiter_productivity'] = calc_recruiter_productivity(app_qs)
         return section4
 
     def calc_interview_round_time_analytics(self, app_qs, date_filter, company):
@@ -649,37 +726,46 @@ class BaseAnalyticsView(APIView):
                 delta = (fbs[i]['completed_at'] - fbs[i-1]['completed_at']).total_seconds() / 3600
                 between_deltas[(prev, curr)].append(delta)
 
-        # Define standard round order
+        # Define standard round order with actual DB values
         ordered_rounds = [
-            'HR Round', 'Technical Round', 'Case Study Round',
-            'Final Round', 'Management / Client Round'
+            'hr_round', 'technical_round', 'case_study_round',
+            'final_round', 'management_client_round'
         ]
+        
+        round_display = {
+            'hr_round': 'HR Round',
+            'technical_round': 'Technical Round',
+            'case_study_round': 'Case Study Round',
+            'final_round': 'Final Round',
+            'management_client_round': 'Management / Client Round'
+        }
+
         # Compute avgs for consecutive pairs, default to 0 if no data
         avg_between = []
         for i in range(len(ordered_rounds) - 1):
             from_round = ordered_rounds[i]
             to_round = ordered_rounds[i + 1]
             deltas = between_deltas.get((from_round, to_round), [])
-            avg_h = round(statistics.mean(deltas), 2) if deltas else 0.0
+            avg_h = round(sum(deltas) / len(deltas), 2) if deltas else 0.0
             num = len(deltas)
             avg_between.append({
-                'from_round': from_round,
-                'to_round': to_round,
+                'from_round': round_display.get(from_round, from_round),
+                'to_round': round_display.get(to_round, to_round),
                 'avg_hours': avg_h,
                 'num_applications': num
             })
 
         # Additional observed transitions, e.g., Technical to Final (skipping Case Study)
         extra_pairs = [
-            ('Technical Round', 'Final Round'),
+            ('technical_round', 'final_round'),
         ]
         for from_round, to_round in extra_pairs:
             deltas = between_deltas.get((from_round, to_round), [])
-            avg_h = round(statistics.mean(deltas), 2) if deltas else 0.0
+            avg_h = round(sum(deltas) / len(deltas), 2) if deltas else 0.0
             num = len(deltas)
             avg_between.append({
-                'from_round': from_round,
-                'to_round': to_round,
+                'from_round': round_display.get(from_round, from_round),
+                'to_round': round_display.get(to_round, to_round),
                 'avg_hours': avg_h,
                 'num_applications': num
             })
@@ -696,6 +782,7 @@ class BaseAnalyticsView(APIView):
         completion_rates = []
         for r in round_stats:
             round_type = r['interview_round'] or 'Unknown'
+            display_round = round_display.get(round_type, round_type)
             completed = r['completed']
             passed = r['passed']
             rejected = completed - passed
@@ -770,14 +857,91 @@ class BaseAnalyticsView(APIView):
         return section6
 
     def calc_document_offer_process_timeline(self, app_qs):
+        from onboarding.models import JobApplicationDocument, ApprovalNote, SalaryAnnexure, OfferDocument
+        from collections import defaultdict
+        
         section7 = {}
-        section7['avg_time_document_request_to_upload_hours'] = 24.0
-        section7['avg_time_document_upload_to_approval_hours'] = 48.0
-        section7['avg_time_approval_to_salary_annexure_hours'] = 12.0
-        section7['avg_time_salary_annexure_to_approval_hours'] = 24.0
-        section7['avg_time_to_offer_letter_creation_hours'] = 36.0
-        section7['avg_time_offer_letter_to_approval_hours'] = 18.0
-        section7['avg_time_offer_letter_sent_to_response_hours'] = 72.0
+        
+        app_ids = list(app_qs.values_list('id', flat=True)[:5000])  # limit to prevent massive memory usage
+        
+        jads = list(JobApplicationDocument.objects.filter(job_application_id__in=app_ids).values('job_application_id', 'joining_docs_status', 'created_at', 'updated_at'))
+        notes = list(ApprovalNote.objects.filter(candidate_id__in=app_ids, status='approved', approved_at__isnull=False).values('candidate_id', 'approved_at'))
+        annexures = list(SalaryAnnexure.objects.filter(job_application_id__in=app_ids).values('job_application_id', 'created_at', 'updated_at', 'status'))
+        offers = list(OfferDocument.objects.filter(application_id__in=app_ids).values('application_id', 'created_at', 'sent_at', 'completed_at', 'status', 'updated_at'))
+        
+        apps_data = defaultdict(dict)
+        for j in jads:
+            apps_data[j['job_application_id']]['jad'] = j
+        for n in notes:
+            apps_data[n['candidate_id']]['note'] = n
+        for a in annexures:
+            apps_data[a['job_application_id']]['annexure'] = a
+        for o in offers:
+            apps_data[o['application_id']]['offer'] = o
+            
+        req_to_up_hours = []
+        up_to_appr_hours = []
+        appr_to_sal_hours = []
+        sal_to_appr_hours = []
+        offer_create_hours = []
+        offer_sent_to_resp_hours = []
+        offer_internal_appr = []
+
+        for app_id, data in apps_data.items():
+            jad = data.get('jad')
+            note = data.get('note')
+            annex = data.get('annexure')
+            offer = data.get('offer')
+            
+            if jad:
+                td = (jad['updated_at'] - jad['created_at']).total_seconds() / 3600
+                if td >= 0:
+                    if jad['joining_docs_status'] == 'uploaded':
+                        req_to_up_hours.append(td)
+                    elif jad['joining_docs_status'] in ['approved', 'review_docs']:
+                        req_to_up_hours.append(td / 2)
+                        up_to_appr_hours.append(td / 2)
+
+            if note and annex:
+                td = (annex['created_at'] - note['approved_at']).total_seconds() / 3600
+                if td >= 0:
+                    appr_to_sal_hours.append(td)
+            
+            if annex and annex['status'] == 'approved':
+                td = (annex['updated_at'] - annex['created_at']).total_seconds() / 3600
+                if td >= 0:
+                    sal_to_appr_hours.append(td)
+
+            if annex and offer:
+                td = (offer['created_at'] - annex['updated_at']).total_seconds() / 3600
+                if td >= 0:
+                    offer_create_hours.append(td)
+
+            if offer:
+                start = offer.get('created_at')
+                sent = offer.get('sent_at')
+                comp = offer.get('completed_at') or offer.get('updated_at')
+                
+                if sent and start:
+                    td = (sent - start).total_seconds() / 3600
+                    if td >= 0:
+                        offer_internal_appr.append(td)
+                        
+                if offer['status'] in ['completed', 'signed', 'declined'] and sent and comp:
+                    td = (comp - sent).total_seconds() / 3600
+                    if td >= 0:
+                        offer_sent_to_resp_hours.append(td)
+
+        def avg_h(lst):
+            return round(sum(lst) / len(lst), 2) if lst else 0.0
+
+        section7['avg_time_document_request_to_upload_hours'] = avg_h(req_to_up_hours)
+        section7['avg_time_document_upload_to_approval_hours'] = avg_h(up_to_appr_hours)
+        section7['avg_time_approval_to_salary_annexure_hours'] = avg_h(appr_to_sal_hours)
+        section7['avg_time_salary_annexure_to_approval_hours'] = avg_h(sal_to_appr_hours)
+        section7['avg_time_to_offer_letter_creation_hours'] = avg_h(offer_create_hours)
+        section7['avg_time_offer_letter_to_approval_hours'] = avg_h(offer_internal_appr)
+        section7['avg_time_offer_letter_sent_to_response_hours'] = avg_h(offer_sent_to_resp_hours)
 
         joined_apps = app_qs.filter(status='joined')
         durations_days = []
@@ -786,7 +950,18 @@ class BaseAnalyticsView(APIView):
                 days = (app.updated_at - app.job.mrf.created_at).total_seconds() / 86400
                 durations_days.append(days)
         section7['full_pipeline_avg_days'] = round(sum(durations_days) / len(durations_days), 2) if durations_days else 0
-        section7['bottleneck_stage'] = {'stage_name': 'Document Upload to Approval', 'avg_hours': 48.0}
+        
+        stages = [
+            ('Document Request to Upload', section7['avg_time_document_request_to_upload_hours']),
+            ('Document Upload to Approval', section7['avg_time_document_upload_to_approval_hours']),
+            ('Approval to Salary Annexure', section7['avg_time_approval_to_salary_annexure_hours']),
+            ('Salary Annexure to Approval', section7['avg_time_salary_annexure_to_approval_hours']),
+            ('Offer Letter Creation', section7['avg_time_to_offer_letter_creation_hours']),
+            ('Offer Letter Approval/Sent', section7['avg_time_offer_letter_to_approval_hours']),
+            ('Offer Sent to Response', section7['avg_time_offer_letter_sent_to_response_hours']),
+        ]
+        bottleneck = max(stages, key=lambda x: x[1]) if any(s[1] > 0 for s in stages) else ('None', 0.0)
+        section7['bottleneck_stage'] = {'stage_name': bottleneck[0], 'avg_hours': bottleneck[1]}
         return section7
 
     def calc_overall_summary_kpis(self, mrf_qs, job_qs, app_qs, platform_app_qs, company):
@@ -872,7 +1047,8 @@ class BaseAnalyticsView(APIView):
         if 'mrf_analytics' in requested_sections:
             data['mrf_analytics'] = self.calc_mrf_analytics(mrf_qs)
         if 'job_assignment_analytics' in requested_sections:
-            data['job_assignment_analytics'] = self.calc_job_assignment_analytics(job_qs)
+            target_user_id = ctx['target_user'].id if ctx.get('target_user') else None
+            data['job_assignment_analytics'] = self.calc_job_assignment_analytics(job_qs, request.user.role, target_user_id)
         if 'cv_resume_source_analytics' in requested_sections:
             data['cv_resume_source_analytics'] = self.calc_cv_resume_source_analytics(app_qs, platform_app_qs)
         if 'candidate_pipeline_funnel' in requested_sections:
@@ -914,7 +1090,7 @@ class HRAnalyticsAPIView(BaseAnalyticsView):
         return mrf_q, job_q, app_q
 
     def get_sections(self):
-        return ['cv_resume_source_analytics', 'candidate_pipeline_funnel', 'interview_round_time_analytics', 'overall_summary_kpis']
+        return ['cv_resume_source_analytics', 'candidate_pipeline_funnel', 'interview_round_time_analytics', 'overall_summary_kpis','job_assignment_analytics']
 
 class DeptHeadAnalyticsAPIView(BaseAnalyticsView):
     """Dept Head Focus: MRFs, Jobs, Pipeline, KPIs."""
@@ -935,7 +1111,7 @@ class ConsultancyAnalyticsAPIView(BaseAnalyticsView):
         return Q(id=None), job_q, app_q
 
     def get_sections(self):
-        return ['candidate_pipeline_funnel', 'overall_summary_kpis']
+        return ['candidate_pipeline_funnel', 'overall_summary_kpis', 'job_assignment_analytics']
 
 
 # Legacy / Redirect dispatcher
