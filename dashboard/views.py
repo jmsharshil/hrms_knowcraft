@@ -433,52 +433,87 @@ class BaseAnalyticsView(APIView):
             status_breakdown.setdefault(key, 0)
         section2['job_status_breakdown'] = status_breakdown
 
-        hr_stats = job_qs.filter(assigned_to_internal_hr__isnull=False).values(
-            hr_id=F('assigned_to_internal_hr__id'),
-            hr_name=F('assigned_to_internal_hr__name')
-        ).annotate(
-            job_count=Count('id', distinct=True),
-            active_jobs=Count('id', distinct=True, filter=Q(status__in=['open', 'assigned_to_internal_hr','jobs_assigned_to_both'])),
-            closed_jobs=Count('id', distinct=True, filter=Q(status__in=['closed', 'filled']))
-        ).order_by('hr_name')
-        
-        # In case we still get duplicates due to some edge cases, we will uniquely map them
         hr_dict = {}
-        for h in hr_stats:
-            hid = h['hr_id']
-            if hid not in hr_dict:
-                hr_dict[hid] = {
-                    'hr_id': hid,
-                    'hr_name': h['hr_name'] or 'Unknown', 
-                    'job_count': h['job_count'], 
-                    'active_jobs': h['active_jobs'], 
-                    'closed_jobs': h['closed_jobs']
-                }
-            else:
-                hr_dict[hid]['job_count'] += h['job_count']
-                hr_dict[hid]['active_jobs'] += h['active_jobs']
-                hr_dict[hid]['closed_jobs'] += h['closed_jobs']
-                
-        section2['jobs_by_hr'] = list(hr_dict.values())
-
-        cons_stats = job_qs.filter(assigned_to_consultancy__isnull=False).values(
-            consultancy_id=F('assigned_to_consultancy__id'),
-            consultancy_name=F('assigned_to_consultancy__name')
-        ).annotate(job_count=Count('id', distinct=True)).order_by('consultancy_name')
-        
         cons_dict = {}
-        for c in cons_stats:
-            cid = c['consultancy_id']
-            if cid not in cons_dict:
-                cons_dict[cid] = {
-                    'consultancy_id': cid,
-                    'consultancy_name': c['consultancy_name'] or 'Unknown', 
-                    'job_count': c['job_count']
-                }
-            else:
-                cons_dict[cid]['job_count'] += c['job_count']
+
+        # Efficiently fetch all assigned jobs with necessary relations
+        jobs_with_details = job_qs.select_related(
+            'assigned_to_internal_hr', 
+            'assigned_to_consultancy', 
+            'department'
+        ).prefetch_related(
+            'assigned_internal_hrs', 
+            'assigned_consultancies'
+        )
+
+        for job in jobs_with_details:
+            # 1. Process HRs (Both primary and M2M)
+            hrs = []
+            if job.assigned_to_internal_hr:
+                hrs.append(job.assigned_to_internal_hr)
+            for m2m_hr in job.assigned_internal_hrs.all():
+                if job.assigned_to_internal_hr and m2m_hr.id == job.assigned_to_internal_hr.id:
+                    continue
+                hrs.append(m2m_hr)
+            
+            job_detail = {
+                'id': str(job.id),
+                'job_title': job.job_title,
+                'status': job.status,
+                'department_name': job.department.name if job.department else 'N/A',
+                'no_of_positions': job.no_of_positions,
+                'positions_filled': job.positions_filled,
+                'created_at': job.created_at.isoformat() if job.created_at else None
+            }
+
+            for hr in hrs:
+                hid = str(hr.id)
+                if hid not in hr_dict:
+                    hr_dict[hid] = {
+                        'hr_id': hid,
+                        'hr_name': hr.name or hr.email or 'Unknown',
+                        'job_count': 0,
+                        'active_jobs': 0,
+                        'closed_jobs': 0,
+                        'jobs': []
+                    }
                 
-        section2['jobs_by_consultancy'] = list(cons_dict.values())
+                hr_dict[hid]['job_count'] += 1
+                if job.status in ['closed', 'filled', 'cancelled']:
+                    hr_dict[hid]['closed_jobs'] += 1
+                else:
+                    hr_dict[hid]['active_jobs'] += 1
+                hr_dict[hid]['jobs'].append(job_detail)
+
+            # 2. Process Consultancies (Both primary and M2M)
+            conss = []
+            if job.assigned_to_consultancy:
+                conss.append(job.assigned_to_consultancy)
+            for m2m_cons in job.assigned_consultancies.all():
+                if job.assigned_to_consultancy and m2m_cons.id == job.assigned_to_consultancy.id:
+                    continue
+                conss.append(m2m_cons)
+            
+            for cons in conss:
+                cid = str(cons.id)
+                if cid not in cons_dict:
+                    cons_dict[cid] = {
+                        'consultancy_id': cid,
+                        'consultancy_name': cons.name or cons.email or 'Unknown',
+                        'job_count': 0,
+                        'active_jobs': 0,
+                        'closed_jobs': 0
+                    }
+                
+                cons_dict[cid]['job_count'] += 1
+                if job.status in ['closed', 'filled', 'cancelled']:
+                    cons_dict[cid]['closed_jobs'] += 1
+                else:
+                    cons_dict[cid]['active_jobs'] += 1
+
+        section2['jobs_by_hr'] = sorted(list(hr_dict.values()), key=lambda x: x['hr_name'])
+        section2['jobs_by_consultancy'] = sorted(list(cons_dict.values()), key=lambda x: x['consultancy_name'])
+        
         return section2
 
     def calc_cv_resume_source_analytics(self, app_qs, platform_app_qs):

@@ -441,8 +441,7 @@ def send_to_zoho_sign(candidate, file_stream, filename,other_signers=[]):
                 "is_sequential": True,  # True → signers sign in order
                 "actions": actions
             }
-        }),
-        "is_quicksend": True
+        })
     }
 
 
