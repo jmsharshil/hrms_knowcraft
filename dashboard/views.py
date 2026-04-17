@@ -549,6 +549,19 @@ class BaseAnalyticsView(APIView):
         cvs_by_source.sort(key=lambda x: x['count'], reverse=True)
         section3['cvs_by_source'] = cvs_by_source[:10]
 
+        # Platform Sources Stats
+        platform_source_counts = {}
+        for s in platform_app_qs.values('source').annotate(count=Count('id')):
+            platform_source_counts[s['source']] = platform_source_counts.get(s['source'], 0) + s['count']
+
+        platform_cvs_by_source = []
+        for source, count in platform_source_counts.items():
+            percentage = round((count / pa_count * 100), 2) if pa_count else 0
+            platform_cvs_by_source.append({'source': source, 'count': count, 'percentage': percentage})
+
+        platform_cvs_by_source.sort(key=lambda x: x['count'], reverse=True)
+        section3['platform_cvs_by_source'] = platform_cvs_by_source[:10]
+
         # Deduplicated Job Stats (Unique Candidate Email per Job Title)
         # We merge counts for the same job title from both models
         job_counts = {}
