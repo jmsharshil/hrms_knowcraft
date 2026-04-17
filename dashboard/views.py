@@ -528,8 +528,10 @@ class BaseAnalyticsView(APIView):
 
     def calc_cv_resume_source_analytics(self, app_qs, platform_app_qs):
         section3 = {}
-        # Union-like total count of unique candidates across both models
-        total_cvs = app_qs.count()
+        # Union-like total count across both models
+        ja_count = app_qs.count()
+        pa_count = platform_app_qs.count()
+        total_cvs = ja_count + pa_count
         section3['total_cvs_received'] = total_cvs
 
         # Aggregated Source Stats
@@ -552,46 +554,49 @@ class BaseAnalyticsView(APIView):
         # Deduplicated Job Stats (Unique Candidate Email per Job Title)
         # We merge counts for the same job title from both models
         job_counts = {}
-        
-        # 1. JobApplication unique candidates per job title
-        ja_stats = app_qs.values('job__job_title').annotate(
-            unique_cvs=Count('candidate_email', distinct=True)
-        )
+        ja_stats = app_qs.values('job__job_title').annotate(unique_cvs=Count('candidate_email', distinct=True))
         for j in ja_stats:
             title = j['job__job_title'] or 'Unknown'
             job_counts[title] = job_counts.get(title, 0) + j['unique_cvs']
             
-        # 2. Application unique candidates per job title
-        pa_stats = platform_app_qs.values('job__job_title').annotate(
-            unique_cvs=Count('candidate_email', distinct=True)
-        )
+        pa_stats = platform_app_qs.values('job__job_title').annotate(unique_cvs=Count('candidate_email', distinct=True))
         for j in pa_stats:
             title = j['job__job_title'] or 'Unknown'
             job_counts[title] = job_counts.get(title, 0) + j['unique_cvs']
 
-        # Simplified output: only job_title and total_cvs
-        cvs_by_job_list = []
-        for title, count in job_counts.items():
-            cvs_by_job_list.append({'job_title': title, 'total_cvs': count})
-        
-        # Sort by total_cvs desc and limit to top 10
+        cvs_by_job_list = [{'job_title': title, 'total_cvs': count} for title, count in job_counts.items()]
         cvs_by_job_list.sort(key=lambda x: x['total_cvs'], reverse=True)
         section3['cvs_by_job'] = cvs_by_job_list[:10]
 
-        month_stats = app_qs.annotate(month=TruncMonth('created_at')).values('month').annotate(count=Count('id')).order_by('month')
+        # Monthly Matrix Breakdown (Combined)
+        months_ja = app_qs.annotate(month=TruncMonth('created_at')).values_list('month', flat=True).distinct()
+        months_pa = platform_app_qs.annotate(month=TruncMonth('created_at')).values_list('month', flat=True).distinct()
+        all_months = sorted(list(set(filter(None, list(months_ja) + list(months_pa)))))
+
         cvs_by_month = []
-        for m in month_stats:
-            month_filter = Q(created_at__month=m['month'].month, created_at__year=m['month'].year)
-            month_cvs = app_qs.filter(month_filter)
-            source_break = dict(month_cvs.values('source').annotate(c=Count('id')))
-            cvs_by_month.append({'month': m['month'].strftime('%Y-%m'), 'count': m['count'], 'source_breakdown': source_break})
+        for m_date in all_months:
+            m_ja = app_qs.filter(created_at__month=m_date.month, created_at__year=m_date.year)
+            m_pa = platform_app_qs.filter(created_at__month=m_date.month, created_at__year=m_date.year)
+            
+            m_count = m_ja.count() + m_pa.count()
+            source_break = {}
+            for s in m_ja.values('source').annotate(c=Count('id')):
+                source_break[s['source']] = source_break.get(s['source'], 0) + s['c']
+            for s in m_pa.values('source').annotate(c=Count('id')):
+                source_break[s['source']] = source_break.get(s['source'], 0) + s['c']
+                
+            cvs_by_month.append({
+                'month': m_date.strftime('%Y-%m'),
+                'count': m_count,
+                'source_breakdown': source_break
+            })
         section3['cvs_by_month'] = cvs_by_month
 
-        dups = app_qs.filter(is_duplicate=True).count()
+        dups = app_qs.filter(is_duplicate=True).count() + platform_app_qs.filter(is_duplicate=True).count()
         section3['duplicate_cvs_count'] = dups
         section3['duplicate_cvs_percentage'] = round((dups / total_cvs * 100), 2) if total_cvs else 0
 
-        untouched = app_qs.filter(status='received').count()
+        untouched = app_qs.filter(status='received').count() + platform_app_qs.filter(is_rejected=False).count()
         section3['untouched_cvs_count'] = untouched
         subquery = Job.objects.filter(
             job_title=OuterRef('job__job_title'),
@@ -630,8 +635,13 @@ class BaseAnalyticsView(APIView):
         section3['interview_no_show_reschedule'] = calc_interview_no_show_reschedule(app_qs)
         return section3
 
-    def calc_candidate_pipeline_funnel(self, app_qs):
+    def calc_candidate_pipeline_funnel(self, app_qs, target_user=None, interviewer_names=None):
         section4 = {}
+        
+        # If filtering by interviewer, narrow down candidates experience to those they actually touched
+        experience_app_qs = app_qs
+        if interviewer_names:
+            experience_app_qs = app_qs.filter(interview_feedbacks__interviewer_name__in=interviewer_names).distinct()
         total_cvs = app_qs.count()
         # statuses in order of progression
         # Define base lists of subsequent statuses for each stage to ensure cumulative logic is robust
@@ -692,11 +702,11 @@ class BaseAnalyticsView(APIView):
         offer_rejected_c = app_qs.filter(status__in=offer_rejected_statuses).count()
         section4['offer_acceptance_rate'] = round((offer_accepted_c / offer_sent_c * 100), 2) if offer_sent_c else 0
         section4['offer_rejection_rate'] = round((offer_rejected_c / offer_sent_c * 100), 2) if offer_sent_c else 0
-        section4['candidate_experience'] = calc_candidate_experience(app_qs)
-        section4['recruiter_productivity'] = calc_recruiter_productivity(app_qs)
+        section4['candidate_experience'] = calc_candidate_experience(experience_app_qs)
+        section4['recruiter_productivity'] = calc_recruiter_productivity(app_qs, target_user.id if target_user else None)
         return section4
 
-    def calc_interview_round_time_analytics(self, app_qs, date_filter, company):
+    def calc_interview_round_time_analytics(self, app_qs, date_filter, company, interviewer_names=None):
         section5 = {}
         shortlisted = app_qs.filter(status='shortlisted')
         if shortlisted.exists():
@@ -706,7 +716,11 @@ class BaseAnalyticsView(APIView):
             section5['avg_time_to_shortlist_hours'] = 0
 
         # Dynamic average time between rounds with fixed sequence and defaults to 0
-        feedback_qs = InterviewFeedback.objects.filter(job_application__in=app_qs)
+        feedback_filter = Q(job_application__in=app_qs)
+        if interviewer_names:
+            feedback_filter &= Q(interviewer_name__in=interviewer_names)
+        
+        feedback_qs = InterviewFeedback.objects.filter(feedback_filter)
         feedbacks = list(feedback_qs.select_related('job_application').values('job_application_id', 'interview_round', 'created_at'))
         app_feedbacks = defaultdict(list)
         for fb in feedbacks:
@@ -809,10 +823,14 @@ class BaseAnalyticsView(APIView):
             section5['fastest_stage'] = {'stage_name': 'N/A', 'avg_hours': 0}
         return section5
 
-    def calc_approval_note_analytics(self, job_qs, date_filter):
+    def calc_approval_note_analytics(self, job_qs, date_filter, target_user=None):
         section6 = {}
         # Filter by related jobs but use ApprovalNote's own date for real-time tracking
-        approval_note_qs = ApprovalNote.objects.filter(candidate__job__in=job_qs)
+        note_filter = Q(candidate__job__in=job_qs)
+        if target_user:
+            note_filter &= Q(manager=target_user)
+            
+        approval_note_qs = ApprovalNote.objects.filter(note_filter)
         if date_filter:
             approval_note_qs = approval_note_qs.filter(date_filter)
         section6['total_approval_notes_sent'] = approval_note_qs.count()
@@ -1016,7 +1034,7 @@ class BaseAnalyticsView(APIView):
         return {
             "total_mrfs": mrf_qs.count(),
             "total_jobs": job_qs.count(),
-            "total_cvs": app_qs.count(),
+            "total_cvs": app_qs.count() + platform_app_qs.count(),
             "total_open_positions": sum((j.no_of_positions - j.positions_filled) for j in job_qs),
             "jobs_by_assignment": {
                 "hr_only": job_qs.filter(status='assigned_to_internal_hr', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=True).count(),
@@ -1030,8 +1048,16 @@ class BaseAnalyticsView(APIView):
         if err:
             return Response({"detail": err}, status=status.HTTP_400_BAD_REQUEST)
 
-        mrf_qs, job_qs, app_qs, platform_app_qs, company, date_filter = ctx["mrf_qs"], ctx["job_qs"], ctx["app_qs"], ctx["platform_app_qs"], ctx["company"], ctx["date_filter"]
+        mrf_qs, job_qs, app_qs, platform_app_qs, company, date_filter, target_user = ctx["mrf_qs"], ctx["job_qs"], ctx["app_qs"], ctx["platform_app_qs"], ctx["company"], ctx["date_filter"], ctx.get("target_user")
         allowed_sections = self.get_sections()
+
+        # Resolve Interviewer Names using Email for reliability
+        interviewer_names = []
+        if target_user:
+            from slots.models import Interviewer
+            interviewer_names = list(Interviewer.objects.filter(email=target_user.email).values_list('name', flat=True))
+            if target_user.name and target_user.name not in interviewer_names:
+                interviewer_names.append(target_user.name)
         
         # Determine which sections to return
         requested_sections = request.query_params.get('sections', '').split(',')
@@ -1052,11 +1078,11 @@ class BaseAnalyticsView(APIView):
         if 'cv_resume_source_analytics' in requested_sections:
             data['cv_resume_source_analytics'] = self.calc_cv_resume_source_analytics(app_qs, platform_app_qs)
         if 'candidate_pipeline_funnel' in requested_sections:
-            data['candidate_pipeline_funnel'] = self.calc_candidate_pipeline_funnel(app_qs)
+            data['candidate_pipeline_funnel'] = self.calc_candidate_pipeline_funnel(app_qs, target_user, interviewer_names)
         if 'interview_round_time_analytics' in requested_sections:
-            data['interview_round_time_analytics'] = self.calc_interview_round_time_analytics(app_qs, date_filter, company)
+            data['interview_round_time_analytics'] = self.calc_interview_round_time_analytics(app_qs, date_filter, company, interviewer_names)
         if 'approval_note_analytics' in requested_sections:
-            data['approval_note_analytics'] = self.calc_approval_note_analytics(job_qs, date_filter)
+            data['approval_note_analytics'] = self.calc_approval_note_analytics(job_qs, date_filter, target_user)
         if 'document_offer_process_timeline' in requested_sections:
             data['document_offer_process_timeline'] = self.calc_document_offer_process_timeline(app_qs)
         if 'overall_summary_kpis' in requested_sections:
