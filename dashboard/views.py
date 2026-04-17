@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from django.utils.dateparse import parse_date
+from dateutil import parser
 from django.utils import timezone
 from django.db.models import Count, Avg, Q, F, Sum, Case, When, IntegerField, FloatField, ExpressionWrapper, DurationField, OuterRef, Subquery
 from django.contrib.postgres.aggregates import ArrayAgg
@@ -38,6 +39,18 @@ from .utils import (
 )
 
 from accounts.serializers import UserSerializer
+
+def safe_parse_date(date_str):
+    """
+    Parses a date string into a date object using dateutil.parser.
+    Favors DD-MM-YYYY if ambiguous (dayfirst=True).
+    """
+    if not date_str:
+        return None
+    try:
+        return parser.parse(date_str, dayfirst=True).date()
+    except (ValueError, TypeError, OverflowError):
+        return None
 
 class IsDashboardUser:
     """Inline permission mixin – admin or hr_manager only."""
@@ -102,13 +115,13 @@ class DashboardAPIView(APIView):
             apps_qs = apps_qs.filter(job__department_id=department_id)
 
         if date_from:
-            d = parse_date(date_from)
+            d = safe_parse_date(date_from)
             if d:
                 apps_qs = apps_qs.filter(created_at__date__gte=d)
                 jobs_qs = jobs_qs.filter(created_at__date__gte=d)
 
         if date_to:
-            d = parse_date(date_to)
+            d = safe_parse_date(date_to)
             if d:
                 apps_qs = apps_qs.filter(created_at__date__lte=d)
                 jobs_qs = jobs_qs.filter(created_at__date__lte=d)
@@ -242,8 +255,8 @@ class BaseAnalyticsView(APIView):
         user_id = request.query_params.get('user_id')
         source_filter = request.query_params.get('source')
 
-        date_from = parse_date(date_from_str) if date_from_str else None
-        date_to = parse_date(date_to_str) if date_to_str else None
+        date_from = safe_parse_date(date_from_str)
+        date_to = safe_parse_date(date_to_str)
 
         # Date filter Q
         date_filter = Q()
