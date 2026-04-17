@@ -1034,7 +1034,7 @@ class BaseAnalyticsView(APIView):
         return {
             "total_mrfs": mrf_qs.count(),
             "total_jobs": job_qs.count(),
-            "total_cvs": app_qs.count() + platform_app_qs.count(),
+            "total_cvs": app_qs.count(),
             "total_open_positions": sum((j.no_of_positions - j.positions_filled) for j in job_qs),
             "jobs_by_assignment": {
                 "hr_only": job_qs.filter(status='assigned_to_internal_hr', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=True).count(),
