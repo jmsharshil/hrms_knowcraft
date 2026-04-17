@@ -3,6 +3,7 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .engine import automation_engine
+from django.db.models import Q
 from django.utils import timezone
 from onboarding.models import OfferDocument
 
@@ -319,11 +320,14 @@ def send_offer_letter_autofill(template_id, candidate):
     data = resp.json()
 
     request_id = data["requests"]["request_id"]
+    # Get the first document_id if available
+    document_ids = data["requests"].get("document_ids", [])
+    document_id = document_ids[0].get("document_id") if document_ids else None
 
     # ✅ Create OfferDocument
     OfferDocument.objects.create(
         application=candidate,
-        zoho_request_id=request_id,
+        zoho_document_id=document_id,
         status="sent",
         sent_at=timezone.now(),
         raw_response=data
@@ -343,12 +347,20 @@ def zoho_sign_webhook(request):
     request_id = request_data.get("request_id")
     document_status = request_data.get("request_status")
 
-    print("Zoho Event:", event_type, request_id, document_status)
+    # Access document_id from the first item in document_ids list if present
+    document_ids = request_data.get("document_ids", [])
+    document_id = document_ids[0].get("document_id") if document_ids else None
+
+    print(f"Zoho Event: {event_type} | Request: {request_id} | Document: {document_id} | Status: {document_status}")
 
     try:
-        doc = OfferDocument.objects.select_related("application").get(
-            zoho_request_id=request_id
-        )
+        # Prefer matching by document_id, fallback to request_id
+        if document_id:
+            doc = OfferDocument.objects.select_related("application").get(zoho_document_id=document_id)
+        
+        if not doc:
+            raise OfferDocument.DoesNotExist
+            
     except OfferDocument.DoesNotExist:
         return JsonResponse({"status": "not_found"})
 
@@ -454,11 +466,15 @@ def send_to_zoho_sign(candidate, file_stream, filename,other_signers=[]):
         data = response.json()
         print("data:",data)
         request_id = data["requests"]["request_id"]
+        document_ids = data["requests"].get("document_ids", [])
+        document_id = document_ids[0].get("document_id") if document_ids else None
+        
+        print("data:",data)
 
         # ✅ Create OfferDocument
         offer= OfferDocument.objects.create(
             application=candidate,
-            zoho_request_id=request_id,
+            zoho_document_id=document_id,
             status="sent",
             sent_at=timezone.now(),
             raw_response=data

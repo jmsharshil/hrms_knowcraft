@@ -464,7 +464,7 @@ class OfferDocument(models.Model):
     ]
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     application = models.ForeignKey(JobApplication, on_delete=models.CASCADE)
-    zoho_request_id = models.CharField(max_length=255)
+    zoho_document_id = models.CharField(max_length=255, null=True, blank=True)
     status = models.CharField(
         max_length=50,
         choices=STATUS_CHOICES,
