@@ -1,5 +1,14 @@
 from django.contrib import admin
-from .models import Job, JobAssignmentHistory, JobApplication, ReferralApplication
+from .models import Job, JobAssignmentHistory, JobApplication, ReferralApplication, Application
+
+@admin.register(Application)
+class ApplicationAdmin(admin.ModelAdmin):
+    list_display = [
+        'candidate_name', 'candidate_email', 'job', 'source', 'created_at'
+    ]
+    list_filter = ['source', 'created_at']
+    search_fields = ['candidate_name', 'candidate_email', 'candidate_phone', 'job__job_title']
+    readonly_fields = ['id', 'created_at', 'updated_at']
 
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):

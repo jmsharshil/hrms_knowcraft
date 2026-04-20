@@ -167,12 +167,14 @@ def calc_offer_to_join_ratio(apps_qs):
 # ──────────────────────────────────────────────────────────────
 # 4. INTERVIEW NO-SHOW & RESCHEDULE RATES
 # ──────────────────────────────────────────────────────────────
-def calc_interview_no_show_reschedule(apps_qs):
+def calc_interview_no_show_reschedule(apps_qs, total_count=None):
     agg = apps_qs.aggregate(
         total_no_shows=Sum('no_show_count'),
         total_reschedules=Sum('reschedule_count'),
     )
-    interview_apps = apps_qs.exclude(
+    # If total_count is provided externally (e.g. from interview feedback totals), use it.
+    # Otherwise fallback to counting unique candidates in interview stages.
+    interview_apps = total_count if total_count is not None else apps_qs.exclude(
         status__in=['received', 'duplicate_rejected', 'shortlisted', 'rejected']
     ).count()
 
