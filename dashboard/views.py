@@ -1061,7 +1061,7 @@ class BaseAnalyticsView(APIView):
         allowed_sections = self.get_sections()
 
         # Resolve Interviewer Entities using Email via Booking table for reliability
-        interviewer_app_ids = []
+        interviewer_app_ids = None
         interviewer_names = []
         if target_user:
             from slots.models import Interviewer
@@ -1098,7 +1098,7 @@ class BaseAnalyticsView(APIView):
         fb_filter = Q(job_application__job__company=company)
         if date_from: fb_filter &= Q(created_at__date__gte=date_from)
         if date_to: fb_filter &= Q(created_at__date__lte=date_to)
-        if interviewer_app_ids: fb_filter &= Q(job_application_id__in=interviewer_app_ids)
+        if interviewer_app_ids is not None: fb_filter &= Q(job_application_id__in=interviewer_app_ids)
         total_completed_interviews = InterviewFeedback.objects.filter(fb_filter).count()
 
         if 'cv_resume_source_analytics' in requested_sections:
