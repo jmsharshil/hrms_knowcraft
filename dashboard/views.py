@@ -372,7 +372,9 @@ class BaseAnalyticsView(APIView):
             "company": company,
             "user": user,
             "target_user": target_user,
-            "date_filter": date_filter
+            "date_filter": date_filter,
+            "date_from": date_from,
+            "date_to": date_to
         }, None
 
     def get_role_filters(self, user):
@@ -659,13 +661,13 @@ class BaseAnalyticsView(APIView):
         section3['interview_no_show_reschedule'] = calc_interview_no_show_reschedule(app_qs)
         return section3
 
-    def calc_candidate_pipeline_funnel(self, app_qs, target_user=None, interviewer_names=None):
+    def calc_candidate_pipeline_funnel(self, app_qs, target_user=None, interviewer_app_ids=None):
         section4 = {}
         
         # If filtering by interviewer, narrow down candidates experience to those they actually touched
         experience_app_qs = app_qs
-        if interviewer_names:
-            experience_app_qs = app_qs.filter(interview_feedbacks__interviewer_name__in=interviewer_names).distinct()
+        if interviewer_app_ids:
+            experience_app_qs = app_qs.filter(id__in=interviewer_app_ids)
         total_cvs = app_qs.count()
         # statuses in order of progression
         # Define base lists of subsequent statuses for each stage to ensure cumulative logic is robust
@@ -730,8 +732,24 @@ class BaseAnalyticsView(APIView):
         section4['recruiter_productivity'] = calc_recruiter_productivity(app_qs, target_user.id if target_user else None)
         return section4
 
-    def calc_interview_round_time_analytics(self, app_qs, date_filter, company, interviewer_names=None):
+    def calc_interview_round_time_analytics(self, app_qs, date_range, company, interviewer_app_ids=None):
         section5 = {}
+        date_from, date_to = date_range
+        
+        # Build a base feedback filter that respects company and role constraints
+        # but uses its own date filtering for interviews
+        feedback_filter = Q(job_application__job__company=company)
+        
+        if date_from:
+            feedback_filter &= Q(created_at__date__gte=date_from)
+        if date_to:
+            feedback_filter &= Q(created_at__date__lte=date_to)
+
+        if interviewer_app_ids is not None:
+            feedback_filter &= Q(job_application_id__in=interviewer_app_ids)
+        
+        feedback_qs = InterviewFeedback.objects.filter(feedback_filter)
+        
         shortlisted = app_qs.filter(status='shortlisted')
         if shortlisted.exists():
             avg = shortlisted.aggregate(avg=Avg(F('updated_at') - F('created_at')))['avg']
@@ -739,12 +757,7 @@ class BaseAnalyticsView(APIView):
         else:
             section5['avg_time_to_shortlist_hours'] = 0
 
-        # Dynamic average time between rounds with fixed sequence and defaults to 0
-        feedback_filter = Q(job_application__in=app_qs)
-        if interviewer_names:
-            feedback_filter &= Q(interviewer_name__in=interviewer_names)
-        
-        feedback_qs = InterviewFeedback.objects.filter(feedback_filter)
+        # Dynamic average time between rounds
         feedbacks = list(feedback_qs.select_related('job_application').values('job_application_id', 'interview_round', 'created_at'))
         app_feedbacks = defaultdict(list)
         for fb in feedbacks:
@@ -752,7 +765,7 @@ class BaseAnalyticsView(APIView):
                 'round': fb['interview_round'] or 'Unknown',
                 'completed_at': fb['created_at']
             })
-        between_deltas = defaultdict(list)  # key: (from_round, to_round), value: list of hours
+        between_deltas = defaultdict(list)
         for app_id, fbs in app_feedbacks.items():
             if len(fbs) < 2:
                 continue
@@ -762,7 +775,8 @@ class BaseAnalyticsView(APIView):
                 prev = fbs[i-1]['round']
                 curr = fbs[i]['round']
                 delta = (fbs[i]['completed_at'] - fbs[i-1]['completed_at']).total_seconds() / 3600
-                between_deltas[(prev, curr)].append(delta)
+                if delta >= 0:
+                    between_deltas[(prev, curr)].append(delta)
 
         # Define standard round order with actual DB values
         ordered_rounds = [
@@ -778,35 +792,29 @@ class BaseAnalyticsView(APIView):
             'management_client_round': 'Management / Client Round'
         }
 
-        # Compute avgs for consecutive pairs, default to 0 if no data
         avg_between = []
         for i in range(len(ordered_rounds) - 1):
             from_round = ordered_rounds[i]
             to_round = ordered_rounds[i + 1]
             deltas = between_deltas.get((from_round, to_round), [])
             avg_h = round(sum(deltas) / len(deltas), 2) if deltas else 0.0
-            num = len(deltas)
             avg_between.append({
                 'from_round': round_display.get(from_round, from_round),
                 'to_round': round_display.get(to_round, to_round),
                 'avg_hours': avg_h,
-                'num_applications': num
+                'num_applications': len(deltas)
             })
 
-        # Additional observed transitions, e.g., Technical to Final (skipping Case Study)
-        extra_pairs = [
-            ('technical_round', 'final_round'),
-        ]
+        extra_pairs = [('technical_round', 'final_round')]
         for from_round, to_round in extra_pairs:
             deltas = between_deltas.get((from_round, to_round), [])
-            avg_h = round(sum(deltas) / len(deltas), 2) if deltas else 0.0
-            num = len(deltas)
-            avg_between.append({
-                'from_round': round_display.get(from_round, from_round),
-                'to_round': round_display.get(to_round, to_round),
-                'avg_hours': avg_h,
-                'num_applications': num
-            })
+            if deltas:
+                avg_between.append({
+                    'from_round': round_display.get(from_round, from_round),
+                    'to_round': round_display.get(to_round, to_round),
+                    'avg_hours': round(sum(deltas) / len(deltas), 2),
+                    'num_applications': len(deltas)
+                })
 
         # Sort by from_round then to_round for consistent ordering
         avg_between.sort(key=lambda x: (x['from_round'], x['to_round']))
@@ -820,20 +828,18 @@ class BaseAnalyticsView(APIView):
         completion_rates = []
         for r in round_stats:
             round_type = r['interview_round'] or 'Unknown'
-            display_round = round_display.get(round_type, round_type)
             completed = r['completed']
             passed = r['passed']
-            rejected = completed - passed
-            pass_rate = (passed / completed * 100) if completed else 0
             completion_rates.append({
-                'round_type': round_type,
+                'round_type': round_display.get(round_type, round_type),
                 'completed': completed,
                 'passed': passed,
-                'rejected': rejected,
-                'pass_rate_percentage': round(pass_rate, 2)
+                'rejected': completed - passed,
+                'pass_rate_percentage': round(passed / completed * 100, 2) if completed else 0
             })
         section5['round_completion_rate'] = completion_rates
 
+        # Stage turnaround times
         stage_times_wrapper = calc_stage_turnaround_time(app_qs)
         stage_times = stage_times_wrapper.get('stages', [])
         avg_times = [{'stage': st['stage_display'], 'avg_hours': round(st['avg_days_in_stage'] * 24, 2)} for st in stage_times]
@@ -843,8 +849,7 @@ class BaseAnalyticsView(APIView):
             section5['slowest_stage'] = {'stage_name': slowest['stage'], 'avg_hours': slowest['avg_hours']}
             section5['fastest_stage'] = {'stage_name': fastest['stage'], 'avg_hours': fastest['avg_hours']}
         else:
-            section5['slowest_stage'] = {'stage_name': 'N/A', 'avg_hours': 0}
-            section5['fastest_stage'] = {'stage_name': 'N/A', 'avg_hours': 0}
+            section5['slowest_stage'] = {'stage_name': 'N/A', 'avg_hours': 0}; section5['fastest_stage'] = {'stage_name': 'N/A', 'avg_hours': 0}
         return section5
 
     def calc_approval_note_analytics(self, job_qs, date_filter, target_user=None):
@@ -898,115 +903,84 @@ class BaseAnalyticsView(APIView):
         section6['approval_notes_by_approver'] = by_approver
         return section6
 
-    def calc_document_offer_process_timeline(self, app_qs):
+    def calc_document_offer_process_timeline(self, app_qs, date_range=None, company=None):
         from onboarding.models import JobApplicationDocument, ApprovalNote, SalaryAnnexure, OfferDocument
         from collections import defaultdict
         
         section7 = {}
+        date_from, date_to = date_range if date_range else (None, None)
         
-        app_ids = list(app_qs.values_list('id', flat=True)[:5000])  # limit to prevent massive memory usage
+        app_ids = list(app_qs.values_list('id', flat=True)[:5000])
+
+        # Filter OfferDocuments by their own creation date to respect the time period
+        offer_filter = Q(application_id__in=app_ids)
+        if date_from:
+            offer_filter &= Q(created_at__date__gte=date_from)
+        if date_to:
+            offer_filter &= Q(created_at__date__lte=date_to)
+
+        offers = list(OfferDocument.objects.filter(offer_filter).values('application_id', 'created_at', 'sent_at', 'completed_at', 'status', 'updated_at'))
         
+        # Other documents still linked to the apps
         jads = list(JobApplicationDocument.objects.filter(job_application_id__in=app_ids).values('job_application_id', 'joining_docs_status', 'created_at', 'updated_at'))
         notes = list(ApprovalNote.objects.filter(candidate_id__in=app_ids, status='approved', approved_at__isnull=False).values('candidate_id', 'approved_at'))
         annexures = list(SalaryAnnexure.objects.filter(job_application_id__in=app_ids).values('job_application_id', 'created_at', 'updated_at', 'status'))
-        offers = list(OfferDocument.objects.filter(application_id__in=app_ids).values('application_id', 'created_at', 'sent_at', 'completed_at', 'status', 'updated_at'))
         
         apps_data = defaultdict(dict)
-        for j in jads:
-            apps_data[j['job_application_id']]['jad'] = j
-        for n in notes:
-            apps_data[n['candidate_id']]['note'] = n
-        for a in annexures:
-            apps_data[a['job_application_id']]['annexure'] = a
-        for o in offers:
-            apps_data[o['application_id']]['offer'] = o
+        for j in jads: apps_data[j['job_application_id']]['jad'] = j
+        for n in notes: apps_data[n['candidate_id']]['note'] = n
+        for a in annexures: apps_data[a['job_application_id']]['annexure'] = a
+        for o in offers: apps_data[o['application_id']]['offer'] = o
             
-        req_to_up_hours = []
-        up_to_appr_hours = []
-        appr_to_sal_hours = []
-        sal_to_appr_hours = []
-        offer_create_hours = []
-        offer_sent_to_resp_hours = []
-        offer_internal_appr = []
+        req_to_up_hours, up_to_appr_hours, appr_to_sal_hours, sal_to_appr_hours, offer_create_hours, offer_sent_to_resp_hours, offer_internal_appr = [], [], [], [], [], [], []
 
         for app_id, data in apps_data.items():
-            jad = data.get('jad')
-            note = data.get('note')
-            annex = data.get('annexure')
-            offer = data.get('offer')
-            
+            jad, note, annex, offer = data.get('jad'), data.get('note'), data.get('annexure'), data.get('offer')
             if jad:
                 td = (jad['updated_at'] - jad['created_at']).total_seconds() / 3600
                 if td >= 0:
-                    if jad['joining_docs_status'] == 'uploaded':
-                        req_to_up_hours.append(td)
+                    if jad['joining_docs_status'] == 'uploaded': req_to_up_hours.append(td)
                     elif jad['joining_docs_status'] in ['approved', 'review_docs']:
-                        req_to_up_hours.append(td / 2)
-                        up_to_appr_hours.append(td / 2)
-
+                        req_to_up_hours.append(td/2); up_to_appr_hours.append(td/2)
             if note and annex:
                 td = (annex['created_at'] - note['approved_at']).total_seconds() / 3600
-                if td >= 0:
-                    appr_to_sal_hours.append(td)
-            
+                if td >= 0: appr_to_sal_hours.append(td)
             if annex and annex['status'] == 'approved':
                 td = (annex['updated_at'] - annex['created_at']).total_seconds() / 3600
-                if td >= 0:
-                    sal_to_appr_hours.append(td)
-
+                if td >= 0: sal_to_appr_hours.append(td)
             if annex and offer:
                 td = (offer['created_at'] - annex['updated_at']).total_seconds() / 3600
-                if td >= 0:
-                    offer_create_hours.append(td)
-
+                if td >= 0: offer_create_hours.append(td)
             if offer:
-                start = offer.get('created_at')
-                sent = offer.get('sent_at')
-                comp = offer.get('completed_at') or offer.get('updated_at')
-                
+                start, sent, comp = offer.get('created_at'), offer.get('sent_at'), offer.get('completed_at') or offer.get('updated_at')
                 if sent and start:
                     td = (sent - start).total_seconds() / 3600
-                    if td >= 0:
-                        offer_internal_appr.append(td)
-                        
+                    if td >= 0: offer_internal_appr.append(td)
                 if offer['status'] in ['completed', 'signed', 'declined'] and sent and comp:
                     td = (comp - sent).total_seconds() / 3600
-                    if td >= 0:
-                        offer_sent_to_resp_hours.append(td)
+                    if td >= 0: offer_sent_to_resp_hours.append(td)
 
-        def avg_h(lst):
-            return round(sum(lst) / len(lst), 2) if lst else 0.0
-
-        section7['avg_time_document_request_to_upload_hours'] = avg_h(req_to_up_hours)
-        section7['avg_time_document_upload_to_approval_hours'] = avg_h(up_to_appr_hours)
-        section7['avg_time_approval_to_salary_annexure_hours'] = avg_h(appr_to_sal_hours)
-        section7['avg_time_salary_annexure_to_approval_hours'] = avg_h(sal_to_appr_hours)
-        section7['avg_time_to_offer_letter_creation_hours'] = avg_h(offer_create_hours)
-        section7['avg_time_offer_letter_to_approval_hours'] = avg_h(offer_internal_appr)
-        section7['avg_time_offer_letter_sent_to_response_hours'] = avg_h(offer_sent_to_resp_hours)
+        def avg_h(lst): return round(sum(lst) / len(lst), 2) if lst else 0.0
+        section7.update({
+            'avg_time_document_request_to_upload_hours': avg_h(req_to_up_hours),
+            'avg_time_document_upload_to_approval_hours': avg_h(up_to_appr_hours),
+            'avg_time_approval_to_salary_annexure_hours': avg_h(appr_to_sal_hours),
+            'avg_time_salary_annexure_to_approval_hours': avg_h(sal_to_appr_hours),
+            'avg_time_to_offer_letter_creation_hours': avg_h(offer_create_hours),
+            'avg_time_offer_letter_to_approval_hours': avg_h(offer_internal_appr),
+            'avg_time_offer_letter_sent_to_response_hours': avg_h(offer_sent_to_resp_hours)
+        })
 
         joined_apps = app_qs.filter(status='joined')
-        durations_days = []
-        for app in joined_apps:
-            if app.job and app.job.mrf and app.job.mrf.created_at and app.updated_at:
-                days = (app.updated_at - app.job.mrf.created_at).total_seconds() / 86400
-                durations_days.append(days)
+        durations_days = [(app.updated_at - app.job.mrf.created_at).total_seconds() / 86400 for app in joined_apps if app.job and app.job.mrf and app.job.mrf.created_at and app.updated_at]
         section7['full_pipeline_avg_days'] = round(sum(durations_days) / len(durations_days), 2) if durations_days else 0
         
-        stages = [
-            ('Document Request to Upload', section7['avg_time_document_request_to_upload_hours']),
-            ('Document Upload to Approval', section7['avg_time_document_upload_to_approval_hours']),
-            ('Approval to Salary Annexure', section7['avg_time_approval_to_salary_annexure_hours']),
-            ('Salary Annexure to Approval', section7['avg_time_salary_annexure_to_approval_hours']),
-            ('Offer Letter Creation', section7['avg_time_to_offer_letter_creation_hours']),
-            ('Offer Letter Approval/Sent', section7['avg_time_offer_letter_to_approval_hours']),
-            ('Offer Sent to Response', section7['avg_time_offer_letter_sent_to_response_hours']),
-        ]
+        stages = [('Document Request to Upload', section7['avg_time_document_request_to_upload_hours']), ('Document Upload to Approval', section7['avg_time_document_upload_to_approval_hours']), ('Approval to Salary Annexure', section7['avg_time_approval_to_salary_annexure_hours']), ('Salary Annexure to Approval', section7['avg_time_salary_annexure_to_approval_hours']), ('Offer Letter Creation', section7['avg_time_to_offer_letter_creation_hours']), ('Offer Letter Approval/Sent', section7['avg_time_offer_letter_to_approval_hours']), ('Offer Sent to Response', section7['avg_time_offer_letter_sent_to_response_hours'])]
         bottleneck = max(stages, key=lambda x: x[1]) if any(s[1] > 0 for s in stages) else ('None', 0.0)
         section7['bottleneck_stage'] = {'stage_name': bottleneck[0], 'avg_hours': bottleneck[1]}
         return section7
 
-    def calc_overall_summary_kpis(self, mrf_qs, job_qs, app_qs, platform_app_qs, company):
+    def calc_overall_summary_kpis(self, mrf_qs, job_qs, app_qs, platform_app_qs, company, date_range=None):
         section8 = {}
         section8['total_candidates'] = app_qs.count() + platform_app_qs.count()
         section8['total_positions_filled'] = sum(j.positions_filled for j in job_qs)
@@ -1023,7 +997,7 @@ class BaseAnalyticsView(APIView):
         durations_hire = [(app.updated_at - app.created_at).total_seconds() / 86400 for app in joined_apps if app.updated_at and app.created_at]
         section8['avg_time_to_hire_days'] = round(sum(durations_hire) / len(durations_hire), 2) if durations_hire else 0
 
-        # Include platform_app_qs in top sourcing channel
+        # Source breakdown
         all_sources = {}
         for s in app_qs.values('source').annotate(c=Count('id')):
             all_sources[s['source']] = all_sources.get(s['source'], 0) + s['c']
@@ -1036,13 +1010,18 @@ class BaseAnalyticsView(APIView):
         else:
             section8['top_sourcing_channel'] = {'source': 'N/A', 'count': 0}
 
-        section8['active_jobs_count'] = job_qs.filter(is_active=True).count()
-        section8['active_consultancies_count'] = User.objects.filter(role='consultancy', company=company, is_active=True).filter(assigned_jobs__in=job_qs).distinct().count()
-        section8['active_internal_hrs_count'] = User.objects.filter(role__in=['hr', 'hr_manager'], company=company, is_active=True).filter(assigned_internal_jobs__in=job_qs).distinct().count()
+        # Active counts (ignores date filter to show live snapshot)
+        # Using company-wide querysets for these KPIs to avoid being affected by the date range selected
+        base_job_qs = Job.objects.filter(company=company)
+        section8['active_jobs_count'] = base_job_qs.filter(is_active=True).count()
+        section8['active_consultancies_count'] = User.objects.filter(role='consultancy', company=company, is_active=True).filter(assigned_jobs__in=base_job_qs).distinct().count()
+        section8['active_internal_hrs_count'] = User.objects.filter(role__in=['hr', 'hr_manager'], company=company, is_active=True).filter(assigned_internal_jobs__in=base_job_qs).distinct().count()
 
+        # Last 30 days metrics (Fixed: uses company-wide apps_qs instead of filtered app_qs)
         thirty_days_ago = timezone.now() - timedelta(days=30)
-        section8['cvs_last_30_days'] = app_qs.filter(created_at__gte=thirty_days_ago).count()
-        section8['offers_last_30_days'] = app_qs.filter(status='offer_sent', updated_at__gte=thirty_days_ago).count()
+        base_app_qs = JobApplication.objects.filter(job__company=company)
+        section8['cvs_last_30_days'] = base_app_qs.filter(created_at__gte=thirty_days_ago).count()
+        section8['offers_last_30_days'] = base_app_qs.filter(status='offer_sent', updated_at__gte=thirty_days_ago).count()
         return section8
 
     def get_sections(self):
@@ -1072,14 +1051,23 @@ class BaseAnalyticsView(APIView):
         if err:
             return Response({"detail": err}, status=status.HTTP_400_BAD_REQUEST)
 
-        mrf_qs, job_qs, broad_job_qs, app_qs, platform_app_qs, company, date_filter, target_user = ctx["mrf_qs"], ctx["job_qs"], ctx["broad_job_qs"], ctx["app_qs"], ctx["platform_app_qs"], ctx["company"], ctx["date_filter"], ctx.get("target_user")
+        mrf_qs, job_qs, broad_job_qs, app_qs, platform_app_qs, company, date_filter, target_user, date_from, date_to = ctx["mrf_qs"], ctx["job_qs"], ctx["broad_job_qs"], ctx["app_qs"], ctx["platform_app_qs"], ctx["company"], ctx["date_filter"], ctx.get("target_user"), ctx.get("date_from"), ctx.get("date_to")
         allowed_sections = self.get_sections()
 
-        # Resolve Interviewer Names using Email for reliability
+        # Resolve Interviewer Entities using Email via Booking table for reliability
+        interviewer_app_ids = []
         interviewer_names = []
         if target_user:
             from slots.models import Interviewer
-            interviewer_names = list(Interviewer.objects.filter(email=target_user.email).values_list('name', flat=True))
+            from booking.models import Booking
+            interviewers = Interviewer.objects.filter(email=target_user.email)
+            interviewer_names = list(interviewers.values_list('name', flat=True))
+            
+            # Get all application IDs where this user was an interviewer or attendee
+            interviewer_app_ids = list(Booking.objects.filter(
+                Q(interviewer__in=interviewers) | Q(attendees__in=interviewers)
+            ).values_list('candidate_id', flat=True).distinct())
+
             if target_user.name and target_user.name not in interviewer_names:
                 interviewer_names.append(target_user.name)
         
@@ -1102,15 +1090,16 @@ class BaseAnalyticsView(APIView):
         if 'cv_resume_source_analytics' in requested_sections:
             data['cv_resume_source_analytics'] = self.calc_cv_resume_source_analytics(app_qs, platform_app_qs)
         if 'candidate_pipeline_funnel' in requested_sections:
-            data['candidate_pipeline_funnel'] = self.calc_candidate_pipeline_funnel(app_qs, target_user, interviewer_names)
+            data['candidate_pipeline_funnel'] = self.calc_candidate_pipeline_funnel(app_qs, target_user, interviewer_app_ids)
         if 'interview_round_time_analytics' in requested_sections:
-            data['interview_round_time_analytics'] = self.calc_interview_round_time_analytics(app_qs, date_filter, company, interviewer_names)
+            data['interview_round_time_analytics'] = self.calc_interview_round_time_analytics(app_qs, (date_from, date_to), company, interviewer_app_ids)
         if 'approval_note_analytics' in requested_sections:
             data['approval_note_analytics'] = self.calc_approval_note_analytics(broad_job_qs, date_filter, target_user)
         if 'document_offer_process_timeline' in requested_sections:
-            data['document_offer_process_timeline'] = self.calc_document_offer_process_timeline(app_qs)
+            # Pass company to filter OfferDocuments correctly
+            data['document_offer_process_timeline'] = self.calc_document_offer_process_timeline(app_qs, (date_from, date_to), company)
         if 'overall_summary_kpis' in requested_sections:
-            data['overall_summary_kpis'] = self.calc_overall_summary_kpis(mrf_qs, job_qs, app_qs, platform_app_qs, company)
+            data['overall_summary_kpis'] = self.calc_overall_summary_kpis(mrf_qs, job_qs, app_qs, platform_app_qs, company, (date_from, date_to))
 
         return Response(data, status=status.HTTP_200_OK)
 
