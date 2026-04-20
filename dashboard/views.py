@@ -341,7 +341,11 @@ class BaseAnalyticsView(APIView):
         app_qs = JobApplication.objects.filter(app_filter).distinct()
         
         # 6. Platform Application queryset (LinkedIn, Indeed, etc.)
-        platform_app_filter = Q(job__in=broad_job_qs) & date_filter
+        job_titles = list(broad_job_qs.values_list('job_title', flat=True))
+        platform_job_q = Q(job__in=broad_job_qs)
+        platform_orphan_q = Q(job__isnull=True, position_title__in=job_titles)
+        platform_app_filter = (platform_job_q | platform_orphan_q) & date_filter
+        
         if source_filter:
             platform_app_filter &= Q(source=source_filter)
         if user_id:
@@ -349,9 +353,9 @@ class BaseAnalyticsView(APIView):
                 platform_app_qs = Application.objects.none()
             else:
                 if target_user.role in ['hr', 'hr_manager', 'admin']:
-                    platform_app_filter &= (Q(job__assigned_to_internal_hr_id=user_id) | Q(job__assigned_internal_hrs__id=user_id) | Q(job__posted_by_id=user_id) | Q(job__closed_by_id=user_id))
+                    access_q = (Q(job__assigned_to_internal_hr_id=user_id) | Q(job__assigned_internal_hrs__id=user_id) | Q(job__posted_by_id=user_id) | Q(job__closed_by_id=user_id))
                 else:
-                    platform_app_filter &= (
+                    access_q = (
                         Q(job__assigned_to_consultancy_id=user_id) |
                         Q(job__assigned_consultancies__id=user_id) |
                         Q(job__assigned_to_internal_hr_id=user_id) |
@@ -359,6 +363,8 @@ class BaseAnalyticsView(APIView):
                         Q(job__posted_by_id=user_id) |
                         Q(job__closed_by_id=user_id)
                     )
+                # Allow orphans that matched name, or jobs the user has access to
+                platform_app_filter &= (access_q | platform_orphan_q)
                 platform_app_qs = Application.objects.filter(platform_app_filter).distinct()
         else:
             platform_app_qs = Application.objects.filter(platform_app_filter).distinct()
@@ -541,7 +547,7 @@ class BaseAnalyticsView(APIView):
         
         return section2
 
-    def calc_cv_resume_source_analytics(self, app_qs, platform_app_qs):
+    def calc_cv_resume_source_analytics(self, app_qs, platform_app_qs, total_interviews_override=None):
         section3 = {}
         # Union-like total count across both models
         ja_count = app_qs.count()
@@ -658,7 +664,7 @@ class BaseAnalyticsView(APIView):
 
         # Limit to top 10 (already ordered desc)
         section3['untouched_cvs_by_job'] = untouched_list
-        section3['interview_no_show_reschedule'] = calc_interview_no_show_reschedule(app_qs)
+        section3['interview_no_show_reschedule'] = calc_interview_no_show_reschedule(app_qs, total_interviews_override)
         return section3
 
     def calc_candidate_pipeline_funnel(self, app_qs, target_user=None, interviewer_app_ids=None):
@@ -1087,8 +1093,16 @@ class BaseAnalyticsView(APIView):
         if 'job_assignment_analytics' in requested_sections:
             target_user_id = ctx['target_user'].id if ctx.get('target_user') else None
             data['job_assignment_analytics'] = self.calc_job_assignment_analytics(job_qs, request.user.role, target_user_id)
+        # Calculate Total Completed Rounds (synchronized with Section 5)
+        # Uses the same logic as calc_interview_round_time_analytics
+        fb_filter = Q(job_application__job__company=company)
+        if date_from: fb_filter &= Q(created_at__date__gte=date_from)
+        if date_to: fb_filter &= Q(created_at__date__lte=date_to)
+        if interviewer_app_ids: fb_filter &= Q(job_application_id__in=interviewer_app_ids)
+        total_completed_interviews = InterviewFeedback.objects.filter(fb_filter).count()
+
         if 'cv_resume_source_analytics' in requested_sections:
-            data['cv_resume_source_analytics'] = self.calc_cv_resume_source_analytics(app_qs, platform_app_qs)
+            data['cv_resume_source_analytics'] = self.calc_cv_resume_source_analytics(app_qs, platform_app_qs, total_completed_interviews)
         if 'candidate_pipeline_funnel' in requested_sections:
             data['candidate_pipeline_funnel'] = self.calc_candidate_pipeline_funnel(app_qs, target_user, interviewer_app_ids)
         if 'interview_round_time_analytics' in requested_sections:
