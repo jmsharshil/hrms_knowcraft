@@ -677,27 +677,79 @@ class BaseAnalyticsView(APIView):
         total_cvs = app_qs.count()
         # statuses in order of progression
         # Define base lists of subsequent statuses for each stage to ensure cumulative logic is robust
+        # Base terminal successes
         joined_st = ['joined']
-        offer_accepted_st = ['offer_accepted', 'joining_pending', 'joining_poned'] + joined_st
+        joining_pending_st = ['joining_pending', 'joining_poned'] + joined_st
+        docs_st = ['docs_pending', 'docs_uploaded', 'review_docs', 'docs_approved', 'docs_incomplete', 'docs_unclear'] + joining_pending_st
+        offer_accepted_st = ['offer_accepted'] + docs_st
         offer_sent_st = ['offer_sent', 'offer_rejected'] + offer_accepted_st
-        selected_st = ['selected', 'approval_pending', 'approved', 'approval_rejected', 'salary_annexure_prep', 'salary_annexure_review', 'approved_annexure', 'rejected_annexure', 'offer_pending'] + offer_sent_st
-        management_st = ['interview_next_management_client', 'interview_pending_management_client', 'interview_done_management_client', 'interview_rejected_management_client', 'consolidated_result_review'] + selected_st
-        final_st = ['interview_next_final', 'interview_pending_final', 'interview_done_final', 'interview_rejected_final'] + management_st
-        case_st = ['interview_next_3', 'interview_pending_3', 'interview_done_3', 'interview_rejected_3'] + final_st
-        tech_st = ['interview_next_2', 'interview_pending_2', 'interview_done_2', 'interview_rejected_2'] + case_st
-        hr_st = ['interview_pending_1', 'interview_done_1', 'interview_rejected_1'] + tech_st
-        shortlisted_st = ['shortlisted'] + hr_st
+        offer_prep_st = ['offer_pending'] + offer_sent_st
+        salary_st = ['salary_annexure_prep', 'salary_annexure_review', 'approved_annexure', 'rejected_annexure'] + offer_prep_st
+        approved_st = ['approved', 'approval_rejected'] + salary_st
+        approval_pending_st = ['approval_pending'] + approved_st
+        selected_st = ['selected'] + approval_pending_st
+        
+        # Management / Client Round
+        mgt_promoted_st = ['interview_next_management_client', 'consolidated_result_review'] + selected_st
+        mgt_completed_st = ['interview_done_management_client', 'interview_rejected_management_client'] + mgt_promoted_st
+        mgt_reached_st = ['interview_pending_management_client'] + mgt_completed_st
+
+        # Final Round
+        final_promoted_st = ['interview_next_final'] + mgt_reached_st
+        final_completed_st = ['interview_done_final', 'interview_rejected_final'] + final_promoted_st
+        final_reached_st = ['interview_pending_final'] + final_completed_st
+
+        # Case Study Round
+        case_promoted_st = ['interview_next_3'] + final_reached_st
+        case_completed_st = ['interview_done_3', 'interview_rejected_3'] + case_promoted_st
+        case_reached_st = ['interview_pending_3'] + case_completed_st
+
+        # Technical Round
+        tech_promoted_st = ['interview_next_2'] + case_reached_st
+        tech_completed_st = ['interview_done_2', 'interview_rejected_2'] + tech_promoted_st
+        tech_reached_st = ['interview_pending_2'] + tech_completed_st
+
+        # HR Round
+        hr_promoted_st = tech_reached_st
+        hr_completed_st = ['interview_done_1', 'interview_rejected_1'] + hr_promoted_st
+        hr_reached_st = ['interview_pending_1'] + hr_completed_st
+
+        # Top of Funnel
+        shortlisted_st = ['shortlisted'] + hr_reached_st
         received_st = ['received', 'duplicate_rejected', 'rejected'] + shortlisted_st
 
+        # Build Granular Funnel
         ordered_stages = [
             ('CVs Received', received_st),
             ('Shortlisted', shortlisted_st),
-            ('HR Round', hr_st),
-            ('Technical Round', tech_st),
-            ('Case Study', case_st),
-            ('Final Round', final_st),
-            ('Client/Management Round', management_st),
+            
+            ('Reached HR Round', hr_reached_st),
+            ('Completed HR Round', hr_completed_st),
+            ('Promoted to Tech Round', tech_reached_st),
+            ('Rejected at HR', ['interview_rejected_1']),
+            
+            ('Reached Technical Round', tech_reached_st),
+            ('Completed Technical Round', tech_completed_st),
+            ('Promoted to Case Study', case_reached_st),
+            ('Rejected at Tech', ['interview_rejected_2']),
+            
+            ('Reached Case Study Round', case_reached_st),
+            ('Completed Case Study Round', case_completed_st),
+            ('Promoted to Final Round', final_reached_st),
+            ('Rejected at Case Study', ['interview_rejected_3']),
+            
+            ('Reached Final Round', final_reached_st),
+            ('Completed Final Round', final_completed_st),
+            ('Promoted to Mgt/Client Round', mgt_reached_st),
+            ('Rejected at Final', ['interview_rejected_final']),
+            
+            ('Reached Mgt/Client Round', mgt_reached_st),
+            ('Completed Mgt/Client Round', mgt_completed_st),
             ('Selected', selected_st),
+            ('Rejected at Mgt/Client', ['interview_rejected_management_client']),
+            
+            ('Approval Pending', approval_pending_st),
+            ('Approved', approved_st),
             ('Offer Sent', offer_sent_st),
             ('Offer Accepted', offer_accepted_st),
             ('Joined', joined_st),
@@ -722,8 +774,11 @@ class BaseAnalyticsView(APIView):
 
         status_counts = app_qs.values('status').annotate(count=Count('id'))
         status_counts_dict = {item['status']: item['count'] for item in status_counts}
-        required_status = ['shortlisted', 'received', 'selected', 'rejected', 'offer_sent', 'offer_accepted', 'offer_declined', 'joined', 'approval_pending', 'approved', 'approval_rejected', 'joining_pending']
-        section4['candidates_by_status'] = {key: status_counts_dict.get(key, 0) for key in required_status}
+        
+        # Dynamically include all defined statuses from the model
+        from jobs.models import JobApplication
+        all_defined_statuses = [choice[0] for choice in JobApplication.STATUS_CHOICES]
+        section4['candidates_by_status'] = {key: status_counts_dict.get(key, 0) for key in all_defined_statuses}
 
         offer_sent_statuses = ['offer_sent', 'offer_accepted', 'offer_rejected', 'joined', 'joining_pending', 'joining_poned']
         offer_accepted_statuses = ['offer_accepted', 'joined','joining_pending', 'joining_poned']
@@ -839,7 +894,7 @@ class BaseAnalyticsView(APIView):
             completion_rates.append({
                 'round_type': round_display.get(round_type, round_type),
                 'completed': completed,
-                'passed': passed,
+                'shortlisted': passed,
                 'rejected': completed - passed,
                 'pass_rate_percentage': round(passed / completed * 100, 2) if completed else 0
             })
@@ -1001,7 +1056,7 @@ class BaseAnalyticsView(APIView):
 
         joined_apps = app_qs.filter(status='joined')
         durations_hire = [(app.updated_at - app.created_at).total_seconds() / 86400 for app in joined_apps if app.updated_at and app.created_at]
-        section8['avg_time_to_hire_days'] = round(sum(durations_hire) / len(durations_hire), 2) if durations_hire else 0
+        section8['tat_days'] = round(sum(durations_hire) / len(durations_hire), 2) if durations_hire else 0
 
         # Source breakdown
         all_sources = {}
