@@ -547,7 +547,10 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
             ]
 
             if link.job.status not in allowed_statuses:
-                raise serializers.ValidationError("This job is not accepting applications")
+                # relax check if the link was created by an internal HR user
+                creator = getattr(link, 'created_by', None)
+                if not (creator and getattr(creator, 'role', None) in ['hr', 'hr_manager', 'admin']):
+                    raise serializers.ValidationError("This job is not accepting applications.")
 
             self.context['application_link'] = link
 
