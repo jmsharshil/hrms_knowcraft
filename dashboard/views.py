@@ -721,6 +721,7 @@ class BaseAnalyticsView(APIView):
         # Build Granular Funnel
         ordered_stages = [
             ('CVs Received', received_st),
+            ('Duplicate Rejected', ['duplicate_rejected']),
             ('Shortlisted', shortlisted_st),
             
             ('Reached HR Round', hr_reached_st),
