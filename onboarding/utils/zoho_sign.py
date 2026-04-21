@@ -353,6 +353,7 @@ def zoho_sign_webhook(request):
 
     print(f"Zoho Event: {event_type} | Request: {request_id} | Document: {document_id} | Status: {document_status}")
 
+    doc = None
     try:
         # Prefer matching by document_id, fallback to request_id
         if document_id:
@@ -391,6 +392,10 @@ def zoho_sign_webhook(request):
 
     elif event_type == "RequestRejected":
         doc.status = "declined"
+        reason = payload.get("notifications", {}).get("reason")
+        print(f"Extracted Reason: {reason}")
+        application.offer_decline_reason = reason
+        application.save(update_fields=['offer_decline_reason'])
         ok,reason = automation_engine(application,application.status,'offer_rejected')
         if ok:
             doc.save()
