@@ -197,6 +197,29 @@ class Job(models.Model):
             models.Index(fields=['assigned_to_internal_hr']),
         ]
     
+    def save(self, *args, **kwargs):
+        from datetime import datetime, time
+        from django.utils import timezone
+        
+        # Check if expected_closure_date is changing
+        old_closure_date = None
+        if self.pk:
+            try:
+                old_closure_date = Job.objects.get(pk=self.pk).expected_closure_date
+            except Job.DoesNotExist:
+                pass
+        
+        super().save(*args, **kwargs)
+        
+        # Sync related application links if date changed
+        if self.expected_closure_date != old_closure_date:
+            expiry_dt = None
+            if self.expected_closure_date:
+                expiry_dt = timezone.make_aware(datetime.combine(self.expected_closure_date, time.max))
+            
+            # Use update() to propagate to all related links efficiently
+            self.application_links.update(expires_at=expiry_dt)
+
     def __str__(self):
         return f"{self.job_title} - {self.department.name if self.department else 'N/A'}"
     
@@ -344,9 +367,17 @@ class JobApplicationLink(models.Model):
         return f"{self.job.job_title} - {self.get_platform_display()}"
     
     def save(self, *args, **kwargs):
+        from datetime import datetime, time
+        from django.utils import timezone
+
         if not self.unique_token:
             # Generate unique token
             self.unique_token = secrets.token_urlsafe(32)
+        
+        # Default expires_at to job's expected_closure_date if not set
+        if not self.expires_at and self.job and self.job.expected_closure_date:
+            self.expires_at = timezone.make_aware(datetime.combine(self.job.expected_closure_date, time.max))
+            
         if not self.qr_code:
             # Generate the URL from your existing method
             url_to_encode = self.get_application_url()
@@ -603,6 +634,7 @@ class JobApplication(models.Model):
 
     consolidated_feedback_avg = models.FloatField(default=0)
     rejection_reason = models.TextField(null=True,blank=True)
+    offer_decline_reason = models.TextField(null=True,blank=True)
     
     referral_name = models.CharField(null=True,blank=True)
     referral_email = models.CharField(null=True,blank=True)

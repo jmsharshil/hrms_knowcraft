@@ -677,27 +677,80 @@ class BaseAnalyticsView(APIView):
         total_cvs = app_qs.count()
         # statuses in order of progression
         # Define base lists of subsequent statuses for each stage to ensure cumulative logic is robust
+        # Base terminal successes
         joined_st = ['joined']
-        offer_accepted_st = ['offer_accepted', 'joining_pending', 'joining_poned'] + joined_st
+        joining_pending_st = ['joining_pending', 'joining_poned'] + joined_st
+        docs_st = ['docs_pending', 'docs_uploaded', 'review_docs', 'docs_approved', 'docs_incomplete', 'docs_unclear'] + joining_pending_st
+        offer_accepted_st = ['offer_accepted'] + docs_st
         offer_sent_st = ['offer_sent', 'offer_rejected'] + offer_accepted_st
-        selected_st = ['selected', 'approval_pending', 'approved', 'approval_rejected', 'salary_annexure_prep', 'salary_annexure_review', 'approved_annexure', 'rejected_annexure', 'offer_pending'] + offer_sent_st
-        management_st = ['interview_next_management_client', 'interview_pending_management_client', 'interview_done_management_client', 'interview_rejected_management_client', 'consolidated_result_review'] + selected_st
-        final_st = ['interview_next_final', 'interview_pending_final', 'interview_done_final', 'interview_rejected_final'] + management_st
-        case_st = ['interview_next_3', 'interview_pending_3', 'interview_done_3', 'interview_rejected_3'] + final_st
-        tech_st = ['interview_next_2', 'interview_pending_2', 'interview_done_2', 'interview_rejected_2'] + case_st
-        hr_st = ['interview_pending_1', 'interview_done_1', 'interview_rejected_1'] + tech_st
-        shortlisted_st = ['shortlisted'] + hr_st
+        offer_prep_st = ['offer_pending'] + offer_sent_st
+        salary_st = ['salary_annexure_prep', 'salary_annexure_review', 'approved_annexure', 'rejected_annexure'] + offer_prep_st
+        approved_st = ['approved', 'approval_rejected'] + salary_st
+        approval_pending_st = ['approval_pending'] + approved_st
+        selected_st = ['selected'] + approval_pending_st
+        
+        # Management / Client Round
+        mgt_promoted_st = ['interview_next_management_client', 'consolidated_result_review'] + selected_st
+        mgt_completed_st = ['interview_done_management_client', 'interview_rejected_management_client'] + mgt_promoted_st
+        mgt_reached_st = ['interview_pending_management_client'] + mgt_completed_st
+
+        # Final Round
+        final_promoted_st = ['interview_next_final'] + mgt_reached_st
+        final_completed_st = ['interview_done_final', 'interview_rejected_final'] + final_promoted_st
+        final_reached_st = ['interview_pending_final'] + final_completed_st
+
+        # Case Study Round
+        case_promoted_st = ['interview_next_3'] + final_reached_st
+        case_completed_st = ['interview_done_3', 'interview_rejected_3'] + case_promoted_st
+        case_reached_st = ['interview_pending_3'] + case_completed_st
+
+        # Technical Round
+        tech_promoted_st = ['interview_next_2'] + case_reached_st
+        tech_completed_st = ['interview_done_2', 'interview_rejected_2'] + tech_promoted_st
+        tech_reached_st = ['interview_pending_2'] + tech_completed_st
+
+        # HR Round
+        hr_promoted_st = tech_reached_st
+        hr_completed_st = ['interview_done_1', 'interview_rejected_1'] + hr_promoted_st
+        hr_reached_st = ['interview_pending_1'] + hr_completed_st
+
+        # Top of Funnel
+        shortlisted_st = ['shortlisted'] + hr_reached_st
         received_st = ['received', 'duplicate_rejected', 'rejected'] + shortlisted_st
 
+        # Build Granular Funnel
         ordered_stages = [
             ('CVs Received', received_st),
+            ('Duplicate Rejected', ['duplicate_rejected']),
             ('Shortlisted', shortlisted_st),
-            ('HR Round', hr_st),
-            ('Technical Round', tech_st),
-            ('Case Study', case_st),
-            ('Final Round', final_st),
-            ('Client/Management Round', management_st),
+            
+            ('Reached HR Round', hr_reached_st),
+            ('Completed HR Round', hr_completed_st),
+            ('Rejected at HR', ['interview_rejected_1']),
+            ('Promoted to Tech Round', tech_reached_st),
+            
+            ('Reached Technical Round', tech_reached_st),
+            ('Completed Technical Round', tech_completed_st),
+            ('Rejected at Tech', ['interview_rejected_2']),
+            ('Promoted to Case Study', case_reached_st),
+            
+            ('Reached Case Study Round', case_reached_st),
+            ('Completed Case Study Round', case_completed_st),
+            ('Rejected at Case Study', ['interview_rejected_3']),
+            ('Promoted to Final Round', final_reached_st),
+            
+            ('Reached Final Round', final_reached_st),
+            ('Completed Final Round', final_completed_st),
+            ('Rejected at Final', ['interview_rejected_final']),
+            ('Promoted to Mgt/Client Round', mgt_reached_st),
+            
+            ('Reached Mgt/Client Round', mgt_reached_st),
+            ('Completed Mgt/Client Round', mgt_completed_st),
+            ('Rejected at Mgt/Client', ['interview_rejected_management_client']),
             ('Selected', selected_st),
+            
+            ('Approval Pending', approval_pending_st),
+            ('Approved', approved_st),
             ('Offer Sent', offer_sent_st),
             ('Offer Accepted', offer_accepted_st),
             ('Joined', joined_st),
@@ -722,8 +775,11 @@ class BaseAnalyticsView(APIView):
 
         status_counts = app_qs.values('status').annotate(count=Count('id'))
         status_counts_dict = {item['status']: item['count'] for item in status_counts}
-        required_status = ['shortlisted', 'received', 'selected', 'rejected', 'offer_sent', 'offer_accepted', 'offer_declined', 'joined', 'approval_pending', 'approved', 'approval_rejected', 'joining_pending']
-        section4['candidates_by_status'] = {key: status_counts_dict.get(key, 0) for key in required_status}
+        
+        # Dynamically include all defined statuses from the model
+        from jobs.models import JobApplication
+        all_defined_statuses = [choice[0] for choice in JobApplication.STATUS_CHOICES]
+        section4['candidates_by_status'] = {key: status_counts_dict.get(key, 0) for key in all_defined_statuses}
 
         offer_sent_statuses = ['offer_sent', 'offer_accepted', 'offer_rejected', 'joined', 'joining_pending', 'joining_poned']
         offer_accepted_statuses = ['offer_accepted', 'joined','joining_pending', 'joining_poned']
@@ -826,21 +882,84 @@ class BaseAnalyticsView(APIView):
         avg_between.sort(key=lambda x: (x['from_round'], x['to_round']))
         section5['avg_time_between_rounds_hours'] = avg_between
 
-        # Feedback analytics - dynamic without static map
-        round_stats = feedback_qs.values('interview_round').annotate(
-            completed=Count('id'),
-            passed=Count('id', filter=Q(is_selected__in=['hire', 'strong_hire']))
+        # Round completion analytics with "Not Moved" and "Unassigned" logic
+        # Prefetch related data for efficiency
+        round_feedbacks = feedback_qs.select_related('job_application', 'job_application__job', 'job_application__job__mrf').prefetch_related(
+            'job_application__job__assigned_internal_hrs',
+            'job_application__job__assigned_consultancies',
+            'job_application__job__mrf__technical_interviewers'
         )
+
+        # Mapping of round types to their "Interview Done" and "Next Round" statuses
+        round_status_map = {
+            'hr_round': {'done': 'interview_done_1', 'next': ['interview_next_2', 'interview_next_3', 'interview_next_final', 'interview_next_management_client', 'consolidated_result_review']},
+            'technical_round': {'done': 'interview_done_2', 'next': ['interview_next_3', 'interview_next_final', 'interview_next_management_client', 'consolidated_result_review']},
+            'case_study_round': {'done': 'interview_done_3', 'next': ['interview_next_final', 'interview_next_management_client', 'consolidated_result_review']},
+            'final_round': {'done': 'interview_done_final', 'next': ['interview_next_management_client', 'consolidated_result_review']},
+            'management_client_round': {'done': 'interview_done_management_client', 'next': ['consolidated_result_review', 'selected']},
+        }
+
+        stats_by_round = defaultdict(lambda: {'completed': 0, 'passed': 0, 'not_moved': 0, 'unassigned': 0})
+
+        for fb in round_feedbacks:
+            r_type = fb.interview_round
+            if not r_type: continue
+            
+            stats_by_round[r_type]['completed'] += 1
+            is_passed = fb.is_selected in ['hire', 'strong_hire']
+            if is_passed:
+                stats_by_round[r_type]['passed'] += 1
+                
+                # Check "Not Moved Forward"
+                current_status = fb.job_application.status
+                round_cfg = round_status_map.get(r_type)
+                if round_cfg and current_status == round_cfg['done']:
+                    stats_by_round[r_type]['not_moved'] += 1
+
+            # Check "Unassigned Interviewer"
+            job = fb.job_application.job
+            mrf = job.mrf
+            assigned_identities = set()
+            
+            # Names and Emails from assigned HRs/Consultancies
+            for u in job.assigned_internal_hrs.all():
+                if u.name: assigned_identities.add(u.name.lower())
+                if u.email: assigned_identities.add(u.email.lower())
+            
+            for u in job.assigned_consultancies.all():
+                if u.name: assigned_identities.add(u.name.lower())
+                if u.email: assigned_identities.add(u.email.lower())
+
+            # Specific MRF Interviewers
+            mrf_emails = [mrf.interviewer_email_1, mrf.interviewer_email_2, mrf.interviewer_email_3, mrf.interviewer_email_final, mrf.interviewer_email_management_client]
+            for e in mrf_emails:
+                if e: assigned_identities.add(e.lower())
+            
+            # Round-specific interviewer objects
+            if mrf.hr_interviewer: assigned_identities.add(mrf.hr_interviewer.name.lower()); assigned_identities.add(mrf.hr_interviewer.email.lower())
+            if mrf.case_study_interviewer: assigned_identities.add(mrf.case_study_interviewer.name.lower()); assigned_identities.add(mrf.case_study_interviewer.email.lower())
+            if mrf.final_interviewer: assigned_identities.add(mrf.final_interviewer.name.lower()); assigned_identities.add(mrf.final_interviewer.email.lower())
+            if mrf.management_client_interviewer: assigned_identities.add(mrf.management_client_interviewer.name.lower()); assigned_identities.add(mrf.management_client_interviewer.email.lower())
+            
+            for ti in mrf.technical_interviewers.all():
+                assigned_identities.add(ti.name.lower()); assigned_identities.add(ti.email.lower())
+
+            # Compare feedback interviewer name
+            fb_name = fb.interviewer_name.lower().strip() if fb.interviewer_name else None
+            if fb_name and fb_name not in assigned_identities:
+                stats_by_round[r_type]['unassigned'] += 1
+
         completion_rates = []
-        for r in round_stats:
-            round_type = r['interview_round'] or 'Unknown'
-            completed = r['completed']
-            passed = r['passed']
+        for round_key, stats in stats_by_round.items():
+            completed = stats['completed']
+            passed = stats['passed']
             completion_rates.append({
-                'round_type': round_display.get(round_type, round_type),
+                'round_type': round_display.get(round_key, round_key),
                 'completed': completed,
-                'passed': passed,
+                'shortlisted': passed,
                 'rejected': completed - passed,
+                'not_moved_to_next': stats['not_moved'],
+                'unassigned_interviewer_count': stats['unassigned'],
                 'pass_rate_percentage': round(passed / completed * 100, 2) if completed else 0
             })
         section5['round_completion_rate'] = completion_rates
@@ -1001,7 +1120,7 @@ class BaseAnalyticsView(APIView):
 
         joined_apps = app_qs.filter(status='joined')
         durations_hire = [(app.updated_at - app.created_at).total_seconds() / 86400 for app in joined_apps if app.updated_at and app.created_at]
-        section8['avg_time_to_hire_days'] = round(sum(durations_hire) / len(durations_hire), 2) if durations_hire else 0
+        section8['tat_days'] = round(sum(durations_hire) / len(durations_hire), 2) if durations_hire else 0
 
         # Source breakdown
         all_sources = {}
@@ -1061,7 +1180,7 @@ class BaseAnalyticsView(APIView):
         allowed_sections = self.get_sections()
 
         # Resolve Interviewer Entities using Email via Booking table for reliability
-        interviewer_app_ids = []
+        interviewer_app_ids = None
         interviewer_names = []
         if target_user:
             from slots.models import Interviewer
@@ -1098,7 +1217,7 @@ class BaseAnalyticsView(APIView):
         fb_filter = Q(job_application__job__company=company)
         if date_from: fb_filter &= Q(created_at__date__gte=date_from)
         if date_to: fb_filter &= Q(created_at__date__lte=date_to)
-        if interviewer_app_ids: fb_filter &= Q(job_application_id__in=interviewer_app_ids)
+        if interviewer_app_ids is not None: fb_filter &= Q(job_application_id__in=interviewer_app_ids)
         total_completed_interviews = InterviewFeedback.objects.filter(fb_filter).count()
 
         if 'cv_resume_source_analytics' in requested_sections:
