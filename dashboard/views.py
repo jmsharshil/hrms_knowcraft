@@ -890,13 +890,15 @@ class BaseAnalyticsView(APIView):
             'job_application__job__mrf__technical_interviewers'
         )
 
-        # Mapping of round types to their "Interview Done" and "Next Round" statuses
-        round_status_map = {
-            'hr_round': {'done': 'interview_done_1', 'next': ['interview_next_2', 'interview_next_3', 'interview_next_final', 'interview_next_management_client', 'consolidated_result_review']},
-            'technical_round': {'done': 'interview_done_2', 'next': ['interview_next_3', 'interview_next_final', 'interview_next_management_client', 'consolidated_result_review']},
-            'case_study_round': {'done': 'interview_done_3', 'next': ['interview_next_final', 'interview_next_management_client', 'consolidated_result_review']},
-            'final_round': {'done': 'interview_done_final', 'next': ['interview_next_management_client', 'consolidated_result_review']},
-            'management_client_round': {'done': 'interview_done_management_client', 'next': ['consolidated_result_review', 'selected']},
+        # Mapping of round types to statuses that belong to that SPECIFIC round.
+        # If a candidate passes a round but their application status is still within this list,
+        # it means they haven't advanced to the next round's bucket.
+        round_belonging_map = {
+            'hr_round': ['shortlisted', 'interview_pending_1', 'interview_done_1', 'interview_rejected_1'],
+            'technical_round': ['interview_next_2', 'interview_pending_2', 'interview_done_2', 'interview_rejected_2'],
+            'case_study_round': ['interview_next_3', 'interview_pending_3', 'interview_done_3', 'interview_rejected_3'],
+            'final_round': ['interview_next_final', 'interview_pending_final', 'interview_done_final', 'interview_rejected_final'],
+            'management_client_round': ['interview_next_management_client', 'interview_pending_management_client', 'interview_done_management_client', 'interview_rejected_management_client', 'consolidated_result_review'],
         }
 
         stats_by_round = defaultdict(lambda: {'completed': 0, 'passed': 0, 'not_moved': 0, 'unassigned': 0})
@@ -912,8 +914,8 @@ class BaseAnalyticsView(APIView):
                 
                 # Check "Not Moved Forward"
                 current_status = fb.job_application.status
-                round_cfg = round_status_map.get(r_type)
-                if round_cfg and current_status == round_cfg['done']:
+                stuck_statuses = round_belonging_map.get(r_type, [])
+                if current_status in stuck_statuses:
                     stats_by_round[r_type]['not_moved'] += 1
 
             # Check "Unassigned Interviewer"
