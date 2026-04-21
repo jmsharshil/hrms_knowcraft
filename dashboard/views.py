@@ -725,28 +725,28 @@ class BaseAnalyticsView(APIView):
             
             ('Reached HR Round', hr_reached_st),
             ('Completed HR Round', hr_completed_st),
-            ('Promoted to Tech Round', tech_reached_st),
             ('Rejected at HR', ['interview_rejected_1']),
+            ('Promoted to Tech Round', tech_reached_st),
             
             ('Reached Technical Round', tech_reached_st),
             ('Completed Technical Round', tech_completed_st),
-            ('Promoted to Case Study', case_reached_st),
             ('Rejected at Tech', ['interview_rejected_2']),
+            ('Promoted to Case Study', case_reached_st),
             
             ('Reached Case Study Round', case_reached_st),
             ('Completed Case Study Round', case_completed_st),
-            ('Promoted to Final Round', final_reached_st),
             ('Rejected at Case Study', ['interview_rejected_3']),
+            ('Promoted to Final Round', final_reached_st),
             
             ('Reached Final Round', final_reached_st),
             ('Completed Final Round', final_completed_st),
-            ('Promoted to Mgt/Client Round', mgt_reached_st),
             ('Rejected at Final', ['interview_rejected_final']),
+            ('Promoted to Mgt/Client Round', mgt_reached_st),
             
             ('Reached Mgt/Client Round', mgt_reached_st),
             ('Completed Mgt/Client Round', mgt_completed_st),
-            ('Selected', selected_st),
             ('Rejected at Mgt/Client', ['interview_rejected_management_client']),
+            ('Selected', selected_st),
             
             ('Approval Pending', approval_pending_st),
             ('Approved', approved_st),
