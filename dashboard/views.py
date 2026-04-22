@@ -428,15 +428,20 @@ class BaseAnalyticsView(APIView):
         month_stats = mrf_qs.annotate(month=TruncMonth('created_at')).values('month').annotate(count=Count('id')).order_by('month')
         section1['mrf_by_month'] = [{'month': m['month'].strftime('%Y-%m'), 'count': m['count']} for m in month_stats]
 
+        # Summary of rejections per level
+        rejection_summary = MRFApproval.objects.filter(mrf__in=mrf_qs, action='rejected').values('level').annotate(count=Count('id')).order_by('level')
+        section1['mrf_rejection_summary'] = [{'level': r['level'], 'total_rejected': r['count']} for r in rejection_summary]
+
         # Detailed rejection reasons by level
-        rejections = MRFApproval.objects.filter(mrf__in=mrf_qs, action='rejected').select_related('mrf').values(
-            'level', 'rejection_reason', 'mrf__mrf_name', 'created_at'
+        rejections = MRFApproval.objects.filter(mrf__in=mrf_qs, action='rejected').select_related('mrf', 'approver').values(
+            'level', 'rejection_reason', 'mrf__mrf_name', 'created_at', 'approver__name'
         ).order_by('-created_at')
         
         section1['mrf_rejection_reasons'] = [
             {
                 'approver_level': r['level'],
                 'mrf_name': r['mrf__mrf_name'],
+                'rejected_by': r['approver__name'] or 'System/Unknown',
                 'reason': r['rejection_reason'] or 'No reason provided',
                 'date': r['created_at'].strftime('%Y-%m-%d %H:%M') if r['created_at'] else 'N/A'
             }
@@ -913,54 +918,87 @@ class BaseAnalyticsView(APIView):
             'management_client_round': ['interview_next_management_client', 'interview_pending_management_client', 'interview_done_management_client', 'interview_rejected_management_client', 'consolidated_result_review'],
         }
 
+        # Candidate-centric aggregation per round
+        # This ensures we count each candidate once per round, even if they have multiple interviews.
+        app_round_stats = defaultdict(lambda: {
+            'passed': False,
+            'unassigned': False,
+            'status': None,
+            'job': None
+        })
+
+        # Track total interviews separately if needed, but for completion rates, candidate-round pairs are more standard.
         stats_by_round = defaultdict(lambda: {'completed': 0, 'passed': 0, 'not_moved': 0, 'unassigned': 0})
 
+        # Group feedback results by candidate and round
         for fb in round_feedbacks:
             r_type = fb.interview_round
             if not r_type: continue
             
+            app_id = fb.job_application_id
+            key = (app_id, r_type)
+            stats = app_round_stats[key]
+            
+            stats['status'] = fb.job_application.status
+            stats['job'] = fb.job_application.job
+
+            if fb.is_selected in ['hire', 'strong_hire']:
+                stats['passed'] = True
+
+            # Unassigned check for this specific interview
+            job = fb.job_application.job
+            mrf = job.mrf
+            assigned_identities = getattr(job, '_assigned_identities_cache', None)
+            
+            if assigned_identities is None:
+                assigned_identities = set()
+                for u in job.assigned_internal_hrs.all():
+                    if u.name: assigned_identities.add(u.name.lower())
+                    if u.email: assigned_identities.add(u.email.lower())
+                for u in job.assigned_consultancies.all():
+                    if u.name: assigned_identities.add(u.name.lower())
+                    if u.email: assigned_identities.add(u.email.lower())
+
+                mrf_emails = [mrf.interviewer_email_1, mrf.interviewer_email_2, mrf.interviewer_email_3, mrf.interviewer_email_final, mrf.interviewer_email_management_client]
+                for e in mrf_emails:
+                    if e: assigned_identities.add(e.lower())
+                
+                if mrf.hr_interviewer: 
+                    if mrf.hr_interviewer.name: assigned_identities.add(mrf.hr_interviewer.name.lower())
+                    if mrf.hr_interviewer.email: assigned_identities.add(mrf.hr_interviewer.email.lower())
+                if mrf.case_study_interviewer:
+                    if mrf.case_study_interviewer.name: assigned_identities.add(mrf.case_study_interviewer.name.lower())
+                    if mrf.case_study_interviewer.email: assigned_identities.add(mrf.case_study_interviewer.email.lower())
+                if mrf.final_interviewer:
+                    if mrf.final_interviewer.name: assigned_identities.add(mrf.final_interviewer.name.lower())
+                    if mrf.final_interviewer.email: assigned_identities.add(mrf.final_interviewer.email.lower())
+                if mrf.management_client_interviewer:
+                    if mrf.management_client_interviewer.name: assigned_identities.add(mrf.management_client_interviewer.name.lower())
+                    if mrf.management_client_interviewer.email: assigned_identities.add(mrf.management_client_interviewer.email.lower())
+                
+                for ti in mrf.technical_interviewers.all():
+                    if ti.name: assigned_identities.add(ti.name.lower())
+                    if ti.email: assigned_identities.add(ti.email.lower())
+                
+                job._assigned_identities_cache = assigned_identities
+
+            fb_name = fb.interviewer_name.lower().strip() if fb.interviewer_name else None
+            if fb_name and fb_name not in assigned_identities:
+                stats['unassigned'] = True
+
+        # Now calculate final stats per round
+        for (app_id, r_type), data in app_round_stats.items():
             stats_by_round[r_type]['completed'] += 1
-            is_passed = fb.is_selected in ['hire', 'strong_hire']
-            if is_passed:
+            if data['passed']:
                 stats_by_round[r_type]['passed'] += 1
                 
                 # Check "Not Moved Forward"
-                current_status = fb.job_application.status
+                current_status = data['status']
                 stuck_statuses = round_belonging_map.get(r_type, [])
                 if current_status in stuck_statuses:
                     stats_by_round[r_type]['not_moved'] += 1
 
-            # Check "Unassigned Interviewer"
-            job = fb.job_application.job
-            mrf = job.mrf
-            assigned_identities = set()
-            
-            # Names and Emails from assigned HRs/Consultancies
-            for u in job.assigned_internal_hrs.all():
-                if u.name: assigned_identities.add(u.name.lower())
-                if u.email: assigned_identities.add(u.email.lower())
-            
-            for u in job.assigned_consultancies.all():
-                if u.name: assigned_identities.add(u.name.lower())
-                if u.email: assigned_identities.add(u.email.lower())
-
-            # Specific MRF Interviewers
-            mrf_emails = [mrf.interviewer_email_1, mrf.interviewer_email_2, mrf.interviewer_email_3, mrf.interviewer_email_final, mrf.interviewer_email_management_client]
-            for e in mrf_emails:
-                if e: assigned_identities.add(e.lower())
-            
-            # Round-specific interviewer objects
-            if mrf.hr_interviewer: assigned_identities.add(mrf.hr_interviewer.name.lower()); assigned_identities.add(mrf.hr_interviewer.email.lower())
-            if mrf.case_study_interviewer: assigned_identities.add(mrf.case_study_interviewer.name.lower()); assigned_identities.add(mrf.case_study_interviewer.email.lower())
-            if mrf.final_interviewer: assigned_identities.add(mrf.final_interviewer.name.lower()); assigned_identities.add(mrf.final_interviewer.email.lower())
-            if mrf.management_client_interviewer: assigned_identities.add(mrf.management_client_interviewer.name.lower()); assigned_identities.add(mrf.management_client_interviewer.email.lower())
-            
-            for ti in mrf.technical_interviewers.all():
-                assigned_identities.add(ti.name.lower()); assigned_identities.add(ti.email.lower())
-
-            # Compare feedback interviewer name
-            fb_name = fb.interviewer_name.lower().strip() if fb.interviewer_name else None
-            if fb_name and fb_name not in assigned_identities:
+            if data['unassigned']:
                 stats_by_round[r_type]['unassigned'] += 1
 
         completion_rates = []
