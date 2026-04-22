@@ -428,8 +428,20 @@ class BaseAnalyticsView(APIView):
         month_stats = mrf_qs.annotate(month=TruncMonth('created_at')).values('month').annotate(count=Count('id')).order_by('month')
         section1['mrf_by_month'] = [{'month': m['month'].strftime('%Y-%m'), 'count': m['count']} for m in month_stats]
 
-        rejection_stats = MRFApproval.objects.filter(mrf__in=mrf_qs, action='rejected').values('level').annotate(rejected_count=Count('id'))
-        section1['mrf_rejection_reasons'] = [{'approver_level': r['level'], 'rejected_count': r['rejected_count']} for r in rejection_stats]
+        # Detailed rejection reasons by level
+        rejections = MRFApproval.objects.filter(mrf__in=mrf_qs, action='rejected').select_related('mrf').values(
+            'level', 'rejection_reason', 'mrf__mrf_name', 'created_at'
+        ).order_by('-created_at')
+        
+        section1['mrf_rejection_reasons'] = [
+            {
+                'approver_level': r['level'],
+                'mrf_name': r['mrf__mrf_name'],
+                'reason': r['rejection_reason'] or 'No reason provided',
+                'date': r['created_at'].strftime('%Y-%m-%d %H:%M') if r['created_at'] else 'N/A'
+            }
+            for r in rejections
+        ]
         return section1
 
     def calc_job_assignment_analytics(self, job_qs, user_role=None, target_user_id=None):
@@ -952,18 +964,38 @@ class BaseAnalyticsView(APIView):
                 stats_by_round[r_type]['unassigned'] += 1
 
         completion_rates = []
+        ordered_round_keys = ['hr_round', 'technical_round', 'case_study_round', 'final_round', 'management_client_round']
+        
+        # Iterate in specific requested order: HR -> Technical -> Case Study -> Final -> Management
+        for round_key in ordered_round_keys:
+            if round_key in stats_by_round:
+                stats = stats_by_round[round_key]
+                completed = stats['completed']
+                passed = stats['passed']
+                completion_rates.append({
+                    'round_type': round_display.get(round_key, round_key),
+                    'completed': completed,
+                    'shortlisted': passed,
+                    'rejected': completed - passed,
+                    'not_moved_to_next': stats['not_moved'],
+                    'unassigned_interviewer_count': stats['unassigned'],
+                    'pass_rate_percentage': round(passed / completed * 100, 2) if completed else 0
+                })
+        
+        # Append any miscellaneous rounds if they somehow exist in the data
         for round_key, stats in stats_by_round.items():
-            completed = stats['completed']
-            passed = stats['passed']
-            completion_rates.append({
-                'round_type': round_display.get(round_key, round_key),
-                'completed': completed,
-                'shortlisted': passed,
-                'rejected': completed - passed,
-                'not_moved_to_next': stats['not_moved'],
-                'unassigned_interviewer_count': stats['unassigned'],
-                'pass_rate_percentage': round(passed / completed * 100, 2) if completed else 0
-            })
+            if round_key not in ordered_round_keys:
+                completed = stats['completed']
+                passed = stats['passed']
+                completion_rates.append({
+                    'round_type': round_display.get(round_key, round_key),
+                    'completed': completed,
+                    'shortlisted': passed,
+                    'rejected': completed - passed,
+                    'not_moved_to_next': stats['not_moved'],
+                    'unassigned_interviewer_count': stats['unassigned'],
+                    'pass_rate_percentage': round(passed / completed * 100, 2) if completed else 0
+                })
         section5['round_completion_rate'] = completion_rates
 
         # Stage turnaround times
