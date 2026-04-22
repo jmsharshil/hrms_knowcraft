@@ -952,88 +952,106 @@ class BaseAnalyticsView(APIView):
             
             if assigned_identities is None:
                 assigned_identities = set()
+                # Job FKs
+                for u in [job.assigned_to_internal_hr, job.assigned_to_consultancy, job.posted_by, job.closed_by]:
+                    if u:
+                        if u.name: assigned_identities.add(u.name.lower().strip())
+                        if u.email: assigned_identities.add(u.email.lower().strip())
+                
+                # Job M2Ms
                 for u in job.assigned_internal_hrs.all():
-                    if u.name: assigned_identities.add(u.name.lower())
-                    if u.email: assigned_identities.add(u.email.lower())
+                    if u.name: assigned_identities.add(u.name.lower().strip())
+                    if u.email: assigned_identities.add(u.email.lower().strip())
                 for u in job.assigned_consultancies.all():
-                    if u.name: assigned_identities.add(u.name.lower())
-                    if u.email: assigned_identities.add(u.email.lower())
+                    if u.name: assigned_identities.add(u.name.lower().strip())
+                    if u.email: assigned_identities.add(u.email.lower().strip())
 
+                # MRF String fields (Names and Emails)
+                mrf_names = [mrf.technical_interview_1, mrf.technical_interview_2, mrf.final_interview, mrf.requested_by_name]
+                for n in mrf_names:
+                    if n: assigned_identities.add(n.lower().strip())
+                
                 mrf_emails = [mrf.interviewer_email_1, mrf.interviewer_email_2, mrf.interviewer_email_3, mrf.interviewer_email_final, mrf.interviewer_email_management_client]
                 for e in mrf_emails:
-                    if e: assigned_identities.add(e.lower())
+                    if e: assigned_identities.add(e.lower().strip())
                 
-                if mrf.hr_interviewer: 
-                    if mrf.hr_interviewer.name: assigned_identities.add(mrf.hr_interviewer.name.lower())
-                    if mrf.hr_interviewer.email: assigned_identities.add(mrf.hr_interviewer.email.lower())
-                if mrf.case_study_interviewer:
-                    if mrf.case_study_interviewer.name: assigned_identities.add(mrf.case_study_interviewer.name.lower())
-                    if mrf.case_study_interviewer.email: assigned_identities.add(mrf.case_study_interviewer.email.lower())
-                if mrf.final_interviewer:
-                    if mrf.final_interviewer.name: assigned_identities.add(mrf.final_interviewer.name.lower())
-                    if mrf.final_interviewer.email: assigned_identities.add(mrf.final_interviewer.email.lower())
-                if mrf.management_client_interviewer:
-                    if mrf.management_client_interviewer.name: assigned_identities.add(mrf.management_client_interviewer.name.lower())
-                    if mrf.management_client_interviewer.email: assigned_identities.add(mrf.management_client_interviewer.email.lower())
+                # MRF FKs (Interviewer objects)
+                mrf_fk_interviewers = [mrf.hr_interviewer, mrf.case_study_interviewer, mrf.final_interviewer, mrf.management_client_interviewer]
+                for u in mrf_fk_interviewers:
+                    if u:
+                        if u.name: assigned_identities.add(u.name.lower().strip())
+                        if u.email: assigned_identities.add(u.email.lower().strip())
                 
+                # MRF M2M Technical Interviewers
                 for ti in mrf.technical_interviewers.all():
-                    if ti.name: assigned_identities.add(ti.name.lower())
-                    if ti.email: assigned_identities.add(ti.email.lower())
+                    if ti.name: assigned_identities.add(ti.name.lower().strip())
+                    if ti.email: assigned_identities.add(ti.email.lower().strip())
                 
                 job._assigned_identities_cache = assigned_identities
 
             fb_name = fb.interviewer_name.lower().strip() if fb.interviewer_name else None
-            if fb_name and fb_name not in assigned_identities:
+            # If name is missing or not in assigned list, mark as unassigned
+            if not fb_name or fb_name not in assigned_identities:
                 stats['unassigned'] = True
 
-        # Ranking of statuses to determine progression.
-        # Ranks 1.x = HR, 2.x = Technical, 3.x = Case Study, 4.x = Final, 5.x = Management, 6+ = Pre-boarding/Hired
-        status_rank_map = {
-            'received': 0, 'screening': 0, 
-            'shortlisted': 1, 'interview_pending_1': 1.1, 'interview_done_1': 1.2, 'interview_rejected_1': 1.3,
-            'interview_next_2': 2.0, 'interview_pending_2': 2.1, 'interview_done_2': 2.2, 'interview_rejected_2': 2.3,
-            'interview_next_3': 3.0, 'interview_pending_3': 3.1, 'interview_done_3': 3.2, 'interview_rejected_3': 3.3,
-            'interview_next_final': 4.0, 'interview_pending_final': 4.1, 'interview_done_final': 4.2, 'interview_rejected_final': 4.3,
-            'interview_next_management_client': 5.0, 'interview_pending_management_client': 5.1, 'interview_done_management_client': 5.2, 'interview_rejected_management_client': 5.3,
-            'consolidated_result_review': 6.0, 'selected': 7.0, 'approval_pending': 8.0, 'approved': 9.0,
-            'salary_annexure_prep': 10.0, 'salary_annexure_review': 10.1, 'approved_annexure': 10.2,
-            'offer_pending': 11.0, 'offer_sent': 11.1, 'offer_accepted': 11.2, 'joining_pending': 12.0, 'joined': 13.0
-        }
-        
-        round_rank_map = {
-            'hr_round': 1.0, 'technical_round': 2.0, 'case_study_round': 3.0, 'final_round': 4.0, 'management_client_round': 5.0
+        # All statuses at or before each round — if a passed candidate is still here, they haven't moved forward
+        statuses_at_or_before = {
+            'hr_round': {'received', 'duplicate_rejected', 'shortlisted', 'interview_pending_1', 'interview_done_1', 'interview_rejected_1'},
+            'technical_round': {'received', 'duplicate_rejected', 'shortlisted', 'interview_pending_1', 'interview_done_1', 'interview_rejected_1',
+                                'interview_next_2', 'interview_pending_2', 'interview_done_2', 'interview_rejected_2'},
+            'case_study_round': {'received', 'duplicate_rejected', 'shortlisted', 'interview_pending_1', 'interview_done_1', 'interview_rejected_1',
+                                 'interview_next_2', 'interview_pending_2', 'interview_done_2', 'interview_rejected_2',
+                                 'interview_next_3', 'interview_pending_3', 'interview_done_3', 'interview_rejected_3'},
+            'final_round': {'received', 'duplicate_rejected', 'shortlisted', 'interview_pending_1', 'interview_done_1', 'interview_rejected_1',
+                            'interview_next_2', 'interview_pending_2', 'interview_done_2', 'interview_rejected_2',
+                            'interview_next_3', 'interview_pending_3', 'interview_done_3', 'interview_rejected_3',
+                            'interview_next_final', 'interview_pending_final', 'interview_done_final', 'interview_rejected_final'},
+            'management_client_round': {'received', 'duplicate_rejected', 'shortlisted', 'interview_pending_1', 'interview_done_1', 'interview_rejected_1',
+                                        'interview_next_2', 'interview_pending_2', 'interview_done_2', 'interview_rejected_2',
+                                        'interview_next_3', 'interview_pending_3', 'interview_done_3', 'interview_rejected_3',
+                                        'interview_next_final', 'interview_pending_final', 'interview_done_final', 'interview_rejected_final',
+                                        'interview_next_management_client', 'interview_pending_management_client', 'interview_done_management_client', 'interview_rejected_management_client'},
         }
 
         # Aggregation with core identity: Completed = Shortlisted (Passes) + Rejected (Fails)
-        # Not Moved and Unassigned are treated as specialized indicators/flags.
         for (app_id, r_type), data in app_round_stats.items():
             stats_by_round[r_type]['completed'] += 1
             
-            # Outcome Tracking (Sum of these two equals Completed)
             if data['passed']:
                 stats_by_round[r_type]['passed'] += 1
                 
-                # Check "Not Moved Forward" (Rank is still within or before this round's bucket)
-                current_status = data['status']
-                current_rank = status_rank_map.get(current_status, 99) # Default to 99 (Moved) if unknown
-                round_base_rank = round_rank_map.get(r_type, 0)
-                
-                # If they passed but their status hasn't reached the NEXT round's "Next" status (round_base_rank + 1)
-                if current_rank < (round_base_rank + 1.0):
+                # "Not Moved": Passed but status hasn't reached next round's "shortlisted for" status
+                stuck_statuses = statuses_at_or_before.get(r_type, set())
+                if data['status'] in stuck_statuses:
                     stats_by_round[r_type]['not_moved'] += 1
             else:
                 stats_by_round[r_type]['rejected'] += 1
 
-            # Compliance Tracking (Flag for process violation)
             if data['unassigned']:
                 stats_by_round[r_type]['unassigned'] += 1
+
+        # Count interviews scheduled per round (pending + already completed)
+        round_pending_statuses = {
+            'hr_round': 'interview_pending_1',
+            'technical_round': 'interview_pending_2',
+            'case_study_round': 'interview_pending_3',
+            'final_round': 'interview_pending_final',
+            'management_client_round': 'interview_pending_management_client',
+        }
+        scheduled_by_round = {}
+        for round_key, pending_status in round_pending_statuses.items():
+            # Currently pending (scheduled but not yet done)
+            currently_pending = app_qs.filter(status=pending_status).count()
+            # Already completed (have feedback) = stats_by_round completed count
+            already_done = stats_by_round[round_key]['completed'] if round_key in stats_by_round else 0
+            scheduled_by_round[round_key] = currently_pending + already_done
 
         completion_rates = []
         ordered_round_keys = ['hr_round', 'technical_round', 'case_study_round', 'final_round', 'management_client_round']
         
         # Iterate in specific requested order: HR -> Technical -> Case Study -> Final -> Management
         for round_key in ordered_round_keys:
-            if round_key in stats_by_round:
+            if round_key in stats_by_round or scheduled_by_round.get(round_key, 0) > 0:
                 stats = stats_by_round[round_key]
                 completed = stats['completed']
                 total_passed = stats['passed']
@@ -1043,6 +1061,8 @@ class BaseAnalyticsView(APIView):
                 
                 completion_rates.append({
                     'round_type': round_display.get(round_key, round_key),
+                    'total_scheduled': scheduled_by_round.get(round_key, 0),
+                    'pending': scheduled_by_round.get(round_key, 0) - completed,
                     'completed': completed,
                     'shortlisted': total_passed,
                     'rejected': rejected,
@@ -1061,6 +1081,8 @@ class BaseAnalyticsView(APIView):
                 unassigned = stats['unassigned']
                 completion_rates.append({
                     'round_type': round_display.get(round_key, round_key),
+                    'total_scheduled': scheduled_by_round.get(round_key, 0),
+                    'pending': scheduled_by_round.get(round_key, 0) - completed,
                     'completed': completed,
                     'shortlisted': total_passed,
                     'rejected': rejected,
@@ -1069,6 +1091,7 @@ class BaseAnalyticsView(APIView):
                     'pass_rate_percentage': round(total_passed / completed * 100, 2) if completed else 0
                 })
         section5['round_completion_rate'] = completion_rates
+
 
         # Stage turnaround times
         stage_times_wrapper = calc_stage_turnaround_time(app_qs)
