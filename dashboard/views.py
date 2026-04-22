@@ -994,23 +994,17 @@ class BaseAnalyticsView(APIView):
             if not fb_name or fb_name not in assigned_identities:
                 stats['unassigned'] = True
 
-        # All statuses at or before each round — if a passed candidate is still here, they haven't moved forward
-        statuses_at_or_before = {
-            'hr_round': {'received', 'duplicate_rejected', 'shortlisted', 'interview_pending_1', 'interview_done_1', 'interview_rejected_1'},
-            'technical_round': {'received', 'duplicate_rejected', 'shortlisted', 'interview_pending_1', 'interview_done_1', 'interview_rejected_1',
-                                'interview_next_2', 'interview_pending_2', 'interview_done_2', 'interview_rejected_2'},
-            'case_study_round': {'received', 'duplicate_rejected', 'shortlisted', 'interview_pending_1', 'interview_done_1', 'interview_rejected_1',
-                                 'interview_next_2', 'interview_pending_2', 'interview_done_2', 'interview_rejected_2',
-                                 'interview_next_3', 'interview_pending_3', 'interview_done_3', 'interview_rejected_3'},
-            'final_round': {'received', 'duplicate_rejected', 'shortlisted', 'interview_pending_1', 'interview_done_1', 'interview_rejected_1',
-                            'interview_next_2', 'interview_pending_2', 'interview_done_2', 'interview_rejected_2',
-                            'interview_next_3', 'interview_pending_3', 'interview_done_3', 'interview_rejected_3',
-                            'interview_next_final', 'interview_pending_final', 'interview_done_final', 'interview_rejected_final'},
-            'management_client_round': {'received', 'duplicate_rejected', 'shortlisted', 'interview_pending_1', 'interview_done_1', 'interview_rejected_1',
-                                        'interview_next_2', 'interview_pending_2', 'interview_done_2', 'interview_rejected_2',
-                                        'interview_next_3', 'interview_pending_3', 'interview_done_3', 'interview_rejected_3',
-                                        'interview_next_final', 'interview_pending_final', 'interview_done_final', 'interview_rejected_final',
-                                        'interview_next_management_client', 'interview_pending_management_client', 'interview_done_management_client', 'interview_rejected_management_client'},
+        # Round progression order for checking if next interview was actually taken
+        round_order = ['hr_round', 'technical_round', 'case_study_round', 'final_round', 'management_client_round']
+        candidate_rounds = set(app_round_stats.keys())
+        
+        # Post-interview statuses (candidate has moved beyond all interview rounds)
+        post_interview_statuses = {
+            'consolidated_result_review', 'selected', 'approval_pending', 'approved', 'approval_rejected',
+            'salary_annexure_prep', 'salary_annexure_review', 'approved_annexure', 'rejected_annexure',
+            'offer_pending', 'offer_sent', 'offer_accepted', 'offer_rejected',
+            'docs_pending', 'docs_uploaded', 'review_docs', 'docs_approved', 'docs_incomplete', 'docs_unclear',
+            'joining_pending', 'joining_poned', 'joined'
         }
 
         # Aggregation with core identity: Completed = Shortlisted (Passes) + Rejected (Fails)
@@ -1020,9 +1014,22 @@ class BaseAnalyticsView(APIView):
             if data['passed']:
                 stats_by_round[r_type]['passed'] += 1
                 
-                # "Not Moved": Passed but status hasn't reached next round's "shortlisted for" status
-                stuck_statuses = statuses_at_or_before.get(r_type, set())
-                if data['status'] in stuck_statuses:
+                # "Not Moved": Passed this round but NO actual interview taken in any later round
+                current_idx = round_order.index(r_type) if r_type in round_order else -1
+                has_next_interview = False
+                
+                # Check if feedback exists in any subsequent round
+                if current_idx >= 0:
+                    for later_round in round_order[current_idx + 1:]:
+                        if (app_id, later_round) in candidate_rounds:
+                            has_next_interview = True
+                            break
+                
+                # Also check if they've reached post-interview stages (selected, offer, joined, etc.)
+                if not has_next_interview and data['status'] in post_interview_statuses:
+                    has_next_interview = True
+                
+                if not has_next_interview:
                     stats_by_round[r_type]['not_moved'] += 1
             else:
                 stats_by_round[r_type]['rejected'] += 1
