@@ -928,7 +928,7 @@ class BaseAnalyticsView(APIView):
         })
 
         # Track total interviews separately if needed, but for completion rates, candidate-round pairs are more standard.
-        stats_by_round = defaultdict(lambda: {'completed': 0, 'passed': 0, 'not_moved': 0, 'unassigned': 0})
+        stats_by_round = defaultdict(lambda: {'completed': 0, 'passed': 0, 'not_moved': 0, 'unassigned': 0, 'rejected': 0})
 
         # Group feedback results by candidate and round
         for fb in round_feedbacks:
@@ -986,20 +986,28 @@ class BaseAnalyticsView(APIView):
             if fb_name and fb_name not in assigned_identities:
                 stats['unassigned'] = True
 
-        # Now calculate final stats per round
+        # Now calculate final stats per round with mutually exclusive categorization
+        # This ensures: Completed = Shortlisted + Rejected + Not Moved + Unassigned
         for (app_id, r_type), data in app_round_stats.items():
             stats_by_round[r_type]['completed'] += 1
-            if data['passed']:
-                stats_by_round[r_type]['passed'] += 1
-                
-                # Check "Not Moved Forward"
+            
+            # 1. Unassigned - Priority 1 (Process violation)
+            if data['unassigned']:
+                stats_by_round[r_type]['unassigned'] += 1
+            
+            # 2. Not Moved - Priority 2 (Pass & Stuck)
+            elif data['passed']:
                 current_status = data['status']
                 stuck_statuses = round_belonging_map.get(r_type, [])
                 if current_status in stuck_statuses:
                     stats_by_round[r_type]['not_moved'] += 1
-
-            if data['unassigned']:
-                stats_by_round[r_type]['unassigned'] += 1
+                else:
+                    # 3. Shortlisted - Priority 3 (Pass & Moved)
+                    stats_by_round[r_type]['passed'] += 1
+            
+            # 4. Rejected - Priority 4
+            else:
+                stats_by_round[r_type]['rejected'] += 1
 
         completion_rates = []
         ordered_round_keys = ['hr_round', 'technical_round', 'case_study_round', 'final_round', 'management_client_round']
@@ -1009,30 +1017,38 @@ class BaseAnalyticsView(APIView):
             if round_key in stats_by_round:
                 stats = stats_by_round[round_key]
                 completed = stats['completed']
-                passed = stats['passed']
+                passed_and_moved = stats['passed']
+                rejected = stats['rejected']
+                not_moved = stats['not_moved']
+                unassigned = stats['unassigned']
+                
                 completion_rates.append({
                     'round_type': round_display.get(round_key, round_key),
                     'completed': completed,
-                    'shortlisted': passed,
-                    'rejected': completed - passed,
-                    'not_moved_to_next': stats['not_moved'],
-                    'unassigned_interviewer_count': stats['unassigned'],
-                    'pass_rate_percentage': round(passed / completed * 100, 2) if completed else 0
+                    'shortlisted': passed_and_moved,
+                    'rejected': rejected,
+                    'not_moved_to_next': not_moved,
+                    'unassigned_interviewer_count': unassigned,
+                    # Pass rate is still based on total who passed (Moved + Stuck)
+                    'pass_rate_percentage': round((passed_and_moved + not_moved) / completed * 100, 2) if completed else 0
                 })
         
         # Append any miscellaneous rounds if they somehow exist in the data
         for round_key, stats in stats_by_round.items():
             if round_key not in ordered_round_keys:
                 completed = stats['completed']
-                passed = stats['passed']
+                passed_and_moved = stats['passed']
+                rejected = stats['rejected']
+                not_moved = stats['not_moved']
+                unassigned = stats['unassigned']
                 completion_rates.append({
                     'round_type': round_display.get(round_key, round_key),
                     'completed': completed,
-                    'shortlisted': passed,
-                    'rejected': completed - passed,
-                    'not_moved_to_next': stats['not_moved'],
-                    'unassigned_interviewer_count': stats['unassigned'],
-                    'pass_rate_percentage': round(passed / completed * 100, 2) if completed else 0
+                    'shortlisted': passed_and_moved,
+                    'rejected': rejected,
+                    'not_moved_to_next': not_moved,
+                    'unassigned_interviewer_count': unassigned,
+                    'pass_rate_percentage': round((passed_and_moved + not_moved) / completed * 100, 2) if completed else 0
                 })
         section5['round_completion_rate'] = completion_rates
 
