@@ -986,6 +986,24 @@ class BaseAnalyticsView(APIView):
             if fb_name and fb_name not in assigned_identities:
                 stats['unassigned'] = True
 
+        # Ranking of statuses to determine progression.
+        # Ranks 1.x = HR, 2.x = Technical, 3.x = Case Study, 4.x = Final, 5.x = Management, 6+ = Pre-boarding/Hired
+        status_rank_map = {
+            'received': 0, 'screening': 0, 
+            'shortlisted': 1, 'interview_pending_1': 1.1, 'interview_done_1': 1.2, 'interview_rejected_1': 1.3,
+            'interview_next_2': 2.0, 'interview_pending_2': 2.1, 'interview_done_2': 2.2, 'interview_rejected_2': 2.3,
+            'interview_next_3': 3.0, 'interview_pending_3': 3.1, 'interview_done_3': 3.2, 'interview_rejected_3': 3.3,
+            'interview_next_final': 4.0, 'interview_pending_final': 4.1, 'interview_done_final': 4.2, 'interview_rejected_final': 4.3,
+            'interview_next_management_client': 5.0, 'interview_pending_management_client': 5.1, 'interview_done_management_client': 5.2, 'interview_rejected_management_client': 5.3,
+            'consolidated_result_review': 6.0, 'selected': 7.0, 'approval_pending': 8.0, 'approved': 9.0,
+            'salary_annexure_prep': 10.0, 'salary_annexure_review': 10.1, 'approved_annexure': 10.2,
+            'offer_pending': 11.0, 'offer_sent': 11.1, 'offer_accepted': 11.2, 'joining_pending': 12.0, 'joined': 13.0
+        }
+        
+        round_rank_map = {
+            'hr_round': 1.0, 'technical_round': 2.0, 'case_study_round': 3.0, 'final_round': 4.0, 'management_client_round': 5.0
+        }
+
         # Aggregation with core identity: Completed = Shortlisted (Passes) + Rejected (Fails)
         # Not Moved and Unassigned are treated as specialized indicators/flags.
         for (app_id, r_type), data in app_round_stats.items():
@@ -995,10 +1013,13 @@ class BaseAnalyticsView(APIView):
             if data['passed']:
                 stats_by_round[r_type]['passed'] += 1
                 
-                # Check "Not Moved Forward" (Stuck in current round statuses)
+                # Check "Not Moved Forward" (Rank is still within or before this round's bucket)
                 current_status = data['status']
-                stuck_statuses = round_belonging_map.get(r_type, [])
-                if current_status in stuck_statuses:
+                current_rank = status_rank_map.get(current_status, 99) # Default to 99 (Moved) if unknown
+                round_base_rank = round_rank_map.get(r_type, 0)
+                
+                # If they passed but their status hasn't reached the NEXT round's "Next" status (round_base_rank + 1)
+                if current_rank < (round_base_rank + 1.0):
                     stats_by_round[r_type]['not_moved'] += 1
             else:
                 stats_by_round[r_type]['rejected'] += 1
