@@ -250,7 +250,7 @@ class BaseAnalyticsView(APIView):
         date_from_str = request.query_params.get('date_from')
         date_to_str = request.query_params.get('date_to')
         department_id = request.query_params.get('department')
-        designation_id = request.query_params.get('designation_id')
+        designation_id = request.query_params.get('designation')
         job_id = request.query_params.get('job_id')
         user_id = request.query_params.get('user_id')
         source_filter = request.query_params.get('source')
@@ -277,6 +277,8 @@ class BaseAnalyticsView(APIView):
         mrf_base_filter = Q(company=company) & role_mrf_q
         if department_id:
             mrf_base_filter &= Q(department_id=department_id)
+        if designation_id:
+            mrf_base_filter &= Q(designation_id=designation_id)
         if user_id:
             mrf_base_filter &= (Q(requested_by_id=user_id) | Q(approvals__approver_id=user_id))
         
@@ -811,13 +813,16 @@ class BaseAnalyticsView(APIView):
         section4['recruiter_productivity'] = calc_recruiter_productivity(app_qs, target_user.id if target_user else None)
         return section4
 
-    def calc_interview_round_time_analytics(self, app_qs, date_range, company, interviewer_app_ids=None):
+    def calc_interview_round_time_analytics(self, app_qs, date_range, company, interviewer_app_ids=None, broad_job_qs=None):
         section5 = {}
         date_from, date_to = date_range
         
         # Build a base feedback filter that respects company and role constraints
         # but uses its own date filtering for interviews
-        feedback_filter = Q(job_application__job__company=company)
+        if broad_job_qs is not None:
+            feedback_filter = Q(job_application__job__in=broad_job_qs)
+        else:
+            feedback_filter = Q(job_application__job__company=company)
         
         if date_from:
             feedback_filter &= Q(created_at__date__gte=date_from)
@@ -994,23 +999,17 @@ class BaseAnalyticsView(APIView):
             if not fb_name or fb_name not in assigned_identities:
                 stats['unassigned'] = True
 
-        # All statuses at or before each round — if a passed candidate is still here, they haven't moved forward
-        statuses_at_or_before = {
-            'hr_round': {'received', 'duplicate_rejected', 'shortlisted', 'interview_pending_1', 'interview_done_1', 'interview_rejected_1'},
-            'technical_round': {'received', 'duplicate_rejected', 'shortlisted', 'interview_pending_1', 'interview_done_1', 'interview_rejected_1',
-                                'interview_next_2', 'interview_pending_2', 'interview_done_2', 'interview_rejected_2'},
-            'case_study_round': {'received', 'duplicate_rejected', 'shortlisted', 'interview_pending_1', 'interview_done_1', 'interview_rejected_1',
-                                 'interview_next_2', 'interview_pending_2', 'interview_done_2', 'interview_rejected_2',
-                                 'interview_next_3', 'interview_pending_3', 'interview_done_3', 'interview_rejected_3'},
-            'final_round': {'received', 'duplicate_rejected', 'shortlisted', 'interview_pending_1', 'interview_done_1', 'interview_rejected_1',
-                            'interview_next_2', 'interview_pending_2', 'interview_done_2', 'interview_rejected_2',
-                            'interview_next_3', 'interview_pending_3', 'interview_done_3', 'interview_rejected_3',
-                            'interview_next_final', 'interview_pending_final', 'interview_done_final', 'interview_rejected_final'},
-            'management_client_round': {'received', 'duplicate_rejected', 'shortlisted', 'interview_pending_1', 'interview_done_1', 'interview_rejected_1',
-                                        'interview_next_2', 'interview_pending_2', 'interview_done_2', 'interview_rejected_2',
-                                        'interview_next_3', 'interview_pending_3', 'interview_done_3', 'interview_rejected_3',
-                                        'interview_next_final', 'interview_pending_final', 'interview_done_final', 'interview_rejected_final',
-                                        'interview_next_management_client', 'interview_pending_management_client', 'interview_done_management_client', 'interview_rejected_management_client'},
+        # Round progression order for checking if next interview was actually taken
+        round_order = ['hr_round', 'technical_round', 'case_study_round', 'final_round', 'management_client_round']
+        candidate_rounds = set(app_round_stats.keys())
+        
+        # Post-interview statuses (candidate has moved beyond all interview rounds)
+        post_interview_statuses = {
+            'consolidated_result_review', 'selected', 'approval_pending', 'approved', 'approval_rejected',
+            'salary_annexure_prep', 'salary_annexure_review', 'approved_annexure', 'rejected_annexure',
+            'offer_pending', 'offer_sent', 'offer_accepted', 'offer_rejected',
+            'docs_pending', 'docs_uploaded', 'review_docs', 'docs_approved', 'docs_incomplete', 'docs_unclear',
+            'joining_pending', 'joining_poned', 'joined'
         }
 
         # Aggregation with core identity: Completed = Shortlisted (Passes) + Rejected (Fails)
@@ -1020,9 +1019,22 @@ class BaseAnalyticsView(APIView):
             if data['passed']:
                 stats_by_round[r_type]['passed'] += 1
                 
-                # "Not Moved": Passed but status hasn't reached next round's "shortlisted for" status
-                stuck_statuses = statuses_at_or_before.get(r_type, set())
-                if data['status'] in stuck_statuses:
+                # "Not Moved": Passed this round but NO actual interview taken in any later round
+                current_idx = round_order.index(r_type) if r_type in round_order else -1
+                has_next_interview = False
+                
+                # Check if feedback exists in any subsequent round
+                if current_idx >= 0:
+                    for later_round in round_order[current_idx + 1:]:
+                        if (app_id, later_round) in candidate_rounds:
+                            has_next_interview = True
+                            break
+                
+                # Also check if they've reached post-interview stages (selected, offer, joined, etc.)
+                if not has_next_interview and data['status'] in post_interview_statuses:
+                    has_next_interview = True
+                
+                if not has_next_interview:
                     stats_by_round[r_type]['not_moved'] += 1
             else:
                 stats_by_round[r_type]['rejected'] += 1
@@ -1343,7 +1355,7 @@ class BaseAnalyticsView(APIView):
             data['job_assignment_analytics'] = self.calc_job_assignment_analytics(job_qs, request.user.role, target_user_id)
         # Calculate Total Completed Rounds (synchronized with Section 5)
         # Uses the same logic as calc_interview_round_time_analytics
-        fb_filter = Q(job_application__job__company=company)
+        fb_filter = Q(job_application__job__in=broad_job_qs)
         if date_from: fb_filter &= Q(created_at__date__gte=date_from)
         if date_to: fb_filter &= Q(created_at__date__lte=date_to)
         if interviewer_app_ids is not None: fb_filter &= Q(job_application_id__in=interviewer_app_ids)
@@ -1354,7 +1366,7 @@ class BaseAnalyticsView(APIView):
         if 'candidate_pipeline_funnel' in requested_sections:
             data['candidate_pipeline_funnel'] = self.calc_candidate_pipeline_funnel(app_qs, target_user, interviewer_app_ids)
         if 'interview_round_time_analytics' in requested_sections:
-            data['interview_round_time_analytics'] = self.calc_interview_round_time_analytics(app_qs, (date_from, date_to), company, interviewer_app_ids)
+            data['interview_round_time_analytics'] = self.calc_interview_round_time_analytics(app_qs, (date_from, date_to), company, interviewer_app_ids, broad_job_qs)
         if 'approval_note_analytics' in requested_sections:
             data['approval_note_analytics'] = self.calc_approval_note_analytics(broad_job_qs, date_filter, target_user)
         if 'document_offer_process_timeline' in requested_sections:
