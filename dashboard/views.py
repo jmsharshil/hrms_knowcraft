@@ -277,6 +277,8 @@ class BaseAnalyticsView(APIView):
         mrf_base_filter = Q(company=company) & role_mrf_q
         if department_id:
             mrf_base_filter &= Q(department_id=department_id)
+        if designation_id:
+            mrf_base_filter &= Q(designation_id=designation_id)
         if user_id:
             mrf_base_filter &= (Q(requested_by_id=user_id) | Q(approvals__approver_id=user_id))
         
@@ -811,13 +813,16 @@ class BaseAnalyticsView(APIView):
         section4['recruiter_productivity'] = calc_recruiter_productivity(app_qs, target_user.id if target_user else None)
         return section4
 
-    def calc_interview_round_time_analytics(self, app_qs, date_range, company, interviewer_app_ids=None):
+    def calc_interview_round_time_analytics(self, app_qs, date_range, company, interviewer_app_ids=None, broad_job_qs=None):
         section5 = {}
         date_from, date_to = date_range
         
         # Build a base feedback filter that respects company and role constraints
         # but uses its own date filtering for interviews
-        feedback_filter = Q(job_application__job__company=company)
+        if broad_job_qs is not None:
+            feedback_filter = Q(job_application__job__in=broad_job_qs)
+        else:
+            feedback_filter = Q(job_application__job__company=company)
         
         if date_from:
             feedback_filter &= Q(created_at__date__gte=date_from)
@@ -1350,7 +1355,7 @@ class BaseAnalyticsView(APIView):
             data['job_assignment_analytics'] = self.calc_job_assignment_analytics(job_qs, request.user.role, target_user_id)
         # Calculate Total Completed Rounds (synchronized with Section 5)
         # Uses the same logic as calc_interview_round_time_analytics
-        fb_filter = Q(job_application__job__company=company)
+        fb_filter = Q(job_application__job__in=broad_job_qs)
         if date_from: fb_filter &= Q(created_at__date__gte=date_from)
         if date_to: fb_filter &= Q(created_at__date__lte=date_to)
         if interviewer_app_ids is not None: fb_filter &= Q(job_application_id__in=interviewer_app_ids)
@@ -1361,7 +1366,7 @@ class BaseAnalyticsView(APIView):
         if 'candidate_pipeline_funnel' in requested_sections:
             data['candidate_pipeline_funnel'] = self.calc_candidate_pipeline_funnel(app_qs, target_user, interviewer_app_ids)
         if 'interview_round_time_analytics' in requested_sections:
-            data['interview_round_time_analytics'] = self.calc_interview_round_time_analytics(app_qs, (date_from, date_to), company, interviewer_app_ids)
+            data['interview_round_time_analytics'] = self.calc_interview_round_time_analytics(app_qs, (date_from, date_to), company, interviewer_app_ids, broad_job_qs)
         if 'approval_note_analytics' in requested_sections:
             data['approval_note_analytics'] = self.calc_approval_note_analytics(broad_job_qs, date_filter, target_user)
         if 'document_offer_process_timeline' in requested_sections:
