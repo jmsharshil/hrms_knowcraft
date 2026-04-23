@@ -250,7 +250,7 @@ class BaseAnalyticsView(APIView):
         date_from_str = request.query_params.get('date_from')
         date_to_str = request.query_params.get('date_to')
         department_id = request.query_params.get('department')
-        designation_id = request.query_params.get('designation_id')
+        designation_id = request.query_params.get('designation')
         job_id = request.query_params.get('job_id')
         user_id = request.query_params.get('user_id')
         source_filter = request.query_params.get('source')
