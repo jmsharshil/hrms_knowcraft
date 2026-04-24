@@ -28,9 +28,9 @@ HTML_TEMPLATES = {
                                 <p style="margin:0 0 16px 0;">Our records indicate that a recent application has already been received from you. As per our duplicate application policy, we are unable to process this submission further at this time.</p>
                                 <p style="margin:0 0 16px 0;">You are welcome to apply again in the future after a reasonable period.</p>
                                 <br>
-                                <p style="margin:20px 0 6px 0;color:#555555;">Warm regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -62,9 +62,9 @@ HTML_TEMPLATES = {
                                 <p style="margin:0 0 16px 0;">After careful consideration, we regret to inform you that we will not be proceeding with your application further at this stage. While we were impressed with your profile, we had to make a difficult decision based on current requirements.</p>
                                 <p style="margin:0 0 16px 0;">We sincerely appreciate your interest in joining our organization and wish you every success in your future endeavors.</p>
                                 <br>
-                                <p style="margin:20px 0 6px 0;color:#555555;">Warm regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -96,9 +96,9 @@ HTML_TEMPLATES = {
                                 <p style="margin:0 0 16px 0;">Following a thorough evaluation, we regret to inform you that we will not be moving forward with your application. We truly value the time and effort you invested in the process.</p>
                                 <p style="margin:0 0 16px 0;">We encourage you to explore future opportunities with us and wish you continued success in your career.</p>
                                 <br>
-                                <p style="margin:20px 0 6px 0;color:#555555;">Warm regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -130,9 +130,9 @@ HTML_TEMPLATES = {
                                 <p style="margin:0 0 16px 0;">After careful consideration, we regret to inform you that we will not be proceeding further with your application. We sincerely appreciate your effort and interest in our organization.</p>
                                 <p style="margin:0 0 16px 0;">We wish you the very best for your professional journey ahead.</p>
                                 <br>
-                                <p style="margin:20px 0 6px 0;color:#555555;">Warm regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -164,9 +164,9 @@ HTML_TEMPLATES = {
                                 <p style="margin:0 0 16px 0;">After comprehensive evaluation, we regret to inform you that we will not be moving forward with your application. This was a competitive process, and we appreciate your interest and engagement throughout.</p>
                                 <p style="margin:0 0 16px 0;">We wish you success in all your future endeavors.</p>
                                 <br>
-                                <p style="margin:20px 0 6px 0;color:#555555;">Warm regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -198,9 +198,9 @@ HTML_TEMPLATES = {
                                 <p style="margin:0 0 16px 0;">Following detailed discussions and evaluation, we regret to inform you that we will not be progressing further with your application. We greatly appreciate the time and effort you invested in meeting with our team.</p>
                                 <p style="margin:0 0 16px 0;">We encourage you to stay connected for future opportunities and wish you continued success.</p>
                                 <br>
-                                <p style="margin:20px 0 6px 0;color:#555555;">Warm regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -234,7 +234,7 @@ HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -268,7 +268,7 @@ HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -373,7 +373,7 @@ HTML_TEMPLATES = {
                                 <p style="margin:25px 0 10px 0;">Please upload the documents at your earliest convenience so we can proceed with the next steps.</p>
                                 <p style="margin:0 0 16px 0;">Feel free to reach out in case of any questions or assistance.</p>
                                 <br>
-                                <p style="margin:20px 0 6px 0;color:#555555;">Regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
                                 <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
                             </td>
@@ -482,7 +482,7 @@ HTML_TEMPLATES = {
                                 <p style="margin:0 0 16px 0;">Please ensure that the files are properly scanned and all information is clearly visible.</p>
                                 <p style="margin:0 0 16px 0;">If you need any assistance, please feel free to reach out to us.</p>
                                 <br>
-                                <p style="margin:20px 0 6px 0;color:#555555;">Warm regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
                                 <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
                             </td>
@@ -523,7 +523,7 @@ HTML_TEMPLATES = {
                                 <p style="margin:0 0 16px 0;">Please ensure the files are properly scanned and all information is clearly visible.</p>
                                 <p style="margin:0 0 16px 0;">If you need any assistance, please feel free to reach out to us.</p>
                                 <br>
-                                <p style="margin:20px 0 6px 0;color:#555555;">Warm regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
                                 <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
                             </td>

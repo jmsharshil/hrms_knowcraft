@@ -545,7 +545,7 @@ def send_offer_letter_email(candidate):
     from django.template import Template, Context
     bond_section = ""
     feedback = aggregate_details_from_feedback(candidate)
-    if feedback.get("bond") and str(feedback.get("bond")).lower() not in ['no','na','n/a','-']:
+    if feedback.get("bond") and str(feedback.get("bond")).lower() not in ['no','na','n/a','-','not applicable']:
         bond_section = """
         <p><b>Bond:</b></p>
         <p>

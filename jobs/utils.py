@@ -1152,7 +1152,7 @@ def send_job_unassignment_email(user, job, assigned_by):
 def pre_parse_resume_task(application,resume_file,job):
     # ---- AI extraction ----
     parsed = parse_resume_ai(resume_file)
-    name = safe_str(parsed.get("name") or parsed.get("full_name")).capitalize()
+    name = safe_str(parsed.get("name") or parsed.get("full_name")).title()
     email = safe_str(parsed.get("email"))
     phone = parsed.get('phone_number') or parsed.get('phone')
     if isinstance(phone, dict):
