@@ -454,32 +454,32 @@ def send_to_zoho_sign(candidate, file_stream, filename,other_signers=[]):
     feedback = aggregate_details_from_feedback(candidate)
     bond_section = ""
     if feedback.get("bond") and str(feedback.get("bond")).lower() not in ['no','na','n/a','-','not applicable']:
-        bond_section = """Bond:\nThere will be a twelve-month (12 months) bond, which would be applicable from the Date of Joining."""
+        bond_section = """Bond:\nThere will be a twelve-month (12 months) bond, which would be applicable from the Date of Joining.\n"""
     note_message = f"""
-Hi {candidate.candidate_name},  
+Hi {candidate.candidate_name},\n  
 
-We are pleased to offer you the position of {candidate.job.mrf.designation.name} in the {candidate.job.mrf.department.name} team at Knowcraft Analytics Private Limited.
+We are pleased to offer you the position of {candidate.job.mrf.designation.name} in the {candidate.job.mrf.department.name} team at Knowcraft Analytics Private Limited.\n
 
-Please find your Offer Letter (PDF) attached. It includes details about your compensation, benefits, and terms of employment.
+Please find your Offer Letter (PDF) attached. It includes details about your compensation, benefits, and terms of employment.\n
 
-Kindly share the signed Offer Letter along with the last page mentioning the compensation package by 48 Hours. After this date, the offer will be automatically revoked.
+Kindly share the signed Offer Letter along with the last page mentioning the compensation package by 48 Hours. After this date, the offer will be automatically revoked.\n\n
 
-General Policies:
-- 24 earned leaves per year
-- 10–11 national holidays
-- Background verification will be conducted by a third party as per company policy
+General Policies:\n
+- 24 earned leaves per year\n
+- 10–11 national holidays\n
+- Background verification will be conducted by a third party as per company policy\n\n
 
-{bond_section}
+{bond_section}\n
 
-Work Mode: {feedback.get("work_mode") or "Work From Office"}
-Date of Joining: {candidate.joining_date.strftime('%d-%m-%Y') if candidate.joining_date else ''} (Reporting time: 10:30 AM)
-Office Address: {feedback.get('preferred_location') or candidate.job.mrf.location}
+Work Mode: {feedback.get("work_mode") or "Work From Office"}\n
+Date of Joining: {candidate.joining_date.strftime('%d-%m-%Y') if candidate.joining_date else ''} (Reporting time: 10:30 AM)\n
+Office Address: {feedback.get('preferred_location') or candidate.job.mrf.location}\n\n
 
-We look forward to welcoming you to the Knowcraft team.
-Please let us know if you have any questions.
+We look forward to welcoming you to the Knowcraft team.\n
+Please let us know if you have any questions.\n\n
 
-Warm Regards,
-Team – HR
+Warm Regards,\n
+Team – HR\n
 Knowcraft Analytics Private Limited."""
 
     payload = {
