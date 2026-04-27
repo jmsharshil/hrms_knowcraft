@@ -452,6 +452,7 @@ def send_to_zoho_sign(candidate, file_stream, filename,other_signers=[]):
         })
 
     feedback = aggregate_details_from_feedback(candidate)
+    bond_section = ""
     if feedback.get("bond") and str(feedback.get("bond")).lower() not in ['no','na','n/a','-','not applicable']:
         bond_section = """Bond:\nThere will be a twelve-month (12 months) bond, which would be applicable from the Date of Joining."""
     note_message = f"""
