@@ -965,7 +965,7 @@ email_html_templates = {
                                 
                                 <p style="margin:20px 0 6px 0;color:#555555;">Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <!-- Footer -->
@@ -1085,7 +1085,7 @@ email_html_templates["job_unassigned"] = f"""
 
                             <p style="margin:20px 0 6px 0;color:#555555;">Regards,</p>
                             <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                            <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                            <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                         </td>
                     </tr>
 
@@ -1152,7 +1152,7 @@ def send_job_unassignment_email(user, job, assigned_by):
 def pre_parse_resume_task(application,resume_file,job):
     # ---- AI extraction ----
     parsed = parse_resume_ai(resume_file)
-    name = safe_str(parsed.get("name") or parsed.get("full_name")).capitalize()
+    name = safe_str(parsed.get("name") or parsed.get("full_name")).title()
     email = safe_str(parsed.get("email"))
     phone = parsed.get('phone_number') or parsed.get('phone')
     if isinstance(phone, dict):
@@ -1334,9 +1334,9 @@ email_html_templates["application_rejected"] = f"""
                                 Thank you again for your interest in Knowcraft Analytics. We wish you all the best in your career search.
                             </p>
                             
-                            <p style="margin:20px 0 6px 0;color:#555555;">Best regards,</p>
+                            <p style="margin:20px 0 6px 0;color:#555555;">Best Regards,</p>
                             <p style="margin:0;font-weight:700;color:#1f2937;">Hiring Team</p>
-                            <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                            <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                         </td>
                     </tr>
                     <!-- Footer -->

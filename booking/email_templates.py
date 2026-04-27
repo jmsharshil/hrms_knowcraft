@@ -841,7 +841,7 @@ def get_interviewer_email_template(action, candidate, interviewer, start_str, me
         <br>
         <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
         <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-        <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+        <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
         </td>
         </tr>
         <!-- Footer -->

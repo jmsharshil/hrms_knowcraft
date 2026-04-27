@@ -275,9 +275,9 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
                                 <p style="margin:0 0 16px 0;">We look forward to speaking with you.</p>
                                 <p style="margin:0 0 16px 0;">Please feel free to reach out if you have any questions or require further assistance.</p>
                                 <br>
-                                <p style="margin:20px 0 6px 0;color:#555555;">Warm regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <!-- Footer -->
@@ -352,7 +352,7 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <!-- Footer -->
@@ -421,7 +421,7 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
                                     <br>
                                     <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                     <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                    <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                    <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                                 </td>
                             </tr>
                             <!-- Footer -->
@@ -601,7 +601,7 @@ Team – HR""",
                                             <br>
                                             <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                             <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                            <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                            <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                                         </td>
                                     </tr>
                                     <!-- Footer -->
@@ -751,7 +751,7 @@ Knowcraft Analytics Private Limited
                                     <br>
                                     <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                     <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                    <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                    <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                                 </td>
                             </tr>
                             <!-- Footer -->
@@ -847,7 +847,7 @@ Team – HR""",
                                     <br>
                                     <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                     <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                    <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                    <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                                 </td>
                             </tr>
                             <!-- Footer -->

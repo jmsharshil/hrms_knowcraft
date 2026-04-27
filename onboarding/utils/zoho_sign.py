@@ -451,12 +451,44 @@ def send_to_zoho_sign(candidate, file_stream, filename,other_signers=[]):
             "signing_order": idx  # sequential signing
         })
 
+    feedback = aggregate_details_from_feedback(candidate)
+    bond_section = ""
+    if feedback.get("bond") and str(feedback.get("bond")).lower() not in ['no','na','n/a','-','not applicable']:
+        bond_section = """Bond:\nThere will be a twelve-month (12 months) bond, which would be applicable from the Date of Joining.\n"""
+    note_message = f"""
+Hi {candidate.candidate_name},\n  
+
+We are pleased to offer you the position of {candidate.job.mrf.designation.name} in the {candidate.job.mrf.department.name} team at Knowcraft Analytics Private Limited.\n
+
+Please find your Offer Letter (PDF) attached. It includes details about your compensation, benefits, and terms of employment.\n
+
+Kindly share the signed Offer Letter along with the last page mentioning the compensation package by 48 Hours. After this date, the offer will be automatically revoked.\n\n
+
+General Policies:\n
+- 24 earned leaves per year\n
+- 10–11 national holidays\n
+- Background verification will be conducted by a third party as per company policy\n\n
+
+{bond_section}\n
+
+Work Mode: {feedback.get("work_mode") or "Work From Office"}\n
+Date of Joining: {candidate.joining_date.strftime('%d-%m-%Y') if candidate.joining_date else ''} (Reporting time: 10:30 AM)\n
+Office Address: {feedback.get('preferred_location') or candidate.job.mrf.location}\n\n
+
+We look forward to welcoming you to the Knowcraft team.\n
+Please let us know if you have any questions.\n\n
+
+Warm Regards,\n
+Team – HR\n
+Knowcraft Analytics Private Limited."""
+
     payload = {
         "data": json.dumps({
             "requests": {
                 "request_name": f"Offer Letter - {candidate.candidate_name}",
                 "is_sequential": True,  # True → signers sign in order
-                "actions": actions
+                "actions": actions,
+                "notes":note_message
             }
         })
     }
@@ -486,7 +518,7 @@ def send_to_zoho_sign(candidate, file_stream, filename,other_signers=[]):
         )
         if offer:
             automation_engine(candidate,candidate.status,'offer_sent')
-            send_offer_letter_email(candidate)
+            # send_offer_letter_email(candidate)
 
         return data
 
@@ -545,7 +577,7 @@ def send_offer_letter_email(candidate):
     from django.template import Template, Context
     bond_section = ""
     feedback = aggregate_details_from_feedback(candidate)
-    if feedback.get("bond") and str(feedback.get("bond")).lower() not in ['no','na','n/a','-']:
+    if feedback.get("bond") and str(feedback.get("bond")).lower() not in ['no','na','n/a','-','not applicable']:
         bond_section = """
         <p><b>Bond:</b></p>
         <p>
@@ -626,9 +658,9 @@ def send_offer_letter_email(candidate):
                                 </p>
                                 
                                 <br>
-                                <p style="margin:20px 0 6px 0;color:#555555;">Warm regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <!-- Footer -->
@@ -689,6 +721,6 @@ Office Address: {feedback.get('preferred_location') or candidate.job.mrf.locatio
 We look forward to welcoming you to the Knowcraft team.
 Please let us know if you have any questions.
 
-Warm regards,
+Warm Regards,
 Team – HR
 Knowcraft Analytics Private Limited""")

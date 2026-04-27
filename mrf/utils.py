@@ -206,9 +206,9 @@ email_templates = {
                                     </a>
                                 </p>
                                 
-                                <p style="margin:20px 0 6px 0;color:#555555;">Best regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Best Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <!-- Footer -->
@@ -256,9 +256,9 @@ email_templates = {
                                     </a>
                                 </p>
                                 
-                                <p style="margin:20px 0 6px 0;color:#555555;">Best regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Best Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -305,9 +305,9 @@ email_templates = {
                                     </a>
                                 </p>
                                 
-                                <p style="margin:20px 0 6px 0;color:#555555;">Best regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Best Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -346,9 +346,9 @@ email_templates = {
                                 </p>
                                 <p style="margin:0 0 24px 0;">Please revise and resubmit the requisition.</p>
                                 
-                                <p style="margin:20px 0 6px 0;color:#555555;">Best regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Best Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -387,9 +387,9 @@ email_templates = {
                                 </p>
                                 <p style="margin:0 0 24px 0;">The recruitment process may now proceed.</p>
                                 
-                                <p style="margin:20px 0 6px 0;color:#555555;">Best regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Best Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>

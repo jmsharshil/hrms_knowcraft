@@ -154,7 +154,7 @@ def send_salary_annexure_email(annexure, requested_by):
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">{requested_by.name}</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Recruitment Team<br>Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Recruitment Team<br>Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         
