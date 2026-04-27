@@ -302,7 +302,7 @@ HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -375,7 +375,7 @@ HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -409,7 +409,7 @@ HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -443,7 +443,7 @@ HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -484,7 +484,7 @@ HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -525,7 +525,7 @@ HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -563,9 +563,9 @@ HTML_TEMPLATES = {
                                 <p style="margin:0 0 16px 0;">Your responses will be kept confidential and used solely to enhance our hiring process.</p>
                                 <p style="margin:0 0 16px 0;">Thank you for your time and we wish you the very best.</p>
                                 <br>
-                                <p style="margin:20px 0 6px 0;color:#555555;">Warm regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -608,7 +608,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <!-- Footer -->
@@ -646,7 +646,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -683,7 +683,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -720,7 +720,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -757,7 +757,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -795,7 +795,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -833,7 +833,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -871,7 +871,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -909,7 +909,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -947,7 +947,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -985,7 +985,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -1023,7 +1023,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -1061,7 +1061,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -1099,7 +1099,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -1137,7 +1137,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -1175,7 +1175,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -1211,9 +1211,9 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <p style="margin:0 0 16px 0;">You may review the documents and proceed with the next steps of evaluation and onboarding.</p>
                                 <p style="margin:0 0 16px 0;">Please let us know if any additional information is required.</p>
                                 <br>
-                                <p style="margin:20px 0 6px 0;color:#555555;">Warm regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -1249,9 +1249,9 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <p style="margin:0 0 16px 0;">Please proceed with the next onboarding steps.</p>
                                 <p style="margin:0 0 16px 0;">Kindly let us know if any additional details are required.</p>
                                 <br>
-                                <p style="margin:20px 0 6px 0;color:#555555;">Warm regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
@@ -1305,7 +1305,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <!-- Footer -->
@@ -1360,7 +1360,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <!-- Footer -->

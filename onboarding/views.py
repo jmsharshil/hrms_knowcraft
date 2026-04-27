@@ -585,7 +585,7 @@ class SendApprovalNoteAPIView(APIView):
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         
@@ -1181,7 +1181,7 @@ Thank you.
                                         <br>
                                         <p style="margin:20px 0 6px 0;color:#555555;">Thank you for your prompt attention to this matter.</p>
                                         <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                        <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                        <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                                     </td>
                                 </tr>
                             </table>
@@ -1281,7 +1281,7 @@ Thank you.
                                         <br>
                                         <p style="margin:20px 0 6px 0;color:#555555;">Thank you for your support in streamlining the onboarding process.</p>
                                         <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                        <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                        <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                                     </td>
                                 </tr>
                             </table>

@@ -61,9 +61,9 @@ Submit for Approval
 
 <br>
 
-<p>Warm regards,<br>
+<p>Warm Regards,<br>
 <b>HR Team</b><br>
-Knowcraft Analytics Private Limited
+<b>Knowcraft Analytics Private Limited.</b>
 </p>
 
 </td>

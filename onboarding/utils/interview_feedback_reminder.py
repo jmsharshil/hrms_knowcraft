@@ -61,7 +61,7 @@ HR Team
                                     <br>
                                     <p style="margin:20px 0 6px 0;color:#555555;">Thank you for your time and continued support.</p>
                                     <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                    <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                    <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                                 </td>
                             </tr>
                         </table>

@@ -626,9 +626,9 @@ def send_offer_letter_email(candidate):
                                 </p>
                                 
                                 <br>
-                                <p style="margin:20px 0 6px 0;color:#555555;">Warm regards,</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;">Knowcraft Analytics Private Limited</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
                         <!-- Footer -->
@@ -689,6 +689,6 @@ Office Address: {feedback.get('preferred_location') or candidate.job.mrf.locatio
 We look forward to welcoming you to the Knowcraft team.
 Please let us know if you have any questions.
 
-Warm regards,
+Warm Regards,
 Team – HR
 Knowcraft Analytics Private Limited""")
