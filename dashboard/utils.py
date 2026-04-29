@@ -142,6 +142,55 @@ def calc_stage_turnaround_time(apps_qs):
 
 
 # ──────────────────────────────────────────────────────────────
+# 2.5 JOINING TURNAROUND TIME (TAT)
+# ──────────────────────────────────────────────────────────────
+def calc_joining_tat(apps_qs):
+    from django.db.models import F, Avg, ExpressionWrapper, DurationField
+    from django.db.models.functions import Cast
+    from django.db.models import DateField
+    
+    # 1. Partial Joining Avg Time - TAT (Job Open -> Offer Signed)
+    partial_apps = apps_qs.filter(
+        offerdocument__status__in=['signed', 'completed'],
+        job__created_at__isnull=False
+    ).annotate(
+        offer_signed_date=F('offerdocument__completed_at'),
+        job_open_date=F('job__created_at')
+    ).exclude(offer_signed_date__isnull=True)
+    
+    partial_avg = partial_apps.aggregate(
+        avg_tat=Avg(ExpressionWrapper(
+            F('offer_signed_date') - F('job_open_date'),
+            output_field=DurationField()
+        ))
+    )['avg_tat']
+    
+    partial_days = round(partial_avg.total_seconds() / 86400, 1) if partial_avg else 0
+    
+    # 2. Final Joining Avg Time - TAT (Job Open -> Offered Joining Date)
+    final_apps = apps_qs.filter(
+        joining_date__isnull=False,
+        job__created_at__isnull=False
+    ).annotate(
+        job_open_date_only=Cast('job__created_at', DateField())
+    )
+    
+    final_avg = final_apps.aggregate(
+        avg_tat=Avg(ExpressionWrapper(
+            F('joining_date') - F('job_open_date_only'),
+            output_field=DurationField()
+        ))
+    )['avg_tat']
+    
+    final_days = round(final_avg.total_seconds() / 86400, 1) if final_avg else 0
+    
+    return {
+        "partial_joining_tat_days": partial_days,
+        "final_joining_tat_days": final_days
+    }
+
+
+# ──────────────────────────────────────────────────────────────
 # 3. OFFER-TO-JOIN RATIO
 # ──────────────────────────────────────────────────────────────
 def calc_offer_to_join_ratio(apps_qs):
@@ -344,8 +393,6 @@ def calc_offer_analytics(apps_qs):
         "decline_reasons": reason_list,
         "by_job": job_list,
     }
-
-
 # ──────────────────────────────────────────────────────────────
 # 9. RECRUITER PRODUCTIVITY & WORKLOAD
 # ──────────────────────────────────────────────────────────────

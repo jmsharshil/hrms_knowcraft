@@ -36,6 +36,7 @@ from .utils import (
     calc_offer_analytics,
     calc_recruiter_productivity,
     calc_candidate_experience,
+    calc_joining_tat
 )
 
 from accounts.serializers import UserSerializer
@@ -167,6 +168,11 @@ class DashboardAPIView(APIView):
             "recruiter_productivity": calc_recruiter_productivity(apps_qs),
             "candidate_experience": calc_candidate_experience(apps_qs),
         }
+
+        # Inject new TAT metrics
+        tat_metrics = calc_joining_tat(apps_qs)
+        data["partial_joining_tat_days"] = tat_metrics["partial_joining_tat_days"]
+        data["final_joining_tat_days"] = tat_metrics["final_joining_tat_days"]
 
         assigned_jobs_list = []
         if user_id:

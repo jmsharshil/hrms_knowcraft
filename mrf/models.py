@@ -178,6 +178,8 @@ class MRF(models.Model):
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
         ('revision_required', 'Revision Required'),
+        ('joining_pending', 'Joining Pending'),
+        ('filled', 'Position Filled'),
     ]
     
     CASE_STUDY_CHOICES = [

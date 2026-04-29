@@ -99,7 +99,7 @@ NOTIFY_INTERNAL_STATES = {
     # "rejected_annexure",       # Notify HR
     # Offer Flow (Internal Steps)
     # "offer_pending",           # Notify HR to prepare offer
-    "offer_accepted"
+    "offer_accepted",
     "offer_rejected",
     # Document Verification
     "docs_uploaded",           # HR reviews
@@ -121,7 +121,27 @@ BROADCAST_ON_JOIN = True
 def automation_engine(candidate, old, new):
     logger.info(f"AUTO: {candidate.candidate_name} {old} → {new}")
 
-    # 1️⃣ Validate transition
+    # 1️⃣ Handle Job and MRF Status Updates (Before validation to ensure sync)
+
+    if new == 'joining_pending':
+        job = candidate.job
+        if job and job.status != 'joining_pending':
+            job.status = 'joining_pending'
+            job.save(update_fields=['status'])
+            if job.mrf and job.mrf.status != 'joining_pending':
+                job.mrf.status = 'joining_pending'
+                job.mrf.save(update_fields=['status'])
+    elif new == 'joined':
+        job = candidate.job
+        if job:
+            job.status = 'filled'
+            job.positions_filled += 1
+            job.save(update_fields=['status', 'positions_filled'])
+            if job.mrf and job.mrf.status != 'filled':
+                job.mrf.status = 'filled'
+                job.mrf.save(update_fields=['status'])
+
+    # 2️⃣ Validate transition (for notifications and auto-next)
     ok, reason = validate_transition(old, new)
     if not ok:
         logger.error(f"❌ Invalid transition: {old} → {new}. Reason: {reason}")

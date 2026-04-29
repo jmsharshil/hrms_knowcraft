@@ -473,7 +473,7 @@ class JobViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        job.status = 'closed'
+        job.status = 'filled'
         job.closed_at = timezone.now()
         job.closed_by = request.user
         job.closure_notes = closure_notes
@@ -486,7 +486,7 @@ class JobViewSet(viewsets.ModelViewSet):
         # Create history record
         JobAssignmentHistory.objects.create(
             job=job,
-            action='closed',
+            action='filled',
             consultancy=job.assigned_to_consultancy,
             performed_by=request.user,
             notes=closure_notes
@@ -494,7 +494,7 @@ class JobViewSet(viewsets.ModelViewSet):
         
         serializer = JobDetailSerializer(job, context={'request': request})
         return Response({
-            'message': 'Job closed successfully',
+            'message': 'Position filled successfully',
             'data': serializer.data
         }, status=status.HTTP_200_OK)
     
@@ -532,6 +532,10 @@ class JobViewSet(viewsets.ModelViewSet):
         
         # Increment positions filled
         job.positions_filled += 1
+        job.previous_status = job.status
+        job.status = 'filled'
+        job.mrf.status = 'filled'
+        job.mrf.save()
         job.save()
         
         serializer = JobDetailSerializer(job, context={'request': request})
@@ -802,6 +806,48 @@ class JobViewSet(viewsets.ModelViewSet):
         return Response({
             'message': 'Job assignment updated successfully',
             'data': JobDetailSerializer(job, context={'request': request}).data
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, CanManageApplications])
+    def update_joining_statuses(self, request):
+        """Manually trigger update of joining pending applications to joined if date has passed"""
+        from onboarding.utils.engine import automation_engine
+        from datetime import date
+        
+        today = date.today()
+        pending_apps = JobApplication.objects.filter(
+            status='joining_pending',
+            joining_date__lte=today,
+            is_active=True
+        )
+        
+        updated_count = 0
+        for app in pending_apps:
+            old_status = app.status
+            ok, reason = automation_engine(app, old_status, 'joined')
+            if ok:
+                updated_count += 1
+                
+                # Update job positions_filled
+                job = app.job
+                if job.positions_filled < job.no_of_positions:
+                    job.positions_filled += 1
+                    job.save(update_fields=['positions_filled'])
+                    
+                    if job.positions_filled >= job.no_of_positions:
+                        job.status = 'filled'
+                        job.save(update_fields=['status'])
+                        
+                        # Sync to MRF
+                        if hasattr(job, 'mrf') and job.mrf:
+                            mrf = job.mrf
+                            if mrf.status != 'filled':
+                                mrf.status = 'filled'
+                                mrf.save(update_fields=['status'])
+
+        return Response({
+            'message': f'Updated {updated_count} applications to joined status',
+            'date_checked': str(today)
         }, status=status.HTTP_200_OK)
 
 class JobApplicationLinkViewSet(viewsets.ModelViewSet):
@@ -1188,8 +1234,7 @@ class CareersViewSet(viewsets.GenericViewSet):
             queryset = queryset.filter(designation_id=designation_filter)
 
         queryset = queryset.filter(
-            Q(expected_closure_date__isnull=True) |
-            Q(expected_closure_date__gte=timezone.now())
+            status__in=['assigned_to_consultancy','open','assigned_to_internal_hr','assigned_to_both']
         ).distinct()
 
         from django.contrib.postgres.aggregates import ArrayAgg, StringAgg
