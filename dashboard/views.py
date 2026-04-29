@@ -1354,6 +1354,11 @@ class BaseAnalyticsView(APIView):
             "summary": self.calc_summary_totals(mrf_qs, job_qs, app_qs, platform_app_qs),
             "user_details": UserSerializer(ctx["target_user"]).data if ctx.get("target_user") else UserSerializer(ctx["user"]).data
         }
+
+        # Inject new TAT metrics
+        tat_metrics = calc_joining_tat(app_qs)
+        data["partial_joining_tat_days"] = tat_metrics["partial_joining_tat_days"]
+        data["final_joining_tat_days"] = tat_metrics["final_joining_tat_days"]
         if 'mrf_analytics' in requested_sections:
             data['mrf_analytics'] = self.calc_mrf_analytics(mrf_qs)
         if 'job_assignment_analytics' in requested_sections:
