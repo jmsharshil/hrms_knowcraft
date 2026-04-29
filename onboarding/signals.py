@@ -10,6 +10,21 @@ from slots.models import Interviewer
 from django.conf import settings
 from django.utils import timezone
 
+@receiver(pre_save, sender=JobApplication)
+def store_old_job(sender, instance, **kwargs):
+    """
+    Store old job before saving to detect changes.
+    """
+    if not instance.pk:
+        instance._old_job_id = None
+        return
+
+    try:
+        old_instance = JobApplication.objects.get(pk=instance.pk)
+        instance._old_job_id = old_instance.job_id
+    except JobApplication.DoesNotExist:
+        instance._old_job_id = None
+
 @receiver(post_save, sender=JobApplication)
 def update_approval_note_status(sender, instance, created, **kwargs):
     if created:
@@ -27,6 +42,49 @@ def update_approval_note_status(sender, instance, created, **kwargs):
         ApprovalNote.objects.filter(
             candidate=instance
         ).update(status=instance.status)
+
+    # New: Bidirectional sync for fields
+    approval_notes = instance.approval_notes.all()
+
+    # New: Sync job changes to approval note
+    old_job_id = getattr(instance, '_old_job_id', None)
+    if old_job_id and old_job_id != instance.job_id and approval_notes.exists():
+        approval_note = approval_notes.first()
+        payload = approval_note.payload or {}
+        changed = False
+
+        # Sync job-related fields
+        if instance.job and instance.job.department:
+            new_dept = instance.job.department.name
+            if payload.get('department') != new_dept:
+                payload['department'] = new_dept
+                changed = True
+
+        if instance.job and instance.job.designation:
+            new_desig = instance.job.designation.name
+            if payload.get('designation') != new_desig:
+                payload['designation'] = new_desig
+                changed = True
+
+        if instance.job and instance.job.mrf:
+            new_mrf = instance.job.mrf.mrf_name
+            if payload.get('mrf') != new_mrf:
+                payload['mrf'] = new_mrf
+                changed = True
+
+        if instance.job and instance.job.location:
+            new_loc = instance.job.location
+            if payload.get('office_location') != new_loc:
+                payload['office_location'] = new_loc
+                changed = True
+
+        # Optionally sync other fields like hiring_type if derivable from job
+        # e.g., if hasattr(instance.job, 'hiring_type') ...
+
+        if changed:
+            approval_note.payload = payload
+            approval_note.updated_at = timezone.now()
+            approval_note.save(update_fields=['payload', 'updated_at'])
 
 @receiver(pre_save, sender=JobApplicationDocument)
 def store_old_annexure(sender, instance, **kwargs):
