@@ -16,6 +16,8 @@ from .utils.annexure_history import log_salary_annexure_history
 from .utils.send_annexure import send_salary_annexure_email
 from accounts.models import User
 from django.conf import settings
+from dateutil import parser
+from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 FRONTEND_URL = getattr(settings,"FRONTEND_URL")
@@ -752,6 +754,89 @@ Knowcraft Analytics Private Limited
             status=status.HTTP_200_OK
         )
 
+    def patch(self, request):
+        user = request.user
+        if user.role not in ['hr', 'admin', 'hr_manager']:
+            return Response(
+                {"detail": "Only HR or admin can update approval notes."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            approval_note_id = request.data.get("approval_note_id")
+            if not approval_note_id:
+                return Response(
+                    {"detail": "approval_note_id is required."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            approval_note = ApprovalNote.objects.get(id=approval_note_id)
+        except ApprovalNote.DoesNotExist:
+            return Response({"detail": "Approval note not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if approval_note.created_by != user and user.role != 'admin':
+            return Response(
+                {"detail": "You can only update notes you created."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Allowed editable fields
+        editable_fields = {
+            'designation': 'designation',
+            'current_ctc': 'current_ctc',
+            'expected_ctc': 'expected_ctc',
+            'offered_ctc': 'offered_ctc',
+            'joining_date': 'joining_date',
+            'notice_period': 'notice_period',
+            'department': 'department',
+            "remarks": "remarks",
+            "hiring_type": "hiring_type",
+            "office_location": "office_location",
+        }
+
+        data = request.data
+        updated_fields = []
+        current_payload = approval_note.payload or {}
+
+        for key, payload_key in editable_fields.items():
+            if key in data:
+                if key == 'joining_date':
+                    # Parse date safely
+                    date_str = data[key]
+                    try:
+                        parsed_date = parser.parse(date_str).date()
+                        current_payload[payload_key] = parsed_date.isoformat()
+                        # Sync to JobApplication
+                        approval_note.candidate.joining_date = parsed_date
+                        approval_note.candidate.save()
+                    except ValueError:
+                        return Response(
+                            {"detail": f"Invalid date format for {key}. Use YYYY-MM-DD."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                else:
+                    current_payload[payload_key] = data[key]
+                updated_fields.append(payload_key)
+
+        if not updated_fields:
+            return Response(
+                {"detail": "No valid fields provided for update."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Update payload
+        approval_note.payload = current_payload
+        approval_note.updated_at = timezone.now()
+        approval_note.save()
+
+        return Response(
+            {
+                "detail": "Approval note updated successfully",
+                "updated_fields": updated_fields,
+                "payload": approval_note.payload
+            },
+            status=status.HTTP_200_OK
+        )
+
 def aggregate_interview_feedback(job_application):
     feedbacks = job_application.interview_feedbacks.all()
 
@@ -1388,7 +1473,6 @@ from .models import DocuSignOffer
 
 
 from .utils.docusign import DocuSignService
-from django.utils import timezone
 from django.http import JsonResponse
 def send_offer_letter_view(request, application_id):
     try:
@@ -1468,7 +1552,7 @@ def docusign_webhook(request):
     try:
         print("🔥 WEBHOOK HIT")
 
-        content_type = request.content_ytpe
+        content_type = request.content_type  # Fixed typo: content_ytpe -> content_type
         print("Content-Type:", content_type)
 
         # 🧠 Handle JSON
