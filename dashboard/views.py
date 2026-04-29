@@ -36,6 +36,7 @@ from .utils import (
     calc_offer_analytics,
     calc_recruiter_productivity,
     calc_candidate_experience,
+    calc_joining_tat
 )
 
 from accounts.serializers import UserSerializer
@@ -167,6 +168,11 @@ class DashboardAPIView(APIView):
             "recruiter_productivity": calc_recruiter_productivity(apps_qs),
             "candidate_experience": calc_candidate_experience(apps_qs),
         }
+
+        # Inject new TAT metrics
+        tat_metrics = calc_joining_tat(apps_qs)
+        data["partial_joining_tat_days"] = tat_metrics["partial_joining_tat_days"]
+        data["final_joining_tat_days"] = tat_metrics["final_joining_tat_days"]
 
         assigned_jobs_list = []
         if user_id:
@@ -403,8 +409,8 @@ class BaseAnalyticsView(APIView):
             level_approvals = MRFApproval.objects.filter(mrf__in=mrf_qs, level=level, action='approved')
             if level_approvals.exists():
                 avg_time = level_approvals.aggregate(avg=Avg(F('created_at') - F('mrf__submitted_at')))['avg']
-                avg_hours = round(avg_time.total_seconds() / 3600, 2) if avg_time else 0
-                approval_funnel.append({'level': level, 'avg_time_hours': avg_hours})
+                avg_days = round(avg_time.total_seconds() / 86400, 2) if avg_time else 0
+                approval_funnel.append({'level': level, 'avg_time_days': avg_days})
         section1['approval_funnel'] = approval_funnel
 
         total_jobs_from_mrf = Job.objects.filter(mrf__in=mrf_qs).count()
@@ -412,19 +418,19 @@ class BaseAnalyticsView(APIView):
 
         approved_mrfs = mrf_qs.filter(status='approved')
         if approved_mrfs.exists():
-            durations = [(mrf.approved_at - mrf.submitted_at).total_seconds() / 3600 for mrf in approved_mrfs if mrf.approved_at and mrf.submitted_at]
-            section1['avg_mrf_approval_time_hours'] = round(sum(durations) / len(durations), 2) if durations else 0
+            durations = [(mrf.approved_at - mrf.submitted_at).total_seconds() / 86400 for mrf in approved_mrfs if mrf.approved_at and mrf.submitted_at]
+            section1['avg_mrf_approval_time_days'] = round(sum(durations) / len(durations), 2) if durations else 0
         else:
-            section1['avg_mrf_approval_time_hours'] = 0
+            section1['avg_mrf_approval_time_days'] = 0
 
         dept_stats = mrf_qs.values('department__name').annotate(count=Count('id')).order_by('-count')
         mrf_by_dept = []
         for d in dept_stats:
             dept_name = d['department__name']
             dept_mrfs = approved_mrfs.filter(department__name=dept_name)
-            durations = [(mrf.approved_at - mrf.submitted_at).total_seconds() / 3600 for mrf in dept_mrfs if mrf.approved_at and mrf.submitted_at]
-            avg_h = round(sum(durations) / len(durations), 2) if durations else 0
-            mrf_by_dept.append({'department': dept_name, 'count': d['count'], 'avg_approval_time_hours': avg_h})
+            durations = [(mrf.approved_at - mrf.submitted_at).total_seconds() / 86400 for mrf in dept_mrfs if mrf.approved_at and mrf.submitted_at]
+            avg_days = round(sum(durations) / len(durations), 2) if durations else 0
+            mrf_by_dept.append({'department': dept_name, 'count': d['count'], 'avg_approval_time_days': avg_days})
         section1['mrf_by_department'] = mrf_by_dept
 
         month_stats = mrf_qs.annotate(month=TruncMonth('created_at')).values('month').annotate(count=Count('id')).order_by('month')
@@ -462,10 +468,10 @@ class BaseAnalyticsView(APIView):
 
         assigned_jobs = job_qs.filter(assigned_at__isnull=False, created_at__isnull=False)
         if assigned_jobs.exists():
-            durations = [(job.assigned_at - job.created_at).total_seconds() / 3600 for job in assigned_jobs]
-            section2['avg_time_to_assign_hours'] = round(sum(durations) / len(durations), 2) if durations else 0
+            durations = [(job.assigned_at - job.created_at).total_seconds() / 86400 for job in assigned_jobs]
+            section2['avg_time_to_assign_days'] = round(sum(durations) / len(durations), 2) if durations else 0
         else:
-            section2['avg_time_to_assign_hours'] = 0
+            section2['avg_time_to_assign_days'] = 0
 
         status_qs = job_qs.values('status').annotate(count=Count('id'))
         status_breakdown = {item['status']: item['count'] for item in status_qs}
@@ -789,8 +795,8 @@ class BaseAnalyticsView(APIView):
 
         stage_times_wrapper = calc_stage_turnaround_time(app_qs)
         stage_times = stage_times_wrapper.get('stages', [])
-        avg_times = [{'stage': st['stage_display'], 'avg_hours': round(st['avg_days_in_stage'] * 24, 2)} for st in stage_times]
-        section4['avg_time_per_stage_hours'] = avg_times
+        avg_times = [{'stage': st['stage_display'], 'avg_days': st['avg_days_in_stage']} for st in stage_times]
+        section4['avg_time_per_stage_days'] = avg_times
 
         status_counts = app_qs.values('status').annotate(count=Count('id'))
         status_counts_dict = {item['status']: item['count'] for item in status_counts}
@@ -837,9 +843,9 @@ class BaseAnalyticsView(APIView):
         shortlisted = app_qs.filter(status='shortlisted')
         if shortlisted.exists():
             avg = shortlisted.aggregate(avg=Avg(F('updated_at') - F('created_at')))['avg']
-            section5['avg_time_to_shortlist_hours'] = round(avg.total_seconds() / 3600, 2) if avg else 0
+            section5['avg_time_to_shortlist_days'] = round(avg.total_seconds() / 86400, 2) if avg else 0
         else:
-            section5['avg_time_to_shortlist_hours'] = 0
+            section5['avg_time_to_shortlist_days'] = 0
 
         # Dynamic average time between rounds
         feedbacks = list(feedback_qs.select_related('job_application').values('job_application_id', 'interview_round', 'created_at'))
@@ -858,7 +864,7 @@ class BaseAnalyticsView(APIView):
             for i in range(1, len(fbs)):
                 prev = fbs[i-1]['round']
                 curr = fbs[i]['round']
-                delta = (fbs[i]['completed_at'] - fbs[i-1]['completed_at']).total_seconds() / 3600
+                delta = (fbs[i]['completed_at'] - fbs[i-1]['completed_at']).total_seconds() / 86400
                 if delta >= 0:
                     between_deltas[(prev, curr)].append(delta)
 
@@ -881,11 +887,11 @@ class BaseAnalyticsView(APIView):
             from_round = ordered_rounds[i]
             to_round = ordered_rounds[i + 1]
             deltas = between_deltas.get((from_round, to_round), [])
-            avg_h = round(sum(deltas) / len(deltas), 2) if deltas else 0.0
+            avg_days = round(sum(deltas) / len(deltas), 2) if deltas else 0.0
             avg_between.append({
                 'from_round': round_display.get(from_round, from_round),
                 'to_round': round_display.get(to_round, to_round),
-                'avg_hours': avg_h,
+                'avg_days': avg_days,
                 'num_applications': len(deltas)
             })
 
@@ -896,13 +902,13 @@ class BaseAnalyticsView(APIView):
                 avg_between.append({
                     'from_round': round_display.get(from_round, from_round),
                     'to_round': round_display.get(to_round, to_round),
-                    'avg_hours': round(sum(deltas) / len(deltas), 2),
+                    'avg_days': round(sum(deltas) / len(deltas), 2),
                     'num_applications': len(deltas)
                 })
 
         # Sort by from_round then to_round for consistent ordering
         avg_between.sort(key=lambda x: (x['from_round'], x['to_round']))
-        section5['avg_time_between_rounds_hours'] = avg_between
+        section5['avg_time_between_rounds_days'] = avg_between
 
         # Round completion analytics with "Not Moved" and "Unassigned" logic
         # Prefetch related data for efficiency
@@ -1108,14 +1114,14 @@ class BaseAnalyticsView(APIView):
         # Stage turnaround times
         stage_times_wrapper = calc_stage_turnaround_time(app_qs)
         stage_times = stage_times_wrapper.get('stages', [])
-        avg_times = [{'stage': st['stage_display'], 'avg_hours': round(st['avg_days_in_stage'] * 24, 2)} for st in stage_times]
+        avg_times = [{'stage': st['stage_display'], 'avg_days': st['avg_days_in_stage']} for st in stage_times]
         if avg_times:
-            slowest = max(avg_times, key=lambda x: x['avg_hours'])
-            fastest = min(avg_times, key=lambda x: x['avg_hours'])
-            section5['slowest_stage'] = {'stage_name': slowest['stage'], 'avg_hours': slowest['avg_hours']}
-            section5['fastest_stage'] = {'stage_name': fastest['stage'], 'avg_hours': fastest['avg_hours']}
+            slowest = max(avg_times, key=lambda x: x['avg_days'])
+            fastest = min(avg_times, key=lambda x: x['avg_days'])
+            section5['slowest_stage'] = {'stage_name': slowest['stage'], 'avg_days': slowest['avg_days']}
+            section5['fastest_stage'] = {'stage_name': fastest['stage'], 'avg_days': fastest['avg_days']}
         else:
-            section5['slowest_stage'] = {'stage_name': 'N/A', 'avg_hours': 0}; section5['fastest_stage'] = {'stage_name': 'N/A', 'avg_hours': 0}
+            section5['slowest_stage'] = {'stage_name': 'N/A', 'avg_days': 0}; section5['fastest_stage'] = {'stage_name': 'N/A', 'avg_days': 0}
         return section5
 
     def calc_approval_note_analytics(self, job_qs, date_filter, target_user=None):
@@ -1136,9 +1142,9 @@ class BaseAnalyticsView(APIView):
         approved_notes = approval_note_qs.filter(status='approved')
         if approved_notes.exists():
             avg = approved_notes.aggregate(avg=Avg(F('updated_at') - F('created_at')))['avg']
-            section6['avg_time_to_approve_hours'] = round(avg.total_seconds() / 3600, 2) if avg else 0
+            section6['avg_time_to_approve_days'] = round(avg.total_seconds() / 86400, 2) if avg else 0
         else:
-            section6['avg_time_to_approve_hours'] = 0
+            section6['avg_time_to_approve_days'] = 0
 
         delayed_threshold = timezone.now() - timedelta(hours=48)
         section6['delayed_approval_notes'] = approval_note_qs.filter(status='approval_pending', created_at__lt=delayed_threshold).count()
@@ -1154,17 +1160,17 @@ class BaseAnalyticsView(APIView):
             mgr_id = a['manager_id']
             # Calculate average for this specific manager
             approved_for_avg = approval_note_qs.filter(manager_id=mgr_id, status='approved')
-            avg_h = 0
+            avg_days = 0
             if approved_for_avg.exists():
                 avg_d = approved_for_avg.aggregate(avg=Avg(F('updated_at') - F('created_at')))['avg']
-                avg_h = round(avg_d.total_seconds() / 3600, 2) if avg_d else 0
+                avg_days = round(avg_d.total_seconds() / 86400, 2) if avg_d else 0
             by_approver.append({
                 'approver_name': a['manager__name'] or 'Unknown',
                 'approver_id': mgr_id,
                 'sent': a['sent'],
                 'approved': a['approved'],
                 'rejected': a['rejected'],
-                'avg_hours': avg_h
+                'avg_days': avg_days
             })
         section6['approval_notes_by_approver'] = by_approver
         return section6
@@ -1198,52 +1204,52 @@ class BaseAnalyticsView(APIView):
         for a in annexures: apps_data[a['job_application_id']]['annexure'] = a
         for o in offers: apps_data[o['application_id']]['offer'] = o
             
-        req_to_up_hours, up_to_appr_hours, appr_to_sal_hours, sal_to_appr_hours, offer_create_hours, offer_sent_to_resp_hours, offer_internal_appr = [], [], [], [], [], [], []
+        req_to_up_days, up_to_appr_days, appr_to_sal_days, sal_to_appr_days, offer_create_days, offer_sent_to_resp_days, offer_internal_appr_days = [], [], [], [], [], [], []
 
         for app_id, data in apps_data.items():
             jad, note, annex, offer = data.get('jad'), data.get('note'), data.get('annexure'), data.get('offer')
             if jad:
-                td = (jad['updated_at'] - jad['created_at']).total_seconds() / 3600
+                td = (jad['updated_at'] - jad['created_at']).total_seconds() / 86400
                 if td >= 0:
-                    if jad['joining_docs_status'] == 'uploaded': req_to_up_hours.append(td)
+                    if jad['joining_docs_status'] == 'uploaded': req_to_up_days.append(td)
                     elif jad['joining_docs_status'] in ['approved', 'review_docs']:
-                        req_to_up_hours.append(td/2); up_to_appr_hours.append(td/2)
+                        req_to_up_days.append(td/2); up_to_appr_days.append(td/2)
             if note and annex:
-                td = (annex['created_at'] - note['approved_at']).total_seconds() / 3600
-                if td >= 0: appr_to_sal_hours.append(td)
+                td = (annex['created_at'] - note['approved_at']).total_seconds() / 86400
+                if td >= 0: appr_to_sal_days.append(td)
             if annex and annex['status'] == 'approved':
-                td = (annex['updated_at'] - annex['created_at']).total_seconds() / 3600
-                if td >= 0: sal_to_appr_hours.append(td)
+                td = (annex['updated_at'] - annex['created_at']).total_seconds() / 86400
+                if td >= 0: sal_to_appr_days.append(td)
             if annex and offer:
-                td = (offer['created_at'] - annex['updated_at']).total_seconds() / 3600
-                if td >= 0: offer_create_hours.append(td)
+                td = (offer['created_at'] - annex['updated_at']).total_seconds() / 86400
+                if td >= 0: offer_create_days.append(td)
             if offer:
                 start, sent, comp = offer.get('created_at'), offer.get('sent_at'), offer.get('completed_at') or offer.get('updated_at')
                 if sent and start:
-                    td = (sent - start).total_seconds() / 3600
-                    if td >= 0: offer_internal_appr.append(td)
+                    td = (sent - start).total_seconds() / 86400
+                    if td >= 0: offer_internal_appr_days.append(td)
                 if offer['status'] in ['completed', 'signed', 'declined'] and sent and comp:
-                    td = (comp - sent).total_seconds() / 3600
-                    if td >= 0: offer_sent_to_resp_hours.append(td)
+                    td = (comp - sent).total_seconds() / 86400
+                    if td >= 0: offer_sent_to_resp_days.append(td)
 
-        def avg_h(lst): return round(sum(lst) / len(lst), 2) if lst else 0.0
+        def avg_d(lst): return round(sum(lst) / len(lst), 2) if lst else 0.0
         section7.update({
-            'avg_time_document_request_to_upload_hours': avg_h(req_to_up_hours),
-            'avg_time_document_upload_to_approval_hours': avg_h(up_to_appr_hours),
-            'avg_time_approval_to_salary_annexure_hours': avg_h(appr_to_sal_hours),
-            'avg_time_salary_annexure_to_approval_hours': avg_h(sal_to_appr_hours),
-            'avg_time_to_offer_letter_creation_hours': avg_h(offer_create_hours),
-            'avg_time_offer_letter_to_approval_hours': avg_h(offer_internal_appr),
-            'avg_time_offer_letter_sent_to_response_hours': avg_h(offer_sent_to_resp_hours)
+            'avg_time_document_request_to_upload_days': avg_d(req_to_up_days),
+            'avg_time_document_upload_to_approval_days': avg_d(up_to_appr_days),
+            'avg_time_approval_to_salary_annexure_days': avg_d(appr_to_sal_days),
+            'avg_time_salary_annexure_to_approval_days': avg_d(sal_to_appr_days),
+            'avg_time_to_offer_letter_creation_days': avg_d(offer_create_days),
+            'avg_time_offer_letter_to_approval_days': avg_d(offer_internal_appr_days),
+            'avg_time_offer_letter_sent_to_response_days': avg_d(offer_sent_to_resp_days)
         })
 
         joined_apps = app_qs.filter(status='joined')
         durations_days = [(app.updated_at - app.job.mrf.created_at).total_seconds() / 86400 for app in joined_apps if app.job and app.job.mrf and app.job.mrf.created_at and app.updated_at]
         section7['full_pipeline_avg_days'] = round(sum(durations_days) / len(durations_days), 2) if durations_days else 0
         
-        stages = [('Document Request to Upload', section7['avg_time_document_request_to_upload_hours']), ('Document Upload to Approval', section7['avg_time_document_upload_to_approval_hours']), ('Approval to Salary Annexure', section7['avg_time_approval_to_salary_annexure_hours']), ('Salary Annexure to Approval', section7['avg_time_salary_annexure_to_approval_hours']), ('Offer Letter Creation', section7['avg_time_to_offer_letter_creation_hours']), ('Offer Letter Approval/Sent', section7['avg_time_offer_letter_to_approval_hours']), ('Offer Sent to Response', section7['avg_time_offer_letter_sent_to_response_hours'])]
+        stages = [('Document Request to Upload', section7['avg_time_document_request_to_upload_days']), ('Document Upload to Approval', section7['avg_time_document_upload_to_approval_days']), ('Approval to Salary Annexure', section7['avg_time_approval_to_salary_annexure_days']), ('Salary Annexure to Approval', section7['avg_time_salary_annexure_to_approval_days']), ('Offer Letter Creation', section7['avg_time_to_offer_letter_creation_days']), ('Offer Letter Approval/Sent', section7['avg_time_offer_letter_to_approval_days']), ('Offer Sent to Response', section7['avg_time_offer_letter_sent_to_response_days'])]
         bottleneck = max(stages, key=lambda x: x[1]) if any(s[1] > 0 for s in stages) else ('None', 0.0)
-        section7['bottleneck_stage'] = {'stage_name': bottleneck[0], 'avg_hours': bottleneck[1]}
+        section7['bottleneck_stage'] = {'stage_name': bottleneck[0], 'avg_days': bottleneck[1]}
         return section7
 
     def calc_overall_summary_kpis(self, mrf_qs, job_qs, app_qs, platform_app_qs, company, date_range=None):
@@ -1348,6 +1354,11 @@ class BaseAnalyticsView(APIView):
             "summary": self.calc_summary_totals(mrf_qs, job_qs, app_qs, platform_app_qs),
             "user_details": UserSerializer(ctx["target_user"]).data if ctx.get("target_user") else UserSerializer(ctx["user"]).data
         }
+
+        # Inject new TAT metrics
+        tat_metrics = calc_joining_tat(app_qs)
+        data["partial_joining_tat_days"] = tat_metrics["partial_joining_tat_days"]
+        data["final_joining_tat_days"] = tat_metrics["final_joining_tat_days"]
         if 'mrf_analytics' in requested_sections:
             data['mrf_analytics'] = self.calc_mrf_analytics(mrf_qs)
         if 'job_assignment_analytics' in requested_sections:

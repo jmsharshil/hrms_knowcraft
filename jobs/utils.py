@@ -113,6 +113,8 @@ def parse_resume_ai(file_input):
     prompt = f"""
     You are an expert ATS resume parser.
 
+    Do not give fake or demo data. If there is not enough relevent data to extract from the resume return empty string for that fields.
+
     Extract the following fields from this resume:
 
     - name

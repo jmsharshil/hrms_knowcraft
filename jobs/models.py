@@ -19,6 +19,7 @@ class Job(models.Model):
         ('assigned_to_internal_hr', 'Assigned to Internal HR'),
         ('assigned_to_both',"Assigned to Both"),
         ('on_hold', 'On Hold'),
+        ('joining_pending', 'Joining Pending'),
         # ('in_progress', 'In Progress'),
         ('filled', 'Position Filled'),
         ('closed', 'Closed'),
@@ -238,53 +239,53 @@ class Job(models.Model):
     def is_on_hold(self):
         return self.status == 'on_hold'
     
-    @classmethod
-    @transaction.atomic
-    def close_expired_jobs(cls):
-        """
-        Close all jobs where expected_closure_date <= today and status != 'closed'.
-        Updates previous_status, closure_notes, saves job.
-        Syncs expected_closure_date to applications and sets their status='expired'.
-        Logs to JobAssignmentHistory if available.
-        Returns (closed_count, app_updated_count)
-        """
-        today = timezone.now().date()
-        expired_jobs = cls.objects.filter(
-            expected_closure_date__lte=today,
-            status__in=['open', 'assigned_to_both', 'assigned_to_internal_hr', 'assigned_to_consultancy'],
-            expected_closure_date__isnull=False
-        )
+    # @classmethod
+    # @transaction.atomic
+    # def close_expired_jobs(cls):
+    #     """
+    #     Close all jobs where expected_closure_date <= today and status != 'closed'.
+    #     Updates previous_status, closure_notes, saves job.
+    #     Syncs expected_closure_date to applications and sets their status='expired'.
+    #     Logs to JobAssignmentHistory if available.
+    #     Returns (closed_count, app_updated_count)
+    #     """
+    #     today = timezone.now().date()
+    #     expired_jobs = cls.objects.filter(
+    #         expected_closure_date__lte=today,
+    #         status__in=['open', 'assigned_to_both', 'assigned_to_internal_hr', 'assigned_to_consultancy'],
+    #         expected_closure_date__isnull=False
+    #     )
 
-        closed_count = 0
-        app_updated_count = 0
+    #     closed_count = 0
+    #     app_updated_count = 0
 
-        for job in expired_jobs:
-            old_status = job.status
+    #     for job in expired_jobs:
+    #         old_status = job.status
 
-            # Close job
-            job.previous_status = old_status
-            job.closure_notes = 'expiry'
-            job.status = 'closed'
-            job.save()
+    #         # Close job
+    #         job.previous_status = old_status
+    #         job.closure_notes = 'expiry'
+    #         job.status = 'closed'
+    #         job.save()
 
-            # Log in history (assuming JobAssignmentHistory exists; skip if not)
-            try:
-                from .models import JobAssignmentHistory  # Avoid circular import
-                JobAssignmentHistory.objects.create(
-                    job=job,
-                    old_status=old_status,
-                    new_status='closed',
-                    changed_by=None  # Or set to a system user
-                )
-            except (ImportError, Exception) as e:
-                print(e)
-                pass  # Skip logging if model doesn't exist or error
+    #         # Log in history (assuming JobAssignmentHistory exists; skip if not)
+    #         try:
+    #             from .models import JobAssignmentHistory  # Avoid circular import
+    #             JobAssignmentHistory.objects.create(
+    #                 job=job,
+    #                 old_status=old_status,
+    #                 new_status='closed',
+    #                 changed_by=None  # Or set to a system user
+    #             )
+    #         except (ImportError, Exception) as e:
+    #             print(e)
+    #             pass  # Skip logging if model doesn't exist or error
 
-            closed_count += 1  # Moved inside loop, after processing
+    #         closed_count += 1  # Moved inside loop, after processing
 
-        # Optional: Print/log summary (visible in server logs)
-        print(f'Expiry check: Closed {closed_count} expired jobs and updated {app_updated_count} applications.')
-        return closed_count, app_updated_count
+    #     # Optional: Print/log summary (visible in server logs)
+    #     print(f'Expiry check: Closed {closed_count} expired jobs and updated {app_updated_count} applications.')
+    #     return closed_count, app_updated_count
 
 class JobApplicationLink(models.Model):
     """Unique application links for different platforms"""
@@ -667,6 +668,28 @@ class JobApplication(models.Model):
     def __str__(self):
         return f"{self.candidate_name} - {self.job.job_title}"
     
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        old_status = None
+        if not is_new:
+            try:
+                old_status = JobApplication.objects.get(pk=self.pk).status
+            except JobApplication.DoesNotExist:
+                pass
+
+        trigger_engine_joined = False
+
+        # Manual transition detection (if status was manually changed to joined)
+        if not is_new and self.status == 'joined' and old_status != 'joined':
+            trigger_engine_joined = True
+
+        super().save(*args, **kwargs)
+
+        if trigger_engine_joined:
+            from onboarding.utils.engine import automation_engine
+            # Trigger engine for manual status jump to joined
+            automation_engine(self, old_status, 'joined')
+            
     def get_platform_name(self):
         """Get the platform name from application link"""
         if self.application_link:
@@ -687,6 +710,7 @@ class JobAssignmentHistory(models.Model):
         ('status_changed', 'Status Changed'),
         ('priority_changed', 'Priority Changed'),
         ('closed', 'Job Closed'),
+        ('filled', 'Position Filled'),
         ('reopened', 'Job Reopened'),
         ('cancelled', 'Job Cancelled'),
     ]
