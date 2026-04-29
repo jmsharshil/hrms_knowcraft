@@ -12,7 +12,7 @@ def run_joining_date_check():
     """
     from jobs.models import JobApplication
     from onboarding.utils.engine import automation_engine
-    logger.info("[JOINING CHECK] Starting background check for joining dates...")
+    print("[JOINING CHECK] Starting background check for joining dates...")
     try:
         # Find candidates whose joining date has arrived
         apps_to_update = list(JobApplication.objects.filter(
@@ -21,15 +21,15 @@ def run_joining_date_check():
         ))
         
         if not apps_to_update:
-            logger.info("[JOINING CHECK] No candidates found for transition.")
+            print("[JOINING CHECK] No candidates found for transition.")
             return
 
         for app in apps_to_update:
-            logger.info(f"[JOINING CHECK] Auto-transitioning {app.candidate_name} (ID: {app.id}) to joined")
+            print(f"[JOINING CHECK] Auto-transitioning {app.candidate_name} (ID: {app.id}) to joined")
             # automation_engine will handle status change and Job/MRF updates
             automation_engine(app, 'joining_pending', 'joined')
             
-        logger.info(f"[JOINING CHECK] Successfully processed {len(apps_to_update)} candidates.")
+        print(f"[JOINING CHECK] Successfully processed {len(apps_to_update)} candidates.")
     except Exception as e:
         logger.error(f"[JOINING CHECK] Error during background joining check: {e}")
 
