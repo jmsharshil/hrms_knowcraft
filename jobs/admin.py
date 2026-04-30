@@ -107,68 +107,27 @@ class JobApplicationAdmin(admin.ModelAdmin):
         'candidate_name', 'candidate_email', 'candidate_phone',
         'job__job_title', 'notes'
     ]
-    # readonly_fields = ['id', 'created_at', 'updated_at', 'submitted_by']
+    readonly_fields = ['id', 'created_at', 'updated_at', 'submitted_by']
     fieldsets = (
-        ('Basic Information', {
+        ('Candidate Information', {
             'fields': (
-                'id', 'job', 'application_link', 'source', 'submitted_by', 'status'
+                'id', 'candidate_name', 'candidate_email', 'candidate_phone',
+                'resume', 'experience_years'
             )
         }),
-        ('Candidate Personal Information', {
+        ('Job & Status', {
             'fields': (
-                'candidate_name', 'candidate_email', 'candidate_phone', 'location', 
-                'availibility', 'current_employer'
+                'job', 'status', 'source', 'submitted_by'
             )
         }),
-        ('Candidate Professional Information', {
-            'fields': (
-                'cover_letter', 'education', 'skill', 'experience_years', 
-                'relevant_experience_years'
-            )
-        }),
-        ('Compensation Details', {
+        ('Compensation', {
             'fields': (
                 'current_ctc', 'expected_ctc', 'notice_period'
             )
         }),
-        ('Resume and Reports', {
+        ('Additional Information', {
             'fields': (
-                'resume', 'original_filename', 'file_size', 'resume_report', 'match_score'
-            )
-        }),
-        ('Online Profiles', {
-            'fields': (
-                'linkedin_url', 'portfolio_url'
-            )
-        }),
-        ('Interview and Links', {
-            'fields': (
-                'slot_link', 'inperson_link', 'interview_link', 'feedback_link', 
-                'round_name', 'interview_scheduled_at', 'interview_end_at', 
-                'interviewer_name', 'no_show_count', 'reschedule_count'
-            )
-        }),
-        ('Referral Information', {
-            'fields': (
-                'referral_name', 'referral_email', 'referral_phone', 
-                'referral_emp_code', 'referral_designation', 'referral_department'
-            )
-        }),
-        ('Status Flags', {
-            'fields': (
-                'is_active', 'is_duplicate', 'is_shortlisted', 'is_selected', 
-                'is_approved', 'is_rejected'
-            )
-        }),
-        ('Advanced Tracking', {
-            'fields': (
-                'joining_date', 'candidate_history', 'consolidated_feedback_avg', 
-                'rejection_reason', 'offer_decline_reason', 'notes', 'rating'
-            )
-        }),
-        ('Timestamps', {
-            'fields': (
-                'created_at', 'updated_at'
+                'notes', 'created_at', 'updated_at'
             )
         }),
     )
