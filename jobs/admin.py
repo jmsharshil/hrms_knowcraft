@@ -106,7 +106,7 @@ class JobApplicationAdmin(admin.ModelAdmin):
         'candidate_name', 'candidate_email', 'candidate_phone',
         'job__job_title', 'notes'
     ]
-    readonly_fields = ['id', 'submitted_by']
+    readonly_fields = ['id']
     fieldsets = (
         ('Candidate Information', {
             'fields': (
