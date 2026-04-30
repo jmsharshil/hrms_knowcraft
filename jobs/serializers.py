@@ -151,80 +151,27 @@ class JobListSerializer(serializers.ModelSerializer):
     def get_remaining_positions(self, obj):
         return obj.remaining_positions()
 
-
 # ============= APPLICATION SERIALIZERS =============
 
-class JobApplicationSerializer(serializers.ModelSerializer):
+class JobApplicationMiniSerializer(serializers.ModelSerializer):
     """Serializer for job applications"""
     
-    job_title = serializers.CharField(source='job.job_title', read_only=True)
-    department_name = serializers.CharField(source='job.department.name', read_only=True)
-    designation_name = serializers.CharField(source='job.designation.name', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     source_display = serializers.CharField(source='get_source_display', read_only=True)
-    round_name_display = serializers.CharField(source='get_round_name_display', read_only=True)
     submitted_by_name = serializers.CharField(
         source='submitted_by.name',
         read_only=True,
         allow_null=True
     )
-    uploaded_by_name = serializers.CharField(
-        source='application_link.created_by.name',
-        read_only=True,
-        allow_null=True
-    )
-    uploaded_by_email = serializers.CharField(
-        source='application_link.created_by.email',
-        read_only=True,
-        allow_null=True
-    )
-    uploaded_by_role = serializers.CharField(
-        source='application_link.created_by.role',
-        read_only=True,
-        allow_null=True
-    )
-    uploaded_by_phone = serializers.CharField(
-        source='application_link.created_by.phone',
-        read_only=True,
-        allow_null=True
-    )
-    platform_name = serializers.SerializerMethodField()
-    resume_url = serializers.SerializerMethodField()
-    file_size_mb = serializers.SerializerMethodField()
     
     class Meta:
         model = JobApplication
         fields = [
-            'id', 'job', 'job_title', 'department_name', 'candidate_name','designation_name',
-            'candidate_email', 'candidate_phone', 'resume', 'resume_url',
-            'original_filename', 'file_size', 'file_size_mb', 'cover_letter',"rejection_reason",
-            'experience_years','relevant_experience_years', 'current_ctc', 'expected_ctc', 'notice_period',
-            'linkedin_url', 'portfolio_url','skill','education','location','current_employer','match_score', 'status', 'status_display',
-            'source', 'source_display', 'platform_name', 'application_link','is_duplicate',"referral_name","referral_email","referral_phone",
-            "referral_emp_code","referral_designation","referral_department","is_shortlisted","consolidated_feedback_avg",
-            'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report','slot_link','candidate_history',
-            'created_at', 'updated_at','is_selected','is_approved','is_rejected','inperson_link','reschedule_count','no_show_count',
-            'interview_scheduled_at','interviewer_name','interview_link','feedback_link','round_name','round_name_display',
-            "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone","interview_end_at"
+            'id', 'candidate_name','candidate_email', 'candidate_phone',
+            'status_display','source_display', 'submitted_by_name','joining_date',
+            'created_at','updated_at'
         ]
     
-    def get_platform_name(self, obj):
-        return obj.get_platform_name()
-    
-    def get_resume_url(self, obj):
-        if obj.resume:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.resume.url)
-            return obj.resume.url
-        return None
-    
-    def get_file_size_mb(self, obj):
-        if obj.file_size:
-            return round(obj.file_size / (1024 * 1024), 2)
-        return 0
-
-
 class JobDetailSerializer(serializers.ModelSerializer):
     """Serializer for detailed job view"""
     
@@ -319,7 +266,7 @@ class JobDetailSerializer(serializers.ModelSerializer):
     
     def get_joining_applications(self, obj):
         apps = obj.applications.filter(status__in=['joining_pending', 'joined'])
-        return JobApplicationSerializer(apps, many=True, context=self.context).data
+        return JobApplicationMiniSerializer(apps, many=True, context=self.context).data
     
     def get_application_links_count(self, obj):
         return obj.application_links.filter(is_active=True).count()
@@ -460,8 +407,77 @@ class CloseJobSerializer(serializers.Serializer):
     
     closure_notes = serializers.CharField(required=False, allow_blank=True)
 
+# ============= APPLICATION SERIALIZERS =============
 
-
+class JobApplicationSerializer(serializers.ModelSerializer):
+    """Serializer for job applications"""
+    
+    job_title = serializers.CharField(source='job.job_title', read_only=True)
+    department_name = serializers.CharField(source='job.department.name', read_only=True)
+    designation_name = serializers.CharField(source='job.designation.name', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    source_display = serializers.CharField(source='get_source_display', read_only=True)
+    round_name_display = serializers.CharField(source='get_round_name_display', read_only=True)
+    submitted_by_name = serializers.CharField(
+        source='submitted_by.name',
+        read_only=True,
+        allow_null=True
+    )
+    uploaded_by_name = serializers.CharField(
+        source='application_link.created_by.name',
+        read_only=True,
+        allow_null=True
+    )
+    uploaded_by_email = serializers.CharField(
+        source='application_link.created_by.email',
+        read_only=True,
+        allow_null=True
+    )
+    uploaded_by_role = serializers.CharField(
+        source='application_link.created_by.role',
+        read_only=True,
+        allow_null=True
+    )
+    uploaded_by_phone = serializers.CharField(
+        source='application_link.created_by.phone',
+        read_only=True,
+        allow_null=True
+    )
+    platform_name = serializers.SerializerMethodField()
+    resume_url = serializers.SerializerMethodField()
+    file_size_mb = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = JobApplication
+        fields = [
+            'id', 'job', 'job_title', 'department_name', 'candidate_name','designation_name',
+            'candidate_email', 'candidate_phone', 'resume', 'resume_url',
+            'original_filename', 'file_size', 'file_size_mb', 'cover_letter',"rejection_reason",
+            'experience_years','relevant_experience_years', 'current_ctc', 'expected_ctc', 'notice_period',
+            'linkedin_url', 'portfolio_url','skill','education','location','current_employer','match_score', 'status', 'status_display',
+            'source', 'source_display', 'platform_name', 'application_link','is_duplicate',"referral_name","referral_email","referral_phone",
+            "referral_emp_code","referral_designation","referral_department","is_shortlisted","consolidated_feedback_avg",
+            'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report','slot_link','candidate_history',
+            'created_at', 'updated_at','is_selected','is_approved','is_rejected','inperson_link','reschedule_count','no_show_count',
+            'interview_scheduled_at','interviewer_name','interview_link','feedback_link','round_name','round_name_display',
+            "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone","interview_end_at"
+        ]
+    
+    def get_platform_name(self, obj):
+        return obj.get_platform_name()
+    
+    def get_resume_url(self, obj):
+        if obj.resume:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.resume.url)
+            return obj.resume.url
+        return None
+    
+    def get_file_size_mb(self, obj):
+        if obj.file_size:
+            return round(obj.file_size / (1024 * 1024), 2)
+        return 0
 
 class JobApplicationCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating job applications"""
