@@ -151,7 +151,27 @@ class JobListSerializer(serializers.ModelSerializer):
     def get_remaining_positions(self, obj):
         return obj.remaining_positions()
 
+# ============= APPLICATION SERIALIZERS =============
 
+class JobApplicationMiniSerializer(serializers.ModelSerializer):
+    """Serializer for job applications"""
+    
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    source_display = serializers.CharField(source='get_source_display', read_only=True)
+    submitted_by_name = serializers.CharField(
+        source='submitted_by.name',
+        read_only=True,
+        allow_null=True
+    )
+    
+    class Meta:
+        model = JobApplication
+        fields = [
+            'id', 'candidate_name','candidate_email', 'candidate_phone',
+            'status_display','source_display', 'submitted_by_name','joining_date',
+            'created_at','updated_at'
+        ]
+    
 class JobDetailSerializer(serializers.ModelSerializer):
     """Serializer for detailed job view"""
     
@@ -201,6 +221,7 @@ class JobDetailSerializer(serializers.ModelSerializer):
     
     mrf_details = serializers.SerializerMethodField()
     applications_summary = serializers.SerializerMethodField()
+    joining_applications = serializers.SerializerMethodField()
     application_links_count = serializers.SerializerMethodField()
     remaining_positions = serializers.SerializerMethodField()
     job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
@@ -238,8 +259,14 @@ class JobDetailSerializer(serializers.ModelSerializer):
             'shortlisted': obj.applications.filter(status='shortlisted').count(),
             'interviewed': obj.applications.filter(status='interviewed').count(),
             'selected': obj.applications.filter(status='selected').count(),
+            'joining_pending': obj.applications.filter(status='joining_pending').count(),
+            'joined': obj.applications.filter(status='joined').count(),
             'rejected': obj.applications.filter(status='rejected').count(),
         }
+    
+    def get_joining_applications(self, obj):
+        apps = obj.applications.filter(status__in=['joining_pending', 'joined'])
+        return JobApplicationMiniSerializer(apps, many=True, context=self.context).data
     
     def get_application_links_count(self, obj):
         return obj.application_links.filter(is_active=True).count()
@@ -380,7 +407,6 @@ class CloseJobSerializer(serializers.Serializer):
     
     closure_notes = serializers.CharField(required=False, allow_blank=True)
 
-
 # ============= APPLICATION SERIALIZERS =============
 
 class JobApplicationSerializer(serializers.ModelSerializer):
@@ -452,7 +478,6 @@ class JobApplicationSerializer(serializers.ModelSerializer):
         if obj.file_size:
             return round(obj.file_size / (1024 * 1024), 2)
         return 0
-
 
 class JobApplicationCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating job applications"""
