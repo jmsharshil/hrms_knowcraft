@@ -147,8 +147,8 @@ class Job(models.Model):
     )
     
     # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
     
     # Deadline
     expected_closure_date = models.DateField(null=True, blank=True)
@@ -353,8 +353,8 @@ class JobApplicationLink(models.Model):
     )
     
     # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
     
     class Meta:
         db_table = 'job_application_links'
@@ -604,8 +604,8 @@ class JobApplication(models.Model):
     portfolio_url = models.URLField(blank=True, max_length=500,null=True)
     
     # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
     
     # Rating (optional)
     rating = models.DecimalField(
@@ -741,7 +741,7 @@ class JobAssignmentHistory(models.Model):
     old_value = models.CharField(max_length=255, blank=True)
     new_value = models.CharField(max_length=255, blank=True)
     
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
     
     class Meta:
         db_table = 'job_assignment_history'
@@ -763,8 +763,8 @@ class ReferralApplication(models.Model):
     notes = models.TextField(blank=True)
     
     # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
 
     #Referrer Info    
     referral_name = models.CharField(null=True,blank=True)
@@ -841,8 +841,8 @@ class Application(models.Model):
     rejected_by = models.ForeignKey("accounts.user",on_delete=models.SET_NULL,null=True,blank=True)
     rejection_reason = models.TextField(null=True,blank=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         db_table = 'applications'

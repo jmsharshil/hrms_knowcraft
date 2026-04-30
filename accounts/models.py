@@ -10,7 +10,7 @@ class Company(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     email = models.EmailField(unique=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -82,8 +82,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
     created_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='created_users')
     
     objects = UserManager()
@@ -121,7 +121,7 @@ class MagicLink(models.Model):
         ('reset_pin', 'Reset PIN'),
     ])
     
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
     expires_at = models.DateTimeField()
     used = models.BooleanField(default=False)
     used_at = models.DateTimeField(null=True, blank=True)

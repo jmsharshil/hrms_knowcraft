@@ -8,7 +8,7 @@ class CompanyAdmin(admin.ModelAdmin):
     list_display = ['name', 'email', 'is_active', 'created_at']
     list_filter = ['is_active', 'created_at']
     search_fields = ['name', 'email']
-    readonly_fields = ['id', 'created_at']
+    readonly_fields = ['id']
 
 
 @admin.register(User)
@@ -16,7 +16,7 @@ class UserAdmin(BaseUserAdmin):
     list_display = ['email', 'name', 'role', 'company', 'phone', 'pin_set', 'is_active', 'created_at','department']
     list_filter = ['role', 'is_active', 'pin_set', 'created_at', 'company','department']
     search_fields = ['email', 'name', 'company__name']
-    readonly_fields = ['id', 'created_at', 'updated_at', 'last_login']
+    readonly_fields = ['id', 'last_login']
     
     fieldsets = (
         (None, {'fields': ('email', 'pin', 'pin_set' ,'department')}),
@@ -42,7 +42,7 @@ class MagicLinkAdmin(admin.ModelAdmin):
     list_display = ['user', 'purpose', 'created_at', 'expires_at', 'used', 'is_valid_status']
     list_filter = ['purpose', 'used', 'created_at']
     search_fields = ['user__email', 'user__name', 'token']
-    readonly_fields = ['id', 'token', 'created_at', 'used_at']
+    readonly_fields = ['id', 'token', 'used_at']
     
     def is_valid_status(self, obj):
         return obj.is_valid()

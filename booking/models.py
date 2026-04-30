@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 import uuid
 from slots.models import Slot
 from jobs.models import JobApplication
@@ -18,7 +19,7 @@ class Booking(models.Model):
     location = models.ForeignKey("slots.InterviewLocation", on_delete=models.CASCADE,blank=True, null=True)
     start = models.DateTimeField()
     end = models.DateTimeField()
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
     transcript = models.TextField(null=True, blank=True)
     recording_url = models.TextField(null=True, blank=True)
     attendees = models.ManyToManyField("slots.Interviewer", related_name="attendees",blank=True)
@@ -41,11 +42,11 @@ class GraphEventLog(models.Model):
     subscription_id = models.CharField(max_length=255)
     resource = models.TextField()
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         unique_together = ("event_id", "change_type", "subscription_id")
 
 class SystemLock(models.Model):
     key = models.CharField(max_length=100, unique=True)
-    locked_at = models.DateTimeField(auto_now_add=True)
+    locked_at = models.DateTimeField(default=timezone.now)

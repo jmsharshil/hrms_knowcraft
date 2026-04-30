@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from jobs.models import JobApplication
 from accounts.models import Company
 import uuid
@@ -127,7 +128,7 @@ class InterviewFeedback(models.Model):
     case_study_round_avg_rating = models.FloatField(default=0)
     final_round_avg_rating = models.FloatField(default=0)
     management_client_round_rating = models.FloatField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"{self.job_application} - {self.interview_round}"
@@ -180,7 +181,7 @@ class InterviewLocation(models.Model):
 
     is_active = models.BooleanField(default=True)
     is_default = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
 
     def save(self, *args, **kwargs):
         """Generate full_address and google_maps_link automatically on save."""

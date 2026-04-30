@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 import uuid
 from jobs.models import Job,JobApplication
 from accounts.models import User
@@ -104,8 +105,8 @@ from accounts.models import User
 #     portfolio_link = models.URLField(blank=True,null=True)
 #     # attachments = JSONField(default=list, blank=True) # Stores file paths
 #     joining_date = models.DateField(null=True, blank=True)
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     updated_at = models.DateTimeField(auto_now=True)
+#     created_at = models.DateTimeField(default=timezone.now)
+#     updated_at = models.DateTimeField(default=timezone.now)
 
 def application_upload_path(instance, filename):
     return f"documents/{instance.job_application.id}/{filename}"
@@ -201,8 +202,8 @@ class JobApplicationDocument(models.Model):
     reupload_docuemnts = models.TextField(null=True,blank=True)
     reupload_docuemnts_list = models.JSONField(null=True,blank=True,default=list)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
 
 class ApprovalNote(models.Model):
     STATUS_CHOICES = [
@@ -290,10 +291,10 @@ class ApprovalNote(models.Model):
         choices=STATUS_CHOICES
     )
     
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True,null=True,blank=True)
-    approved_at = models.DateTimeField(auto_now=True,null=True,blank=True)
-    rejected_at = models.DateTimeField(auto_now=True,null=True,blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now,null=True,blank=True)
+    approved_at = models.DateTimeField(default=timezone.now,null=True,blank=True)
+    rejected_at = models.DateTimeField(default=timezone.now,null=True,blank=True)
 
     class Meta:
         ordering = ["-created_at"]
@@ -376,8 +377,8 @@ class SalaryAnnexure(models.Model):
 
     employee_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
-    updated_at = models.DateTimeField(auto_now=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"{self.job_application} | Salary Annexure"
@@ -442,7 +443,7 @@ class SalaryAnnexureHistory(models.Model):
         help_text="Snapshot of salary annexure at the time of action"
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         ordering = ["-created_at"]
@@ -476,8 +477,8 @@ class OfferDocument(models.Model):
     signed_file = models.FileField(upload_to="signed_docs/", null=True, blank=True)
     raw_response = models.JSONField(null=True, blank=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         db_table = "offer_documents"
@@ -500,8 +501,8 @@ class DocuSignOffer(models.Model):
     envelope_id = models.CharField(max_length=100, unique=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     signer_email = models.EmailField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
     signed_date = models.DateTimeField(null=True, blank=True)
     signed_url = models.URLField(null=True, blank=True)  # For completed envelopes
 
