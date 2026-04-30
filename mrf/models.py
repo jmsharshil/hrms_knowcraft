@@ -14,8 +14,8 @@ class Department(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE,null=True,blank=True)
     code = models.CharField(max_length=50)
     is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
     
     class Meta:
         ordering = ['name']
@@ -68,8 +68,8 @@ class Designation(models.Model):
     salary_range = models.CharField(max_length=100, help_text="e.g., '5-8 LPA'",blank=True,null=True)
     expirience = models.CharField(max_length=100, help_text="e.g., '1-3 years'",blank=True,null=True)
     is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
     
     class Meta:
         ordering = ['name']
@@ -123,8 +123,8 @@ class WorkflowTemplate(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE,null=True,blank=True)
     is_active = models.BooleanField(default=True, help_text="Set to False to disable this workflow")
     is_default = models.BooleanField(default=False, help_text="Use this as default for new MRFs")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
     department = models.ForeignKey(Department, on_delete=models.CASCADE, null=True, blank=True)
     
     class Meta:
@@ -155,8 +155,8 @@ class ApprovalWorkflow(models.Model):
     is_active = models.BooleanField(default=True)
     approver = models.ForeignKey(User,on_delete=models.PROTECT,related_name='levels_approver',help_text="User responsible for approvals at this level",blank=True,null=True)
     order = models.IntegerField(help_text="Order of execution")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
     
     class Meta:
         ordering = ['template', 'order', 'level']
@@ -323,8 +323,8 @@ class MRF(models.Model):
     held_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='mrf_holder',null=True,blank=True)
     
     # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
     submitted_at = models.DateTimeField(blank=True, null=True)
     approved_at = models.DateTimeField(blank=True, null=True)
     rejected_at = models.DateTimeField(blank=True, null=True)
@@ -459,7 +459,7 @@ class MRFApproval(models.Model):
     action = models.CharField(max_length=30, choices=ACTION_CHOICES)
     comments = models.TextField(blank=True)
     rejection_reason = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
     
     class Meta:
         ordering = ['-created_at']
@@ -476,7 +476,7 @@ class MRFRevision(models.Model):
     revised_by = models.ForeignKey(User, on_delete=models.PROTECT)
     revision_notes = models.TextField()
     previous_data = models.JSONField(help_text="Store previous MRF data")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
     
     class Meta:
         ordering = ['-created_at']

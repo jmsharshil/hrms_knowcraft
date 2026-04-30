@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 import uuid
 import secrets
 
@@ -24,8 +25,8 @@ class RecruitmentCost(models.Model):
         related_name='recruitment_costs',
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         db_table = 'recruitment_costs'
@@ -187,7 +188,7 @@ class CandidateExperienceFeedback(models.Model):
     # ── Submission Tracking ──
     is_submitted = models.BooleanField(default=False)
     submitted_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         db_table = 'candidate_experience_feedbacks'

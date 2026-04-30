@@ -10,14 +10,14 @@ class DepartmentAdmin(admin.ModelAdmin):
     list_display = ['name', 'code', 'is_active', 'created_at']
     list_filter = ['is_active']
     search_fields = ['name', 'code']
-    readonly_fields = ['code', 'created_at']
+    readonly_fields = ['code']
 
 @admin.register(Designation)
 class DesignationAdmin(admin.ModelAdmin):
     list_display = ['name','code', 'tat_days', 'is_active', 'created_at']
     list_filter = ['is_active']
     search_fields = ['name', 'code']
-    readonly_fields = ['code', 'created_at']
+    readonly_fields = ['code']
 
 
 class ApprovalWorkflowInline(admin.TabularInline):
@@ -54,10 +54,7 @@ class MRFAdmin(admin.ModelAdmin):
     ]
     list_filter = ['status', 'workflow_template', 'department', 'designation', 'location']
     search_fields = ['requisition_no', 'requested_by__name', 'requested_by__email', 'mrf_name']
-    readonly_fields = [
-        'requisition_no', 'date_received', 'created_at', 'updated_at', 
-        'submitted_at', 'approved_at', 'workflow_template', 'rejected_at'
-    ]
+    readonly_fields = []
     
     fieldsets = (
         ('Workflow', {
@@ -100,11 +97,11 @@ class MRFApprovalAdmin(admin.ModelAdmin):
     list_display = ['mrf', 'level', 'approver', 'action', 'created_at']
     list_filter = ['action', 'level']
     search_fields = ['mrf__requisition_no', 'approver__name']
-    readonly_fields = ['created_at']
+    readonly_fields = []
 
 
 @admin.register(MRFRevision)
 class MRFRevisionAdmin(admin.ModelAdmin):
     list_display = ['mrf', 'revised_by', 'created_at']
     search_fields = ['mrf__requisition_no', 'revised_by__name']
-    readonly_fields = ['created_at']
+    readonly_fields = []

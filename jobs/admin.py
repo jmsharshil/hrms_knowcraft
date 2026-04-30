@@ -8,7 +8,7 @@ class ApplicationAdmin(admin.ModelAdmin):
     ]
     list_filter = ['source', 'created_at']
     search_fields = ['candidate_name', 'candidate_email', 'candidate_phone', 'job__job_title']
-    readonly_fields = ['id', 'created_at', 'updated_at']
+    readonly_fields = ['id']
 
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
@@ -32,8 +32,7 @@ class JobAdmin(admin.ModelAdmin):
     #     'filled_at', 'posted_by', 'assigned_by', 'filled_by_user'
     # ]
     readonly_fields = [
-        'id', 'created_at', 'updated_at', 'assigned_at',
-        'posted_by', 'assigned_by', 'closed_at', 'closed_by'
+        'id'
     ]
     fieldsets = (
         ('Basic Information', {
@@ -88,7 +87,7 @@ class JobAssignmentHistoryAdmin(admin.ModelAdmin):
         'job__job_title', 'consultancy__full_name', 'performed_by__full_name',
         'notes'
     ]
-    readonly_fields = ['id', 'created_at']
+    readonly_fields = ['id']
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
@@ -107,7 +106,7 @@ class JobApplicationAdmin(admin.ModelAdmin):
         'candidate_name', 'candidate_email', 'candidate_phone',
         'job__job_title', 'notes'
     ]
-    readonly_fields = ['id', 'created_at', 'updated_at', 'submitted_by']
+    readonly_fields = ['id', 'submitted_by']
     fieldsets = (
         ('Candidate Information', {
             'fields': (
@@ -148,7 +147,7 @@ class ReferralApplicationAdmin(admin.ModelAdmin):
         'referral_name', 'referral_email', 'referral_emp_code',
         'position_title', 'notes'
     ]
-    readonly_fields = ['id', 'created_at', 'updated_at', 'file_size', 'original_filename']
+    readonly_fields = ['id', 'file_size', 'original_filename']
     
     fieldsets = (
         ('Referral Information', {
