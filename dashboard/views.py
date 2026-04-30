@@ -169,11 +169,6 @@ class DashboardAPIView(APIView):
             "candidate_experience": calc_candidate_experience(apps_qs),
         }
 
-        # Inject new TAT metrics
-        tat_metrics = calc_joining_tat(apps_qs)
-        data["partial_joining_tat_days"] = tat_metrics["partial_joining_tat_days"]
-        data["final_joining_tat_days"] = tat_metrics["final_joining_tat_days"]
-
         assigned_jobs_list = []
         if user_id:
             # Annotate with application count
@@ -1267,7 +1262,12 @@ class BaseAnalyticsView(APIView):
 
         joined_apps = app_qs.filter(status='joined')
         durations_hire = [(app.updated_at - app.created_at).total_seconds() / 86400 for app in joined_apps if app.updated_at and app.created_at]
-        section8['tat_days'] = round(sum(durations_hire) / len(durations_hire), 2) if durations_hire else 0
+        # section8['tat_days'] = round(sum(durations_hire) / len(durations_hire), 2) if durations_hire else 0
+
+        # Inject new TAT metrics
+        tat_metrics = calc_joining_tat(app_qs)
+        section8["partial_joining_tat_days"] = tat_metrics["partial_joining_tat_days"]
+        section8["final_joining_tat_days"] = tat_metrics["final_joining_tat_days"]
 
         # Source breakdown
         all_sources = {}
