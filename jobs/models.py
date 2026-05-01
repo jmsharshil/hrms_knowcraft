@@ -621,6 +621,7 @@ class JobApplication(models.Model):
     resume_report = models.FileField(blank=True,null=True,upload_to='reports/', help_text='Candidate resume report.')
 
     joining_date = models.DateField(null=True, blank=True) 
+    offer_accepted_date = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True) #Status of Application (for archiving)
 
     is_duplicate = models.BooleanField(default=False)

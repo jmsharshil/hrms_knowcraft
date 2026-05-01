@@ -381,6 +381,8 @@ def zoho_sign_webhook(request):
     elif event_type == "RequestCompleted":
         doc.status = "completed"
         doc.completed_at = timezone.now()
+        application.offer_accepted_date = doc.completed_at.date()
+        application.save()
 
         # 🎉 OFFER ACCEPTED
         ok,reason = automation_engine(application,application.status,'offer_accepted')

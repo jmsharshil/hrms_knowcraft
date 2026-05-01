@@ -50,7 +50,7 @@ class ApprovalWorkflowAdmin(admin.ModelAdmin):
 class MRFAdmin(admin.ModelAdmin):
     list_display = [
         'requisition_no', 'workflow_template', 'department', 'designation', 
-        'requested_by', 'status', 'no_of_vacancies', 'created_at', 'mrf_name'
+        'requested_by', 'status', 'previous_status', 'no_of_vacancies', 'created_at', 'mrf_name'
     ]
     list_filter = ['status', 'workflow_template', 'department', 'designation', 'location']
     search_fields = ['requisition_no', 'requested_by__name', 'requested_by__email', 'mrf_name']
@@ -58,7 +58,7 @@ class MRFAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Workflow', {
-            'fields': ('workflow_template', 'status', 'current_approval_level')
+            'fields': ('workflow_template', 'status', 'previous_status', 'current_approval_level')
         }),
         ('Basic Details', {
             'fields': ('department', 'date_of_request', 'requested_by', 'mrf_name',
