@@ -1265,7 +1265,9 @@ class BaseAnalyticsView(APIView):
         # section8['tat_days'] = round(sum(durations_hire) / len(durations_hire), 2) if durations_hire else 0
 
         # Inject new TAT metrics
-        tat_metrics = calc_joining_tat(app_qs)
+        # TAT Metrics should use the base (company-wide) queryset for high-level KPIs
+        # unless we specifically want to filter by the event date (which app_qs doesn't do as it filters by created_at)
+        tat_metrics = calc_joining_tat(base_app_qs)
         section8["partial_joining_tat_days"] = tat_metrics["partial_joining_tat_days"]
         section8["final_joining_tat_days"] = tat_metrics["final_joining_tat_days"]
 
@@ -1293,7 +1295,11 @@ class BaseAnalyticsView(APIView):
         thirty_days_ago = timezone.now() - timedelta(days=30)
         base_app_qs = JobApplication.objects.filter(job__company=company)
         section8['cvs_last_30_days'] = base_app_qs.filter(created_at__gte=thirty_days_ago).count()
-        section8['offers_last_30_days'] = base_app_qs.filter(status='offer_sent', updated_at__gte=thirty_days_ago).count()
+        offer_sent_statuses = ['offer_sent', 'offer_accepted', 'offer_rejected', 'joined', 'joining_pending', 'joining_poned']
+        section8['offers_last_30_days'] = base_app_qs.filter(
+            status__in=offer_sent_statuses, 
+            updated_at__gte=thirty_days_ago
+        ).count()
         return section8
 
     def get_sections(self):

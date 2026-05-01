@@ -149,9 +149,17 @@ def calc_joining_tat(apps_qs):
     from django.db.models.functions import Cast
     from django.db.models import DateField
     
+    from django.db.models.functions import Coalesce
+    
     # 1. Partial Joining Avg Time - TAT (Job Open -> Offer Accepted)
-    partial_apps = apps_qs.filter(
-        offer_accepted_date__isnull=False,
+    # Fallback to updated_at date if offer_accepted_date is null but they are in an offer-reached status
+    partial_apps = apps_qs.annotate(
+        resolved_offer_accepted_date=Coalesce(
+            F('offer_accepted_date'),
+            Cast('updated_at', DateField())
+        )
+    ).filter(
+        status__in=['offer_accepted', 'joining_pending', 'joining_poned', 'joined'],
         job__created_at__isnull=False
     ).annotate(
         job_open_date_only=Cast('job__created_at', DateField())
@@ -159,7 +167,7 @@ def calc_joining_tat(apps_qs):
     
     partial_avg = partial_apps.aggregate(
         avg_tat=Avg(ExpressionWrapper(
-            F('offer_accepted_date') - F('job_open_date_only'),
+            F('resolved_offer_accepted_date') - F('job_open_date_only'),
             output_field=DurationField()
         ))
     )['avg_tat']
