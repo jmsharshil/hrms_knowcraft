@@ -1249,6 +1249,8 @@ class BaseAnalyticsView(APIView):
 
     def calc_overall_summary_kpis(self, mrf_qs, job_qs, app_qs, platform_app_qs, company, date_range=None):
         section8 = {}
+        base_app_qs = JobApplication.objects.filter(job__company=company)
+        
         section8['total_candidates'] = app_qs.count() + platform_app_qs.count()
         section8['total_positions_filled'] = sum(j.positions_filled for j in job_qs)
         section8['total_positions_open'] = sum((j.no_of_positions - j.positions_filled) for j in job_qs)
@@ -1293,9 +1295,7 @@ class BaseAnalyticsView(APIView):
 
         # Last 30 days metrics (Fixed: uses company-wide apps_qs instead of filtered app_qs)
         thirty_days_ago = timezone.now() - timedelta(days=30)
-        base_app_qs = JobApplication.objects.filter(job__company=company)
         section8['cvs_last_30_days'] = base_app_qs.filter(created_at__gte=thirty_days_ago).count()
-        offer_sent_statuses = ['offer_sent', 'offer_accepted', 'offer_rejected', 'joined', 'joining_pending', 'joining_poned']
         section8['offers_last_30_days'] = base_app_qs.filter(
             status__in=offer_sent_statuses, 
             updated_at__gte=thirty_days_ago
