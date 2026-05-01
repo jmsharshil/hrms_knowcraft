@@ -255,13 +255,13 @@ class JobDetailSerializer(serializers.ModelSerializer):
         return {
             'total': obj.applications.count(),
             'received': obj.applications.filter(status='received').count(),
-            'screening': obj.applications.filter(status='screening').count(),
             'shortlisted': obj.applications.filter(status='shortlisted').count(),
-            'interviewed': obj.applications.filter(status='interviewed').count(),
+            'interview_pending': obj.applications.filter(status__in=('interview_pending_1','interview_pending_2','interview_pending_3','interview_pending_final','interview_pending_management_client')).count(),
+            "shortlisted_for_next_round": obj.applications.filter(status__in=('interview_next_2','interview_next_3','interview_next_final','interview_next_management_client')).count(),
             'selected': obj.applications.filter(status='selected').count(),
             'joining_pending': obj.applications.filter(status='joining_pending').count(),
             'joined': obj.applications.filter(status='joined').count(),
-            'rejected': obj.applications.filter(status='rejected').count(),
+            'rejected': obj.applications.filter(status__in=('rejected','interview_rejected_1','interview_rejected_2','interview_rejected_3','interview_rejected_final','interview_rejected_management_client','rejected_after_final_round')).count(),
         }
     
     def get_joining_applications(self, obj):

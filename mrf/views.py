@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated,AllowAny
 from django.utils import timezone
-from django.db.models import Q
+from django.db.models import Q, Case, When, Value, IntegerField
 from django.db import transaction,IntegrityError
 from slots.models import Interviewer
 from .models import (
@@ -401,6 +401,16 @@ class MRFViewSet(viewsets.ModelViewSet):
         
         if hasattr(user, 'company'):
             queryset = queryset.filter(company=user.company)
+
+        # Annotate with priority to push joining_pending and filled to the end
+        queryset = queryset.annotate(
+            status_priority=Case(
+                When(status__in=['joining_pending', 'filled'], then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+        ).order_by('status_priority', '-created_at')
+
         return queryset
     
     @action(detail=True, methods=['get'], url_path='interviewers')
