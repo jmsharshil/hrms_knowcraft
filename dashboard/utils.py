@@ -149,18 +149,17 @@ def calc_joining_tat(apps_qs):
     from django.db.models.functions import Cast
     from django.db.models import DateField
     
-    # 1. Partial Joining Avg Time - TAT (Job Open -> Offer Signed)
+    # 1. Partial Joining Avg Time - TAT (Job Open -> Offer Accepted)
     partial_apps = apps_qs.filter(
-        offerdocument__status__in=['signed', 'completed'],
+        offer_accepted_date__isnull=False,
         job__created_at__isnull=False
     ).annotate(
-        offer_signed_date=F('offerdocument__completed_at'),
-        job_open_date=F('job__created_at')
-    ).exclude(offer_signed_date__isnull=True)
+        job_open_date_only=Cast('job__created_at', DateField())
+    )
     
     partial_avg = partial_apps.aggregate(
         avg_tat=Avg(ExpressionWrapper(
-            F('offer_signed_date') - F('job_open_date'),
+            F('offer_accepted_date') - F('job_open_date_only'),
             output_field=DurationField()
         ))
     )['avg_tat']
