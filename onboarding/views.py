@@ -1583,6 +1583,8 @@ def docusign_webhook(request):
         if status == "completed":
             offer.status = "signed"
             offer.signed_date = timezone.now()
+            offer.job_application.offer_accepted_date = offer.signed_date.date()
+            offer.job_application.save()
             automation_engine(offer.job_application, offer.job_application.status, "offer_accepted")
 
         elif status == "declined":

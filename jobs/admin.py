@@ -16,7 +16,7 @@ class JobAdmin(admin.ModelAdmin):
     
     list_display = [
         'job_title', 'department', 'location', 'no_of_positions',
-        'status', 'priority', 'is_active',
+        'status', 'previous_status', 'priority', 'is_active',
         'created_at'
     ]
     list_filter = [
@@ -49,7 +49,7 @@ class JobAdmin(admin.ModelAdmin):
         }),
         ('Status & Priority', {
             'fields': (
-                'status', 'priority', 'is_active', 'visible_to_consultancy',
+                'status', 'previous_status', 'priority', 'is_active', 'visible_to_consultancy',
                 'expected_closure_date'
             )
         }),
@@ -99,6 +99,7 @@ class JobAssignmentHistoryAdmin(admin.ModelAdmin):
 class JobApplicationAdmin(admin.ModelAdmin):
     list_display = [
         'candidate_name', 'candidate_email', 'job', 'status',
+        'joining_date', 'offer_accepted_date',
         'source', 'submitted_by', 'created_at'
     ]
     list_filter = ['status', 'source', 'created_at']
@@ -116,7 +117,7 @@ class JobApplicationAdmin(admin.ModelAdmin):
         }),
         ('Job & Status', {
             'fields': (
-                'job', 'status', 'source', 'submitted_by'
+                'job', 'status', 'joining_date', 'offer_accepted_date', 'source', 'submitted_by'
             )
         }),
         ('Compensation', {

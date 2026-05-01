@@ -180,6 +180,8 @@ def automation_engine(candidate, old, new):
         from .notifications import trigger_feedback_email
         trigger_feedback_email(candidate, 'rejection')
     elif new == "offer_accepted":
+        from django.utils import timezone
+        candidate.offer_accepted_date = timezone.now().date()
         from .notifications import trigger_feedback_email
         trigger_feedback_email(candidate, 'offer')
 
