@@ -164,7 +164,7 @@ def calc_joining_tat(apps_qs):
         ))
     )['avg_tat']
     
-    partial_days = round(partial_avg.total_seconds() / 86400, 1) if partial_avg else 0
+    partial_days = max(0, round(partial_avg.total_seconds() / 86400, 1)) if partial_avg else 0
     
     # 2. Final Joining Avg Time - TAT (Job Open -> Offered Joining Date)
     final_apps = apps_qs.filter(
@@ -181,7 +181,7 @@ def calc_joining_tat(apps_qs):
         ))
     )['avg_tat']
     
-    final_days = round(final_avg.total_seconds() / 86400, 1) if final_avg else 0
+    final_days = max(0, round(final_avg.total_seconds() / 86400, 1)) if final_avg else 0
     
     return {
         "partial_joining_tat_days": partial_days,
@@ -297,7 +297,8 @@ def calc_source_quality(apps_qs):
                 'joining_pending', 'joining_poned', 'joined',
             ])),
             offer_count=Count('id', filter=Q(status__in=[
-                'offer_sent', 'offer_accepted', 'offer_rejected',
+                'offer_pending', 'offer_sent', 'offer_accepted', 'offer_rejected',
+                'joining_pending', 'joining_poned', 'joined',
             ])),
         )
         .order_by('-joined_count')

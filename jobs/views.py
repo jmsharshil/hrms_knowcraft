@@ -3,7 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.db.models import Q, Count, F, Sum, Min, OuterRef, Subquery
+from django.db.models import Q, Count, F, Sum, Min, OuterRef, Subquery, Case, When, Value, IntegerField
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.utils import timezone
 from django.db import transaction
@@ -140,6 +140,16 @@ class JobViewSet(viewsets.ModelViewSet):
         
         if hasattr(user, 'company'):
             queryset = queryset.filter(company=user.company)
+
+        # Annotate with priority to push joining_pending and filled to the end
+        queryset = queryset.annotate(
+            status_priority=Case(
+                When(status__in=['joining_pending', 'filled'], then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+        ).order_by('status_priority', '-created_at')
+
         return queryset.distinct()
     
     def perform_create(self, serializer):

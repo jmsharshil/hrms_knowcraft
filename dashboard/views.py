@@ -1124,7 +1124,7 @@ class BaseAnalyticsView(APIView):
         # Filter by related jobs but use ApprovalNote's own date for real-time tracking
         note_filter = Q(candidate__job__in=job_qs)
         if target_user:
-            note_filter &= Q(manager=target_user)
+            note_filter &= (Q(manager=target_user) | Q(created_by=target_user))
             
         approval_note_qs = ApprovalNote.objects.filter(note_filter)
         if date_filter:
@@ -1304,17 +1304,22 @@ class BaseAnalyticsView(APIView):
         """Override this in subclasses to return filters."""
         return Q(), Q(), Q()
 
-    def calc_summary_totals(self, mrf_qs, job_qs, app_qs, platform_app_qs):
-        """Standard summary totals for quick dashboard cards."""
+    def calc_summary_totals(self, mrf_qs, job_qs, app_qs, platform_app_qs, broad_job_qs=None):
+        """Standard summary totals for quick dashboard cards.
+        broad_job_qs: All jobs assigned to the user (ignoring date filter).
+        Used for total_jobs so filtered-by-user views show all their jobs, not just period-created ones.
+        """
+        # Use broad_job_qs for total counts if provided (user_id filter scenario)
+        jobs_for_count = broad_job_qs if broad_job_qs is not None else job_qs
         return {
             "total_mrfs": mrf_qs.count(),
-            "total_jobs": job_qs.count(),
+            "total_jobs": jobs_for_count.count(),
             "total_cvs": app_qs.count(),
-            "total_open_positions": sum((j.no_of_positions - j.positions_filled) for j in job_qs),
+            "total_open_positions": sum((j.no_of_positions - j.positions_filled) for j in jobs_for_count),
             "jobs_by_assignment": {
-                "hr_only": job_qs.filter(status='assigned_to_internal_hr', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=True).count(),
-                "consultancy_only": job_qs.filter(status='assigned_to_consultancy', assigned_to_consultancy__isnull=False, assigned_to_internal_hr__isnull=True).count(),
-                "both": job_qs.filter(status='assigned_to_both', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=False).count()
+                "hr_only": jobs_for_count.filter(status='assigned_to_internal_hr', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=True).count(),
+                "consultancy_only": jobs_for_count.filter(status='assigned_to_consultancy', assigned_to_consultancy__isnull=False, assigned_to_internal_hr__isnull=True).count(),
+                "both": jobs_for_count.filter(status='assigned_to_both', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=False).count()
             }
         }
 
@@ -1351,7 +1356,7 @@ class BaseAnalyticsView(APIView):
             requested_sections = [s for s in requested_sections if s in allowed_sections]
 
         data = {
-            "summary": self.calc_summary_totals(mrf_qs, job_qs, app_qs, platform_app_qs),
+            "summary": self.calc_summary_totals(mrf_qs, job_qs, app_qs, platform_app_qs, broad_job_qs),
             "user_details": UserSerializer(ctx["target_user"]).data if ctx.get("target_user") else UserSerializer(ctx["user"]).data
         }
 
