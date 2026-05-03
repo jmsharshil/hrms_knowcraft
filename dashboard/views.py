@@ -395,9 +395,10 @@ class BaseAnalyticsView(APIView):
     def calc_mrf_analytics(self, mrf_qs):
         section1 = {}
         section1['total_mrf_raised'] = mrf_qs.count()
-        section1['total_approved'] = mrf_qs.filter(status='approved').count()
+        section1['total_approved'] = mrf_qs.filter(status__in=['approved', 'filled', 'joining_pending']).count()
         section1['total_rejected'] = mrf_qs.filter(status='rejected').count()
-        section1['total_pending'] = mrf_qs.exclude(status__in=['approved', 'rejected']).count()
+        section1['total_on_hold'] = mrf_qs.filter(status='on_hold').count()
+        section1['total_pending'] = mrf_qs.exclude(status__in=['approved', 'filled', 'joining_pending', 'rejected', 'on_hold']).count()
 
         approval_funnel = []
         for level in range(1, 4):
@@ -411,7 +412,7 @@ class BaseAnalyticsView(APIView):
         total_jobs_from_mrf = Job.objects.filter(mrf__in=mrf_qs).count()
         section1['mrf_to_job_conversion_rate'] = round((total_jobs_from_mrf / section1['total_mrf_raised'] * 100), 2) if section1['total_mrf_raised'] else 0
 
-        approved_mrfs = mrf_qs.filter(status='approved')
+        approved_mrfs = mrf_qs.filter(status__in=['approved', 'filled', 'joining_pending'])
         if approved_mrfs.exists():
             durations = [(mrf.approved_at - mrf.submitted_at).total_seconds() / 86400 for mrf in approved_mrfs if mrf.approved_at and mrf.submitted_at]
             section1['avg_mrf_approval_time_days'] = round(sum(durations) / len(durations), 2) if durations else 0
@@ -454,11 +455,12 @@ class BaseAnalyticsView(APIView):
 
     def calc_job_assignment_analytics(self, job_qs, user_role=None, target_user_id=None):
         section2 = {}
-        section2['total_jobs_open'] = job_qs.filter(status__in=['open','jobs_assigned_to_internal_hr','jobs_assigned_to_consultancy','jobs_assigned_to_both']).count()
-        section2['total_jobs_closed'] = job_qs.filter(status__in=['closed', 'filled', 'cancelled']).count()
-        section2['jobs_assigned_to_internal_hr'] = job_qs.filter(status='jobs_assigned_to_internal_hr').count()
-        section2['jobs_assigned_to_consultancy'] = job_qs.filter(status='jobs_assigned_to_consultancy').count()
-        section2['jobs_assigned_to_both'] = job_qs.filter(status='jobs_assigned_to_both').count()
+        section2['total_jobs_open'] = job_qs.filter(status__in=['open','assigned_to_internal_hr','assigned_to_consultancy','assigned_to_both']).count()
+        section2['total_jobs_closed'] = job_qs.filter(status__in=['filled', 'joining_pending']).count()
+        section2['total_jobs_on_hold'] = job_qs.filter(status='on_hold').count()
+        section2['jobs_assigned_to_internal_hr'] = job_qs.filter(Q(status='assigned_to_internal_hr') | Q(previous_status='assigned_to_internal_hr')).count()
+        section2['jobs_assigned_to_consultancy'] = job_qs.filter(Q(status='assigned_to_consultancy') | Q(previous_status='assigned_to_consultancy')).count()
+        section2['jobs_assigned_to_both'] = job_qs.filter(Q(status='assigned_to_both') | Q(previous_status='assigned_to_both')).count()
         section2['jobs_unassigned'] = job_qs.filter(status='open').count()
 
         assigned_jobs = job_qs.filter(assigned_at__isnull=False, created_at__isnull=False)
@@ -520,13 +522,16 @@ class BaseAnalyticsView(APIView):
                         'job_count': 0,
                         'active_jobs': 0,
                         'closed_jobs': 0,
+                        'on_hold_jobs': 0,
                         'jobs': []
                     }
                 
                 hr_dict[hid]['job_count'] += 1
-                if job.status in ['closed', 'filled', 'cancelled']:
+                if job.status in ['filled', 'joining_pending']:
                     hr_dict[hid]['closed_jobs'] += 1
-                else:
+                elif job.status == 'on_hold':
+                    hr_dict[hid]['on_hold_jobs'] += 1
+                elif job.status not in ['closed', 'cancelled']:
                     hr_dict[hid]['active_jobs'] += 1
                 hr_dict[hid]['jobs'].append(job_detail)
 
@@ -551,13 +556,16 @@ class BaseAnalyticsView(APIView):
                         'job_count': 0,
                         'active_jobs': 0,
                         'closed_jobs': 0,
+                        'on_hold_jobs': 0,
                         'jobs': []
                     }
                 
                 cons_dict[cid]['job_count'] += 1
-                if job.status in ['closed', 'filled', 'cancelled']:
+                if job.status in ['filled', 'joining_pending']:
                     cons_dict[cid]['closed_jobs'] += 1
-                else:
+                elif job.status == 'on_hold':
+                    cons_dict[cid]['on_hold_jobs'] += 1
+                elif job.status not in ['closed', 'cancelled']:
                     cons_dict[cid]['active_jobs'] += 1
                 cons_dict[cid]['jobs'].append(job_detail)
 
@@ -1319,13 +1327,15 @@ class BaseAnalyticsView(APIView):
         jobs_for_count = broad_job_qs if broad_job_qs is not None else job_qs
         return {
             "total_mrfs": mrf_qs.count(),
+            "total_mrfs_on_hold": mrf_qs.filter(status='on_hold').count(),
             "total_jobs": jobs_for_count.count(),
+            "total_jobs_on_hold": jobs_for_count.filter(status='on_hold').count(),
             "total_cvs": app_qs.count(),
             "total_open_positions": sum((j.no_of_positions - j.positions_filled) for j in jobs_for_count),
             "jobs_by_assignment": {
-                "hr_only": jobs_for_count.filter(status='assigned_to_internal_hr', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=True).count(),
-                "consultancy_only": jobs_for_count.filter(status='assigned_to_consultancy', assigned_to_consultancy__isnull=False, assigned_to_internal_hr__isnull=True).count(),
-                "both": jobs_for_count.filter(status='assigned_to_both', assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=False).count()
+                "hr_only": jobs_for_count.filter(Q(status='assigned_to_internal_hr') | Q(previous_status='assigned_to_internal_hr'), assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=True).count(),
+                "consultancy_only": jobs_for_count.filter(Q(status='assigned_to_consultancy') | Q(previous_status='assigned_to_consultancy'), assigned_to_consultancy__isnull=False, assigned_to_internal_hr__isnull=True).count(),
+                "both": jobs_for_count.filter(Q(status='assigned_to_both') | Q(previous_status='assigned_to_both'), assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=False).count()
             }
         }
 
