@@ -1047,7 +1047,7 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         elif user.role == 'consultancy':
             # Can see applications for jobs assigned to them
             queryset = queryset.filter(Q(job__assigned_to_consultancy=user) |
-                Q(job__assigned_consultancies=user),source='consultancy')
+                Q(job__assigned_consultancies=user),source='consultancy',application_link__created_by=user)
         else:
             queryset = queryset.none()
         # Apply filters
@@ -1144,6 +1144,45 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         }
         
         return Response(stats, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['post'])
+    def reparse_application(self, request):
+        """
+        Re-parse a single candidate's resume against its associated job.
+        POST /api/applications/reparse_application/
+        Body: { "candidate_id": "<uuid>" }
+        """
+        from .utils import reparse_single_candidate
+
+        candidate_id = request.data.get("candidate_id")
+
+        if not candidate_id:
+            return Response(
+                {"error": "candidate_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        application = get_object_or_404(JobApplication, id=candidate_id)
+
+        if not application.resume:
+            return Response(
+                {"error": "No resume file found for this application"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            reparse_single_candidate(application)
+            return Response({
+                "message": f"Resume re-parsing started for {application.candidate_name or application.id}",
+                "candidate_id": str(application.id),
+                "job_id": str(application.job.id) if application.job else None,
+                "job_title": application.job.job_title if application.job else None
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to start re-parsing: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
 class ReferralApplicationViewSet(viewsets.ModelViewSet):
     """ViewSet for managing Referral Applications"""
@@ -1543,13 +1582,41 @@ class ApplicationViewSet(viewsets.GenericViewSet):
     
     @action(detail=False, methods=['post'])
     def reparse_application(self, request):
-        from .utils import reparse_applictaion
+        """
+        Re-parse a single Application's resume.
+        Body: { "candidate_id": "<uuid>" }
+        """
+        from .utils import reparse_single_candidate
+
         candidate_id = request.data.get("candidate_id")
+
         if not candidate_id:
-            return Response("Unable to parse the application! Candidate ID Not Found")
+            return Response(
+                {"error": "candidate_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         candidate = get_object_or_404(Application, id=candidate_id)
-        result = reparse_applictaion(candidate)
-        return Response(result)
+
+        if not candidate.resume:
+            return Response(
+                {"error": "No resume file found for this application"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            reparse_single_candidate(candidate)
+            return Response({
+                "message": f"Resume re-parsing started for {candidate.candidate_name or candidate.id}",
+                "candidate_id": str(candidate.id),
+                "job_id": str(candidate.job.id) if candidate.job else None,
+                "job_title": candidate.job.job_title if candidate.job else None
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to start re-parsing: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     @action(detail=False, methods=['post'])
     def send_rejection_notification(self, request):
