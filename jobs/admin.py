@@ -17,7 +17,7 @@ class JobAdmin(admin.ModelAdmin):
     list_display = [
         'job_title', 'department', 'location', 'no_of_positions',
         'status', 'previous_status', 'priority', 'is_active',
-        'created_at'
+        'created_at','positions_filled'
     ]
     list_filter = [
         'status', 'priority', 'is_active', 'visible_to_consultancy',
@@ -38,7 +38,7 @@ class JobAdmin(admin.ModelAdmin):
         ('Basic Information', {
             'fields': (
                 'id', 'mrf', 'job_title', 'department', 'designation',
-                'location', 'no_of_positions'
+                'location', 'no_of_positions','positions_filled'
             )
         }),
         ('Job Requirements', {
