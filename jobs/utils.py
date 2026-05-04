@@ -14,7 +14,7 @@ from onboarding.utils.engine import automation_engine
 FRONTEND_URL = getattr(settings,"FRONTEND_URL")
 
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
-
+print(settings.OPENAI_API_KEY)
 def extract_text(file_path):
     ext = Path(file_path).suffix.lower()
 
@@ -113,7 +113,8 @@ def parse_resume_ai(file_input):
     prompt = f"""
     You are an expert ATS resume parser.
 
-    Do not give fake or demo data. If there is not enough relevent data to extract from the resume return empty string for that fields.
+    Do not give fake or demo data. "If a numeric field has no data, return null (not empty string). 
+ Numeric fields: total_experience_years, relevant_experience_years, current_ctc, expected_ctc."
 
     Extract the following fields from this resume:
 
@@ -1441,3 +1442,40 @@ def reparse_applictaion(application: Application):
 
     except Exception as e:
         return f"Error reparsing application: {str(e)}"
+
+
+def reparse_single_candidate(application, job=None):
+    """
+    Re-parse a single candidate's resume against its associated job.
+    Works for both JobApplication and Application models.
+    """
+    from onboarding.utils.task_queue import TASK_QUEUE
+
+    resume = application.resume
+    if not resume:
+        raise ValueError(f"No resume file found for application {application.id}")
+
+    if job is None:
+        job = getattr(application, "job", None)
+
+    if job is None and isinstance(application, Application):
+        job = find_similar_job(application.position_title)
+        if job:
+            application.job = job
+            application.save(update_fields=['job'])
+
+    if job is None:
+        raise ValueError(f"No job found for application {application.id}")
+
+    # Update the job reference on the application
+    if application.job != job:
+        application.job = job
+        application.save(update_fields=['job'])
+
+    # Choose the correct task based on model type
+    if isinstance(application, JobApplication):
+        TASK_QUEUE.enqueue(parse_resume_task, application, resume.file, job)
+    elif isinstance(application, Application):
+        TASK_QUEUE.enqueue(pre_parse_resume_task, application, resume, job)
+    else:
+        raise ValueError("Unsupported application type")
