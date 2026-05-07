@@ -156,6 +156,18 @@ class Job(models.Model):
     # Visibility
     is_active = models.BooleanField(default=True)
     visible_to_consultancy = models.BooleanField(default=False)
+
+    # Private Job fields (inherited from Private MRF)
+    is_private = models.BooleanField(
+        default=False,
+        help_text="If True, this job is only visible to authorized users"
+    )
+    selected_viewers = models.ManyToManyField(
+        'accounts.User',
+        blank=True,
+        related_name='viewable_private_jobs',
+        help_text="Users who can view this private job"
+    )
     
     # Job Description (optional rich text for public posting)
     job_description = models.TextField(blank=True, help_text='Detailed job description for public posting')

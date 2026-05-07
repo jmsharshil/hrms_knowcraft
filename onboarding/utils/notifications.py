@@ -675,6 +675,15 @@ def notify_candidate(candidate: Any, stage: str,cc:list, feedback_link: str = No
     bool
         ``True`` if **all** requested channels succeeded, ``False`` otherwise.
     """
+    # Private Job Check: No automated communications for private records
+    try:
+        if hasattr(candidate, 'job') and candidate.job and candidate.job.is_private:
+            logger.info("Skipping automated notification for private job: %s (stage=%s)", 
+                        candidate.job.id, stage)
+            return True
+    except Exception as e:
+        logger.error("Error checking privacy status in notify_candidate: %s", e)
+
     cfg = _NOTIFICATION_MAP.get(stage)
     if not cfg:
         logger.warning("No notification config for stage '%s'", stage)

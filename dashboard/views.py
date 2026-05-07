@@ -89,9 +89,9 @@ class DashboardAPIView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # ── base querysets scoped to company ──
-        jobs_qs = Job.objects.filter(company=user.company)
-        apps_qs = JobApplication.objects.filter(job__company=user.company)
+        # ── base querysets scoped to company (Excluding Private Records from General Reports) ──
+        jobs_qs = Job.objects.filter(company=user.company, is_private=False)
+        apps_qs = JobApplication.objects.filter(job__company=user.company, job__is_private=False)
 
         # ── optional filters ──
         user_id = request.query_params.get('user_id')
@@ -275,7 +275,7 @@ class BaseAnalyticsView(APIView):
                 return None, "Invalid user_id"
 
         # 3. MRF queryset (Filtered by Period Activity)
-        mrf_base_filter = Q(company=company) & role_mrf_q
+        mrf_base_filter = Q(company=company, is_private=False) & role_mrf_q
         if department_id:
             mrf_base_filter &= Q(department_id=department_id)
         if designation_id:
@@ -287,7 +287,7 @@ class BaseAnalyticsView(APIView):
 
         # 4. Job queryset
         # Base filter includes company, role, dept, desig, and user but NO date
-        job_base_filter = Q(company=company) & role_job_q
+        job_base_filter = Q(company=company, is_private=False) & role_job_q
         if job_id:
             job_base_filter &= Q(id=job_id)
         if department_id:
@@ -1273,6 +1273,9 @@ class BaseAnalyticsView(APIView):
         section8['total_candidates'] = app_qs.count() + platform_app_qs.count()
         section8['total_positions_filled'] = sum(j.positions_filled for j in job_qs)
         section8['total_positions_open'] = sum((j.no_of_positions - j.positions_filled) for j in job_qs)
+        section8['total_positions'] = sum(j.no_of_positions for j in job_qs)
+        section8['total_joining_pending_job_open_positions'] = sum(j.no_of_positions - j.positions_filled for j in job_qs if j.status == 'joining_pending')
+        section8['total_joining_pending_job_count'] = sum(1 for j in job_qs if j.status == 'joining_pending')
         
         offer_sent_statuses = ['offer_sent', 'offer_accepted', 'offer_rejected', 'joined', 'joining_pending', 'joining_poned']
         offer_accepted_statuses = ['offer_accepted', 'joined', 'joining_poned', 'joining_pending']

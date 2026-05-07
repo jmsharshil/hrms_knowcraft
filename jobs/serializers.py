@@ -321,8 +321,15 @@ class JobCreateSerializer(serializers.ModelSerializer):
             job_description=validated_data.get('job_description', ''),
             posted_by=user,
             company=user.company,
-            status='open'
+            status='open',
+            is_private=mrf.is_private,  # Inherit privacy from MRF
         )
+        
+        # Inherit selected_viewers from private MRF
+        if mrf.is_private:
+            viewers = mrf.selected_viewers.all()
+            if viewers.exists():
+                job.selected_viewers.set(viewers)
         
         # Create history record
         JobAssignmentHistory.objects.create(

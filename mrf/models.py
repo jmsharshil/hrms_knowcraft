@@ -6,6 +6,9 @@ import uuid
 from datetime import datetime, time, timedelta
 from django.db.models import Q, UniqueConstraint,Max
 from slots.models import Interviewer
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Department(models.Model):
     """Department master - easily add/modify/delete"""
@@ -209,7 +212,21 @@ class MRF(models.Model):
         WorkflowTemplate, 
         on_delete=models.PROTECT, 
         related_name='mrfs',
-        help_text="The workflow template this MRF follows"
+        help_text="The workflow template this MRF follows",
+        null=True,
+        blank=True
+    )
+
+    # Private MRF fields
+    is_private = models.BooleanField(
+        default=False,
+        help_text="If True, this MRF uses direct approval levels and has restricted visibility"
+    )
+    selected_viewers = models.ManyToManyField(
+        User,
+        blank=True,
+        related_name='viewable_private_mrfs',
+        help_text="Users who can view this private MRF (in addition to creator, approvers, and admin)"
     )
     
     # Basic Details
@@ -341,7 +358,8 @@ class MRF(models.Model):
         ]
     
     def __str__(self):
-        return f"MRF-{self.requisition_no or self.id} - {self.department.name} ({self.workflow_template.name})"
+        wf_name = self.workflow_template.name if self.workflow_template else 'Private'
+        return f"MRF-{self.requisition_no or self.id} - {self.department.name} ({wf_name})"
     
     def save(self, *args, **kwargs):
         self.interviewer_email_1 = self.hr_interviewer.email if self.hr_interviewer else None
@@ -359,6 +377,10 @@ class MRF(models.Model):
         if not self.company:
             raise ValidationError("Company is required to generate department code")
         
+        # Private MRFs don't require a workflow_template
+        if not self.is_private and not self.workflow_template_id:
+            raise ValidationError("Non-private MRFs require a workflow template")
+
         if self.status == 'approved' and not self.requisition_no:
             self.requisition_no = self.generate_requisition_no()
             self.date_received = self.calculate_date_received()
@@ -368,6 +390,13 @@ class MRF(models.Model):
             self.rejected_at = timezone.now()
         
         super().save(*args, **kwargs)
+
+        # Log activity for private MRFs (audit trail)
+        if self.is_private:
+            logger.info(
+                f"[PRIVATE MRF] id={self.id} status={self.status} "
+                f"by={self.requested_by_id} company={self.company_id}"
+            )
     
     def generate_requisition_no(self):
         """Generate unique requisition number"""
@@ -397,6 +426,21 @@ class MRF(models.Model):
     def get_next_approvers(self):
         """Get list of users who can approve at current level"""
         next_level = self.current_approval_level + 1
+
+        if self.is_private:
+            # Private MRF: use direct approval levels
+            private_level = self.private_approval_levels.filter(
+                level=next_level,
+                is_active=True
+            ).first()
+            if not private_level:
+                return []
+            return User.objects.filter(
+                id=private_level.approver.id,
+                is_active=True
+            )
+
+        # Standard MRF: use workflow template
         workflow = self.workflow_template.levels.filter(
             level=next_level,
             is_active=True
@@ -418,6 +462,18 @@ class MRF(models.Model):
             return False
         
         next_level = self.current_approval_level + 1
+
+        if self.is_private:
+            # Private MRF: check direct approval levels
+            private_level = self.private_approval_levels.filter(
+                level=next_level,
+                is_active=True
+            ).first()
+            if not private_level:
+                return False
+            return user.id == private_level.approver.id
+
+        # Standard MRF: use workflow template
         workflow = self.workflow_template.levels.filter(
             level=next_level,
             is_active=True
@@ -430,6 +486,19 @@ class MRF(models.Model):
     
     def get_workflow_summary(self):
         """Get workflow summary for display"""
+        if self.is_private:
+            levels = self.private_approval_levels.filter(is_active=True).order_by('level')
+            return [
+                {
+                    'level': level.level,
+                    'role': level.approver.role,
+                    'approver': level.approver.id,
+                    'approver_name': level.approver.name,
+                    'order': level.level
+                }
+                for level in levels
+            ]
+
         levels = self.workflow_template.get_levels()
         return [
             {
@@ -440,6 +509,38 @@ class MRF(models.Model):
             }
             for level in levels
         ]
+
+    def can_user_view_private(self, user):
+        """Check if user can view this private MRF"""
+        if not self.is_private:
+            return True
+        
+        # Admin can always see
+        if user.role == 'admin':
+            return True
+        
+        # Creator can see
+        if self.requested_by_id == user.id:
+            return True
+        
+        # Selected viewers can see
+        if self.selected_viewers.filter(id=user.id).exists():
+            return True
+        
+        # Approvers at any level can see
+        if self.private_approval_levels.filter(approver=user).exists():
+            return True
+        
+        # Assigned HR (via job) can see
+        job = getattr(self, 'job', None)
+        if job:
+            if (job.assigned_to_internal_hr_id == user.id or
+                job.assigned_to_consultancy_id == user.id or
+                job.assigned_internal_hrs.filter(id=user.id).exists() or
+                job.assigned_consultancies.filter(id=user.id).exists()):
+                return True
+        
+        return False
 
 
 class MRFApproval(models.Model):
@@ -483,4 +584,31 @@ class MRFRevision(models.Model):
     
     def __str__(self):
         return f"Revision for {self.mrf.requisition_no or self.mrf.id}"
+
+
+class PrivateMRFApprovalLevel(models.Model):
+    """Direct approval levels for private MRFs (no workflow template needed)"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    mrf = models.ForeignKey(
+        MRF,
+        on_delete=models.CASCADE,
+        related_name='private_approval_levels',
+        help_text="The private MRF this approval level belongs to"
+    )
+    level = models.IntegerField(help_text="Approval level (1, 2, 3, etc.)")
+    approver = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name='private_mrf_approval_levels',
+        help_text="User who can approve at this level"
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['mrf', 'level']
+        unique_together = ['mrf', 'level']
+
+    def __str__(self):
+        return f"Private MRF {self.mrf_id} - Level {self.level} ({self.approver.name})"
     

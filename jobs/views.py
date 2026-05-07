@@ -150,6 +150,20 @@ class JobViewSet(viewsets.ModelViewSet):
             )
         ).order_by('status_priority', '-created_at')
 
+        # Exclude private jobs from unauthorized users
+        if not user.is_authenticated:
+            queryset = queryset.filter(is_private=False)
+        else:
+            queryset = queryset.filter(
+                Q(is_private=False) |
+                Q(is_private=True, posted_by=user) |
+                Q(is_private=True, selected_viewers=user) |
+                Q(is_private=True, assigned_to_consultancy=user) |
+                Q(is_private=True, assigned_to_internal_hr=user) |
+                Q(is_private=True, assigned_internal_hrs=user) |
+                Q(is_private=True, assigned_consultancies=user)
+            )
+
         return queryset.distinct()
     
     def perform_create(self, serializer):
