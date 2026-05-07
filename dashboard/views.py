@@ -13,7 +13,7 @@ from datetime import timedelta
 from collections import defaultdict
 import statistics
 
-from jobs.models import Job, JobApplication, JobAssignmentHistory, Application
+from jobs.models import Job, JobApplication, JobAssignmentHistory, Application, ReferralApplication
 from mrf.models import MRF, MRFApproval, Department
 from booking.models import Booking
 from slots.models import InterviewFeedback, Interviewer
@@ -372,12 +372,23 @@ class BaseAnalyticsView(APIView):
         else:
             platform_app_qs = Application.objects.filter(platform_app_filter).distinct()
 
+        referral_filter = date_filter
+        if department_id:
+            referral_filter &= Q(referral_department=department_id)
+        if designation_id:
+            referral_filter &= Q(referral_designation=designation_id)
+        if user_id:
+            referral_filter &= Q(referral_emp_code=user_id)
+
+        referral_qs = ReferralApplication.objects.filter(referral_filter).distinct()
+
         return {
             "mrf_qs": mrf_qs,
             "job_qs": job_qs,
             "broad_job_qs": broad_job_qs,
             "app_qs": app_qs,
             "platform_app_qs": platform_app_qs,
+            "referral_qs": referral_qs,
             "company": company,
             "user": user,
             "target_user": target_user,
@@ -1275,9 +1286,8 @@ class BaseAnalyticsView(APIView):
         # section8['tat_days'] = round(sum(durations_hire) / len(durations_hire), 2) if durations_hire else 0
 
         # Inject new TAT metrics
-        # TAT Metrics should use the base (company-wide) queryset for high-level KPIs
-        # unless we specifically want to filter by the event date (which app_qs doesn't do as it filters by created_at)
-        tat_metrics = calc_joining_tat(base_app_qs)
+        # Updated to use app_qs so that user_id and other filters are respected
+        tat_metrics = calc_joining_tat(app_qs)
         section8["partial_joining_tat_days"] = tat_metrics["partial_joining_tat_days"]
         section8["final_joining_tat_days"] = tat_metrics["final_joining_tat_days"]
 
@@ -1303,8 +1313,8 @@ class BaseAnalyticsView(APIView):
 
         # Last 30 days metrics (Fixed: uses company-wide apps_qs instead of filtered app_qs)
         thirty_days_ago = timezone.now() - timedelta(days=30)
-        section8['cvs_last_30_days'] = base_app_qs.filter(created_at__gte=thirty_days_ago).count()
-        section8['offers_last_30_days'] = base_app_qs.filter(
+        section8['cvs_last_30_days'] = app_qs.filter(created_at__gte=thirty_days_ago).count()
+        section8['offers_last_30_days'] = app_qs.filter(
             status__in=offer_sent_statuses, 
             updated_at__gte=thirty_days_ago
         ).count()
@@ -1318,7 +1328,7 @@ class BaseAnalyticsView(APIView):
         """Override this in subclasses to return filters."""
         return Q(), Q(), Q()
 
-    def calc_summary_totals(self, mrf_qs, job_qs, app_qs, platform_app_qs, broad_job_qs=None):
+    def calc_summary_totals(self, mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, broad_job_qs=None):
         """Standard summary totals for quick dashboard cards.
         broad_job_qs: All jobs assigned to the user (ignoring date filter).
         Used for total_jobs so filtered-by-user views show all their jobs, not just period-created ones.
@@ -1330,9 +1340,15 @@ class BaseAnalyticsView(APIView):
             "total_mrfs_on_hold": mrf_qs.filter(status='on_hold').count(),
             "total_jobs": jobs_for_count.count(),
             "total_jobs_on_hold": jobs_for_count.filter(status='on_hold').count(),
-            "total_cvs": app_qs.count(),
-            "total_open_positions": sum((j.no_of_positions - j.positions_filled) for j in jobs_for_count),
-            "jobs_by_assignment": {
+            # "total_cvs": app_qs.count() + platform_app_qs.count() + referral_qs.count(),
+            "cv_counts": {
+                "direct_applications": app_qs.count(),
+                "platform_applications": platform_app_qs.count(),
+                "referrals": referral_qs.count(),
+                "total": app_qs.count() + platform_app_qs.count() + referral_qs.count()
+            },
+            # "total_open_positions": sum((j.no_of_positions - j.positions_filled) for j in jobs_for_count),
+            "total_open_positions": sum(j.remaining_positions() for j in jobs_for_count),"jobs_by_assignment": {
                 "hr_only": jobs_for_count.filter(Q(status='assigned_to_internal_hr') | Q(previous_status='assigned_to_internal_hr'), assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=True).count(),
                 "consultancy_only": jobs_for_count.filter(Q(status='assigned_to_consultancy') | Q(previous_status='assigned_to_consultancy'), assigned_to_consultancy__isnull=False, assigned_to_internal_hr__isnull=True).count(),
                 "both": jobs_for_count.filter(Q(status='assigned_to_both') | Q(previous_status='assigned_to_both'), assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=False).count()

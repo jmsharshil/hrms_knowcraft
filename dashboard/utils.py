@@ -145,10 +145,10 @@ def calc_stage_turnaround_time(apps_qs):
 # 2.5 JOINING TURNAROUND TIME (TAT)
 # ──────────────────────────────────────────────────────────────
 def calc_joining_tat(apps_qs):
-    from django.db.models import F, Avg, ExpressionWrapper, DurationField
+    from django.db.models import F, Avg, ExpressionWrapper, DurationField, Case, When
     from django.db.models.functions import Cast
     from django.db.models import DateField
-    
+    from datetime import timedelta
     from django.db.models.functions import Coalesce
     
     # 1. Partial Joining Avg Time - TAT (Job Open -> Offer Accepted)
@@ -166,13 +166,22 @@ def calc_joining_tat(apps_qs):
     )
     
     partial_avg = partial_apps.aggregate(
-        avg_tat=Avg(ExpressionWrapper(
-            F('resolved_offer_accepted_date') - F('job_open_date_only'),
-            output_field=DurationField()
-        ))
+        avg_tat=Avg(
+            Case(
+                When(
+                    resolved_offer_accepted_date__gte=F('job_open_date_only'),
+                    then=ExpressionWrapper(
+                        F('resolved_offer_accepted_date') - F('job_open_date_only'),
+                        output_field=DurationField()
+                    )
+                ),
+                default=timedelta(0),
+                output_field=DurationField()
+            )
+        )
     )['avg_tat']
     
-    partial_days = max(0, round(partial_avg.total_seconds() / 86400, 1)) if partial_avg else 0
+    partial_days = round(partial_avg.total_seconds() / 86400, 1) if partial_avg else 0
     
     # 2. Final Joining Avg Time - TAT (Job Open -> Offered Joining Date)
     final_apps = apps_qs.filter(
@@ -183,13 +192,22 @@ def calc_joining_tat(apps_qs):
     )
     
     final_avg = final_apps.aggregate(
-        avg_tat=Avg(ExpressionWrapper(
-            F('joining_date') - F('job_open_date_only'),
-            output_field=DurationField()
-        ))
+        avg_tat=Avg(
+            Case(
+                When(
+                    joining_date__gte=F('job_open_date_only'),
+                    then=ExpressionWrapper(
+                        F('joining_date') - F('job_open_date_only'),
+                        output_field=DurationField()
+                    )
+                ),
+                default=timedelta(0),
+                output_field=DurationField()
+            )
+        )
     )['avg_tat']
     
-    final_days = max(0, round(final_avg.total_seconds() / 86400, 1)) if final_avg else 0
+    final_days = round(final_avg.total_seconds() / 86400, 1) if final_avg else 0
     
     return {
         "partial_joining_tat_days": partial_days,

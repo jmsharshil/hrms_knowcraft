@@ -83,11 +83,19 @@ def get_emails_for_role(candidate, roles):
         if role == "consultancy":
             if candidate.source == "consultancy":
                 # OLD (single)
-                add_user(getattr(job, "assigned_to_consultancy", None))
+                # add_user(getattr(job, "assigned_to_consultancy", None))
 
                 # NEW (multiple)
-                if hasattr(job, "assigned_consultancies"):
-                    add_users(job.assigned_consultancies.all())
+                # if hasattr(job, "assigned_consultancies"):
+                #     add_users(job.assigned_consultancies.all())
+                # ✅ Use the application_link to find the exact consultancy who submitted this candidate
+                application_link = getattr(candidate, "application_link", None)
+                if application_link:
+                    submitting_consultancy = getattr(application_link, "created_by", None)
+                    add_user(submitting_consultancy)
+                else:
+                    # fallback: single FK only, never M2M
+                    add_user(getattr(job, "assigned_to_consultancy", None))
 
         # =========================
         # INTERNAL HR (STRICT ASSIGNED ONLY)
