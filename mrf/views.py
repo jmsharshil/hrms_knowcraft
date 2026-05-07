@@ -425,7 +425,7 @@ class MRFViewSet(viewsets.ModelViewSet):
                 default=Value(0),
                 output_field=IntegerField(),
             )
-        ).order_by('status_priority', '-created_at')
+        ).distinct().order_by('status_priority', '-created_at')
 
         return queryset
     
