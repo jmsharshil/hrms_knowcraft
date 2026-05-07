@@ -13,7 +13,7 @@ from datetime import timedelta
 from collections import defaultdict
 import statistics
 
-from jobs.models import Job, JobApplication, JobAssignmentHistory, Application
+from jobs.models import Job, JobApplication, JobAssignmentHistory, Application, ReferralApplication
 from mrf.models import MRF, MRFApproval, Department
 from booking.models import Booking
 from slots.models import InterviewFeedback, Interviewer
@@ -372,12 +372,24 @@ class BaseAnalyticsView(APIView):
         else:
             platform_app_qs = Application.objects.filter(platform_app_filter).distinct()
 
+        # 7. Referral Application queryset (Filtered by Period Activity)
+        referral_filter = date_filter
+        if department_id:
+            referral_filter &= Q(referral_department=department_id)
+        if designation_id:
+            referral_filter &= Q(referral_designation=designation_id)
+        if user_id:
+            referral_filter &= Q(referral_emp_code=user_id)
+        
+        referral_qs = ReferralApplication.objects.filter(referral_filter).distinct()
+
         return {
             "mrf_qs": mrf_qs,
             "job_qs": job_qs,
             "broad_job_qs": broad_job_qs,
             "app_qs": app_qs,
             "platform_app_qs": platform_app_qs,
+            "referral_qs": referral_qs,
             "company": company,
             "user": user,
             "target_user": target_user,
@@ -1318,7 +1330,7 @@ class BaseAnalyticsView(APIView):
         """Override this in subclasses to return filters."""
         return Q(), Q(), Q()
 
-    def calc_summary_totals(self, mrf_qs, job_qs, app_qs, platform_app_qs, broad_job_qs=None):
+    def calc_summary_totals(self, mrf_qs, job_qs, app_qs, platform_app_qs,referral_qs,broad_job_qs=None):
         """Standard summary totals for quick dashboard cards.
         broad_job_qs: All jobs assigned to the user (ignoring date filter).
         Used for total_jobs so filtered-by-user views show all their jobs, not just period-created ones.
@@ -1330,8 +1342,16 @@ class BaseAnalyticsView(APIView):
             "total_mrfs_on_hold": mrf_qs.filter(status='on_hold').count(),
             "total_jobs": jobs_for_count.count(),
             "total_jobs_on_hold": jobs_for_count.filter(status='on_hold').count(),
-            "total_cvs": app_qs.count(),
-            "total_open_positions": sum((j.no_of_positions - j.positions_filled) for j in jobs_for_count),
+            # "total_cvs": app_qs.count() + platform_app_qs.count() + referral_qs.count(),
+            "cv_counts": {
+                "direct_applications": app_qs.count(),
+                "platform_applications": platform_app_qs.count(),
+                "referrals": referral_qs.count(),
+                "total": app_qs.count() + platform_app_qs.count() + referral_qs.count()
+            },
+            # "total_open_positions": sum((j.no_of_positions - j.positions_filled) for j in jobs_for_count),
+            "total_open_positions": sum(j.remaining_positions() for j in jobs_for_count),
+
             "jobs_by_assignment": {
                 "hr_only": jobs_for_count.filter(Q(status='assigned_to_internal_hr') | Q(previous_status='assigned_to_internal_hr'), assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=True).count(),
                 "consultancy_only": jobs_for_count.filter(Q(status='assigned_to_consultancy') | Q(previous_status='assigned_to_consultancy'), assigned_to_consultancy__isnull=False, assigned_to_internal_hr__isnull=True).count(),

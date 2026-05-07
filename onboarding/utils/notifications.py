@@ -682,7 +682,8 @@ def notify_candidate(candidate: Any, stage: str,cc:list, feedback_link: str = No
 
     success = True
 
-    email_cfg = cfg.get("email")
+    import copy
+    email_cfg = copy.copy(cfg.get("email"))
     sms_text = cfg.get("sms")
     # ---------- EMAIL ----------
     
@@ -743,7 +744,8 @@ def notify_candidate(candidate: Any, stage: str,cc:list, feedback_link: str = No
                         f"?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
                     )
                 email_cfg["text"] = email_cfg["text"].format(schedule_link=schedule_link)
-                sms_text.format(schedule_link=schedule_link)
+                # sms_text.format(schedule_link=schedule_link)
+                sms_text = sms_text.format(schedule_link=schedule_link)
             except Exception as e:
                 print(e)
         try:

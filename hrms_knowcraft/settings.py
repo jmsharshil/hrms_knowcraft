@@ -17,7 +17,7 @@ import dj_database_url
 from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-load_dotenv()
+load_dotenv(override=True)
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -28,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-0(s=ka%+mzk+5n3*t-h8l0#6yh7$bnt*y)=a!zy!7_q192j%$t'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net','127.0.0.1','localhost','demp-hrms-hzdme4brg0dgfxa3.centralindia-01.azurewebsites.net','hireproknowcraft-crhacdc8dxd7dfhh.centralindia-01.azurewebsites.net','bf86-2405-201-2005-1965-6426-2cc1-d361-8da4.ngrok-free.app']
 
