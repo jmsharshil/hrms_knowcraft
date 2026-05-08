@@ -28,7 +28,7 @@ ALLOWED_TRANSITIONS = {
     "review_docs": ["docs_approved", "docs_incomplete","docs_unclear"],
     "docs_incomplete": ["docs_pending","docs_approved"],  # reupload
     "docs_unclear": ["docs_pending","docs_approved"],  # reupload
-    "docs_approved": ["salary_annexure_prep","offer_pending"],
+    "docs_approved": ["salary_annexure_prep","offer_pending","salary_annexure_review","offer_sent"],
     # HR prepares salary annexure
     "salary_annexure_prep": ["salary_annexure_review","offer_sent"],
     "salary_annexure_review":["approved_annexure","rejected_annexure"],
