@@ -455,6 +455,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     file_size_mb = serializers.SerializerMethodField()
     document_upload_link = serializers.SerializerMethodField()
     candidate_experience_link = serializers.SerializerMethodField()
+    is_private = serializers.SerializerMethodField()
     
     class Meta:
         model = JobApplication
@@ -470,7 +471,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at','is_selected','is_approved','is_rejected','inperson_link','reschedule_count','no_show_count',
             'interview_scheduled_at','interviewer_name','interview_link','feedback_link','round_name','round_name_display',
             "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone","interview_end_at",
-            "document_upload_link", "candidate_experience_link"
+            "document_upload_link", "candidate_experience_link","is_private"
         ]
     
     def get_platform_name(self, obj):
@@ -498,6 +499,9 @@ class JobApplicationSerializer(serializers.ModelSerializer):
         from django.conf import settings
         frontend_url = getattr(settings, 'FRONTEND_URL', 'https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net')
         return f"{frontend_url}/candidate/feedback/{obj.id}"
+
+    def get_is_private(self, obj):
+        return obj.job.is_private
 
 
 class JobApplicationCreateSerializer(serializers.ModelSerializer):
