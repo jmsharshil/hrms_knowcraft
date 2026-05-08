@@ -303,8 +303,8 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
 \nWarm regards,
 \nTeam-HR
 \nKnowcraft Analytics Private Limited""")
+    interviewer,created = Interviewer.objects.get_or_create(id=interviewer_id)
     if not is_private:
-        interviewer,created = Interviewer.objects.get_or_create(id=interviewer_id)
         send_email(
             subject=f"Interview Scheduled - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
             text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}",
@@ -378,8 +378,6 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
             send_text(to=interviewer.phone,text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}")
             send_document(to=interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
 
-
-    if not is_private:
         for extra in extra_attendees:
             send_email(
             subject=f"Interview Scheduled - {candidate.candidate_name} ({candidate.job.mrf.designation.name})",
