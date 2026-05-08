@@ -35,7 +35,7 @@ ALLOWED_TRANSITIONS = {
     "rejected_annexure":["salary_annexure_prep"],
     # HR head approves salary annexure
     # If rejected → back to salary_annexure_preparation
-    "approved_annexure": ["offer_pending"],
+    "approved_annexure": ["offer_pending","offer_sent"],
     "offer_pending": ["offer_sent"],
     "offer_sent": ["offer_accepted", "offer_rejected"],
     # AFTER OFFER ACCEPTANCE
