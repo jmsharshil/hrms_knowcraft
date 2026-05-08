@@ -116,7 +116,7 @@ class JobListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Job
         fields = [
-            'id', 'job_title', 'department', 'department_name',
+            'id', 'job_title', 'department', 'department_name','is_private',
             'designation', 'designation_name', 'location','job_type', 'job_type_display',
             'no_of_positions', 'positions_filled', 'remaining_positions',
             'status', 'status_display', 'priority', 'priority_display',
@@ -453,6 +453,8 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     platform_name = serializers.SerializerMethodField()
     resume_url = serializers.SerializerMethodField()
     file_size_mb = serializers.SerializerMethodField()
+    document_upload_link = serializers.SerializerMethodField()
+    candidate_experience_link = serializers.SerializerMethodField()
     
     class Meta:
         model = JobApplication
@@ -467,7 +469,8 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report','slot_link','candidate_history',
             'created_at', 'updated_at','is_selected','is_approved','is_rejected','inperson_link','reschedule_count','no_show_count',
             'interview_scheduled_at','interviewer_name','interview_link','feedback_link','round_name','round_name_display',
-            "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone","interview_end_at"
+            "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone","interview_end_at",
+            "document_upload_link", "candidate_experience_link"
         ]
     
     def get_platform_name(self, obj):
@@ -485,6 +488,17 @@ class JobApplicationSerializer(serializers.ModelSerializer):
         if obj.file_size:
             return round(obj.file_size / (1024 * 1024), 2)
         return 0
+
+    def get_document_upload_link(self, obj):
+        from django.conf import settings
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net')
+        return f"{frontend_url}/onboarding/documents/{obj.id}"
+
+    def get_candidate_experience_link(self, obj):
+        from django.conf import settings
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net')
+        return f"{frontend_url}/candidate/feedback/{obj.id}"
+
 
 class JobApplicationCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating job applications"""
