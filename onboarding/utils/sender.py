@@ -8,8 +8,16 @@ import queue
 import logging
 logger = logging.getLogger(__name__)
 
-def send_email(to,subject,cc=[],text="",template=None,attachments=None):
-    msg = EmailMultiAlternatives(subject, text, "talent@knowcraft.in",to= [to],cc= cc+['talent@knowcraft.in'])
+def send_email(to,subject,cc=[],text="",template=None,attachments=None, use_default_cc=True, is_private=False):
+    if is_private:
+        logger.info(f"Skipping email to {to} for private record: {subject}")
+        return
+
+    cc_list = list(cc)
+    if use_default_cc:
+        cc_list.append("talent@knowcraft.in")
+
+    msg = EmailMultiAlternatives(subject, text, "talent@knowcraft.in",to= [to],cc= cc_list)
     if template:
         msg.attach_alternative(template, "text/html")
     if attachments:
@@ -43,8 +51,12 @@ def _headers():
         "Content-Type": "application/json",
     }
 
-def send_text(to: str, text: str):
+def send_text(to: str, text: str, is_private=False):
     """Try common payload variants so we don't get stuck on a minor mismatch."""
+    if is_private:
+        logger.info(f"Skipping text to {to} for private record")
+        return
+
     if not to:
         logger.error("Missing recipient number in send_text()")
         return
@@ -71,7 +83,11 @@ def send_text(to: str, text: str):
     return SEND_QUEUE.enqueue(payload)
     # return _safe_post_async(payload)
 
-def send_image(to: str, image_url: str, caption: str = ""):
+def send_image(to: str, image_url: str, caption: str = "", is_private=False):
+    if is_private:
+        logger.info(f"Skipping image to {to} for private record")
+        return
+
     if not to:
         logger.error("Missing recipient number in send_image()")
         return
@@ -93,7 +109,11 @@ def send_image(to: str, image_url: str, caption: str = ""):
     # return _safe_post_async(payload)
     return SEND_QUEUE.enqueue(payload)
 
-def send_document(to: str, file_url: str, filename: str, text: str = ""):
+def send_document(to: str, file_url: str, filename: str, text: str = "", is_private=False):
+    if is_private:
+        logger.info(f"Skipping document to {to} for private record")
+        return
+
     if not to:
         logger.error("Missing recipient number in send_document()")
         return
@@ -104,7 +124,7 @@ def send_document(to: str, file_url: str, filename: str, text: str = ""):
     
     return SEND_QUEUE.enqueue(payload)
 
-def send_location(phone: str, latitude: float, longitude: float, text: str, address: str, name: str):
+def send_location(phone: str, latitude: float, longitude: float, text: str, address: str, name: str, is_private=False):
     """
     Sends a WhatsApp location message via WaSender API.
 
@@ -114,7 +134,12 @@ def send_location(phone: str, latitude: float, longitude: float, text: str, addr
         longitude (float): Longitude of location
         address (str): Full address or description
         text (str): The text content of the message. Required if no media/contact/location is sent.
+        is_private (bool): If True, communication is suppressed.
     """
+    if is_private:
+        logger.info(f"Skipping location to {phone} for private record")
+        return
+
     if not phone:
         logger.error("Missing recipient number in send_location()")
         return
@@ -135,7 +160,7 @@ def send_location(phone: str, latitude: float, longitude: float, text: str, addr
     except Exception as e1:
         logger.warning("send location failed: %s", e1)
 
-def send_contact(phone: str, contact_name: str, contact_number: str):
+def send_contact(phone: str, contact_name: str, contact_number: str, is_private=False):
     """
     Sends a WhatsApp contact card (vCard) via WaSender API.
 
@@ -143,7 +168,12 @@ def send_contact(phone: str, contact_name: str, contact_number: str):
         phone (str): Recipient's phone number in international format (e.g., '918401611072')
         contact_name (str): Contact's full name
         contact_number (str): Contact's phone number (in international format)
+        is_private (bool): If True, communication is suppressed.
     """
+    if is_private:
+        logger.info(f"Skipping contact to {phone} for private record")
+        return
+
     if not phone:
         logger.error("Missing recipient number in send_contact()")
         return

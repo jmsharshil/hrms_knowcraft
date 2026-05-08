@@ -1533,6 +1533,9 @@ from django.http import JsonResponse
 def send_offer_letter_view(request, application_id):
     try:
         application = JobApplication.objects.get(id=application_id)
+        if application.job.is_private:
+            return JsonResponse({"error": "Cannot send DocuSign offer for private job. Communication is suppressed."}, status=400)
+
 
         if not application.candidate_email:
             return JsonResponse({"error": "Candidate email missing"}, status=400)
@@ -1566,7 +1569,8 @@ def send_offer_letter_view(request, application_id):
 def bulk_send_offers(request):
     applications = JobApplication.objects.filter(
         status="approved",
-        candidate_email__isnull=False
+        candidate_email__isnull=False,
+        job__is_private=False
     )
 
     service = DocuSignService()

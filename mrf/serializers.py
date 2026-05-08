@@ -713,9 +713,10 @@ class MRFSubmitSerializer(serializers.Serializer):
             text = alt_text['mrf_submit_new']
             text = text.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.created_at.strftime("%B %d,%Y"))
         try:
-            send_email(to=manager_email,subject=subject,template=template,text=text)
+            is_private = mrf.is_private
+            send_email(to=manager_email,subject=subject,template=template,text=text, is_private=is_private)
             if manager_phone:
-                send_text(to=manager_phone,text=text)
+                send_text(to=manager_phone,text=text, is_private=is_private)
             from .utils import schedule_mrf_reminder
             schedule_mrf_reminder(mrf_id=mrf.id)
         except Exception as e:

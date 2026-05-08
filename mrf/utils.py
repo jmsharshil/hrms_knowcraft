@@ -459,6 +459,8 @@ def schedule_mrf_reminder(mrf_id):
 
         try:
             mrf = MRF.objects.get(id=mrf_id)
+            if mrf.is_private:
+                return
 
             if mrf.status in ["approved", "rejected"]:
                 return
