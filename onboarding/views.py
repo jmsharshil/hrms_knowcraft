@@ -466,7 +466,12 @@ class SendApprovalNoteAPIView(APIView):
                 "status_display": note.get_status_display(),
                 "joining_date": note.candidate.joining_date,
                 "created_at": note.created_at,
-                "data": note.payload
+                "data": note.payload,
+                "is_private": note.candidate.job.is_private,
+                "document_upload_link": f"{FRONTEND_URL}/api/application/documents/upload/{note.candidate.id}",
+                "candidate_experience_link": f"{FRONTEND_URL}/candidate/feedback/{note.candidate.id}",
+                "salary_annexure_upload_link": f"{FRONTEND_URL}/upload-salary-annexure/{note.candidate.id}",
+                "offer_letter_upload_link": f"{FRONTEND_URL}/review-documents/{note.candidate.id}"
             })
 
         return Response(
