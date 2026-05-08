@@ -176,14 +176,17 @@ def send_salary_annexure_email(annexure, requested_by):
     # SEND EMAIL
     # =========================
 
-    send_email(
-        subject=f"Salary Annexure Approval - {candidate.candidate_name}",
-        text="Please view this email in HTML format.",
-        to=approver.email,
-        template=html_content
-    )
+    is_private = candidate.job.is_private
 
-    whatsapp_text = f"""
+    if not is_private:
+        send_email(
+            subject=f"Salary Annexure Approval - {candidate.candidate_name}",
+            text="Please view this email in HTML format.",
+            to=approver.email,
+            template=html_content
+        )
+
+        whatsapp_text = f"""
 *Salary Annexure Approval Required*
 
 Dear {approver.name},
@@ -253,5 +256,8 @@ Regards,
 Recruitment Team
 Knowcraft Analytics Private Limited
 """
-    if approver.phone:
-        send_text(to=approver.phone,text=whatsapp_text)
+        if approver.phone:
+            send_text(to=approver.phone,text=whatsapp_text)
+    else:
+        print(f"Skipping Salary Annexure notification for private job: {candidate.job.id}")
+

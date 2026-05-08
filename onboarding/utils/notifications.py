@@ -1387,6 +1387,15 @@ def resolve_internal_phones(candidate, receivers: list[str]) -> list[str]:
         return []
 
 def notify_internal(candidate: Any, stage: str, cc: list) -> bool:
+    # Private Job Check: No automated communications for private records
+    try:
+        if hasattr(candidate, 'job') and candidate.job and candidate.job.is_private:
+            logger.info("Skipping internal notification for private job: %s (stage=%s)", 
+                        candidate.job.id, stage)
+            return True
+    except Exception as e:
+        logger.error("Error checking privacy status in notify_internal: %s", e)
+
     recievers = NOTIFY_INTERNAL_MAP[stage]['receivers']
     subject = NOTIFY_INTERNAL_MAP[stage]['subject']
     body = NOTIFY_INTERNAL_MAP[stage]['body']

@@ -5,13 +5,15 @@ from rest_framework import status,permissions
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.template import Template, Context
+from django.db.models import Q
 from .models import JobApplicationDocument,ApprovalNote,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent
 from onboarding.utils.engine import automation_engine
 from .utils.sender import send_email,send_text,send_document
 from .serializers import JobApplicationDocumentSerializer,SalaryAnnexureSerializer,SalaryAnnexureHistorySerializer
 import logging
-from jobs.models import JobApplication
+from jobs.models import JobApplication, Job
 from rest_framework.viewsets import ModelViewSet,ReadOnlyModelViewSet
+
 from .utils.annexure_history import log_salary_annexure_history
 from .utils.send_annexure import send_salary_annexure_email
 from accounts.models import User
@@ -424,6 +426,18 @@ class SendApprovalNoteAPIView(APIView):
             # Default: manager sees notes assigned to them
             approval_notes = ApprovalNote.objects.filter(manager=user)
 
+        # Apply privacy filter
+        approval_notes = approval_notes.filter(
+            Q(candidate__job__is_private=False) |
+            Q(candidate__job__is_private=True, candidate__job__posted_by=user) |
+            Q(candidate__job__is_private=True, candidate__job__selected_viewers=user) |
+            Q(candidate__job__is_private=True, candidate__job__assigned_to_consultancy=user) |
+            Q(candidate__job__is_private=True, candidate__job__assigned_to_internal_hr=user) |
+            Q(candidate__job__is_private=True, candidate__job__assigned_internal_hrs=user) |
+            Q(candidate__job__is_private=True, candidate__job__assigned_consultancies=user)
+        )
+
+
         candidate_id = request.query_params.get("candidate_id")
         if candidate_id:
             approval_notes = approval_notes.filter(candidate_id=candidate_id)
@@ -731,8 +745,8 @@ Knowcraft Analytics Private Limited
                 )
                 from .utils.resume_attachment import get_resume_attachment
                 resume_attachment = get_resume_attachment(candidate)
-                # --- Send email ---
-                if approval_note:
+                # --- Send email (Suppressed for private jobs) ---
+                if approval_note and not candidate.job.is_private:
                     send_email(
                         subject="Approval Required – Candidate Hiring",
                         text="Approval required. Please view this email in HTML format.",
@@ -743,6 +757,9 @@ Knowcraft Analytics Private Limited
                     if approver.phone:
                         send_text(to=approver.phone,text=whatsapp_text)
                         send_document(to=approver.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
+                elif approval_note and candidate.job.is_private:
+                    print(f"Skipping Approval Note notification for private job: {candidate.job.id}")
+
             else:
                 print(reason)
 
@@ -928,7 +945,19 @@ class SalaryAnnexureViewSet(ModelViewSet):
     serializer_class = SalaryAnnexureSerializer
 
     def get_queryset(self):
+        user = self.request.user
         qs = super().get_queryset()
+
+        # Apply privacy filter
+        qs = qs.filter(
+            Q(job_application__job__is_private=False) |
+            Q(job_application__job__is_private=True, job_application__job__posted_by=user) |
+            Q(job_application__job__is_private=True, job_application__job__selected_viewers=user) |
+            Q(job_application__job__is_private=True, job_application__job__assigned_to_consultancy=user) |
+            Q(job_application__job__is_private=True, job_application__job__assigned_to_internal_hr=user) |
+            Q(job_application__job__is_private=True, job_application__job__assigned_internal_hrs=user) |
+            Q(job_application__job__is_private=True, job_application__job__assigned_consultancies=user)
+        )
 
         candidate_id = self.request.query_params.get("candidate_id")
 
@@ -936,6 +965,7 @@ class SalaryAnnexureViewSet(ModelViewSet):
             qs = qs.filter(job_application_id=candidate_id)
 
         return qs
+
 
     def perform_create(self, serializer):
         annexure = serializer.save(prepared_by=self.request.user)
@@ -1185,9 +1215,21 @@ class SalaryAnnexureHistoryViewSet(ReadOnlyModelViewSet):
         """
         Filter by annexure or job application
         """
+        user = self.request.user
         qs = SalaryAnnexureHistory.objects.select_related(
             "annexure",
             "performed_by"
+        )
+
+        # Apply privacy filter
+        qs = qs.filter(
+            Q(annexure__job_application__job__is_private=False) |
+            Q(annexure__job_application__job__is_private=True, annexure__job_application__job__posted_by=user) |
+            Q(annexure__job_application__job__is_private=True, annexure__job_application__job__selected_viewers=user) |
+            Q(annexure__job_application__job__is_private=True, annexure__job_application__job__assigned_to_consultancy=user) |
+            Q(annexure__job_application__job__is_private=True, annexure__job_application__job__assigned_to_internal_hr=user) |
+            Q(annexure__job_application__job__is_private=True, annexure__job_application__job__assigned_internal_hrs=user) |
+            Q(annexure__job_application__job__is_private=True, annexure__job_application__job__assigned_consultancies=user)
         )
 
         annexure_id = self.request.query_params.get("annexure_id")
@@ -1277,14 +1319,21 @@ Thank you.
         </html>"""
         from .utils.annexure_attachment import get_annexure_attachment
         annexure_attachment = get_annexure_attachment(job_application.documents)
-        send_email(
-            subject=subject,
-            text=message,
-            to=recipient_email,
-            template=template,
-            attachments=[annexure_attachment] if annexure_attachment else None
-        )
-        if recipient_phone:
+        
+        is_private = job_application.job.is_private
+
+        if not is_private:
+            send_email(
+                subject=subject,
+                text=message,
+                to=recipient_email,
+                template=template,
+                attachments=[annexure_attachment] if annexure_attachment else None
+            )
+        else:
+            print(f"Skipping Offer Letter notification for private job: {job_application.job.id}")
+
+        if recipient_phone and not is_private:
             send_text(to=recipient_phone,text=message)
             if annexure_attachment:
                 send_document(to=recipient_phone,text="Salary Annexure",filename=f"{job_application.candidate_name}_annexure.pdf",file_url=job_application.docs.salary_annexure.url)
@@ -1378,14 +1427,21 @@ Thank you.
         """
         from .utils.resume_attachment import get_resume_attachment
         resume_attachment = get_resume_attachment(job_application)
-        send_email(
-            subject=subject,
-            text=message,
-            to=recipient_email,
-            template=template,
-            attachments=[resume_attachment] if resume_attachment else None
-        )
-        if recipient_phone:
+
+        is_private = job_application.job.is_private
+
+        if not is_private:
+            send_email(
+                subject=subject,
+                text=message,
+                to=recipient_email,
+                template=template,
+                attachments=[resume_attachment] if resume_attachment else None
+            )
+        else:
+            print(f"Skipping Salary Annexure Prep notification for private job: {job_application.job.id}")
+
+        if recipient_phone and not is_private:
             send_text(to=recipient_phone,text=message)
             send_document(to=recipient_phone,text="Candidate Resume",file_url=job_application.resume.url,filename=f'{job_application.candidate_name}_Resume.pdf')
         automation_engine(job_application, job_application.status, "salary_annexure_prep")

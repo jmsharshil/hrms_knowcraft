@@ -336,7 +336,7 @@ class MRFViewSet(viewsets.ModelViewSet):
             Q(is_private=False) |
             Q(is_private=True, requested_by=user) |
             Q(is_private=True, selected_viewers=user) |
-            Q(is_private=True, private_approval_levels__approver=user)
+            (Q(is_private=True, private_approval_levels__approver=user) & ~Q(status='draft'))
         )
         
         # Apply filters from query params
@@ -650,9 +650,10 @@ class MRFViewSet(viewsets.ModelViewSet):
                                 designation=mrf.designation.name,
                                 date=mrf.created_at.strftime("%B %d, %Y")
                             )
-                            send_email(to=approver.email, subject=subject, template=template, text=text)
-                            if approver.phone:
-                                send_text(to=approver.phone, text=text)
+                            if not mrf.is_private:
+                                send_email(to=approver.email, subject=subject, template=template, text=text)
+                                if approver.phone:
+                                    send_text(to=approver.phone, text=text)
                     schedule_mrf_reminder(mrf.id)
 
                 message = 'MRF approved successfully'
@@ -668,9 +669,10 @@ class MRFViewSet(viewsets.ModelViewSet):
                         designation=mrf.designation.name,
                         date=mrf.approved_at.strftime("%B %d, %Y")
                     )
-                    send_email(to=mrf.requested_by.email, subject=subject, template=template, text=text)
-                    if mrf.requested_by.phone:
-                        send_text(to=mrf.requested_by.phone, text=text)
+                    if not mrf.is_private:
+                        send_email(to=mrf.requested_by.email, subject=subject, template=template, text=text)
+                        if mrf.requested_by.phone:
+                            send_text(to=mrf.requested_by.phone, text=text)
                     message = f'MRF fully approved. Requisition No: {mrf.requisition_no}'
         
         else:  # reject

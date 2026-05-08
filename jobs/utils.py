@@ -1003,6 +1003,10 @@ Hiring Team
 }
 
 def send_job_assignment_email(user, job, assigned_by):
+    if job.is_private:
+        print(f"Skipping assignment email for private job {job.id} to {user.email}")
+        return True
+    
     subject = f"New Job Assigned - {job.job_title}"
 
     template = email_html_templates['job_assigned'].format(

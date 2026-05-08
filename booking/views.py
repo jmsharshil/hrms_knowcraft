@@ -183,6 +183,8 @@ class CandidateBookSlotView(APIView):
 def send_online_interview_notification(candidate,meeting_link,interviewer_id,start_dt,extra_attendees,end_dt):
     start_str = start_dt.astimezone(IST).strftime("%d/%m/%Y %I:%M %p")
 
+    is_private = hasattr(candidate, 'job') and candidate.job and candidate.job.is_private
+
     round = None
     round_name = ""
 
@@ -234,8 +236,9 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
         f"?interview_round={round}&job_application={candidate.id}"
     )
 
-    send_email(
-        subject=f"Interview Scheduled – {candidate.job.mrf.designation.name} at Knowcraft Analytics Private Limited",
+    if not is_private:
+        send_email(
+            subject=f"Interview Scheduled – {candidate.job.mrf.designation.name} at Knowcraft Analytics Private Limited",
         text=f"""Dear {candidate.candidate_name},\nWe are pleased to inform you have been shortlisted for {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled at {start_str}.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
 \nWe look forward to speaking with you.
 \nPlease feel free to reach out if you have any questions or require further assistance.
@@ -439,7 +442,7 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
         to=extra.email,
         attachments=[resume_attachment] if resume_attachment else None
     )
-        if extra.phone:
+        if not is_private and extra.phone:
             send_text(to=extra.phone,text=f"Dear {extra.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}")
             send_document(to=extra.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
 
@@ -521,6 +524,8 @@ def get_experience_level(designation):
 def send_notifications(candidate,start_dt,end_dt,interviewer,location,request):
     start_str = start_dt.astimezone(IST).strftime("%d/%m/%Y %I:%M %p")
 
+    is_private = hasattr(candidate, 'job') and candidate.job and candidate.job.is_private
+
     designation = candidate.job.mrf.designation.name
     level = get_experience_level(designation)
 
@@ -547,8 +552,9 @@ def send_notifications(candidate,start_dt,end_dt,interviewer,location,request):
     for extra in extra_attendees:
         attendees.append(extra.email)
         base_path = FEEDBACK_PATHS.get(round, {}).get(level, "/api/slots/hrfresher/")
-        send_email(
-            subject=f"In-Person Interview Scheduled - {candidate.candidate_name}",
+        if not is_private:
+            send_email(
+                subject=f"In-Person Interview Scheduled - {candidate.candidate_name}",
             text=f"""Dear {extra.name},
 
 Interview for {candidate.candidate_name} ({designation}) has been scheduled.
@@ -769,18 +775,19 @@ Knowcraft Analytics Private Limited
     """
     )
 
-    # SMS
-    send_text(
-        to=candidate.candidate_phone,
-        text=f"""Dear {candidate.candidate_name}, your {round_name} interview for {designation} is scheduled on {start_str} at {location_str}.\n Please arrive early.\n Location: {maps_link}\n - HR"""
-    )
+    if not is_private:
+        # SMS
+        send_text(
+            to=candidate.candidate_phone,
+            text=f"""Dear {candidate.candidate_name}, your {round_name} interview for {designation} is scheduled on {start_str} at {location_str}.\n Please arrive early.\n Location: {maps_link}\n - HR"""
+        )
 
-    # ==============================
-    # 📧 Interviewer Email
-    # ==============================
-    send_email(
-        subject=f"In-Person Interview Scheduled - {candidate.candidate_name}",
-        text=f"""Dear {interviewer.name},
+        # ==============================
+        # 📧 Interviewer Email
+        # ==============================
+        send_email(
+            subject=f"In-Person Interview Scheduled - {candidate.candidate_name}",
+            text=f"""Dear {interviewer.name},
 
 The {round_name} interview for {candidate.candidate_name} ({designation}) has been scheduled.
 
@@ -795,79 +802,79 @@ Feedback Link:
 
 Warm Regards,
 Team – HR""",
-        to=interviewer.email,
-        template=f"""
-        <html>
-        <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
-            <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
-                <tr>
-                    <td align="center" style="padding:30px 15px;">
-                        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
-                            <!-- Logo -->
-                            <tr>
-                                <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                    <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
-                                </td>
-                            </tr>
-                            <!-- Separator -->
-                            <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
-                            <!-- Content -->
-                            <tr>
-                                <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.6;">
-                                    <h2 style="margin:0 0 24px 0;color:#1f2937;font-size:24px;font-weight:600;">Interview Scheduled — {candidate.candidate_name}</h2>
-                                    
-                                    <p style="margin:0 0 16px 0;">Dear <strong>{interviewer.name}</strong>,</p>
-                                    
-                                    <p style="margin:0 0 20px 0;">
-                                        Interview for <strong>{candidate.candidate_name}</strong> (<strong>{designation}</strong>) has been scheduled.
-                                    </p>
-                                    
-                                    <!-- Details Box -->
-                                    <table style="width:100%;border:1px solid #e2e8f0;border-radius:12px;margin:20px 0;padding:20px 24px;">
-                                        <tr>
-                                            <td style="padding:8px 0;font-weight:600;color:#475569;width:140px;">📅 Date & Time</td>
-                                            <td style="padding:8px 0;font-weight:500;">{start_str}</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="padding:8px 0;font-weight:600;color:#475569;">📍 Location</td>
-                                            <td style="padding:8px 0;font-weight:500;"><a href="{maps_link}" target="_blank">{location_str}</a></td>
-                                        </tr>
-                                    </table>
-                                    
-                                    <!-- Feedback Button -->
-                                    <p style="margin:30px 0 35px 0;text-align:center;">
-                                        <a href="{feedback_link}" 
-                                        style="background-color:#2563eb;color:#ffffff;padding:16px 36px;text-decoration:none;border-radius:8px;font-weight:600;font-size:17px;display:inline-block;">
-                                            Submit Feedback
-                                        </a>
-                                    </p>
-                                    
-                                    <p style="margin:0 0 16px 0;">Please submit your feedback after the interview using the link above.</p>
-                                    
-                                    <br>
-                                    <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
-                                    <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                    <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
-                                </td>
-                            </tr>
-                            <!-- Footer -->
-                            <tr>
-                                <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                    © 2026 Knowcraft Analytics Private Limited • Confidential
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
-            </table>
-        </body>
-        </html>
-    """,
-    attachments=[resume_attachment] if resume_attachment else None
-    )
+            to=interviewer.email,
+            template=f"""
+            <html>
+            <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+                <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+                    <tr>
+                        <td align="center" style="padding:30px 15px;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                                <!-- Logo -->
+                                <tr>
+                                    <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                        <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                    </td>
+                                </tr>
+                                <!-- Separator -->
+                                <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                                <!-- Content -->
+                                <tr>
+                                    <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                        <h2 style="margin:0 0 24px 0;color:#1f2937;font-size:24px;font-weight:600;">Interview Scheduled — {candidate.candidate_name}</h2>
+                                        
+                                        <p style="margin:0 0 16px 0;">Dear <strong>{interviewer.name}</strong>,</p>
+                                        
+                                        <p style="margin:0 0 20px 0;">
+                                            Interview for <strong>{candidate.candidate_name}</strong> (<strong>{designation}</strong>) has been scheduled.
+                                        </p>
+                                        
+                                        <!-- Details Box -->
+                                        <table style="width:100%;border:1px solid #e2e8f0;border-radius:12px;margin:20px 0;padding:20px 24px;">
+                                            <tr>
+                                                <td style="padding:8px 0;font-weight:600;color:#475569;width:140px;">📅 Date & Time</td>
+                                                <td style="padding:8px 0;font-weight:500;">{start_str}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding:8px 0;font-weight:600;color:#475569;">📍 Location</td>
+                                                <td style="padding:8px 0;font-weight:500;"><a href="{maps_link}" target="_blank">{location_str}</a></td>
+                                            </tr>
+                                        </table>
+                                        
+                                        <!-- Feedback Button -->
+                                        <p style="margin:30px 0 35px 0;text-align:center;">
+                                            <a href="{feedback_link}" 
+                                            style="background-color:#2563eb;color:#ffffff;padding:16px 36px;text-decoration:none;border-radius:8px;font-weight:600;font-size:17px;display:inline-block;">
+                                                Submit Feedback
+                                            </a>
+                                        </p>
+                                        
+                                        <p style="margin:0 0 16px 0;">Please submit your feedback after the interview using the link above.</p>
+                                        
+                                        <br>
+                                        <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                        <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                        <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                    </td>
+                                </tr>
+                                <!-- Footer -->
+                                <tr>
+                                    <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                        © 2026 Knowcraft Analytics Private Limited • Confidential
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+        """,
+        attachments=[resume_attachment] if resume_attachment else None
+        )
 
-    if interviewer.phone:
-        send_text(to=interviewer.phone,text=f"""Dear {interviewer.name},
+        if interviewer.phone:
+            send_text(to=interviewer.phone,text=f"""Dear {interviewer.name},
 
 The {round_name} interview for {candidate.candidate_name} ({designation}) has been scheduled.
 
@@ -882,7 +889,7 @@ Feedback Link:
 
 Warm Regards,
 Team – HR""")
-        send_document(to=interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
+            send_document(to=interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
     # Update candidate fields
     candidate.interviewer_name = interviewer.name
     candidate.interview_scheduled_at = start_dt
@@ -1670,6 +1677,10 @@ class ManageBookingView(APIView):
         return Response({"detail": "Cancelled successfully"})
 
     def _send_reschedule_notifications(self, booking, candidate, start_str):
+        if hasattr(candidate, 'job') and candidate.job and candidate.job.is_private:
+            print(f"Skipping reschedule notification for private job: {candidate.job.id}")
+            return
+        
         resume_attachment = get_resume_attachment(candidate)
 
         if booking.interview_type == "online":
@@ -1754,6 +1765,10 @@ class ManageBookingView(APIView):
                         send_text(extra.phone,reschedule_offline_interview_extra_text.format(candidate=candidate,start_str=start_str,extra=extra,location_str=location_str,maps_link=maps_link))
         
     def _send_attendee_notifications(self,booking, candidate, attendees):
+        if hasattr(candidate, 'job') and candidate.job and candidate.job.is_private:
+            print(f"Skipping attendee notification for private job: {candidate.job.id}")
+            return
+            
         resume_attachment = get_resume_attachment(candidate)
 
         if booking.interview_type == 'online':
@@ -1815,6 +1830,10 @@ class ManageBookingView(APIView):
         self._send_reschedule_notifications(booking, candidate, start_str)
 
     def _send_cancel_notifications(self, booking, candidate):
+        if hasattr(candidate, 'job') and candidate.job and candidate.job.is_private:
+            print(f"Skipping cancel notification for private job: {candidate.job.id}")
+            return
+            
         if booking.interview_type == "online":
             html_content = get_interviewer_email_template(
                 action="cancelled",
