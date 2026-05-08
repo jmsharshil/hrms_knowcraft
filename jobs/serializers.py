@@ -492,7 +492,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     def get_document_upload_link(self, obj):
         from django.conf import settings
         frontend_url = getattr(settings, 'FRONTEND_URL', 'https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net')
-        return f"{frontend_url}/onboarding/documents/{obj.id}"
+        return f"{frontend_url}/api/application/documents/upload/{obj.id}"
 
     def get_candidate_experience_link(self, obj):
         from django.conf import settings
