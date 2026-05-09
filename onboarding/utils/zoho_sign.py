@@ -338,7 +338,46 @@ def send_offer_letter_autofill(template_id, candidate):
 @csrf_exempt
 def zoho_sign_webhook(request):
 
-    payload = json.loads(request.body.decode("utf-8"))
+    # Only accept POST
+    if request.method != "POST":
+        return JsonResponse({"status": "method_not_allowed"}, status=405)
+
+    # -------------------------------------------------------
+    # Parse payload: Zoho Sign may send as raw JSON *or* as
+    # application/x-www-form-urlencoded with JSON in form
+    # fields ("requests", "notifications", etc.).
+    # -------------------------------------------------------
+    payload = None
+    content_type = request.content_type or ""
+
+    try:
+        # 1️⃣  Try raw JSON body first
+        if "application/json" in content_type:
+            payload = json.loads(request.body.decode("utf-8"))
+        else:
+            # 2️⃣  Form-encoded: reassemble from individual form fields
+            #     Zoho posts fields like  requests={...}&notifications={...}
+            if request.POST:
+                payload = {}
+                for key in request.POST:
+                    value = request.POST[key]
+                    try:
+                        payload[key] = json.loads(value)
+                    except (json.JSONDecodeError, TypeError):
+                        payload[key] = value
+
+            # 3️⃣  Fallback: try parsing the raw body as JSON anyway
+            if not payload:
+                payload = json.loads(request.body.decode("utf-8"))
+
+    except Exception as e:
+        print(f"Zoho Webhook parse error: {e} | body={request.body[:500]}")
+        return JsonResponse({"status": "bad_request", "error": str(e)}, status=400)
+
+    if not payload:
+        print("Zoho Webhook: empty payload")
+        return JsonResponse({"status": "bad_request", "error": "empty payload"}, status=400)
+
     print("Zoho Webhook Payload:", payload)
 
     event_type = payload.get("notifications", {}).get("operation_type")
@@ -363,6 +402,7 @@ def zoho_sign_webhook(request):
             raise OfferDocument.DoesNotExist
             
     except OfferDocument.DoesNotExist:
+        print(f"Zoho Webhook: no OfferDocument found for document_id={document_id}, request_id={request_id}")
         return JsonResponse({"status": "not_found"})
 
     application = doc.application
