@@ -446,7 +446,7 @@ class SendApprovalNoteAPIView(APIView):
         if approver_id:
             approval_notes = approval_notes.filter(manager_id=approver_id)
 
-        approval_notes = approval_notes.select_related("candidate")
+        approval_notes = approval_notes.select_related("candidate").distinct()
 
         results = []
 
