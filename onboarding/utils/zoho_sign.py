@@ -423,26 +423,43 @@ def send_to_zoho_sign(candidate, file_stream, filename,other_signers=[]):
         "Authorization": f"Zoho-oauthtoken {access_token}"
     }
 
-    actions = [
-        {
-            "recipient_name": "Nikita Kulabker",
-            "recipient_email": "nkulabker@knowcraft.in",
-            "action_type": "SIGN",
-            "signing_order": 1  # sequential signing
-        },
-        {
-            "recipient_name": candidate.candidate_name,
-            "recipient_email": candidate.candidate_email,
-            "action_type": "SIGN",
-            "signing_order": 2
-        },
-        {
-            "recipient_name": "Hr",
-            "recipient_email": "hr@knowcraft.in",
-            "action_type": "VIEW",
-            "signing_order": 3  # sequential signing
-        }
-    ]
+    actions = []
+    if candidate.job and candidate.job.is_private:
+        actions = [
+            {
+                "recipient_name": "Nikita Kulabker",
+                "recipient_email": "nkulabker@knowcraft.in",
+                "action_type": "SIGN",
+                "signing_order": 1  # sequential signing
+            },
+            {
+                "recipient_name": candidate.candidate_name,
+                "recipient_email": candidate.candidate_email,
+                "action_type": "SIGN",
+                "signing_order": 2
+            },
+        ]
+    else:
+        actions = [
+            {
+                "recipient_name": "Nikita Kulabker",
+                "recipient_email": "nkulabker@knowcraft.in",
+                "action_type": "SIGN",
+                "signing_order": 1  # sequential signing
+            },
+            {
+                "recipient_name": candidate.candidate_name,
+                "recipient_email": candidate.candidate_email,
+                "action_type": "SIGN",
+                "signing_order": 2
+            },
+            {
+                "recipient_name": "Hr",
+                "recipient_email": "hr@knowcraft.in",
+                "action_type": "VIEW",
+                "signing_order": 3  # sequential signing
+            }
+        ]
 
     # Add other authorized signers (signing order sequentially)
     for idx, signer in enumerate(other_signers, start=4):
