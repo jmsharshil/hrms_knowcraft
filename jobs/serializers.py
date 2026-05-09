@@ -1,3 +1,4 @@
+from mrf.serializers import MRFListSerializer
 from rest_framework import serializers
 from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLink,ReferralApplication,Application,ApplicationSource
 from accounts.models import User
@@ -456,6 +457,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     document_upload_link = serializers.SerializerMethodField()
     candidate_experience_link = serializers.SerializerMethodField()
     is_private = serializers.SerializerMethodField()
+    mrf_details = serializers.SerializerMethodField()
     
     class Meta:
         model = JobApplication
@@ -502,6 +504,9 @@ class JobApplicationSerializer(serializers.ModelSerializer):
 
     def get_is_private(self, obj):
         return obj.job.is_private
+
+    def get_mrf_details(self, obj):
+        return MRFListSerializer(obj.job.mrf).data
 
 
 class JobApplicationCreateSerializer(serializers.ModelSerializer):
