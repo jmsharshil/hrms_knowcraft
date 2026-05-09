@@ -473,7 +473,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at','is_selected','is_approved','is_rejected','inperson_link','reschedule_count','no_show_count',
             'interview_scheduled_at','interviewer_name','interview_link','feedback_link','round_name','round_name_display',
             "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone","interview_end_at",
-            "document_upload_link", "candidate_experience_link","is_private"
+            "document_upload_link", "candidate_experience_link","is_private","mrf_details"
         ]
     
     def get_platform_name(self, obj):
