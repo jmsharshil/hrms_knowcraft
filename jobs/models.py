@@ -311,6 +311,9 @@ class JobApplicationLink(models.Model):
         ('referral', 'Employee Referral'),
         ('email', 'Email'),
         ('other', 'Other'),
+        ('direct',"Direct Application"),
+        ('campus_drive',"Campus Drive"),
+        ('internal_hr','Internal HR'),
         ('consultancy','Consultancy'),
     ]
     
@@ -526,6 +529,7 @@ class JobApplication(models.Model):
         ('linkedin', 'LinkedIn'),
         ('naukri', 'Naukri'),
         ('indeed', 'Indeed'),
+        ("campus_drive","Campus Drive")
     ]
     
     INTERVIEW_CHOICES=[
