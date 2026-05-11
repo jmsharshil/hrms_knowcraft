@@ -1301,6 +1301,61 @@ class ApplicationCreateSerializer(serializers.ModelSerializer):
                 TASK_QUEUE.enqueue(pre_parse_resume_task, app, app.resume, job)
 
         return created
+
+class GeneralApplicationCreateSerializer(serializers.ModelSerializer):
+    resumes = serializers.ListField(
+        child=serializers.FileField(),
+        write_only=True
+    )
+    source = serializers.ChoiceField(choices=ApplicationSource.choices, default=ApplicationSource.CAREER)
+
+    class Meta:
+        model = Application
+        fields = ['resumes', 'source', 'department', 'designation']
+
+    def validate_resumes(self, values):
+        if not values:
+            raise serializers.ValidationError("At least one resume required")
+
+        max_size = 10 * 1024 * 1024
+        allowed_extensions = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.png']
+
+        import os
+        for file in values:
+            if file.size > max_size:
+                raise serializers.ValidationError(f"{file.name} too large")
+
+            ext = os.path.splitext(file.name)[1].lower()
+            if ext not in allowed_extensions:
+                raise serializers.ValidationError(f"{file.name} invalid format")
+
+        return values
+
+    def create(self, validated_data):
+        resumes = validated_data.pop('resumes')
+        source = validated_data.get('source', ApplicationSource.CAREER)
+        department = validated_data.get('department')
+        designation = validated_data.get('designation')
+
+        created = []
+        from onboarding.utils.task_queue import TASK_QUEUE
+        from .utils import pre_parse_resume_task
+
+        with transaction.atomic():
+            for file in resumes:
+                app = Application.objects.create(
+                    source=source,
+                    department=department,
+                    designation=designation,
+                    resume=file,
+                    original_filename=file.name,
+                    file_size=file.size,
+                )
+                created.append(app)
+                
+                TASK_QUEUE.enqueue(pre_parse_resume_task, app, app.resume, None)
+
+        return created
     
 class ApplicationToJobSerializer(serializers.Serializer):
     application_ids = serializers.ListField(child=serializers.UUIDField())
@@ -1389,6 +1444,8 @@ class ApplicationSerializer(serializers.ModelSerializer):
     candidate_id = serializers.UUIDField(source="id", read_only=True)
     rejected_by_name = serializers.CharField(source='rejected_by.name', read_only=True)
     rejected_by_email = serializers.CharField(source='rejected_by.email', read_only=True)
+    department_name = serializers.CharField(source='department.name', read_only=True)
+    designation_name = serializers.CharField(source='designation.name', read_only=True)
 
     class Meta:
         model = Application
@@ -1404,12 +1461,15 @@ class ApplicationSerializer(serializers.ModelSerializer):
 class ApplicationListSerializer(serializers.ModelSerializer):
     resume_url = serializers.SerializerMethodField()
     candidate_id = serializers.UUIDField(source="id", read_only=True)
+    department_name = serializers.CharField(source='department.name', read_only=True)
+    designation_name = serializers.CharField(source='designation.name', read_only=True)
 
     class Meta:
         model = Application
         fields = ['candidate_id','resume_url','source','position_title','candidate_name',
                   'candidate_email','candidate_phone','location','match_score','job',
-                  'resume_report','is_duplicate','current_employer','created_at','is_rejected']
+                  'resume_report','is_duplicate','current_employer','created_at','is_rejected',
+                  'department', 'designation', 'department_name', 'designation_name']
 
     def get_resume_url(self, obj):
         request = self.context.get('request')
