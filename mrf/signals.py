@@ -143,8 +143,8 @@ from django.utils import timezone
 
 @receiver(post_save, sender=MRF)
 def schedule_mrf_reminder(sender, instance, created, **kwargs):
-    # Only enqueue if new MRF
-    if created:
+    # Only enqueue if new MRF and NOT private
+    if created and not instance.is_private:
         print("reminder started!")
         TASK_QUEUE.enqueue(mrf_approval_reminder_task, instance.id)
 

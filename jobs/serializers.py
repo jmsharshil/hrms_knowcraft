@@ -1,3 +1,4 @@
+from mrf.serializers import MRFListSerializer
 from rest_framework import serializers
 from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLink,ReferralApplication,Application,ApplicationSource
 from accounts.models import User
@@ -116,7 +117,7 @@ class JobListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Job
         fields = [
-            'id', 'job_title', 'department', 'department_name',
+            'id', 'job_title', 'department', 'department_name','is_private',
             'designation', 'designation_name', 'location','job_type', 'job_type_display',
             'no_of_positions', 'positions_filled', 'remaining_positions',
             'status', 'status_display', 'priority', 'priority_display',
@@ -321,8 +322,15 @@ class JobCreateSerializer(serializers.ModelSerializer):
             job_description=validated_data.get('job_description', ''),
             posted_by=user,
             company=user.company,
-            status='open'
+            status='open',
+            is_private=mrf.is_private,  # Inherit privacy from MRF
         )
+        
+        # Inherit selected_viewers from private MRF
+        if mrf.is_private:
+            viewers = mrf.selected_viewers.all()
+            if viewers.exists():
+                job.selected_viewers.set(viewers)
         
         # Create history record
         JobAssignmentHistory.objects.create(
@@ -446,6 +454,10 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     platform_name = serializers.SerializerMethodField()
     resume_url = serializers.SerializerMethodField()
     file_size_mb = serializers.SerializerMethodField()
+    document_upload_link = serializers.SerializerMethodField()
+    candidate_experience_link = serializers.SerializerMethodField()
+    is_private = serializers.SerializerMethodField()
+    mrf_details = serializers.SerializerMethodField()
     
     class Meta:
         model = JobApplication
@@ -460,7 +472,8 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'submitted_by', 'submitted_by_name', 'notes', 'rating','resume_report','slot_link','candidate_history',
             'created_at', 'updated_at','is_selected','is_approved','is_rejected','inperson_link','reschedule_count','no_show_count',
             'interview_scheduled_at','interviewer_name','interview_link','feedback_link','round_name','round_name_display',
-            "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone","interview_end_at"
+            "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone","interview_end_at",
+            "document_upload_link", "candidate_experience_link","is_private","mrf_details"
         ]
     
     def get_platform_name(self, obj):
@@ -478,6 +491,23 @@ class JobApplicationSerializer(serializers.ModelSerializer):
         if obj.file_size:
             return round(obj.file_size / (1024 * 1024), 2)
         return 0
+
+    def get_document_upload_link(self, obj):
+        from django.conf import settings
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net')
+        return f"{frontend_url}/api/application/documents/upload/{obj.id}"
+
+    def get_candidate_experience_link(self, obj):
+        from django.conf import settings
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net')
+        return f"{frontend_url}/candidate/feedback/{obj.id}"
+
+    def get_is_private(self, obj):
+        return obj.job.is_private
+
+    def get_mrf_details(self, obj):
+        return MRFListSerializer(obj.job.mrf).data
+
 
 class JobApplicationCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating job applications"""

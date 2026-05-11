@@ -8,7 +8,7 @@ from django.db import transaction,IntegrityError
 from slots.models import Interviewer
 from .models import (
     Department, Designation, MRF, MRFApproval, 
-    ApprovalWorkflow, WorkflowTemplate
+    ApprovalWorkflow, WorkflowTemplate, PrivateMRFApprovalLevel
 )
 from .serializers import (
     DepartmentSerializer, DesignationSerializer, MRFListSerializer,
@@ -288,8 +288,15 @@ class MRFViewSet(viewsets.ModelViewSet):
         queryset = MRF.objects.select_related(
             'department', 'designation', 'position_department', 
             'requested_by', 'workflow_template'
-        ).prefetch_related('approvals', 'revisions', 'workflow_template__levels')
+        ).prefetch_related('approvals', 'revisions', 'workflow_template__levels',
+                           'private_approval_levels', 'selected_viewers')
         
+        # Also include private MRFs where user is an approver
+        private_approver_q = Q(
+            is_private=True,
+            private_approval_levels__approver=user
+        )
+            
         # Filter based on user role
         if user.role in ['department_head','hr']:
             
@@ -316,12 +323,21 @@ class MRFViewSet(viewsets.ModelViewSet):
                 )
             
             queryset = queryset.filter(
-                Q(requested_by=user) | approval_q | department_q
+                Q(requested_by=user) | approval_q | department_q | private_approver_q
             )
         elif user.role in ['admin', 'hr_manager']:
             pass  # Can see all
         else:
             queryset = queryset.filter(status='approved')
+        
+        # Exclude private MRFs from unauthorized users
+        
+        queryset = queryset.filter(
+            Q(is_private=False) |
+            Q(is_private=True, requested_by=user) |
+            Q(is_private=True, selected_viewers=user) |
+            (Q(is_private=True, private_approval_levels__approver=user) & ~Q(status='draft'))
+        )
         
         # Apply filters from query params
         status_filter = self.request.query_params.get('status')
@@ -409,7 +425,7 @@ class MRFViewSet(viewsets.ModelViewSet):
                 default=Value(0),
                 output_field=IntegerField(),
             )
-        ).order_by('status_priority', '-created_at')
+        ).distinct().order_by('status_priority', '-created_at')
 
         return queryset
     
@@ -473,17 +489,29 @@ class MRFViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # Get first approval level from MRF's workflow
-        first_workflow = mrf.workflow_template.levels.filter(
-            level=1,
-            is_active=True
-        ).order_by('order').first()
-        
-        if not first_workflow:
-            return Response(
-                {'error': f'Workflow template "{mrf.workflow_template.name}" has no active approval levels'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        if mrf.is_private:
+            # Private MRF: validate direct approval levels exist
+            first_level = mrf.private_approval_levels.filter(level=1, is_active=True).first()
+            if not first_level:
+                return Response(
+                    {'error': 'No approval levels configured for this private MRF'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        else:
+            # Standard MRF: validate workflow template
+            if not mrf.workflow_template:
+                return Response(
+                    {'error': 'No workflow template assigned to this MRF'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            first_workflow = mrf.workflow_template.levels.filter(
+                level=1, is_active=True
+            ).order_by('order').first()
+            if not first_workflow:
+                return Response(
+                    {'error': f'Workflow template "{mrf.workflow_template.name}" has no active approval levels'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
         
         mrf.status = 'pending_level_1'
         mrf.current_approval_level = 0
@@ -491,9 +519,10 @@ class MRFViewSet(viewsets.ModelViewSet):
         mrf.save()
         serializer = MRFSubmitSerializer(context={'mrf': mrf, 'request': request})
         serializer.submit()
+        wf_name = 'Private' if mrf.is_private else mrf.workflow_template.name
         serializer = MRFDetailSerializer(mrf, context={'request': request})
         return Response({
-            'message': f'MRF submitted successfully using workflow: {mrf.workflow_template.name}',
+            'message': f'MRF submitted successfully using workflow: {wf_name}',
             'data': serializer.data
         }, status=status.HTTP_200_OK)
     
@@ -517,28 +546,43 @@ class MRFViewSet(viewsets.ModelViewSet):
         comments = serializer.validated_data.get('comments', '')
         rejection_reason = serializer.validated_data.get('rejection_reason', '')
         
-        # Get current workflow level from MRF's workflow template
+        # Get current workflow level
         next_level = mrf.current_approval_level + 1
-        current_workflow = mrf.workflow_template.levels.filter(
-            level=next_level,
-            is_active=True
-        ).first()
-        
-        if not current_workflow:
-            return Response(
-                {'error': 'Approval workflow not found for current level'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Verify user has correct role
-        if request.user.role != current_workflow.required_role:
-            return Response(
-                {'error': f'You do not have permission to approve at this level. Required role: {current_workflow.required_role}'},
-                status=status.HTTP_403_FORBIDDEN
-            )
+
+        if mrf.is_private:
+            # Private MRF: use direct approval levels
+            current_private_level = mrf.private_approval_levels.filter(
+                level=next_level, is_active=True
+            ).first()
+            if not current_private_level:
+                return Response(
+                    {'error': 'Approval level not found for current level'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            # Verify user is the designated approver
+            if request.user.id != current_private_level.approver.id:
+                return Response(
+                    {'error': 'You are not the designated approver for this level'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        else:
+            current_workflow = mrf.workflow_template.levels.filter(
+                level=next_level, is_active=True
+            ).first()
+            if not current_workflow:
+                return Response(
+                    {'error': 'Approval workflow not found for current level'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            # Verify user has correct role
+            if request.user.role != current_workflow.required_role:
+                return Response(
+                    {'error': f'You do not have permission to approve at this level. Required role: {current_workflow.required_role}'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
         
         if action_type == 'approve':
-            # Create approval record
+            # Create approval record (audit trail for both private and standard)
             MRFApproval.objects.create(
                 mrf=mrf,
                 level=next_level,
@@ -547,93 +591,92 @@ class MRFViewSet(viewsets.ModelViewSet):
                 comments=comments
             )
             
-            # Check if there's a next level in THIS workflow
-            next_workflow = mrf.workflow_template.levels.filter(
-                level=next_level + 1,
-                is_active=True
-            ).first()
-            
-            if next_workflow:
-                # Move to next level
-                mrf.current_approval_level = next_level
-                mrf.status = f'pending_level_{next_level + 1}'
+            if mrf.is_private:
+                # Private MRF: check next direct approval level
+                next_private_level = mrf.private_approval_levels.filter(
+                    level=next_level + 1, is_active=True
+                ).first()
+                if next_private_level:
+                    mrf.current_approval_level = next_level
+                    mrf.status = f'pending_level_{next_level + 1}'
+                else:
+                    mrf.status = 'approved'
+                    mrf.current_approval_level = next_level
+                mrf.save()
+                # NO notifications for private MRFs
+                message = 'MRF approved successfully'
+                if mrf.status == 'approved':
+                    message = f'MRF fully approved. Requisition No: {mrf.requisition_no}'
             else:
-                # Final approval
-                mrf.status = 'approved'
-                mrf.current_approval_level = next_level
-            
-            mrf.save()
-            if mrf.status.startswith("pending"):
-
-                # Send email to NEXT approver only
-                next_level = mrf.current_approval_level + 1
-
+                # Standard MRF: check next workflow level
                 next_workflow = mrf.workflow_template.levels.filter(
-                    level=next_level,
-                    is_active=True
-                ).select_related('approver').first()
-
+                    level=next_level + 1, is_active=True
+                ).first()
+                
                 if next_workflow:
-                    approver = next_workflow.approver or User.objects.filter(
-                        role=next_workflow.required_role,
-                        company=mrf.company,
-                        is_active=True
-                    ).first()
+                    mrf.current_approval_level = next_level
+                    mrf.status = f'pending_level_{next_level + 1}'
+                else:
+                    mrf.status = 'approved'
+                    mrf.current_approval_level = next_level
+                
+                mrf.save()
 
-                    if approver:
-                        subject = f"Requisition Pending Approval – {mrf.designation.name}"
+                if mrf.status.startswith("pending"):
+                    # Send email to NEXT approver only
+                    next_level = mrf.current_approval_level + 1
+                    next_workflow = mrf.workflow_template.levels.filter(
+                        level=next_level, is_active=True
+                    ).select_related('approver').first()
 
-                        template = email_templates['mrf_submit_new'].format(
-                            manager_name=approver.name,
-                            hod_name=mrf.requested_by.name,
-                            designation=mrf.designation.name,
-                            date=mrf.created_at.strftime("%B %d, %Y")
-                        )
+                    if next_workflow:
+                        approver = next_workflow.approver or User.objects.filter(
+                            role=next_workflow.required_role,
+                            company=mrf.company,
+                            is_active=True
+                        ).first()
 
-                        text = alt_text['mrf_submit_new'].format(
-                            manager_name=approver.name,
-                            hod_name=mrf.requested_by.name,
-                            designation=mrf.designation.name,
-                            date=mrf.created_at.strftime("%B %d, %Y")
-                        )
+                        if approver:
+                            subject = f"Requisition Pending Approval – {mrf.designation.name}"
+                            template = email_templates['mrf_submit_new'].format(
+                                manager_name=approver.name,
+                                hod_name=mrf.requested_by.name,
+                                designation=mrf.designation.name,
+                                date=mrf.created_at.strftime("%B %d, %Y")
+                            )
+                            text = alt_text['mrf_submit_new'].format(
+                                manager_name=approver.name,
+                                hod_name=mrf.requested_by.name,
+                                designation=mrf.designation.name,
+                                date=mrf.created_at.strftime("%B %d, %Y")
+                            )
+                            if not mrf.is_private:
+                                send_email(to=approver.email, subject=subject, template=template, text=text)
+                                if approver.phone:
+                                    send_text(to=approver.phone, text=text)
+                    schedule_mrf_reminder(mrf.id)
 
-                        send_email(
-                            to=approver.email,
-                            subject=subject,
-                            template=template,
-                            text=text
-                        )
-                        if approver.phone:
-                            send_text(to=approver.phone,text=text)
-                schedule_mrf_reminder(mrf.id)
-            message = 'MRF approved successfully'
-            if mrf.status == 'approved':
-                subject = f"MRF Approved – {mrf.designation.name}"
-
-                template = email_templates['mrf_approved'].format(
-                    manager_name=mrf.requested_by.name,
-                    designation=mrf.designation.name,
-                    date=mrf.approved_at.strftime("%B %d, %Y")
-                )
-
-                text = alt_text['mrf_approved'].format(
-                    manager_name=mrf.requested_by.name,
-                    designation=mrf.designation.name,
-                    date=mrf.approved_at.strftime("%B %d, %Y")
-                )
-
-                send_email(
-                    to=mrf.requested_by.email,
-                    subject=subject,
-                    template=template,
-                    text=text
-                )
-                if mrf.requested_by.phone:
-                    send_text(to=mrf.requested_by.phone,text=text)
-                message = f'MRF fully approved. Requisition No: {mrf.requisition_no}'
+                message = 'MRF approved successfully'
+                if mrf.status == 'approved':
+                    subject = f"MRF Approved – {mrf.designation.name}"
+                    template = email_templates['mrf_approved'].format(
+                        manager_name=mrf.requested_by.name,
+                        designation=mrf.designation.name,
+                        date=mrf.approved_at.strftime("%B %d, %Y")
+                    )
+                    text = alt_text['mrf_approved'].format(
+                        manager_name=mrf.requested_by.name,
+                        designation=mrf.designation.name,
+                        date=mrf.approved_at.strftime("%B %d, %Y")
+                    )
+                    if not mrf.is_private:
+                        send_email(to=mrf.requested_by.email, subject=subject, template=template, text=text)
+                        if mrf.requested_by.phone:
+                            send_text(to=mrf.requested_by.phone, text=text)
+                    message = f'MRF fully approved. Requisition No: {mrf.requisition_no}'
         
         else:  # reject
-            # Create rejection record
+            # Create rejection record (audit trail for both private and standard)
             MRFApproval.objects.create(
                 mrf=mrf,
                 level=next_level,
@@ -647,30 +690,25 @@ class MRFViewSet(viewsets.ModelViewSet):
             mrf.current_approval_level = 0
             mrf.save()
             
-            subject = f"MRF Rejected – {mrf.designation.name}"
-
-            template = email_templates['mrf_reject'].format(
-                manager_name=mrf.requested_by.name,
-                approver_name=request.user.name,
-                designation=mrf.designation.name,
-                date=mrf.rejected_at.strftime("%B %d, %Y")
-            )
-
-            text = alt_text['mrf_reject'].format(
-                manager_name=mrf.requested_by.name,
-                approver_name=request.user.name,
-                designation=mrf.designation.name,
-                date=mrf.rejected_at.strftime("%B %d, %Y")
-            )
-
-            send_email(
-                to=mrf.requested_by.email,
-                subject=subject,
-                template=template,
-                text=text
-            )
-            if mrf.requested_by.phone:
-                send_text(to=mrf.requested_by.phone,text=text)
+            if not mrf.is_private:
+                # Send rejection notification only for standard MRFs
+                subject = f"MRF Rejected – {mrf.designation.name}"
+                template = email_templates['mrf_reject'].format(
+                    manager_name=mrf.requested_by.name,
+                    approver_name=request.user.name,
+                    designation=mrf.designation.name,
+                    date=mrf.rejected_at.strftime("%B %d, %Y")
+                )
+                text = alt_text['mrf_reject'].format(
+                    manager_name=mrf.requested_by.name,
+                    approver_name=request.user.name,
+                    designation=mrf.designation.name,
+                    date=mrf.rejected_at.strftime("%B %d, %Y")
+                )
+                send_email(to=mrf.requested_by.email, subject=subject, template=template, text=text)
+                if mrf.requested_by.phone:
+                    send_text(to=mrf.requested_by.phone, text=text)
+            
             message = 'MRF rejected. Department head can revise and resubmit.'
         
         serializer = MRFDetailSerializer(mrf, context={'request': request})

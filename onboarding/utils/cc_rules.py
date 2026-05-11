@@ -58,6 +58,10 @@ def get_emails_for_role(candidate, roles):
     if not job:
         return []
 
+    # Private Job Check: No default CCs for private records
+    if job.is_private:
+        return []
+
     mrf = getattr(job, "mrf", None)
     company = getattr(job, "company", None)
 

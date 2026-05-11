@@ -1003,6 +1003,10 @@ Hiring Team
 }
 
 def send_job_assignment_email(user, job, assigned_by):
+    if job.is_private:
+        print(f"Skipping assignment email for private job {job.id} to {user.email}")
+        return True
+    
     subject = f"New Job Assigned - {job.job_title}"
 
     template = email_html_templates['job_assigned'].format(
@@ -1123,6 +1127,8 @@ Hiring Team
 """
 
 def send_job_unassignment_email(user, job, assigned_by):
+    if job.is_private:
+        return True
     subject = f"Job Unassigned - {job.job_title}"
 
     template = email_html_templates['job_unassigned'].format(
@@ -1373,6 +1379,8 @@ Knowcraft Analytics
 
 def send_rejection_notification(application, rejection_reason=""):
     """Send rejection notification to candidate"""
+    if application.job and application.job.is_private:
+        return True
     if not application.candidate_email:
         print(f"No email for application {application.id}")
         return False

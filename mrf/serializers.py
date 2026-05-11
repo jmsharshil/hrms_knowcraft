@@ -3,7 +3,7 @@ from rest_framework import serializers
 from slots.models import Interviewer
 from .models import (
     Department, Designation, MRF, MRFApproval, MRFRevision, 
-    ApprovalWorkflow, WorkflowTemplate
+    ApprovalWorkflow, WorkflowTemplate, PrivateMRFApprovalLevel
 )
 from accounts.models import User
 from django.db import transaction
@@ -202,13 +202,38 @@ class MRFRevisionSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
 
+class PrivateMRFApprovalLevelSerializer(serializers.ModelSerializer):
+    """Serializer for private MRF approval levels"""
+    approver_name = serializers.CharField(source='approver.name', read_only=True)
+    approver_email = serializers.CharField(source='approver.email', read_only=True)
+    approver_role = serializers.CharField(source='approver.get_role_display', read_only=True)
+
+    class Meta:
+        model = PrivateMRFApprovalLevel
+        fields = ['id', 'level', 'approver', 'approver_name', 'approver_email', 'approver_role', 'is_active', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+class PrivateMRFApprovalLevelCreateSerializer(serializers.Serializer):
+    """For nested creation of private approval levels"""
+    level = serializers.IntegerField(min_value=1, max_value=3)
+    approver = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+
+    def validate_approver(self, value):
+        request = self.context.get('request')
+        if request and hasattr(request.user, 'company'):
+            if value.company != request.user.company:
+                raise serializers.ValidationError("Approver does not belong to your company")
+        return value
+
+
 class MRFListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for list views"""
     department_name = serializers.CharField(source='department.name', read_only=True)
     designation_name = serializers.CharField(source='designation.name', read_only=True)
     requested_by_name = serializers.CharField(source='requested_by.name', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
-    workflow_name = serializers.CharField(source='workflow_template.name', read_only=True)
+    workflow_name = serializers.SerializerMethodField()
     job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     hr_interviewer = InterviewerSerializer(read_only=True)
@@ -231,7 +256,8 @@ class MRFListSerializer(serializers.ModelSerializer):
             'no_of_vacancies', 'location', 'job_type', 'job_type_display','priority_display','status', 'status_display',
             'requested_by_name', 'workflow_name', 'date_of_request', 'can_update_interviewers',
             'created_at', 'updated_at','hr_interviewer', 'technical_interviewers', 'case_study_interviewer',
-            'final_interviewer', 'management_client_interviewer','can_approve','can_edit','can_submit','hr_round_set'
+            'final_interviewer', 'management_client_interviewer','can_approve','can_edit','can_submit','hr_round_set',
+            'is_private'
         ]
 
     def get_can_approve(self, obj):
@@ -269,6 +295,11 @@ class MRFListSerializer(serializers.ModelSerializer):
         user = request.user
         # Only creator can edit in draft or revision_required status
         return (obj.requested_by == user or user.role in ['hr_manager','admin']) and obj.status == 'approved'
+
+    def get_workflow_name(self, obj):
+        if obj.is_private:
+            return 'Private'
+        return obj.workflow_template.name if obj.workflow_template else None
     
 class MRFDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for single MRF view"""
@@ -282,8 +313,9 @@ class MRFDetailSerializer(serializers.ModelSerializer):
     job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
     case_study_required_display = serializers.CharField(source='get_case_study_required_display', read_only=True)
-    workflow_name = serializers.CharField(source='workflow_template.name', read_only=True)
+    workflow_name = serializers.SerializerMethodField()
     workflow_summary = serializers.SerializerMethodField()
+    private_approval_levels = PrivateMRFApprovalLevelSerializer(many=True, read_only=True)
     
     approvals = MRFApprovalSerializer(many=True, read_only=True)
     revisions = MRFRevisionSerializer(many=True, read_only=True)
@@ -350,6 +382,11 @@ class MRFDetailSerializer(serializers.ModelSerializer):
         # Only creator can edit in draft or revision_required status
         return (obj.requested_by == user or user.role in ['hr_manager','admin']) and obj.status == 'approved'
     
+    def get_workflow_name(self, obj):
+        if obj.is_private:
+            return 'Private'
+        return obj.workflow_template.name if obj.workflow_template else None
+    
     def get_interviewers(self, obj):
         emails = [
             obj.interviewer_email_1,
@@ -378,7 +415,8 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
     workflow_template = serializers.PrimaryKeyRelatedField(
         queryset=WorkflowTemplate.objects.filter(is_active=True),
         required=False,
-        help_text="If not provided, the default workflow will be used"
+        allow_null=True,
+        help_text="If not provided, the default workflow will be used (ignored for private MRFs)"
     )
     job_type_display = serializers.CharField(source='get_job_type_display', read_only=True)
     priority_display = serializers.CharField(source='get_priority_display', read_only=True)
@@ -397,6 +435,16 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
     management_client_interviewer = serializers.PrimaryKeyRelatedField(
         queryset=Interviewer.objects.all(), required=False, allow_null=True
     )
+
+    # Private MRF fields
+    is_private = serializers.BooleanField(required=False, default=False)
+    selected_viewers = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(), many=True, required=False
+    )
+    private_approval_levels = PrivateMRFApprovalLevelCreateSerializer(
+        many=True, required=False, write_only=True
+    )
+
     class Meta:
         model = MRF
         fields = [
@@ -406,7 +454,8 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
             'resigned_crafter_designation',
             'business_justification','job_type', 'job_type_display','priority','priority_display',
             'case_study_required', 'hr_interviewer', 'technical_interviewers', 'case_study_interviewer',
-            'final_interviewer', 'management_client_interviewer'
+            'final_interviewer', 'management_client_interviewer',
+            'is_private', 'selected_viewers', 'private_approval_levels'
         ]
     
     def validate(self, data):
@@ -452,6 +501,11 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = self.context['request'].user
         
+        # Extract private MRF fields
+        selected_viewers = validated_data.pop('selected_viewers', [])
+        private_approval_levels_data = validated_data.pop('private_approval_levels', [])
+        is_private = validated_data.get('is_private', False)
+
         # Set requested_by fields
         validated_data['requested_by'] = user
         validated_data['requested_by_name'] = user.name
@@ -504,10 +558,22 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
             validated_data.get('skills_competencies') or "Not Specified"
         )
         technical_interviewers = validated_data.pop('technical_interviewers', [])
-        validated_data['mrf_name'] = str(validated_data.get("mrf_name",'')).title()
+        validated_data['mrf_name'] = str(validated_data.get("mrf_name",''))
         mrf = MRF.objects.create(**validated_data)
         if technical_interviewers:
             mrf.technical_interviewers.set(technical_interviewers)
+        
+        # Handle private MRF: set viewers and create approval levels
+        if is_private:
+            if selected_viewers:
+                mrf.selected_viewers.set(selected_viewers)
+            for lvl_data in private_approval_levels_data:
+                PrivateMRFApprovalLevel.objects.create(
+                    mrf=mrf,
+                    level=lvl_data['level'],
+                    approver=lvl_data['approver']
+                )
+        
         return mrf
     
     def update(self, instance, validated_data):
@@ -528,8 +594,16 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
                 previous_data=previous_data
             )
         
-        # Don't allow workflow_template change after creation
+        # Don't allow workflow_template or is_private change after creation
         validated_data.pop('workflow_template', None)
+        validated_data.pop('is_private', None)
+        validated_data.pop('private_approval_levels', None)
+        
+        # Handle selected_viewers update
+        selected_viewers = validated_data.pop('selected_viewers', None)
+        if selected_viewers is not None and instance.is_private:
+            instance.selected_viewers.set(selected_viewers)
+        
         technical_interviewers = validated_data.pop('technical_interviewers', None)
         
         if 'position_department' in validated_data:
@@ -598,10 +672,17 @@ class MRFSubmitSerializer(serializers.Serializer):
         user = self.context['request'].user
         if mrf.company != user.company:
             raise serializers.ValidationError("Cannot submit MRF outside your company")
+        
+        # Private MRFs: NO system communication at all
+        if mrf.is_private:
+            return
+        
         from onboarding.utils.sender import send_email,send_text
         subject = f'Requisition Raised for {mrf.designation} Position'
-        # manager_name = User.objects.filter(role="hr_manager").first().name
-        # manager_email = User.objects.filter(role="hr_manager").first().email
+
+        if not mrf.workflow_template:
+            return
+
         level_1_workflow = mrf.workflow_template.levels.filter(
             level=1,
             is_active=True
@@ -632,9 +713,10 @@ class MRFSubmitSerializer(serializers.Serializer):
             text = alt_text['mrf_submit_new']
             text = text.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.created_at.strftime("%B %d,%Y"))
         try:
-            send_email(to=manager_email,subject=subject,template=template,text=text)
+            is_private = mrf.is_private
+            send_email(to=manager_email,subject=subject,template=template,text=text, is_private=is_private)
             if manager_phone:
-                send_text(to=manager_phone,text=text)
+                send_text(to=manager_phone,text=text, is_private=is_private)
             from .utils import schedule_mrf_reminder
             schedule_mrf_reminder(mrf_id=mrf.id)
         except Exception as e:

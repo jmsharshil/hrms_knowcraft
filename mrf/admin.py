@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     Department, Designation, MRF, MRFApproval, MRFRevision, 
-    ApprovalWorkflow, WorkflowTemplate
+    ApprovalWorkflow, WorkflowTemplate, PrivateMRFApprovalLevel
 )
 
 
@@ -50,9 +50,10 @@ class ApprovalWorkflowAdmin(admin.ModelAdmin):
 class MRFAdmin(admin.ModelAdmin):
     list_display = [
         'requisition_no', 'workflow_template', 'department', 'designation', 
-        'requested_by', 'status', 'previous_status', 'no_of_vacancies', 'created_at', 'mrf_name'
+        'requested_by', 'status', 'previous_status', 'no_of_vacancies', 'created_at', 'mrf_name',
+        'is_private'
     ]
-    list_filter = ['status', 'workflow_template', 'department', 'designation', 'location']
+    list_filter = ['status', 'workflow_template', 'department', 'designation', 'location', 'is_private']
     search_fields = ['requisition_no', 'requested_by__name', 'requested_by__email', 'mrf_name']
     readonly_fields = []
     
@@ -104,4 +105,19 @@ class MRFApprovalAdmin(admin.ModelAdmin):
 class MRFRevisionAdmin(admin.ModelAdmin):
     list_display = ['mrf', 'revised_by', 'created_at']
     search_fields = ['mrf__requisition_no', 'revised_by__name']
+    readonly_fields = []
+
+
+class PrivateMRFApprovalLevelInline(admin.TabularInline):
+    model = PrivateMRFApprovalLevel
+    extra = 1
+    fields = ['level', 'approver', 'is_active']
+    ordering = ['level']
+
+
+@admin.register(PrivateMRFApprovalLevel)
+class PrivateMRFApprovalLevelAdmin(admin.ModelAdmin):
+    list_display = ['mrf', 'level', 'approver', 'is_active', 'created_at']
+    list_filter = ['is_active', 'level']
+    search_fields = ['mrf__requisition_no', 'approver__name']
     readonly_fields = []

@@ -150,6 +150,20 @@ class JobViewSet(viewsets.ModelViewSet):
             )
         ).order_by('status_priority', '-created_at')
 
+        # Exclude private jobs from unauthorized users
+        if not user.is_authenticated:
+            queryset = queryset.filter(is_private=False)
+        else:
+            queryset = queryset.filter(
+                Q(is_private=False) |
+                Q(is_private=True, posted_by=user) |
+                Q(is_private=True, selected_viewers=user) |
+                Q(is_private=True, assigned_to_consultancy=user) |
+                Q(is_private=True, assigned_to_internal_hr=user) |
+                Q(is_private=True, assigned_internal_hrs=user) |
+                Q(is_private=True, assigned_consultancies=user)
+            )
+
         return queryset.distinct()
     
     def perform_create(self, serializer):
@@ -1050,6 +1064,17 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
                 Q(job__assigned_consultancies=user),source='consultancy',application_link__created_by=user)
         else:
             queryset = queryset.none()
+
+        # Exclude private applications from unauthorized users
+        queryset = queryset.filter(
+            Q(job__is_private=False) |
+            Q(job__is_private=True, job__posted_by=user) |
+            Q(job__is_private=True, job__selected_viewers=user) |
+            Q(job__is_private=True, job__assigned_to_consultancy=user) |
+            Q(job__is_private=True, job__assigned_to_internal_hr=user) |
+            Q(job__is_private=True, job__assigned_internal_hrs=user) |
+            Q(job__is_private=True, job__assigned_consultancies=user)
+        )
         # Apply filters
         job_filter = self.request.query_params.get('job')
         if job_filter and is_valid_uuid(job_filter):
@@ -1255,7 +1280,7 @@ class CareersViewSet(viewsets.GenericViewSet):
     - Retrieve job detail
     - Apply for a job (resume upload)
     """
-    queryset = Job.objects.filter(is_active=True)
+    queryset = Job.objects.filter(is_active=True, is_private=False)
     permission_classes = [AllowAny]
 
     def get_serializer_class(self):
@@ -1424,10 +1449,21 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
             else:
                 queryset = queryset.none()
             
+            # Exclude private jobs from unauthorized users
+            queryset = queryset.filter(
+                Q(is_private=False) |
+                Q(is_private=True, posted_by=user) |
+                Q(is_private=True, selected_viewers=user) |
+                Q(is_private=True, assigned_to_consultancy=user) |
+                Q(is_private=True, assigned_to_internal_hr=user) |
+                Q(is_private=True, assigned_internal_hrs=user) |
+                Q(is_private=True, assigned_consultancies=user)
+            )
+
             if hasattr(user, 'company'):
                 queryset = queryset.filter(company=user.company)
         else:
-            queryset = queryset.filter(is_active=True)
+            queryset = queryset.filter(is_active=True, is_private=False)
 
         # Subquery to get representative job for merged group
         subquery = Job.objects.filter(
@@ -1472,7 +1508,7 @@ class ApplicationPagination(PageNumberPagination):
     max_page_size = 500
 
 class ApplicationViewSet(viewsets.GenericViewSet):
-    queryset = Job.objects.filter(is_active=True)
+    queryset = Job.objects.filter(is_active=True, is_private=False)
     permission_classes = [AllowAny]
     filterset_class = ApplicationFilter
     filter_backends = [DjangoFilterBackend]

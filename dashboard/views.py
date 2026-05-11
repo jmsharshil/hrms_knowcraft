@@ -1,3 +1,4 @@
+from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -14,7 +15,7 @@ from collections import defaultdict
 import statistics
 
 from jobs.models import Job, JobApplication, JobAssignmentHistory, Application, ReferralApplication
-from mrf.models import MRF, MRFApproval, Department
+from mrf.models import MRF, MRFApproval, Department, Designation
 from booking.models import Booking
 from slots.models import InterviewFeedback, Interviewer
 from onboarding.models import ApprovalNote, SalaryAnnexure, JobApplicationDocument, OfferDocument
@@ -89,16 +90,18 @@ class DashboardAPIView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # ── base querysets scoped to company ──
-        jobs_qs = Job.objects.filter(company=user.company)
-        apps_qs = JobApplication.objects.filter(job__company=user.company)
+        # ── base querysets scoped to company (Excluding Private Records from General Reports) ──
+        jobs_qs = Job.objects.filter(company=user.company, is_private=False)
+        apps_qs = JobApplication.objects.filter(job__company=user.company, job__is_private=False)
 
         # ── optional filters ──
         user_id = request.query_params.get('user_id')
         job_id = request.query_params.get('job_id')
         department_id = request.query_params.get('department_id')
-        date_from = request.query_params.get('date_from')
-        date_to = request.query_params.get('date_to')
+        date_from_str = request.query_params.get('date_from')
+        date_to_str = request.query_params.get('date_to')
+        date_from = safe_parse_date(date_from_str)
+        date_to = safe_parse_date(date_to_str)
 
         target_user = None
         if user_id:
@@ -116,16 +119,12 @@ class DashboardAPIView(APIView):
             apps_qs = apps_qs.filter(job__department_id=department_id)
 
         if date_from:
-            d = safe_parse_date(date_from)
-            if d:
-                apps_qs = apps_qs.filter(created_at__date__gte=d)
-                jobs_qs = jobs_qs.filter(created_at__date__gte=d)
+            apps_qs = apps_qs.filter(created_at__date__gte=date_from)
+            jobs_qs = jobs_qs.filter(created_at__date__gte=date_from)
 
         if date_to:
-            d = safe_parse_date(date_to)
-            if d:
-                apps_qs = apps_qs.filter(created_at__date__lte=d)
-                jobs_qs = jobs_qs.filter(created_at__date__lte=d)
+            apps_qs = apps_qs.filter(created_at__date__lte=date_to)
+            jobs_qs = jobs_qs.filter(created_at__date__lte=date_to)
 
         if user_id:
             if target_user.role == 'consultancy':
@@ -154,6 +153,25 @@ class DashboardAPIView(APIView):
                     Q(job__assigned_internal_hrs__id=user_id)
                 )
 
+        # ── referral querysets ──
+        referral_filter = Q()
+        if date_from:
+            referral_filter &= Q(created_at__date__gte=date_from)
+        if date_to:
+            referral_filter &= Q(created_at__date__lte=date_to)
+        
+        if department_id:
+            try:
+                dept_name = Department.objects.get(id=department_id).name
+                referral_filter &= Q(referral_department=dept_name)
+            except (Department.DoesNotExist, ValidationError, ValueError):
+                referral_filter &= Q(referral_department=department_id)
+        
+        if user_id:
+            referral_filter &= Q(referral_emp_code=user_id)
+            
+        referral_qs = ReferralApplication.objects.filter(referral_filter).distinct()
+
         # ── compute all metrics ──
         data = {
             "user_details": UserSerializer(target_user).data if target_user else UserSerializer(user).data,
@@ -167,6 +185,13 @@ class DashboardAPIView(APIView):
             "offer_analytics": calc_offer_analytics(apps_qs),
             "recruiter_productivity": calc_recruiter_productivity(apps_qs),
             "candidate_experience": calc_candidate_experience(apps_qs),
+            "referral_stats": {
+                "total": referral_qs.count(),
+                "by_department": [
+                    {"department": r['referral_department'] or 'Unknown', "count": r['count']}
+                    for r in referral_qs.values('referral_department').annotate(count=Count('id')).order_by('-count')
+                ]
+            }
         }
 
         assigned_jobs_list = []
@@ -275,7 +300,7 @@ class BaseAnalyticsView(APIView):
                 return None, "Invalid user_id"
 
         # 3. MRF queryset (Filtered by Period Activity)
-        mrf_base_filter = Q(company=company) & role_mrf_q
+        mrf_base_filter = Q(company=company, is_private=False) & role_mrf_q
         if department_id:
             mrf_base_filter &= Q(department_id=department_id)
         if designation_id:
@@ -287,7 +312,7 @@ class BaseAnalyticsView(APIView):
 
         # 4. Job queryset
         # Base filter includes company, role, dept, desig, and user but NO date
-        job_base_filter = Q(company=company) & role_job_q
+        job_base_filter = Q(company=company, is_private=False) & role_job_q
         if job_id:
             job_base_filter &= Q(id=job_id)
         if department_id:
@@ -374,9 +399,21 @@ class BaseAnalyticsView(APIView):
 
         referral_filter = date_filter
         if department_id:
-            referral_filter &= Q(referral_department=department_id)
+            try:
+                # ReferralApplication stores department as a string name, resolve UUID if possible
+                dept_name = Department.objects.get(id=department_id).name
+                referral_filter &= Q(referral_department=dept_name)
+            except (Department.DoesNotExist, ValidationError, ValueError):
+                referral_filter &= Q(referral_department=department_id)
+
         if designation_id:
-            referral_filter &= Q(referral_designation=designation_id)
+            try:
+                # ReferralApplication stores designation as a string name, resolve UUID if possible
+                desig_name = Designation.objects.get(id=designation_id).name
+                referral_filter &= Q(referral_designation=desig_name)
+            except (Designation.DoesNotExist, ValidationError, ValueError):
+                referral_filter &= Q(referral_designation=designation_id)
+
         if user_id:
             referral_filter &= Q(referral_emp_code=user_id)
 
@@ -586,7 +623,7 @@ class BaseAnalyticsView(APIView):
         
         return section2
 
-    def calc_cv_resume_source_analytics(self, app_qs, platform_app_qs, total_interviews_override=None):
+    def calc_cv_resume_source_analytics(self, app_qs, platform_app_qs, referral_qs, total_interviews_override=None):
         section3 = {}
         # Union-like total count across both models
         ja_count = app_qs.count()
@@ -701,9 +738,19 @@ class BaseAnalyticsView(APIView):
         # DEBUG: Sample and sum check
         sum_untouched = sum(u['untouched_count'] for u in untouched_list)
 
-        # Limit to top 10 (already ordered desc)
+        # Sort by count desc and limit to top 10
         section3['untouched_cvs_by_job'] = untouched_list
         section3['interview_no_show_reschedule'] = calc_interview_no_show_reschedule(app_qs, total_interviews_override)
+
+        # Referral by Department breakdown
+        referral_dept_stats = referral_qs.values('referral_department').annotate(count=Count('id')).order_by('-count')
+        section3['referral_by_department'] = [
+            {
+                'department': r['referral_department'] or 'Unknown',
+                'count': r['count']
+            }
+            for r in referral_dept_stats
+        ]
         return section3
 
     def calc_candidate_pipeline_funnel(self, app_qs, target_user=None, interviewer_app_ids=None):
@@ -1266,13 +1313,16 @@ class BaseAnalyticsView(APIView):
         section7['bottleneck_stage'] = {'stage_name': bottleneck[0], 'avg_days': bottleneck[1]}
         return section7
 
-    def calc_overall_summary_kpis(self, mrf_qs, job_qs, app_qs, platform_app_qs, company, date_range=None):
+    def calc_overall_summary_kpis(self, mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, company, date_range=None):
         section8 = {}
         base_app_qs = JobApplication.objects.filter(job__company=company)
         
-        section8['total_candidates'] = app_qs.count() + platform_app_qs.count()
+        section8['total_candidates'] = app_qs.count() + platform_app_qs.count() + referral_qs.count()
         section8['total_positions_filled'] = sum(j.positions_filled for j in job_qs)
         section8['total_positions_open'] = sum((j.no_of_positions - j.positions_filled) for j in job_qs)
+        section8['total_positions'] = sum(j.no_of_positions for j in job_qs)
+        section8['total_joining_pending_job_open_positions'] = sum(j.no_of_positions - j.positions_filled for j in job_qs if j.status == 'joining_pending')
+        section8['total_joining_pending_job_count'] = sum(1 for j in job_qs if j.status == 'joining_pending')
         
         offer_sent_statuses = ['offer_sent', 'offer_accepted', 'offer_rejected', 'joined', 'joining_pending', 'joining_poned']
         offer_accepted_statuses = ['offer_accepted', 'joined', 'joining_poned', 'joining_pending']
@@ -1360,7 +1410,7 @@ class BaseAnalyticsView(APIView):
         if err:
             return Response({"detail": err}, status=status.HTTP_400_BAD_REQUEST)
 
-        mrf_qs, job_qs, broad_job_qs, app_qs, platform_app_qs, company, date_filter, target_user, date_from, date_to = ctx["mrf_qs"], ctx["job_qs"], ctx["broad_job_qs"], ctx["app_qs"], ctx["platform_app_qs"], ctx["company"], ctx["date_filter"], ctx.get("target_user"), ctx.get("date_from"), ctx.get("date_to")
+        mrf_qs, job_qs, broad_job_qs, app_qs, platform_app_qs, referral_qs, company, date_filter, target_user, date_from, date_to = ctx["mrf_qs"], ctx["job_qs"], ctx["broad_job_qs"], ctx["app_qs"], ctx["platform_app_qs"], ctx["referral_qs"], ctx["company"], ctx["date_filter"], ctx.get("target_user"), ctx.get("date_from"), ctx.get("date_to")
         allowed_sections = self.get_sections()
 
         # Resolve Interviewer Entities using Email via Booking table for reliability
@@ -1388,7 +1438,7 @@ class BaseAnalyticsView(APIView):
             requested_sections = [s for s in requested_sections if s in allowed_sections]
 
         data = {
-            "summary": self.calc_summary_totals(mrf_qs, job_qs, app_qs, platform_app_qs, broad_job_qs),
+            "summary": self.calc_summary_totals(mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, broad_job_qs),
             "user_details": UserSerializer(ctx["target_user"]).data if ctx.get("target_user") else UserSerializer(ctx["user"]).data
         }
 
@@ -1410,7 +1460,7 @@ class BaseAnalyticsView(APIView):
         total_completed_interviews = InterviewFeedback.objects.filter(fb_filter).count()
 
         if 'cv_resume_source_analytics' in requested_sections:
-            data['cv_resume_source_analytics'] = self.calc_cv_resume_source_analytics(app_qs, platform_app_qs, total_completed_interviews)
+            data['cv_resume_source_analytics'] = self.calc_cv_resume_source_analytics(app_qs, platform_app_qs, referral_qs, total_completed_interviews)
         if 'candidate_pipeline_funnel' in requested_sections:
             data['candidate_pipeline_funnel'] = self.calc_candidate_pipeline_funnel(app_qs, target_user, interviewer_app_ids)
         if 'interview_round_time_analytics' in requested_sections:
@@ -1421,7 +1471,7 @@ class BaseAnalyticsView(APIView):
             # Pass company to filter OfferDocuments correctly
             data['document_offer_process_timeline'] = self.calc_document_offer_process_timeline(app_qs, (date_from, date_to), company)
         if 'overall_summary_kpis' in requested_sections:
-            data['overall_summary_kpis'] = self.calc_overall_summary_kpis(mrf_qs, job_qs, app_qs, platform_app_qs, company, (date_from, date_to))
+            data['overall_summary_kpis'] = self.calc_overall_summary_kpis(mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, company, (date_from, date_to))
 
         return Response(data, status=status.HTTP_200_OK)
 

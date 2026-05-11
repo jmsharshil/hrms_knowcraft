@@ -45,8 +45,15 @@ def create_job_on_mrf_approval(sender, instance, created, **kwargs):
             company=instance.requested_by.company if hasattr(instance.requested_by, 'company') else None,
             status='open',
             is_active=True,
-            visible_to_consultancy=False  # Not visible to consultancy by default
+            visible_to_consultancy=False,  # Not visible to consultancy by default
+            is_private=instance.is_private,
         )
+        
+        # Inherit selected_viewers from private MRF
+        if instance.is_private:
+            viewers = instance.selected_viewers.all()
+            if viewers.exists():
+                job.selected_viewers.set(viewers)
         
         print(f"Job created automatically for MRF: {instance.requisition_no}")
         
