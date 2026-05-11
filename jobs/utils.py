@@ -1180,8 +1180,8 @@ def pre_parse_resume_task(application,resume_file,job):
             job = find_similar_job(application.position_title)
             
         if job:
-            if not application.position_title and application.job.mrf.designation:
-                application.position_title = job.mrf.designation.name
+            if not application.position_title and application.designation:
+                application.position_title = application.designation.name
                 application.save(update_fields=['position_title'])
             application.job = job
             application.save(update_fields=['job'])
