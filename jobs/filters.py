@@ -184,9 +184,8 @@ class ApplicationFilter(django_filters.FilterSet):
         field_name='job__job_type'
     )
 
-    department = django_filters.UUIDFilter(
-        field_name='job__department_id'
-    )
+    department = django_filters.UUIDFilter(method='filter_department')
+    designation = django_filters.UUIDFilter(method='filter_designation')
 
     assigned_hr = django_filters.UUIDFilter(method='filter_assigned_hr')
 
@@ -215,6 +214,16 @@ class ApplicationFilter(django_filters.FilterSet):
         return queryset.annotate(
             match_score_float=Cast('match_score', FloatField())
         ).filter(match_score_float__gte=value)
+
+    def filter_department(self, queryset, name, value):
+        return queryset.filter(
+            Q(job__department_id=value) | Q(department_id=value)
+        )
+
+    def filter_designation(self, queryset, name, value):
+        return queryset.filter(
+            Q(job__designation_id=value) | Q(designation_id=value)
+        )
 
     def filter_assigned_hr(self, queryset, name, value):
         return queryset.filter(

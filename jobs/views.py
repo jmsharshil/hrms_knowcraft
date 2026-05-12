@@ -18,7 +18,8 @@ from .serializers import (
     PublicJobApplicationCreateSerializer, AssignToInternalHRSerializer, AssignToBothSerializer,
     ReferralApplicationCreateSerializer,ReferralApplicationSerializer, ReferralToJobApplicationCreateSerializer,
     CareerToJobApplicationCreateSerializer,ApplicationSerializer,ApplicationCreateSerializer,
-    ApplicationToJobSerializer,JobDropDownMergedSerializer,AssignJobSerializer,SendRejectionNotificationSerializer
+    ApplicationToJobSerializer,JobDropDownMergedSerializer,AssignJobSerializer,SendRejectionNotificationSerializer,
+    GeneralApplicationCreateSerializer
 )
 from .permissions import (
     CanViewJobs, CanCreateJobs, CanEditJobs, CanAssignToConsultancy,
@@ -1290,6 +1291,8 @@ class CareersViewSet(viewsets.GenericViewSet):
             return CareersJobDetailSerializer
         elif self.action == 'apply':
             return CareersApplicationCreateSerializer
+        elif self.action == 'general_apply':
+            return GeneralApplicationCreateSerializer
         return CareersJobListSerializer
 
     # GET /api/careers/
@@ -1367,6 +1370,26 @@ class CareersViewSet(viewsets.GenericViewSet):
             {
                 "message": "Application(s) submitted successfully.",
                 "applications_created": len(applications)
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+    @action(detail=False, methods=['post'], url_path='general-apply')
+    def general_apply(self, request):
+        """
+        Apply without a specific job, by selecting department and designation.
+        """
+        serializer = self.get_serializer(
+            data=request.data,
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        apps = serializer.save()
+
+        return Response(
+            {
+                "message": "Application(s) submitted successfully.",
+                "applications_created": len(apps)
             },
             status=status.HTTP_201_CREATED
         )
@@ -1516,6 +1539,8 @@ class ApplicationViewSet(viewsets.GenericViewSet):
     def get_serializer_class(self):
         if self.action == 'apply':
             return ApplicationCreateSerializer
+        elif self.action == 'general_apply':
+            return GeneralApplicationCreateSerializer
         elif self.action == 'convert':
             return ApplicationToJobSerializer
         return CareersJobListSerializer
@@ -1550,6 +1575,30 @@ class ApplicationViewSet(viewsets.GenericViewSet):
 
         return Response({
             "message": "Applications submitted",
+            "count": len(apps)
+        })
+
+    @action(detail=False, methods=['post'])
+    def general_apply(self, request):
+        """
+        POST /general_apply/
+        body:
+        {
+            "department": "...",
+            "designation": "...",
+            "source": "career_page",
+            "resumes": [...]
+        }
+        """
+        serializer = self.get_serializer(
+            data=request.data,
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        apps = serializer.save()
+
+        return Response({
+            "message": "Applications submitted successfully",
             "count": len(apps)
         })
 

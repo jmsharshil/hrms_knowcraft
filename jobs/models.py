@@ -807,6 +807,9 @@ class Application(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     job = models.ForeignKey(Job,on_delete=models.CASCADE,null=True,blank=True,related_name='platform_applications')
 
+    department = models.ForeignKey('mrf.Department', on_delete=models.SET_NULL, null=True, blank=True)
+    designation = models.ForeignKey('mrf.Designation', on_delete=models.SET_NULL, null=True, blank=True)
+
     source = models.CharField(max_length=20, choices=ApplicationSource.choices)
 
     resume = models.FileField(upload_to='applications/')

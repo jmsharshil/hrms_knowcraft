@@ -404,7 +404,8 @@ class BaseAnalyticsView(APIView):
                 dept_name = Department.objects.get(id=department_id).name
                 referral_filter &= Q(referral_department=dept_name)
             except (Department.DoesNotExist, ValidationError, ValueError):
-                referral_filter &= Q(referral_department=department_id)
+                # referral_filter &= Q(referral_department=department_id)
+                pass
 
         if designation_id:
             try:
@@ -412,10 +413,12 @@ class BaseAnalyticsView(APIView):
                 desig_name = Designation.objects.get(id=designation_id).name
                 referral_filter &= Q(referral_designation=desig_name)
             except (Designation.DoesNotExist, ValidationError, ValueError):
-                referral_filter &= Q(referral_designation=designation_id)
+                # referral_filter &= Q(referral_designation=designation_id)
+                pass
 
         if user_id:
-            referral_filter &= Q(referral_emp_code=user_id)
+            user_email = User.objects.get(id=user_id).email
+            referral_filter &= Q(referral_email=user_email)
 
         referral_qs = ReferralApplication.objects.filter(referral_filter).distinct()
 

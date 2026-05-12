@@ -164,6 +164,9 @@ def calculate_match_score(parsed_resume, job):
     Uses GPT-4o-mini to generate a 0–100 score.
     """
 
+    if not job:
+        return {"score": 0, "reason": "No specific job provided for matching."}
+
     prompt = f"""
     Evaluate how well the candidate fits the job. Score 0–100 ONLY.
 
@@ -681,6 +684,8 @@ def create_resume_report_html(parsed_resume, job):
     """
     Uses GPT-4o-mini to generate resume report in HTML format.
     """
+    if not job:
+        return "<h1>Resume Report</h1><p>No job details provided for matching.</p>"
 
     prompt = f"""
     Create a professional resume–job-fit report in **pure HTML**.
@@ -1159,6 +1164,28 @@ def send_job_unassignment_email(user, job, assigned_by):
 
 
 def pre_parse_resume_task(application,resume_file,job):
+    if not job:
+        # Try to find a matching job based on department/designation
+        from .models import Job
+        job_query = Job.objects.filter(is_active=True)
+        if application.department:
+            job_query = job_query.filter(department=application.department)
+        if application.designation:
+            job_query = job_query.filter(designation=application.designation)
+        
+        job = job_query.first()
+        
+        # Fallback to position_title
+        if not job and application.position_title:
+            job = find_similar_job(application.position_title)
+            
+        if job:
+            if not application.position_title and application.designation:
+                application.position_title = application.designation.name
+                application.save(update_fields=['position_title'])
+            application.job = job
+            application.save(update_fields=['job'])
+
     # ---- AI extraction ----
     parsed = parse_resume_ai(resume_file)
     name = safe_str(parsed.get("name") or parsed.get("full_name")).title()
