@@ -253,6 +253,21 @@ class JobDetailSerializer(serializers.ModelSerializer):
         }
     
     def get_applications_summary(self, obj):
+        if self.context['request'].user.role == 'consultancy':
+            applications = obj.applications.filter(source='consultancy',uploaded_by=self.context['request'].user)
+            return {
+                'total': applications.count(),
+                'received': applications.filter(status='received').count(),
+                'shortlisted': applications.filter(status='shortlisted').count(),
+                'interview_pending': applications.filter(status__in=('interview_pending_1','interview_pending_2','interview_pending_3','interview_pending_final','interview_pending_management_client')).count(),
+                "shortlisted_for_next_round": applications.filter(status__in=('interview_next_2','interview_next_3','interview_next_final','interview_next_management_client')).count(),
+                "rejection_completed": applications.filter(status='rejection_completed').count(),
+                "offer_negotiation": applications.filter(status='offer_negotiation').count(),
+                "offer_accepted": applications.filter(status='offer_accepted').count(),
+                "offer_declined": applications.filter(status='offer_declined').count(),
+                "joining_pending": applications.filter(status='joining_pending').count(),
+                "joined": applications.filter(status='joined').count(),
+            }
         return {
             'total': obj.applications.count(),
             'received': obj.applications.filter(status='received').count(),
@@ -266,7 +281,10 @@ class JobDetailSerializer(serializers.ModelSerializer):
         }
     
     def get_joining_applications(self, obj):
+        user = self.context['request'].user
         apps = obj.applications.filter(status__in=['joining_pending', 'joined'])
+        if user.role == 'consultancy':
+            apps = apps.filter(source='consultancy',uploaded_by=user)
         return JobApplicationMiniSerializer(apps, many=True, context=self.context).data
     
     def get_application_links_count(self, obj):
