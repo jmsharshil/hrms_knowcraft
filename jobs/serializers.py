@@ -253,8 +253,9 @@ class JobDetailSerializer(serializers.ModelSerializer):
         }
     
     def get_applications_summary(self, obj):
-        if self.context['request'].user.role == 'consultancy':
-            applications = obj.applications.filter(source='consultancy',uploaded_by=self.context['request'].user)
+        user = self.context['request'].user
+        if user.role == 'consultancy':
+            applications = obj.applications.filter(source='consultancy',application_links__created_by=user)
             return {
                 'total': applications.count(),
                 'received': applications.filter(status='received').count(),
@@ -284,7 +285,7 @@ class JobDetailSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         apps = obj.applications.filter(status__in=['joining_pending', 'joined'])
         if user.role == 'consultancy':
-            apps = apps.filter(source='consultancy',uploaded_by=user)
+            apps = apps.filter(source='consultancy',application_links__created_by=user)
         return JobApplicationMiniSerializer(apps, many=True, context=self.context).data
     
     def get_application_links_count(self, obj):
