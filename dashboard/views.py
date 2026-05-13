@@ -915,9 +915,9 @@ class BaseAnalyticsView(APIView):
             ('Rejected', ['rejected']),
             ('Shortlisted', shortlisted_st),
         ]
-        section4['screening_pipeline'] = _build_pipeline_part(screening_stages, app_qs)
 
         # Part 2: Interview (HR Round → Under HR Review)
+        screening_data = _build_pipeline_part(screening_stages, app_qs)
         interview_stages = [
             ('Reached HR Round', hr_reached_st),
             ('Completed HR Round', hr_completed_st),
@@ -936,9 +936,7 @@ class BaseAnalyticsView(APIView):
             ('Rejected at Mgt/Client', ['interview_rejected_management_client']),
             ('Under HR Review', ['consolidated_result_review'] + selected_st),
         ]
-        section4['interview_pipeline'] = _build_pipeline_part(interview_stages, app_qs)
-
-        # Part 3: Offer (Selected → Joined)
+        interview_data = _build_pipeline_part(interview_stages, app_qs)
         offer_stages = [
             ('Selected', selected_st),
             ('Approval Pending', approval_pending_st),
@@ -952,13 +950,17 @@ class BaseAnalyticsView(APIView):
             ('Joining Pending', joining_pending_st),
             ('Joined', joined_st),
         ]
-        section4['offer_pipeline'] = _build_pipeline_part(offer_stages, app_qs)
+        offer_data = _build_pipeline_part(offer_stages, app_qs)
 
-        # Overall averages for all 3 parts
-        section4['pipeline_part_averages'] = {
-            'screening_avg_days': section4['screening_pipeline']['avg_turnaround_days'],
-            'interview_avg_days': section4['interview_pipeline']['avg_turnaround_days'],
-            'offer_avg_days': section4['offer_pipeline']['avg_turnaround_days'],
+        section4['pipeline_breakdown'] = {
+            'screening_pipeline': screening_data,
+            'interview_pipeline': interview_data,
+            'offer_pipeline': offer_data,
+            'pipeline_part_averages': {
+                'screening_avg_days': screening_data['avg_turnaround_days'],
+                'interview_avg_days': interview_data['avg_turnaround_days'],
+                'offer_avg_days': offer_data['avg_turnaround_days'],
+            },
         }
 
         # Candidate experience with total_sent, filled, not_filled counts
@@ -1310,11 +1312,17 @@ class BaseAnalyticsView(APIView):
                 })
         section5['round_completion_rate'] = completion_rates
 
-        # Pending count average across all rounds
-        all_pending_counts = [r['pending'] for r in completion_rates if r['pending'] > 0]
-        section5['pending_count_avg'] = round(sum(all_pending_counts) / len(all_pending_counts), 2) if all_pending_counts else 0
+        # Pending count average (as percentage of total_scheduled) across all rounds
+        pending_pcts = [round((r['pending'] / r['total_scheduled'] * 100), 2) if r['total_scheduled'] else 0 for r in completion_rates]
+        section5['pending_count_percentage'] = round(sum(pending_pcts) / len(pending_pcts), 2) if pending_pcts else 0
+
+        # Add pending_count_avg percentage to each round
+        for i, rate in enumerate(completion_rates):
+            rate['pending_count_percentage'] = round((rate['pending'] / rate['total_scheduled'] * 100), 2) if rate['total_scheduled'] else 0
 
         # Highest reschedule by source
+        # Primary: use reschedule_count from JobApplication
+        # Fallback: count from Booking table (candidates with >1 booking = rescheduled)
         reschedule_by_source = (
             app_qs.filter(reschedule_count__gt=0)
             .values('source')
@@ -1325,15 +1333,53 @@ class BaseAnalyticsView(APIView):
             .order_by('-total_reschedules')
         )
         SOURCE_DISPLAY = dict(JobApplication.SOURCE_CHOICES)
-        reschedule_source_list = [
-            {
-                'source': r['source'],
-                'source_display': SOURCE_DISPLAY.get(r['source'], r['source']),
-                'total_reschedules': r['total_reschedules'],
-                'candidate_count': r['candidate_count'],
-            }
-            for r in reschedule_by_source
-        ]
+
+        if reschedule_by_source.exists():
+            reschedule_source_list = [
+                {
+                    'source': r['source'],
+                    'source_display': SOURCE_DISPLAY.get(r['source'], r['source']),
+                    'total_reschedules': r['total_reschedules'],
+                    'candidate_count': r['candidate_count'],
+                }
+                for r in reschedule_by_source
+            ]
+        else:
+            # Fallback: count from Booking table - candidates with multiple bookings
+            from booking.models import Booking as BookingModel
+            booking_counts = (
+                BookingModel.objects.filter(candidate__in=app_qs)
+                .values('candidate_id')
+                .annotate(booking_count=Count('id'))
+                .filter(booking_count__gt=1)
+            )
+            # Group by source
+            rescheduled_app_ids = [b['candidate_id'] for b in booking_counts]
+            reschedule_fallback = (
+                app_qs.filter(id__in=rescheduled_app_ids)
+                .values('source')
+                .annotate(
+                    candidate_count=Count('id'),
+                )
+                .order_by('-candidate_count')
+            )
+            # For each source, sum up (booking_count - 1) as reschedule count
+            booking_map = {b['candidate_id']: b['booking_count'] - 1 for b in booking_counts}
+            source_reschedule_totals = defaultdict(int)
+            for app in app_qs.filter(id__in=rescheduled_app_ids).values('id', 'source'):
+                source_reschedule_totals[app['source']] += booking_map.get(app['id'], 0)
+
+            reschedule_source_list = [
+                {
+                    'source': r['source'],
+                    'source_display': SOURCE_DISPLAY.get(r['source'], r['source']),
+                    'total_reschedules': source_reschedule_totals.get(r['source'], 0),
+                    'candidate_count': r['candidate_count'],
+                }
+                for r in reschedule_fallback
+            ]
+            reschedule_source_list.sort(key=lambda x: x['total_reschedules'], reverse=True)
+
         section5['highest_reschedule_by_source'] = reschedule_source_list
 
 
