@@ -1511,7 +1511,7 @@ class BaseAnalyticsView(APIView):
             'avg_time_approval_to_salary_annexure_days': avg_d(appr_to_sal_days),
             'avg_time_salary_annexure_to_approval_days': avg_d(sal_to_appr_days),
             'avg_time_to_offer_letter_creation_days': avg_d(offer_create_days),
-            'avg_time_offer_letter_to_approval_days': avg_d(offer_internal_appr_days),
+            # 'avg_time_offer_letter_to_approval_days': avg_d(offer_internal_appr_days),
             'avg_time_offer_letter_sent_to_response_days': avg_d(offer_sent_to_resp_days)
         })
 
