@@ -173,12 +173,18 @@ def evaluate_documents(application):
             if not ok:
                 print(reason)
         elif is_section_complete(docs, "joining_docs"):
+            docs.document_approved_at = timezone.now()
+            docs.save()
             ok,reason = automation_engine(application, application.status, "docs_approved")
             if not ok:
                 print(reason)
     elif application.status == "salary_annexure_review" and getattr(docs,'joining_docs_status') == 'approved':
+            docs.annexure_approved_at = timezone.now()
+            docs.save()
             automation_engine(application, application.status, "approved_annexure")
     elif application.status == "salary_annexure_review" and getattr(docs,'joining_docs_status') not in  ['approved','pending']:
+            docs.annexure_rejection_at = timezone.now()
+            docs.save()
             automation_engine(application, application.status, "rejected_annexure")
 
 class UploadJobApplicationDocumentAPI(APIView):

@@ -136,6 +136,8 @@ def change_stage_for_annexure(document):
     from .utils.engine import automation_engine
     ok,reason = automation_engine(app,app.status,'salary_annexure_review')
     document.joining_docs_status = 'pending'
+    if not document.annexure_uploaded_at:
+        document.annexure_uploaded_at = timezone.now()
     document.save()
     if not ok:
         print(reason)

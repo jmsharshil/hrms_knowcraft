@@ -204,6 +204,11 @@ class JobApplicationDocument(models.Model):
 
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now)
+    document_approved_at = models.DateTimeField(null=True, blank=True)
+    annexure_uploaded_at = models.DateTimeField(null=True, blank=True)
+    annexure_rejection_at = models.DateTimeField(null=True, blank=True)
+    annexure_approved_at = models.DateTimeField(null=True, blank=True)
+
 
 class ApprovalNote(models.Model):
     STATUS_CHOICES = [

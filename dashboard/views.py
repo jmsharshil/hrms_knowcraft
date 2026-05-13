@@ -1413,7 +1413,7 @@ class BaseAnalyticsView(APIView):
 
         approved_notes = approval_note_qs.filter(status='approved')
         if approved_notes.exists():
-            avg = approved_notes.aggregate(avg=Avg(F('updated_at') - F('created_at')))['avg']
+            avg = approved_notes.aggregate(avg=Avg(F('approved_at') - F('created_at')))['avg']
             section6['avg_time_to_approve_days'] = round(avg.total_seconds() / 86400, 2) if avg else 0
         else:
             section6['avg_time_to_approve_days'] = 0
@@ -1434,7 +1434,7 @@ class BaseAnalyticsView(APIView):
             approved_for_avg = approval_note_qs.filter(manager_id=mgr_id, status='approved')
             avg_days = 0
             if approved_for_avg.exists():
-                avg_d = approved_for_avg.aggregate(avg=Avg(F('updated_at') - F('created_at')))['avg']
+                avg_d = approved_for_avg.aggregate(avg=Avg(F('approved_at') - F('created_at')))['avg']
                 avg_days = round(avg_d.total_seconds() / 86400, 2) if avg_d else 0
             by_approver.append({
                 'approver_name': a['manager__name'] or 'Unknown',
@@ -1507,10 +1507,10 @@ class BaseAnalyticsView(APIView):
         def avg_d(lst): return round(sum(lst) / len(lst), 2) if lst else 0.0
         section7.update({
             'avg_time_document_request_to_upload_days': avg_d(req_to_up_days),
-            'avg_time_document_upload_to_approval_days': avg_d(up_to_appr_days),
-            'avg_time_approval_to_salary_annexure_days': avg_d(appr_to_sal_days),
-            'avg_time_salary_annexure_to_approval_days': avg_d(sal_to_appr_days),
-            'avg_time_to_offer_letter_creation_days': avg_d(offer_create_days),
+            # 'avg_time_document_upload_to_approval_days': avg_d(up_to_appr_days),
+            # 'avg_time_approval_to_salary_annexure_days': avg_d(appr_to_sal_days),
+            # 'avg_time_salary_annexure_to_approval_days': avg_d(sal_to_appr_days),
+            # 'avg_time_to_offer_letter_creation_days': avg_d(offer_create_days),
             # 'avg_time_offer_letter_to_approval_days': avg_d(offer_internal_appr_days),
             'avg_time_offer_letter_sent_to_response_days': avg_d(offer_sent_to_resp_days)
         })
