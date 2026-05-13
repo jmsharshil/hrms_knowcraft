@@ -1,4 +1,6 @@
 # views.py
+from onboarding.utils import docs_reupload
+from django.db.models import FileField
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status,permissions
@@ -1666,3 +1668,92 @@ def docusign_webhook(request):
     except Exception as e:
         print("❌ Webhook Error:", str(e))
         return HttpResponse(status=400)
+
+import zipfile
+import io
+import os
+import requests
+from django.http import StreamingHttpResponse,Http404
+# from azure.storage.blob import BlobServiceClient
+
+class DownloadJobApplicationDocumentsView(APIView):
+    permission_classes = [permissions.AllowAny]
+    def get(self, request, id):
+        try:
+            candidate = JobApplication.objects.filter(id=id).first()
+            if not candidate:
+                raise Http404("No candidate found for the provided ID") 
+            
+            docs = JobApplicationDocument.objects.filter(job_application=candidate).first()
+            if not docs:
+                raise Http404("No documents found for the provided IDs")
+
+            download_files = []
+            for field in docs._meta.get_fields():
+                if isinstance(field, FileField):
+                    file_name = field.name
+
+                    if hasattr(docs, file_name):
+                        docu = getattr(docs, file_name)
+                        if not docu:
+                            continue
+                        download_files.append(docu)
+
+            if not download_files:
+                raise Http404("No documents found for the provided IDs")
+
+            in_memory_zip = io.BytesIO()
+            if settings.USE_AZURE_MEDIA:
+                # Azure Blob connection
+                # connection_string = f"DefaultEndpointsProtocol=https;AccountName={settings.AZURE_ACCOUNT_NAME};AccountKey={settings.AZURE_ACCOUNT_KEY};EndpointSuffix=core.windows.net"
+                # print(connection_string,'======================CONNECTION STRING======================')
+                # blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+                
+                with zipfile.ZipFile(in_memory_zip, mode='w') as zipf:
+                    for download_file in download_files:
+                        file_path = download_file.url
+                        if file_path:
+                            file_path = file_path.split("?")[0]
+                        original_filename = os.path.basename(file_path)
+                        prefix, extension = os.path.splitext(original_filename)
+                        modified_filename = f"{original_filename}{extension}".replace('_',' ').title()
+
+                        # Get blob client
+                        # blob_client = blob_service_client.get_blob_client(
+                        #     container=settings.AZURE_CONTAINER,
+                        #     blob=file_path
+                        # )
+
+                        # # Download blob content
+                        # blob_data = blob_client.download_blob().readall()
+
+                        # # Add file to ZIP
+                        # zipf.writestr(
+                        #     f'{candidate.candidate_name}_{modified_filename}',
+                        #     blob_data)
+                        response = requests.get(file_path)
+                        if response.status_code == 200:
+                            zipf.writestr(
+                                f'{candidate.candidate_name}_{modified_filename}',
+                                response.content
+                            )
+                        else:
+                            print(f"Failed to download: {file_path}")
+            else:
+                with zipfile.ZipFile(in_memory_zip, mode='w') as zipf:
+                    for download_file in download_files: 
+                        file_path = download_file.url
+                        original_filename = os.path.basename(file_path)
+                        prefix, extension = os.path.splitext(original_filename)
+                        modified_filename = f"{original_filename}{extension}".replace('_',' ').title()
+                        zipf.write(file_path, arcname=f'{candidate.candidate_name}_{modified_filename}')
+
+            in_memory_zip.seek(0)
+            response = StreamingHttpResponse(in_memory_zip, content_type='application/zip')
+            response['Content-Disposition'] = f'attachment; filename="{candidate.candidate_name} Documents.zip"'
+            return response
+
+        except JobApplicationDocument.DoesNotExist:
+            raise Http404("One or more documents do not exist")
+        except Exception as e:
+            return HttpResponse(f'Error creating zip file: {str(e)}', status=404)

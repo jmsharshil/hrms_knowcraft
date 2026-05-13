@@ -879,7 +879,117 @@ class BaseAnalyticsView(APIView):
         offer_rejected_c = app_qs.filter(status__in=offer_rejected_statuses).count()
         section4['offer_acceptance_rate'] = round((offer_accepted_c / offer_sent_c * 100), 2) if offer_sent_c else 0
         section4['offer_rejection_rate'] = round((offer_rejected_c / offer_sent_c * 100), 2) if offer_sent_c else 0
-        section4['candidate_experience'] = calc_candidate_experience(experience_app_qs)
+
+        # ── 3 Separate Pipeline Parts ──
+        # Helper to build a mini-funnel with stages, drop-offs, and avg turnaround
+        def _build_pipeline_part(part_stages, part_app_qs):
+            part_counts = {name: part_app_qs.filter(status__in=statuses).count() for name, statuses in part_stages}
+            part_funnel = [{'stage': k, 'count': v} for k, v in part_counts.items()]
+            part_names = [s[0] for s in part_stages]
+            part_drops = []
+            for i in range(len(part_names) - 1):
+                fc = part_counts[part_names[i]]
+                tc = part_counts[part_names[i + 1]]
+                drop = round(((fc - tc) / fc * 100), 2) if fc else 0
+                part_drops.append({'from_stage': part_names[i], 'to_stage': part_names[i + 1], 'drop_off_percentage': drop})
+            # Avg turnaround: avg days from first stage entry to last stage entry
+            part_status_keys = set()
+            for _, sts in part_stages:
+                part_status_keys.update(sts)
+            part_apps_in_scope = part_app_qs.filter(status__in=list(part_status_keys))
+            if part_apps_in_scope.exists():
+                avg_dur = part_apps_in_scope.aggregate(avg=Avg(F('updated_at') - F('created_at')))['avg']
+                avg_days = round(avg_dur.total_seconds() / 86400, 2) if avg_dur else 0
+            else:
+                avg_days = 0
+            return {
+                'funnel_stages': part_funnel,
+                'drop_off_rates': part_drops,
+                'avg_turnaround_days': avg_days
+            }
+
+        # Part 1: Screening (Received → Shortlisted)
+        screening_stages = [
+            ('CVs Received', received_st),
+            ('Duplicate Rejected', ['duplicate_rejected']),
+            ('Rejected', ['rejected']),
+            ('Shortlisted', shortlisted_st),
+        ]
+
+        # Part 2: Interview (HR Round → Under HR Review)
+        screening_data = _build_pipeline_part(screening_stages, app_qs)
+        interview_stages = [
+            ('Reached HR Round', hr_reached_st),
+            ('Completed HR Round', hr_completed_st),
+            ('Rejected at HR', ['interview_rejected_1']),
+            ('Reached Technical Round', tech_reached_st),
+            ('Completed Technical Round', tech_completed_st),
+            ('Rejected at Tech', ['interview_rejected_2']),
+            ('Reached Case Study Round', case_reached_st),
+            ('Completed Case Study Round', case_completed_st),
+            ('Rejected at Case Study', ['interview_rejected_3']),
+            ('Reached Final Round', final_reached_st),
+            ('Completed Final Round', final_completed_st),
+            ('Rejected at Final', ['interview_rejected_final']),
+            ('Reached Mgt/Client Round', mgt_reached_st),
+            ('Completed Mgt/Client Round', mgt_completed_st),
+            ('Rejected at Mgt/Client', ['interview_rejected_management_client']),
+            ('Under HR Review', ['consolidated_result_review'] + selected_st),
+        ]
+        interview_data = _build_pipeline_part(interview_stages, app_qs)
+        offer_stages = [
+            ('Selected', selected_st),
+            ('Approval Pending', approval_pending_st),
+            ('Approved', approved_st),
+            ('Salary Annexure', salary_st),
+            ('Offer Pending', offer_prep_st),
+            ('Offer Sent', offer_sent_st),
+            ('Offer Accepted', offer_accepted_st),
+            ('Offer Rejected', ['offer_rejected']),
+            ('Docs Pending', docs_st),
+            ('Joining Pending', joining_pending_st),
+            ('Joined', joined_st),
+        ]
+        offer_data = _build_pipeline_part(offer_stages, app_qs)
+
+        section4['pipeline_breakdown'] = {
+            'screening_pipeline': screening_data,
+            'interview_pipeline': interview_data,
+            'offer_pipeline': offer_data,
+            'pipeline_part_averages': {
+                'screening_avg_days': screening_data['avg_turnaround_days'],
+                'interview_avg_days': interview_data['avg_turnaround_days'],
+                'offer_avg_days': offer_data['avg_turnaround_days'],
+            },
+        }
+
+        # Candidate experience with total_sent, filled, not_filled counts
+        candidate_exp = calc_candidate_experience(experience_app_qs)
+        from .models import CandidateExperienceFeedback
+        # Feedback is only created on submission, so total_sent = candidates who reached
+        # rejection or offer stages AFTER the feature went live.
+        # Use earliest feedback record as the cutoff to avoid counting pre-feature candidates.
+        feedback_eligible_statuses = [
+            'interview_rejected_1', 'interview_rejected_2', 'interview_rejected_3',
+            'interview_rejected_final', 'interview_rejected_management_client',
+            'offer_accepted', 'offer_rejected',
+        ]
+        earliest_feedback = CandidateExperienceFeedback.objects.order_by('created_at').values_list('created_at', flat=True).first()
+        eligible_qs = experience_app_qs.filter(status__in=feedback_eligible_statuses)
+        if earliest_feedback:
+            eligible_qs = eligible_qs.filter(updated_at__gte=earliest_feedback)
+        else:
+            eligible_qs = eligible_qs.none()
+        total_sent = eligible_qs.count()
+        filled = CandidateExperienceFeedback.objects.filter(
+            application__in=experience_app_qs, is_submitted=True
+        ).count()
+        not_filled = max(total_sent - filled, 0)
+        candidate_exp['total_sent'] = total_sent
+        candidate_exp['filled'] = filled
+        candidate_exp['not_filled'] = not_filled
+        section4['candidate_experience'] = candidate_exp
+
         section4['recruiter_productivity'] = calc_recruiter_productivity(app_qs, target_user.id if target_user else None)
         return section4
 
@@ -947,6 +1057,33 @@ class BaseAnalyticsView(APIView):
         }
 
         avg_between = []
+
+        # CV Received to Shortlisted avg time (prepend to between-rounds list)
+        shortlisted_apps = app_qs.filter(status__in=[
+            'shortlisted', 'interview_pending_1', 'interview_done_1', 'interview_rejected_1',
+            'interview_next_2', 'interview_pending_2', 'interview_done_2', 'interview_rejected_2',
+            'interview_next_3', 'interview_pending_3', 'interview_done_3', 'interview_rejected_3',
+            'interview_next_final', 'interview_pending_final', 'interview_done_final', 'interview_rejected_final',
+            'interview_next_management_client', 'interview_pending_management_client',
+            'interview_done_management_client', 'interview_rejected_management_client',
+            'consolidated_result_review', 'selected', 'approval_pending', 'approved', 'approval_rejected',
+            'salary_annexure_prep', 'salary_annexure_review', 'approved_annexure', 'rejected_annexure',
+            'offer_pending', 'offer_sent', 'offer_accepted', 'offer_rejected',
+            'docs_pending', 'docs_uploaded', 'review_docs', 'docs_approved', 'docs_incomplete', 'docs_unclear',
+            'joining_pending', 'joining_poned', 'joined',
+        ])
+        if shortlisted_apps.exists():
+            cv_to_short_avg = shortlisted_apps.aggregate(avg=Avg(F('updated_at') - F('created_at')))['avg']
+            cv_to_short_days = round(cv_to_short_avg.total_seconds() / 86400, 2) if cv_to_short_avg else 0.0
+        else:
+            cv_to_short_days = 0.0
+        avg_between.append({
+            'from_round': 'CV Received',
+            'to_round': 'Shortlisted',
+            'avg_days': cv_to_short_days,
+            'num_applications': shortlisted_apps.count()
+        })
+
         for i in range(len(ordered_rounds) - 1):
             from_round = ordered_rounds[i]
             to_round = ordered_rounds[i + 1]
@@ -1141,10 +1278,11 @@ class BaseAnalyticsView(APIView):
                 not_moved = stats['not_moved']
                 unassigned = stats['unassigned']
                 
+                pending_count = scheduled_by_round.get(round_key, 0) - completed
                 completion_rates.append({
                     'round_type': round_display.get(round_key, round_key),
                     'total_scheduled': scheduled_by_round.get(round_key, 0),
-                    'pending': scheduled_by_round.get(round_key, 0) - completed,
+                    'pending': pending_count,
                     'completed': completed,
                     'shortlisted': total_passed,
                     'rejected': rejected,
@@ -1173,6 +1311,76 @@ class BaseAnalyticsView(APIView):
                     'pass_rate_percentage': round(total_passed / completed * 100, 2) if completed else 0
                 })
         section5['round_completion_rate'] = completion_rates
+
+        # Pending count average (as percentage of total_scheduled) across all rounds
+        pending_pcts = [round((r['pending'] / r['total_scheduled'] * 100), 2) if r['total_scheduled'] else 0 for r in completion_rates]
+        section5['pending_count_percentage'] = round(sum(pending_pcts) / len(pending_pcts), 2) if pending_pcts else 0
+
+        # Add pending_count_avg percentage to each round
+        for i, rate in enumerate(completion_rates):
+            rate['pending_count_percentage'] = round((rate['pending'] / rate['total_scheduled'] * 100), 2) if rate['total_scheduled'] else 0
+
+        # Highest reschedule by source
+        # Primary: use reschedule_count from JobApplication
+        # Fallback: count from Booking table (candidates with >1 booking = rescheduled)
+        reschedule_by_source = (
+            app_qs.filter(reschedule_count__gt=0)
+            .values('source')
+            .annotate(
+                total_reschedules=Sum('reschedule_count'),
+                candidate_count=Count('id')
+            )
+            .order_by('-total_reschedules')
+        )
+        SOURCE_DISPLAY = dict(JobApplication.SOURCE_CHOICES)
+
+        if reschedule_by_source.exists():
+            reschedule_source_list = [
+                {
+                    'source': r['source'],
+                    'source_display': SOURCE_DISPLAY.get(r['source'], r['source']),
+                    'total_reschedules': r['total_reschedules'],
+                    'candidate_count': r['candidate_count'],
+                }
+                for r in reschedule_by_source
+            ]
+        else:
+            # Fallback: count from Booking table - candidates with multiple bookings
+            from booking.models import Booking as BookingModel
+            booking_counts = (
+                BookingModel.objects.filter(candidate__in=app_qs)
+                .values('candidate_id')
+                .annotate(booking_count=Count('id'))
+                .filter(booking_count__gt=1)
+            )
+            # Group by source
+            rescheduled_app_ids = [b['candidate_id'] for b in booking_counts]
+            reschedule_fallback = (
+                app_qs.filter(id__in=rescheduled_app_ids)
+                .values('source')
+                .annotate(
+                    candidate_count=Count('id'),
+                )
+                .order_by('-candidate_count')
+            )
+            # For each source, sum up (booking_count - 1) as reschedule count
+            booking_map = {b['candidate_id']: b['booking_count'] - 1 for b in booking_counts}
+            source_reschedule_totals = defaultdict(int)
+            for app in app_qs.filter(id__in=rescheduled_app_ids).values('id', 'source'):
+                source_reschedule_totals[app['source']] += booking_map.get(app['id'], 0)
+
+            reschedule_source_list = [
+                {
+                    'source': r['source'],
+                    'source_display': SOURCE_DISPLAY.get(r['source'], r['source']),
+                    'total_reschedules': source_reschedule_totals.get(r['source'], 0),
+                    'candidate_count': r['candidate_count'],
+                }
+                for r in reschedule_fallback
+            ]
+            reschedule_source_list.sort(key=lambda x: x['total_reschedules'], reverse=True)
+
+        section5['highest_reschedule_by_source'] = reschedule_source_list
 
 
         # Stage turnaround times
