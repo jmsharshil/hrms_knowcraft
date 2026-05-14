@@ -522,8 +522,8 @@ class BaseAnalyticsView(APIView):
         section2['total_jobs_open'] = job_qs.filter(status__in=['open','assigned_to_internal_hr','assigned_to_consultancy','assigned_to_both']).count()
         section2['total_jobs_closed'] = job_qs.filter(status__in=['filled', 'joining_pending']).count()
         section2['total_jobs_on_hold'] = job_qs.filter(status='on_hold').count()
-        section2['jobs_assigned_to_internal_hr'] = job_qs.filter(Q(status='assigned_to_internal_hr') | Q(previous_status='assigned_to_internal_hr')).count()
-        section2['jobs_assigned_to_consultancy'] = job_qs.filter(Q(status='assigned_to_consultancy') | Q(previous_status='assigned_to_consultancy')).count()
+        section2['jobs_assigned_to_internal_hr'] = job_qs.filter(Q(status='assigned_to_internal_hr') | Q(previous_status='assigned_to_internal_hr') | Q(status='assigned_to_both') | Q(previous_status='assigned_to_both')).count()
+        section2['jobs_assigned_to_consultancy'] = job_qs.filter(Q(status='assigned_to_consultancy') | Q(previous_status='assigned_to_consultancy') | Q(status='assigned_to_both') | Q(previous_status='assigned_to_both')).count()
         section2['jobs_assigned_to_both'] = job_qs.filter(Q(status='assigned_to_both') | Q(previous_status='assigned_to_both')).count()
         section2['jobs_unassigned'] = job_qs.filter(status='open').count()
 
@@ -1533,7 +1533,7 @@ class BaseAnalyticsView(APIView):
         
         app_ids = list(app_ids)[:5000] # safety limit
         
-        offers = list(OfferDocument.objects.filter(application_id__in=app_ids).values('application_id', 'created_at', 'sent_at', 'completed_at', 'status', 'updated_at'))
+        offers = list(OfferDocument.objects.filter(application_id__in=app_ids).values('application_id', 'created_at', 'sent_at', 'signed_at', 'completed_at', 'status', 'updated_at'))
         jads = list(JobApplicationDocument.objects.filter(job_application_id__in=app_ids).values('job_application_id', 'joining_docs_status', 'created_at', 'updated_at', 'annexure_uploaded_at', 'annexure_approved_at', 'salary_annexure_approved'))
         notes = list(ApprovalNote.objects.filter(candidate_id__in=app_ids, status__in=['approved','docs_pending','docs_uploaded','review_docs','docs_approved','salary_annexure_prep','salary_annexure_review','approved_annexure','offer_pending','offer_sent','offer_accepted','offer_rejected','joining_pending','joined','joining_poned','docs_incomplete','docs_unclear'], approved_at__isnull=False).values('candidate_id', 'approved_at'))
         
@@ -1558,16 +1558,17 @@ class BaseAnalyticsView(APIView):
             if jad and jad.get('salary_annexure_approved') and jad.get('annexure_approved_at') and jad.get('annexure_uploaded_at'):
                 td = (jad['annexure_approved_at'] - jad['annexure_uploaded_at']).total_seconds() / 86400
                 if td >= 0: sal_to_appr_days.append(td)
-            if jad and offer and jad.get('annexure_approved_at'):
-                td = (offer['created_at'] - jad['annexure_approved_at']).total_seconds() / 86400
+            if note and offer and note.get('approved_at'):
+                td = (offer['created_at'] - note['approved_at']).total_seconds() / 86400
                 if td >= 0: offer_create_days.append(td)
             if offer:
-                start, sent, comp = offer.get('created_at'), offer.get('sent_at'), offer.get('completed_at') or offer.get('updated_at')
+                start, sent, comp, signed = offer.get('created_at'), offer.get('sent_at'), offer.get('completed_at'), offer.get('signed_at')
+                end_resp = comp or signed or offer.get('updated_at')
                 if sent and start:
                     td = (sent - start).total_seconds() / 86400
                     if td >= 0: offer_internal_appr_days.append(td)
-                if offer['status'] in ['completed', 'signed', 'declined'] and sent and comp:
-                    td = (comp - sent).total_seconds() / 86400
+                if offer['status'] in ['completed', 'signed', 'declined'] and sent and end_resp:
+                    td = (end_resp - sent).total_seconds() / 86400
                     if td >= 0: offer_sent_to_resp_days.append(td)
 
         def avg_d(lst): return round(sum(lst) / len(lst), 2) if lst else 0.0
