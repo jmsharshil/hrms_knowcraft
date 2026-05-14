@@ -522,8 +522,8 @@ class BaseAnalyticsView(APIView):
         section2['total_jobs_open'] = job_qs.filter(status__in=['open','assigned_to_internal_hr','assigned_to_consultancy','assigned_to_both']).count()
         section2['total_jobs_closed'] = job_qs.filter(status__in=['filled', 'joining_pending']).count()
         section2['total_jobs_on_hold'] = job_qs.filter(status='on_hold').count()
-        section2['jobs_assigned_to_internal_hr'] = job_qs.filter(Q(status='assigned_to_internal_hr') | Q(previous_status='assigned_to_internal_hr')).count()
-        section2['jobs_assigned_to_consultancy'] = job_qs.filter(Q(status='assigned_to_consultancy') | Q(previous_status='assigned_to_consultancy')).count()
+        section2['jobs_assigned_to_internal_hr'] = job_qs.filter(Q(status='assigned_to_internal_hr') | Q(previous_status='assigned_to_internal_hr') | Q(status='assigned_to_both') | Q(previous_status='assigned_to_both')).count()
+        section2['jobs_assigned_to_consultancy'] = job_qs.filter(Q(status='assigned_to_consultancy') | Q(previous_status='assigned_to_consultancy') | Q(status='assigned_to_both') | Q(previous_status='assigned_to_both')).count()
         section2['jobs_assigned_to_both'] = job_qs.filter(Q(status='assigned_to_both') | Q(previous_status='assigned_to_both')).count()
         section2['jobs_unassigned'] = job_qs.filter(status='open').count()
 
