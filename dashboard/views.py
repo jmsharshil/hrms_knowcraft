@@ -118,13 +118,18 @@ class DashboardAPIView(APIView):
             jobs_qs = jobs_qs.filter(department_id=department_id)
             apps_qs = apps_qs.filter(job__department_id=department_id)
 
+        from datetime import datetime, time
+        from django.utils import timezone
+        
         if date_from:
-            apps_qs = apps_qs.filter(created_at__date__gte=date_from)
-            jobs_qs = jobs_qs.filter(created_at__date__gte=date_from)
+            dt_from = timezone.make_aware(datetime.combine(date_from, time.min))
+            apps_qs = apps_qs.filter(created_at__gte=dt_from)
+            jobs_qs = jobs_qs.filter(created_at__gte=dt_from)
 
         if date_to:
-            apps_qs = apps_qs.filter(created_at__date__lte=date_to)
-            jobs_qs = jobs_qs.filter(created_at__date__lte=date_to)
+            dt_to = timezone.make_aware(datetime.combine(date_to, time.max))
+            apps_qs = apps_qs.filter(created_at__lte=dt_to)
+            jobs_qs = jobs_qs.filter(created_at__lte=dt_to)
 
         if user_id:
             if target_user.role == 'consultancy':
@@ -155,10 +160,14 @@ class DashboardAPIView(APIView):
 
         # ── referral querysets ──
         referral_filter = Q()
+        from datetime import datetime, time
+        from django.utils import timezone
         if date_from:
-            referral_filter &= Q(created_at__date__gte=date_from)
+            dt_from = timezone.make_aware(datetime.combine(date_from, time.min))
+            referral_filter &= Q(created_at__gte=dt_from)
         if date_to:
-            referral_filter &= Q(created_at__date__lte=date_to)
+            dt_to = timezone.make_aware(datetime.combine(date_to, time.max))
+            referral_filter &= Q(created_at__lte=dt_to)
         
         if department_id:
             try:
@@ -285,11 +294,15 @@ class BaseAnalyticsView(APIView):
         date_to = safe_parse_date(date_to_str)
 
         # Date filter Q
+        from datetime import datetime, time
+        from django.utils import timezone
         date_filter = Q()
         if date_from:
-            date_filter &= Q(created_at__date__gte=date_from)
+            dt_from = timezone.make_aware(datetime.combine(date_from, time.min))
+            date_filter &= Q(created_at__gte=dt_from)
         if date_to:
-            date_filter &= Q(created_at__date__lte=date_to)
+            dt_to = timezone.make_aware(datetime.combine(date_to, time.max))
+            date_filter &= Q(created_at__lte=dt_to)
 
         # User filter Q (validation)
         target_user = None
@@ -1004,10 +1017,14 @@ class BaseAnalyticsView(APIView):
         else:
             feedback_filter = Q(job_application__job__company=company)
         
+        from datetime import datetime, time
+        from django.utils import timezone
         if date_from:
-            feedback_filter &= Q(created_at__date__gte=date_from)
+            dt_from = timezone.make_aware(datetime.combine(date_from, time.min))
+            feedback_filter &= Q(created_at__gte=dt_from)
         if date_to:
-            feedback_filter &= Q(created_at__date__lte=date_to)
+            dt_to = timezone.make_aware(datetime.combine(date_to, time.max))
+            feedback_filter &= Q(created_at__lte=dt_to)
 
         if interviewer_app_ids is not None:
             feedback_filter &= Q(job_application_id__in=interviewer_app_ids)
@@ -1396,45 +1413,74 @@ class BaseAnalyticsView(APIView):
             section5['slowest_stage'] = {'stage_name': 'N/A', 'avg_days': 0}; section5['fastest_stage'] = {'stage_name': 'N/A', 'avg_days': 0}
         return section5
 
-    def calc_approval_note_analytics(self, job_qs, date_filter, target_user=None):
+    def calc_approval_note_analytics(self, job_qs, date_range, target_user=None):
         section6 = {}
-        # Filter by related jobs but use ApprovalNote's own date for real-time tracking
-        note_filter = Q(candidate__job__in=job_qs)
+        date_from, date_to = date_range
+        from datetime import datetime, time
+        from django.utils import timezone
+        
+        base_q = Q(candidate__job__in=job_qs)
         if target_user:
-            note_filter &= (Q(manager=target_user) | Q(created_by=target_user))
+            base_q &= (Q(manager=target_user) | Q(created_by=target_user))
             
-        approval_note_qs = ApprovalNote.objects.filter(note_filter)
-        if date_filter:
-            approval_note_qs = approval_note_qs.filter(date_filter)
-        section6['total_approval_notes_sent'] = approval_note_qs.count()
-        section6['approval_notes_approved'] = approval_note_qs.filter(status__in=['approved','docs_pending','docs_uploaded','review_docs','docs_approved','salary_annexure_prep','salary_annexure_review','approved_annexure','offer_pending','offer_sent','offer_accepted','offer_rejected','joining_pending','joined','joining_poned','docs_incomplete','docs_unclear']).count()
-        section6['approval_notes_rejected'] = approval_note_qs.filter(status='approval_rejected').count()
-        section6['approval_notes_pending'] = approval_note_qs.filter(status='approval_pending').count()
+        def make_date_q(field_name):
+            q = Q()
+            if date_from:
+                dt_from = timezone.make_aware(datetime.combine(date_from, time.min))
+                q &= Q(**{f"{field_name}__gte": dt_from})
+            if date_to:
+                dt_to = timezone.make_aware(datetime.combine(date_to, time.max))
+                q &= Q(**{f"{field_name}__lte": dt_to})
+            return q
 
-        approved_notes = approval_note_qs.filter(status='approved')
-        if approved_notes.exists():
-            avg = approved_notes.aggregate(avg=Avg(F('approved_at') - F('created_at')))['avg']
+        created_q = make_date_q('created_at')
+        approved_q = make_date_q('approved_at')
+        
+        # Notes sent in period
+        sent_qs = ApprovalNote.objects.filter(base_q & created_q)
+        section6['total_approval_notes_sent'] = sent_qs.count()
+        
+        # Notes approved in period (regardless of when sent)
+        approved_statuses = ['approved','docs_pending','docs_uploaded','review_docs','docs_approved','salary_annexure_prep','salary_annexure_review','approved_annexure','offer_pending','offer_sent','offer_accepted','offer_rejected','joining_pending','joined','joining_poned','docs_incomplete','docs_unclear']
+        approved_qs = ApprovalNote.objects.filter(base_q & approved_q & Q(status__in=approved_statuses))
+        section6['approval_notes_approved'] = approved_qs.count()
+        
+        # Notes rejected in period
+        rejected_qs = ApprovalNote.objects.filter(base_q & make_date_q('rejected_at') & Q(status='approval_rejected'))
+        section6['approval_notes_rejected'] = rejected_qs.count()
+        
+        # Notes currently pending (snapshot)
+        section6['approval_notes_pending'] = ApprovalNote.objects.filter(base_q & Q(status='approval_pending')).count()
+
+        if approved_qs.exists():
+            avg = approved_qs.aggregate(avg=Avg(F('approved_at') - F('created_at')))['avg']
             section6['avg_time_to_approve_days'] = round(avg.total_seconds() / 86400, 2) if avg else 0
         else:
             section6['avg_time_to_approve_days'] = 0
 
         delayed_threshold = timezone.now() - timedelta(hours=48)
-        section6['delayed_approval_notes'] = approval_note_qs.filter(status='approval_pending', created_at__lt=delayed_threshold).count()
+        section6['delayed_approval_notes'] = ApprovalNote.objects.filter(base_q & Q(status='approval_pending', created_at__lt=delayed_threshold)).count()
 
-        # Use both ID and name for grouping to handle duplicate names or empty names reliably
-        approver_stats = approval_note_qs.values('manager_id','manager__name').annotate(
-            sent=Count('id'),
-            approved=Count('id', filter=Q(status__in = ['approved','docs_pending','docs_uploaded','review_docs','docs_approved','salary_annexure_prep','salary_annexure_review','approved_annexure','offer_pending','offer_sent','offer_accepted','offer_rejected','joining_pending','joined','joining_poned','docs_incomplete','docs_unclear'])),
-            rejected=Count('id', filter=Q(status='approval_rejected')),
+        # Approver stats
+        # Group by manager for all notes that had activity in the period
+        activity_q = Q()
+        if date_from or date_to:
+            activity_q = make_date_q('updated_at')
+            
+        approver_stats_qs = ApprovalNote.objects.filter(base_q & activity_q)
+        
+        approver_stats = approver_stats_qs.values('manager_id','manager__name').annotate(
+            sent=Count('id', filter=created_q),
+            approved=Count('id', filter=approved_q & Q(status__in=approved_statuses)),
+            rejected=Count('id', filter=make_date_q('rejected_at') & Q(status='approval_rejected')),
         )
         by_approver = []
         for a in approver_stats:
             mgr_id = a['manager_id']
-            # Calculate average for this specific manager
-            approved_for_avg = approval_note_qs.filter(manager_id=mgr_id, status='approved')
+            mgr_approved = approved_qs.filter(manager_id=mgr_id)
             avg_days = 0
-            if approved_for_avg.exists():
-                avg_d = approved_for_avg.aggregate(avg=Avg(F('approved_at') - F('created_at')))['avg']
+            if mgr_approved.exists():
+                avg_d = mgr_approved.aggregate(avg=Avg(F('approved_at') - F('created_at')))['avg']
                 avg_days = round(avg_d.total_seconds() / 86400, 2) if avg_d else 0
             by_approver.append({
                 'approver_name': a['manager__name'] or 'Unknown',
@@ -1447,53 +1493,73 @@ class BaseAnalyticsView(APIView):
         section6['approval_notes_by_approver'] = by_approver
         return section6
 
-    def calc_document_offer_process_timeline(self, app_qs, date_range=None, company=None):
-        from onboarding.models import JobApplicationDocument, ApprovalNote, SalaryAnnexure, OfferDocument
+    def calc_document_offer_process_timeline(self, broad_job_qs, date_range=None, company=None):
+        from onboarding.models import JobApplicationDocument, ApprovalNote, OfferDocument
         from collections import defaultdict
+        from datetime import datetime, time
+        from django.utils import timezone
         
         section7 = {}
         date_from, date_to = date_range if date_range else (None, None)
         
-        app_ids = list(app_qs.values_list('id', flat=True)[:5000])
+        def make_date_q(field='updated_at'):
+            q = Q()
+            if date_from:
+                dt_from = timezone.make_aware(datetime.combine(date_from, time.min))
+                q &= Q(**{f"{field}__gte": dt_from})
+            if date_to:
+                dt_to = timezone.make_aware(datetime.combine(date_to, time.max))
+                q &= Q(**{f"{field}__lte": dt_to})
+            return q
 
-        # Filter OfferDocuments by their own creation date to respect the time period
-        offer_filter = Q(application_id__in=app_ids)
-        if date_from:
-            offer_filter &= Q(created_at__date__gte=date_from)
-        if date_to:
-            offer_filter &= Q(created_at__date__lte=date_to)
-
-        offers = list(OfferDocument.objects.filter(offer_filter).values('application_id', 'created_at', 'sent_at', 'completed_at', 'status', 'updated_at'))
+        date_q = make_date_q('updated_at')
         
-        # Other documents still linked to the apps
-        jads = list(JobApplicationDocument.objects.filter(job_application_id__in=app_ids).values('job_application_id', 'joining_docs_status', 'created_at', 'updated_at'))
-        notes = list(ApprovalNote.objects.filter(candidate_id__in=app_ids, status='approved', approved_at__isnull=False).values('candidate_id', 'approved_at'))
-        annexures = list(SalaryAnnexure.objects.filter(job_application_id__in=app_ids).values('job_application_id', 'created_at', 'updated_at', 'status'))
+        # Get application IDs that had ANY activity in these documents in the date range
+        app_ids = set()
+        
+        if date_from or date_to:
+            offer_apps = OfferDocument.objects.filter(application__job__in=broad_job_qs).filter(date_q).values_list('application_id', flat=True)
+            jad_apps = JobApplicationDocument.objects.filter(job_application__job__in=broad_job_qs).filter(
+                date_q | make_date_q('annexure_uploaded_at') | make_date_q('annexure_approved_at')
+            ).values_list('job_application_id', flat=True)
+            note_apps = ApprovalNote.objects.filter(candidate__job__in=broad_job_qs).filter(date_q).values_list('candidate_id', flat=True)
+            
+            app_ids.update(offer_apps)
+            app_ids.update(jad_apps)
+            app_ids.update(note_apps)
+        else:
+            # No date filter, get all apps from broad_job_qs
+            app_ids = set(JobApplication.objects.filter(job__in=broad_job_qs).values_list('id', flat=True)[:5000])
+        
+        app_ids = list(app_ids)[:5000] # safety limit
+        
+        offers = list(OfferDocument.objects.filter(application_id__in=app_ids).values('application_id', 'created_at', 'sent_at', 'completed_at', 'status', 'updated_at'))
+        jads = list(JobApplicationDocument.objects.filter(job_application_id__in=app_ids).values('job_application_id', 'joining_docs_status', 'created_at', 'updated_at', 'annexure_uploaded_at', 'annexure_approved_at', 'salary_annexure_approved'))
+        notes = list(ApprovalNote.objects.filter(candidate_id__in=app_ids, status__in=['approved','docs_pending','docs_uploaded','review_docs','docs_approved','salary_annexure_prep','salary_annexure_review','approved_annexure','offer_pending','offer_sent','offer_accepted','offer_rejected','joining_pending','joined','joining_poned','docs_incomplete','docs_unclear'], approved_at__isnull=False).values('candidate_id', 'approved_at'))
         
         apps_data = defaultdict(dict)
         for j in jads: apps_data[j['job_application_id']]['jad'] = j
         for n in notes: apps_data[n['candidate_id']]['note'] = n
-        for a in annexures: apps_data[a['job_application_id']]['annexure'] = a
         for o in offers: apps_data[o['application_id']]['offer'] = o
             
         req_to_up_days, up_to_appr_days, appr_to_sal_days, sal_to_appr_days, offer_create_days, offer_sent_to_resp_days, offer_internal_appr_days = [], [], [], [], [], [], []
 
         for app_id, data in apps_data.items():
-            jad, note, annex, offer = data.get('jad'), data.get('note'), data.get('annexure'), data.get('offer')
+            jad, note, offer = data.get('jad'), data.get('note'), data.get('offer')
             if jad:
                 td = (jad['updated_at'] - jad['created_at']).total_seconds() / 86400
                 if td >= 0:
                     if jad['joining_docs_status'] == 'uploaded': req_to_up_days.append(td)
                     elif jad['joining_docs_status'] in ['approved', 'review_docs']:
                         req_to_up_days.append(td/2); up_to_appr_days.append(td/2)
-            if note and annex:
-                td = (annex['created_at'] - note['approved_at']).total_seconds() / 86400
+            if note and jad and jad.get('annexure_uploaded_at'):
+                td = (jad['annexure_uploaded_at'] - note['approved_at']).total_seconds() / 86400
                 if td >= 0: appr_to_sal_days.append(td)
-            if annex and annex['status'] == 'approved':
-                td = (annex['updated_at'] - annex['created_at']).total_seconds() / 86400
+            if jad and jad.get('salary_annexure_approved') and jad.get('annexure_approved_at') and jad.get('annexure_uploaded_at'):
+                td = (jad['annexure_approved_at'] - jad['annexure_uploaded_at']).total_seconds() / 86400
                 if td >= 0: sal_to_appr_days.append(td)
-            if annex and offer:
-                td = (offer['created_at'] - annex['updated_at']).total_seconds() / 86400
+            if jad and offer and jad.get('annexure_approved_at'):
+                td = (offer['created_at'] - jad['annexure_approved_at']).total_seconds() / 86400
                 if td >= 0: offer_create_days.append(td)
             if offer:
                 start, sent, comp = offer.get('created_at'), offer.get('sent_at'), offer.get('completed_at') or offer.get('updated_at')
@@ -1507,15 +1573,19 @@ class BaseAnalyticsView(APIView):
         def avg_d(lst): return round(sum(lst) / len(lst), 2) if lst else 0.0
         section7.update({
             'avg_time_document_request_to_upload_days': avg_d(req_to_up_days),
-            # 'avg_time_document_upload_to_approval_days': avg_d(up_to_appr_days),
-            # 'avg_time_approval_to_salary_annexure_days': avg_d(appr_to_sal_days),
-            # 'avg_time_salary_annexure_to_approval_days': avg_d(sal_to_appr_days),
-            # 'avg_time_to_offer_letter_creation_days': avg_d(offer_create_days),
-            # 'avg_time_offer_letter_to_approval_days': avg_d(offer_internal_appr_days),
+            'avg_time_document_upload_to_approval_days': avg_d(up_to_appr_days),
+            'avg_time_approval_to_salary_annexure_days': avg_d(appr_to_sal_days),
+            'avg_time_salary_annexure_to_approval_days': avg_d(sal_to_appr_days),
+            'avg_time_to_offer_letter_creation_days': avg_d(offer_create_days),
+            'avg_time_offer_letter_to_approval_days': avg_d(offer_internal_appr_days),
             'avg_time_offer_letter_sent_to_response_days': avg_d(offer_sent_to_resp_days)
         })
 
-        joined_apps = app_qs.filter(status='joined')
+        joined_q = Q(job__in=broad_job_qs, status='joined')
+        if date_from or date_to:
+            joined_q &= make_date_q('updated_at')
+        joined_apps = JobApplication.objects.filter(joined_q)
+        
         durations_days = [(app.updated_at - app.job.mrf.created_at).total_seconds() / 86400 for app in joined_apps if app.job and app.job.mrf and app.job.mrf.created_at and app.updated_at]
         section7['full_pipeline_avg_days'] = round(sum(durations_days) / len(durations_days), 2) if durations_days else 0
         
@@ -1665,8 +1735,14 @@ class BaseAnalyticsView(APIView):
         # Calculate Total Completed Rounds (synchronized with Section 5)
         # Uses the same logic as calc_interview_round_time_analytics
         fb_filter = Q(job_application__job__in=broad_job_qs)
-        if date_from: fb_filter &= Q(created_at__date__gte=date_from)
-        if date_to: fb_filter &= Q(created_at__date__lte=date_to)
+        from datetime import datetime, time
+        from django.utils import timezone
+        if date_from:
+            dt_from = timezone.make_aware(datetime.combine(date_from, time.min))
+            fb_filter &= Q(created_at__gte=dt_from)
+        if date_to:
+            dt_to = timezone.make_aware(datetime.combine(date_to, time.max))
+            fb_filter &= Q(created_at__lte=dt_to)
         if interviewer_app_ids is not None: fb_filter &= Q(job_application_id__in=interviewer_app_ids)
         total_completed_interviews = InterviewFeedback.objects.filter(fb_filter).count()
 
@@ -1677,10 +1753,10 @@ class BaseAnalyticsView(APIView):
         if 'interview_round_time_analytics' in requested_sections:
             data['interview_round_time_analytics'] = self.calc_interview_round_time_analytics(app_qs, (date_from, date_to), company, interviewer_app_ids, broad_job_qs)
         if 'approval_note_analytics' in requested_sections:
-            data['approval_note_analytics'] = self.calc_approval_note_analytics(broad_job_qs, date_filter, target_user)
+            data['approval_note_analytics'] = self.calc_approval_note_analytics(broad_job_qs, (date_from, date_to), target_user)
         if 'document_offer_process_timeline' in requested_sections:
             # Pass company to filter OfferDocuments correctly
-            data['document_offer_process_timeline'] = self.calc_document_offer_process_timeline(app_qs, (date_from, date_to), company)
+            data['document_offer_process_timeline'] = self.calc_document_offer_process_timeline(broad_job_qs, (date_from, date_to), company)
         if 'overall_summary_kpis' in requested_sections:
             data['overall_summary_kpis'] = self.calc_overall_summary_kpis(mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, company, (date_from, date_to))
 
