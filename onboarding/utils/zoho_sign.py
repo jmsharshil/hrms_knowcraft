@@ -438,6 +438,14 @@ def zoho_sign_webhook(request):
         print(f"Extracted Reason: {reason}")
         application.offer_decline_reason = reason
         application.save(update_fields=['offer_decline_reason'])
+        
+        # Save decline reason in the latest ApprovalNote payload
+        from onboarding.models import ApprovalNote
+        latest_note = ApprovalNote.objects.filter(candidate=application).order_by('-created_at').first()
+        if latest_note and isinstance(latest_note.payload, dict):
+            latest_note.payload["offer_decline_reason"] = reason
+            latest_note.save(update_fields=['payload'])
+
         ok,reason = automation_engine(application,application.status,'offer_rejected')
         if ok:
             doc.save()
