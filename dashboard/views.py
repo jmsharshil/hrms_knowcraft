@@ -1345,29 +1345,27 @@ class BaseAnalyticsView(APIView):
         for i, rate in enumerate(completion_rates):
             rate['pending_count_percentage'] = round((rate['pending'] / rate['total_scheduled'] * 100), 2) if rate['total_scheduled'] else 0
 
-        # Highest reschedule by source
+        # Highest reschedule by user (submitted_by)
         # Primary: use reschedule_count from JobApplication
         # Fallback: count from Booking table (candidates with >1 booking = rescheduled)
-        reschedule_by_source = (
+        reschedule_by_user = (
             app_qs.filter(reschedule_count__gt=0)
-            .values('source')
+            .values('submitted_by__name', 'submitted_by__email')
             .annotate(
                 total_reschedules=Sum('reschedule_count'),
                 candidate_count=Count('id')
             )
             .order_by('-total_reschedules')
         )
-        SOURCE_DISPLAY = dict(JobApplication.SOURCE_CHOICES)
 
-        if reschedule_by_source.exists():
-            reschedule_source_list = [
+        if reschedule_by_user.exists():
+            reschedule_user_list = [
                 {
-                    'source': r['source'],
-                    'source_display': SOURCE_DISPLAY.get(r['source'], r['source']),
+                    'user': r['submitted_by__name'] or r['submitted_by__email'] or 'Unknown',
                     'total_reschedules': r['total_reschedules'],
                     'candidate_count': r['candidate_count'],
                 }
-                for r in reschedule_by_source
+                for r in reschedule_by_user
             ]
         else:
             # Fallback: count from Booking table - candidates with multiple bookings
@@ -1378,34 +1376,34 @@ class BaseAnalyticsView(APIView):
                 .annotate(booking_count=Count('id'))
                 .filter(booking_count__gt=1)
             )
-            # Group by source
+            # Group by user (submitted_by)
             rescheduled_app_ids = [b['candidate_id'] for b in booking_counts]
             reschedule_fallback = (
                 app_qs.filter(id__in=rescheduled_app_ids)
-                .values('source')
+                .values('submitted_by__name', 'submitted_by__email')
                 .annotate(
                     candidate_count=Count('id'),
                 )
                 .order_by('-candidate_count')
             )
-            # For each source, sum up (booking_count - 1) as reschedule count
+            # For each user, sum up (booking_count - 1) as reschedule count
             booking_map = {b['candidate_id']: b['booking_count'] - 1 for b in booking_counts}
-            source_reschedule_totals = defaultdict(int)
-            for app in app_qs.filter(id__in=rescheduled_app_ids).values('id', 'source'):
-                source_reschedule_totals[app['source']] += booking_map.get(app['id'], 0)
+            user_reschedule_totals = defaultdict(int)
+            for app in app_qs.filter(id__in=rescheduled_app_ids).select_related('submitted_by'):
+                user_key = app.submitted_by.name if app.submitted_by and app.submitted_by.name else (app.submitted_by.email if app.submitted_by else 'Unknown')
+                user_reschedule_totals[user_key] += booking_map.get(app.id, 0)
 
-            reschedule_source_list = [
+            reschedule_user_list = [
                 {
-                    'source': r['source'],
-                    'source_display': SOURCE_DISPLAY.get(r['source'], r['source']),
-                    'total_reschedules': source_reschedule_totals.get(r['source'], 0),
+                    'user': r['submitted_by__name'] or r['submitted_by__email'] or 'Unknown',
+                    'total_reschedules': user_reschedule_totals.get(r['submitted_by__name'] or r['submitted_by__email'] or 'Unknown', 0),
                     'candidate_count': r['candidate_count'],
                 }
                 for r in reschedule_fallback
             ]
-            reschedule_source_list.sort(key=lambda x: x['total_reschedules'], reverse=True)
+            reschedule_user_list.sort(key=lambda x: x['total_reschedules'], reverse=True)
 
-        section5['highest_reschedule_by_source'] = reschedule_source_list
+        section5['highest_reschedule_by_user'] = reschedule_user_list
 
 
         # Stage turnaround times
