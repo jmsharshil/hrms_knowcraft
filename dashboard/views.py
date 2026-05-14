@@ -1020,11 +1020,11 @@ class BaseAnalyticsView(APIView):
         from datetime import datetime, time
         from django.utils import timezone
         if date_from:
-            # dt_from = timezone.make_aware(datetime.combine(date_from, time.min))
-            feedback_filter &= Q(created_at__gte=date_from)
+            dt_from = timezone.make_aware(datetime.combine(date_from, time.min))
+            feedback_filter &= Q(created_at__gte=dt_from)
         if date_to:
-            # dt_to = timezone.make_aware(datetime.combine(date_to, time.max))
-            feedback_filter &= Q(created_at__lte=date_to)
+            dt_to = timezone.make_aware(datetime.combine(date_to, time.max))
+            feedback_filter &= Q(created_at__lte=dt_to)
 
         if interviewer_app_ids is not None:
             feedback_filter &= Q(job_application_id__in=interviewer_app_ids)
@@ -1434,11 +1434,11 @@ class BaseAnalyticsView(APIView):
         def make_date_q(field_name):
             q = Q()
             if date_from:
-                # dt_from = timezone.make_aware(datetime.combine(date_from, time.min))
-                q &= Q(**{f"{field_name}__gte": date_from})
+                dt_from = timezone.make_aware(datetime.combine(date_from, time.min))
+                q &= Q(**{f"{field_name}__gte": dt_from})
             if date_to:
-                # dt_to = timezone.make_aware(datetime.combine(date_to, time.max))
-                q &= Q(**{f"{field_name}__lte": date_to})
+                dt_to = timezone.make_aware(datetime.combine(date_to, time.max))
+                q &= Q(**{f"{field_name}__lte": dt_to})
             return q
 
         created_q = make_date_q('created_at')
@@ -1513,11 +1513,11 @@ class BaseAnalyticsView(APIView):
         def make_date_q(field='updated_at'):
             q = Q()
             if date_from:
-                # dt_from = timezone.make_aware(datetime.combine(date_from, time.min))
-                q &= Q(**{f"{field}__gte": date_from})
+                dt_from = timezone.make_aware(datetime.combine(date_from, time.min))
+                q &= Q(**{f"{field}__gte": dt_from})
             if date_to:
-                # dt_to = timezone.make_aware(datetime.combine(date_to, time.max))
-                q &= Q(**{f"{field}__lte": date_to})
+                dt_to = timezone.make_aware(datetime.combine(date_to, time.max))
+                q &= Q(**{f"{field}__lte": dt_to})
             return q
 
         date_q = make_date_q('updated_at')
