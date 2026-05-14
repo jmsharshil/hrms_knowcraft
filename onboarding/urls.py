@@ -1,6 +1,6 @@
 from django.urls import path,include
 from rest_framework.routers import DefaultRouter
-from .views import UploadJobApplicationDocumentAPI,UpdatestatusAPI,SendApprovalNoteAPIView,CandidateInterviewSummaryAPIView,SalaryAnnexureHistoryViewSet,SalaryAnnexureViewSet,ReviewJobApplicationDocumentsAPI,SendForOfferLetterEmailAPI,SendForSalaryAnnexureEmailAPI,DownloadJobApplicationDocumentsView
+from .views import UploadJobApplicationDocumentAPI,UpdatestatusAPI,SendApprovalNoteAPIView,CandidateInterviewSummaryAPIView,SalaryAnnexureHistoryViewSet,SalaryAnnexureViewSet,ReviewJobApplicationDocumentsAPI,SendForOfferLetterEmailAPI,SendForSalaryAnnexureEmailAPI,DownloadJobApplicationDocumentsView,DownloadApprovalNoteAPIView
 from .utils.opensign import opensign_webhook
 from .utils.zoho_sign import zoho_sign_webhook
 from .views import send_offer_letter_view, bulk_send_offers, docusign_webhook
@@ -15,6 +15,7 @@ urlpatterns = [
     path('application/<str:id>/documents/upload/',UploadJobApplicationDocumentAPI.as_view(),name='upload-documents'),
     path('application/<str:id>/documents/review/',ReviewJobApplicationDocumentsAPI.as_view(),name='review-documents'),
     path("application/<str:id>/documents/download/",DownloadJobApplicationDocumentsView.as_view(),name="download-documents"),
+    path("approval-note/<str:id>/download/", DownloadApprovalNoteAPIView.as_view(), name="download-approval-note"),
     path("send-approval-note/", SendApprovalNoteAPIView.as_view(),name="send-approval-note"),
     path("candidates/<uuid:candidate_id>/interview-summary/",CandidateInterviewSummaryAPIView.as_view(),name="candidate-interview-summary"),
     # path('opensign/webhook/',opensign_webhook,name="opensign-webhook"),
