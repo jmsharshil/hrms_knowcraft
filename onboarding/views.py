@@ -1763,3 +1763,159 @@ class DownloadJobApplicationDocumentsView(APIView):
             raise Http404("One or more documents do not exist")
         except Exception as e:
             return HttpResponse(f'Error creating zip file: {str(e)}', status=404)
+
+class DownloadApprovalNoteAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, id):
+        note = get_object_or_404(ApprovalNote, id=id)
+        
+        try:
+            from reportlab.lib.pagesizes import letter
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+            from reportlab.lib.styles import getSampleStyleSheet
+            from reportlab.lib import colors
+            from io import BytesIO
+            import json
+
+            buffer = BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=letter)
+            elements = []
+            styles = getSampleStyleSheet()
+
+            # Header with Logo
+            title = f"Approval Note: {note.candidate.candidate_name if note.candidate else 'Unknown'}"
+            from reportlab.lib.styles import ParagraphStyle
+            from reportlab.platypus import Image
+            
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Title'],
+                alignment=0, # Left align
+                textColor=colors.HexColor('#0B3D91'),
+                fontSize=22,
+                spaceAfter=0
+            )
+            
+            logo_url = "https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png"
+            try:
+                import urllib.request
+                import io
+                req = urllib.request.Request(logo_url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req) as response:
+                    img_data = io.BytesIO(response.read())
+                logo = Image(img_data, width=150, height=45)
+                header_data = [[Paragraph(title, title_style), logo]]
+                col_widths = [350, 150]
+            except Exception as e:
+                print(f"Error loading logo: {e}")
+                header_data = [[Paragraph(title, title_style), ""]]
+                col_widths = [400, 100]
+
+            header_table = Table(header_data, colWidths=col_widths)
+            header_table.setStyle(TableStyle([
+                ('ALIGN', (0,0), (0,0), 'LEFT'),
+                ('ALIGN', (1,0), (1,0), 'RIGHT'),
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 15),
+                ('LINEBELOW', (0,0), (-1,-1), 2, colors.HexColor('#0B3D91')),
+            ]))
+            
+            elements.append(header_table)
+            elements.append(Spacer(1, 15))
+
+            # Custom Styles
+            normal_style = styles['Normal']
+            normal_style.fontSize = 10
+            normal_style.textColor = colors.HexColor('#333333')
+            normal_style.leading = 14
+            
+            label_style = ParagraphStyle(
+                'LabelStyle',
+                parent=normal_style,
+                fontName='Helvetica-Bold',
+                textColor=colors.HexColor('#0B3D91'),
+            )
+
+            heading_style = ParagraphStyle(
+                'HeadingStyle',
+                parent=styles['Heading2'],
+                textColor=colors.HexColor('#0B3D91'),
+                fontSize=16,
+                spaceAfter=12,
+                spaceBefore=20,
+                borderPadding=0,
+            )
+
+            # Basic Info
+            elements.append(Paragraph("Basic Information", heading_style))
+            basic_data = [
+                [Paragraph("Candidate Name", label_style), Paragraph(note.candidate.candidate_name if note.candidate else "N/A", normal_style)],
+                [Paragraph("Current Status", label_style), Paragraph(dict(ApprovalNote.STATUS_CHOICES).get(note.status,note.status), normal_style)],
+                [Paragraph("Approver", label_style), Paragraph(note.manager.name if note.manager else "N/A", normal_style)],
+                [Paragraph("Requested By", label_style), Paragraph(note.created_by.name if note.created_by else "N/A", normal_style)],
+                [Paragraph("Requested At", label_style), Paragraph(str(note.created_at.date()) if note.created_at else "N/A", normal_style)]
+            ]
+            
+            t = Table(basic_data, colWidths=[150, 350])
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#F4F6FB')),
+                ('TEXTCOLOR', (0,0), (-1,-1), colors.HexColor('#333333')),
+                ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ('PADDING', (0,0), (-1,-1), 10),
+                ('LINEBELOW', (0,0), (-1,-1), 1, colors.HexColor('#E6EBF5')),
+                ('LINEABOVE', (0,0), (-1,0), 1, colors.HexColor('#E6EBF5')),
+            ]))
+            elements.append(t)
+            elements.append(Spacer(1, 10))
+
+            # Payload Data
+            elements.append(Paragraph("Detailed Information", heading_style))
+
+            if isinstance(note.payload, dict):
+                payload_data = []
+                for k, v in note.payload.items():
+                    k_str = str(k).replace('_', ' ').title()
+                    if isinstance(v, dict) or isinstance(v, list):
+                        v_str = json.dumps(v, indent=2)
+                    else:
+                        v_str = str(v)
+                    payload_data.append([
+                        Paragraph(f"• {k_str}", label_style), 
+                        Paragraph(v_str, normal_style)
+                    ])
+                
+                if payload_data:
+                    pt = Table(payload_data, colWidths=[200, 300])
+                    pt.setStyle(TableStyle([
+                        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+                        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                        ('PADDING', (0,0), (-1,-1), 10),
+                        ('LINEBELOW', (0,0), (-1,-1), 0.5, colors.HexColor('#E6EBF5')),
+                    ]))
+                    elements.append(pt)
+            else:
+                elements.append(Paragraph(str(note.payload), normal_style))
+
+            doc.build(elements)
+            buffer.seek(0)
+
+            response = HttpResponse(buffer, content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="approval_note_{note.candidate.candidate_name}.pdf"'
+            return response
+            
+        except Exception as e:
+            # Fallback to JSON if reportlab fails
+            import json
+            data = {
+                "id": str(note.id),
+                "candidate_name": note.candidate.candidate_name if note.candidate else None,
+                "manager": note.manager.name if note.manager else None,
+                "created_by": note.created_by.name if note.created_by else None,
+                "status": note.status,
+                "payload": note.payload
+            }
+            response = HttpResponse(json.dumps(data, indent=4), content_type='application/json')
+            response['Content-Disposition'] = f'attachment; filename="approval_note_{note.candidate.candidate_name}.json"'
+            return response
