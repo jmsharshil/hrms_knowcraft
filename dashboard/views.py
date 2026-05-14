@@ -1124,8 +1124,16 @@ class BaseAnalyticsView(APIView):
                     'num_applications': len(deltas)
                 })
 
-        # Sort by from_round then to_round for consistent ordering
-        avg_between.sort(key=lambda x: (x['from_round'], x['to_round']))
+        # Sort by logical round progression
+        pair_order = {
+            ('CV Received', 'Shortlisted'): 1,
+            ('HR Round', 'Technical Round'): 2,
+            ('Technical Round', 'Case Study Round'): 3,
+            ('Technical Round', 'Final Round'): 4,
+            ('Case Study Round', 'Final Round'): 5,
+            ('Final Round', 'Management / Client Round'): 6
+        }
+        avg_between.sort(key=lambda x: pair_order.get((x['from_round'], x['to_round']), 99))
         section5['avg_time_between_rounds_days'] = avg_between
 
         # Round completion analytics with "Not Moved" and "Unassigned" logic
