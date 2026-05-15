@@ -561,11 +561,12 @@ class BaseAnalyticsView(APIView):
         section2['jobs_unassigned'] = job_qs.filter(status='open').count()
 
         assigned_jobs = job_qs.filter(assigned_at__isnull=False, created_at__isnull=False)
-        if assigned_jobs.exists():
-            durations = [(job.assigned_at - job.created_at).total_seconds() / 86400 for job in assigned_jobs]
-            section2['avg_time_to_assign_days'] = round(sum(durations) / len(durations), 2) if durations else 0
-        else:
-            section2['avg_time_to_assign_days'] = 0
+        durations = []
+        for job in assigned_jobs:
+            td = (job.assigned_at - job.created_at).total_seconds() / 86400
+            if td >= 0:
+                durations.append(td)
+        section2['avg_time_to_assign_days'] = round(sum(durations) / len(durations), 2) if durations else 0
 
         status_qs = job_qs.values('status').annotate(count=Count('id'))
         status_breakdown = {item['status']: item['count'] for item in status_qs}
