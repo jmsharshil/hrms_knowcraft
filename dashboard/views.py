@@ -44,11 +44,19 @@ from accounts.serializers import UserSerializer
 
 def safe_parse_date(date_str):
     """
-    Parses a date string into a date object using dateutil.parser.
-    Favors DD-MM-YYYY if ambiguous (dayfirst=True).
+    Parses a date string into a date object.
+    Prefers Django's strict ISO parser (YYYY-MM-DD) to avoid dayfirst
+    ambiguity for single-digit day/month values (e.g. 2026-03-01).
+    Falls back to dateutil for non-ISO formats.
     """
     if not date_str:
         return None
+    # Try strict ISO format first (handles single-digit days/months correctly)
+    from django.utils.dateparse import parse_date as django_parse_date
+    result = django_parse_date(date_str)
+    if result is not None:
+        return result
+    # Fallback: try dateutil for other formats (DD/MM/YYYY, etc.)
     try:
         return parser.parse(date_str, dayfirst=True).date()
     except (ValueError, TypeError, OverflowError):
@@ -293,16 +301,17 @@ class BaseAnalyticsView(APIView):
         date_from = safe_parse_date(date_from_str)
         date_to = safe_parse_date(date_to_str)
 
-        # Date filter Q
+        # Date filter Q — use timezone-aware datetime boundaries to correctly
+        # capture records on the exact date_from / date_to days.
         from datetime import datetime, time
         from django.utils import timezone
         date_filter = Q()
         if date_from:
-            # dt_from = timezone.make_aware(datetime.combine(date_from, time.min))
-            date_filter &= Q(created_at__gte=date_from)
+            dt_from = timezone.make_aware(datetime.combine(date_from, time.min))
+            date_filter &= Q(created_at__gte=dt_from)
         if date_to:
-            # dt_to = timezone.make_aware(datetime.combine(date_to, time.max))
-            date_filter &= Q(created_at__lte=date_to)
+            dt_to = timezone.make_aware(datetime.combine(date_to, time.max))
+            date_filter &= Q(created_at__lte=dt_to)
 
         # User filter Q (validation)
         target_user = None
