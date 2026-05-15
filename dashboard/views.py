@@ -42,22 +42,46 @@ from .utils import (
 
 from accounts.serializers import UserSerializer
 
+# def safe_parse_date(date_str):
+#     """
+#     Parses a date string into a date object.
+#     Prefers Django's strict ISO parser (YYYY-MM-DD) to avoid dayfirst
+#     ambiguity for single-digit day/month values (e.g. 2026-03-01).
+#     Falls back to dateutil for non-ISO formats.
+#     """
+#     if not date_str:
+#         return None
+#     # Try strict ISO format first (handles single-digit days/months correctly)
+#     from django.utils.dateparse import parse_date as django_parse_date
+#     result = django_parse_date(date_str)
+#     if result is not None:
+#         return result
+#     # Fallback: try dateutil for other formats (DD/MM/YYYY, etc.)
+#     try:
+#         return parser.parse(date_str, dayfirst=True).date()
+#     except (ValueError, TypeError, OverflowError):
+#         return None
+
 def safe_parse_date(date_str):
     """
     Parses a date string into a date object.
-    Prefers Django's strict ISO parser (YYYY-MM-DD) to avoid dayfirst
-    ambiguity for single-digit day/month values (e.g. 2026-03-01).
-    Falls back to dateutil for non-ISO formats.
+    Handles single-digit months/days like 2026-5-1 correctly.
     """
     if not date_str:
         return None
-    # Try strict ISO format first (handles single-digit days/months correctly)
-    from django.utils.dateparse import parse_date as django_parse_date
-    result = django_parse_date(date_str)
-    if result is not None:
-        return result
-    # Fallback: try dateutil for other formats (DD/MM/YYYY, etc.)
     try:
+        from datetime import datetime
+        # Normalize by splitting and zero-padding each part
+        parts = date_str.strip().replace('/', '-').split('-')
+        if len(parts) == 3:
+            if len(parts[0]) == 4:
+                # Format: YYYY-M-D or YYYY-MM-DD
+                normalized = f"{parts[0]}-{parts[1].zfill(2)}-{parts[2].zfill(2)}"
+            else:
+                # Format: D-M-YYYY or DD-MM-YYYY
+                normalized = f"{parts[2]}-{parts[1].zfill(2)}-{parts[0].zfill(2)}"
+            return datetime.strptime(normalized, "%Y-%m-%d").date()
+        # fallback for any other format
         return parser.parse(date_str, dayfirst=True).date()
     except (ValueError, TypeError, OverflowError):
         return None
