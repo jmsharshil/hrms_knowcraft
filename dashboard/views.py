@@ -1688,9 +1688,9 @@ class BaseAnalyticsView(APIView):
         # Last 30 days metrics (Fixed: uses company-wide apps_qs instead of filtered app_qs)
         thirty_days_ago = timezone.now() - timedelta(days=30)
         section8['cvs_last_30_days'] = app_qs.filter(created_at__gte=thirty_days_ago).count()
-        section8['offers_last_30_days'] = app_qs.filter(
-            status__in=offer_sent_statuses, 
-            offer_accepted_date__gte=thirty_days_ago
+        section8['offers_last_30_days'] = OfferDocument.objects.filter(
+            application__in=app_qs,
+            sent_at__gte=thirty_days_ago
         ).count()
         return section8
 
