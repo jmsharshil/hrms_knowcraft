@@ -1690,7 +1690,7 @@ class BaseAnalyticsView(APIView):
         section8['cvs_last_30_days'] = app_qs.filter(created_at__gte=thirty_days_ago).count()
         section8['offers_last_30_days'] = app_qs.filter(
             status__in=offer_sent_statuses, 
-            updated_at__gte=thirty_days_ago
+            offer_accepted_date__gte=thirty_days_ago
         ).count()
         return section8
 
