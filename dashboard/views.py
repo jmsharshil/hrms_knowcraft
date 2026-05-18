@@ -1708,7 +1708,7 @@ class BaseAnalyticsView(APIView):
         Used for total_jobs so filtered-by-user views show all their jobs, not just period-created ones.
         """
         # Use broad_job_qs for total counts if provided (user_id filter scenario)
-        jobs_for_count = broad_job_qs if broad_job_qs is not None else job_qs
+        jobs_for_count = job_qs
         return {
             "total_mrfs": mrf_qs.count(),
             "total_mrfs_on_hold": mrf_qs.filter(status='on_hold').count(),

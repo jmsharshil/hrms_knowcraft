@@ -1665,6 +1665,17 @@ class ManageBookingView(APIView):
 
         self._send_cancel_notifications(booking, candidate)
 
+        if candidate.status == 'interview_pending_1':
+            candidate.status = 'shortlisted'
+        elif candidate.status == 'interview_pending_2':
+            candidate.status = 'interview_next_2'
+        elif candidate.status == 'interview_pending_3':
+            candidate.status = 'interview_next_3'
+        elif candidate.status == 'interview_pending_final':
+            candidate.status = 'interview_next_final'
+        elif candidate.status == 'interview_pending_management_client':
+            candidate.status = 'interview_next_management_client'
+        
         candidate.inperson_link = None
         candidate.interview_link = None
         candidate.interview_scheduled_at = None
