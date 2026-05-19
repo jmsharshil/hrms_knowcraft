@@ -1016,13 +1016,31 @@ class BaseAnalyticsView(APIView):
         stage_counts = {name: app_qs.filter(status__in=statuses).count() for name, statuses in ordered_stages}
         section4['funnel_stages'] = [{'stage': k, 'count': v} for k, v in stage_counts.items()]
 
+        # Define terminal rejection stages to calculate drop-offs correctly without negative percentages
+        TERMINAL_REJECTIONS = {
+            'Duplicate Rejected', 'Rejected',
+            'Rejected at HR', 'Rejected at Tech', 'Rejected at Case Study', 'Rejected at Final', 'Rejected at Mgt/Client',
+            'Offer Rejected'
+        }
+
+        def get_drop_off_pct(from_stage, to_stage, from_c, to_c):
+            if not from_c:
+                return 0.0
+            if from_stage in TERMINAL_REJECTIONS:
+                return 0.0
+            if to_stage in TERMINAL_REJECTIONS:
+                return max(0.0, round((to_c / from_c * 100), 2))
+            return max(0.0, round(((from_c - to_c) / from_c * 100), 2))
+
         stages_list = [s[0] for s in ordered_stages]
         drop_offs = []
         for i in range(len(stages_list) - 1):
-            from_c = stage_counts[stages_list[i]]
-            to_c = stage_counts[stages_list[i + 1]]
-            drop_off = round(((from_c - to_c) / from_c * 100), 2) if from_c else 0
-            drop_offs.append({'from_stage': stages_list[i], 'to_stage': stages_list[i + 1], 'drop_off_percentage': drop_off})
+            from_stage = stages_list[i]
+            to_stage = stages_list[i + 1]
+            from_c = stage_counts[from_stage]
+            to_c = stage_counts[to_stage]
+            drop_off = get_drop_off_pct(from_stage, to_stage, from_c, to_c)
+            drop_offs.append({'from_stage': from_stage, 'to_stage': to_stage, 'drop_off_percentage': drop_off})
         section4['drop_off_rates'] = drop_offs
 
         stage_times_wrapper = calc_stage_turnaround_time(app_qs)
@@ -1056,10 +1074,12 @@ class BaseAnalyticsView(APIView):
             part_names = [s[0] for s in part_stages]
             part_drops = []
             for i in range(len(part_names) - 1):
-                fc = part_counts[part_names[i]]
-                tc = part_counts[part_names[i + 1]]
-                drop = round(((fc - tc) / fc * 100), 2) if fc else 0
-                part_drops.append({'from_stage': part_names[i], 'to_stage': part_names[i + 1], 'drop_off_percentage': drop})
+                from_stage = part_names[i]
+                to_stage = part_names[i + 1]
+                fc = part_counts[from_stage]
+                tc = part_counts[to_stage]
+                drop = get_drop_off_pct(from_stage, to_stage, fc, tc)
+                part_drops.append({'from_stage': from_stage, 'to_stage': to_stage, 'drop_off_percentage': drop})
             # Avg turnaround: avg days from first stage entry to last stage entry
             part_status_keys = set()
             for _, sts in part_stages:
