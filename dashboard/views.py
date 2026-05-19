@@ -760,11 +760,30 @@ class BaseAnalyticsView(APIView):
         total_cvs = ja_count + pa_count + referral_count
         section3['total_cvs_received'] = total_cvs
 
+        source_display_map = {
+            'internal_hr': 'Internal HR',
+            'consultancy': 'Consultancy',
+            'application_link': 'Application Link',
+            'referral': 'Referral',
+            'direct': 'Direct',
+            'career_page': 'Career Page',
+            'linkedin': 'LinkedIn',
+            'indeed': 'Indeed',
+            'naukri': 'Naukri',
+        }
+
+        def normalize_source_name(src):
+            if not src:
+                return 'Unknown'
+            src_lower = src.lower()
+            return source_display_map.get(src_lower) or src.replace('_', ' ').title()
+
         # Aggregated Source Stats
         # Combine JobApplication sources and Application sources
         source_counts = {}
         for s in app_qs.values('source').annotate(count=Count('id')):
-            source_counts[s['source']] = source_counts.get(s['source'], 0) + s['count']
+            src = normalize_source_name(s['source'])
+            source_counts[src] = source_counts.get(src, 0) + s['count']
 
         cvs_by_source = []
         for source, count in source_counts.items():
@@ -778,7 +797,8 @@ class BaseAnalyticsView(APIView):
         # Platform Sources Stats
         platform_source_counts = {}
         for s in platform_app_qs.values('source').annotate(count=Count('id')):
-            platform_source_counts[s['source']] = platform_source_counts.get(s['source'], 0) + s['count']
+            src = normalize_source_name(s['source'])
+            platform_source_counts[src] = platform_source_counts.get(src, 0) + s['count']
 
         platform_cvs_by_source = []
         for source, count in platform_source_counts.items():
@@ -791,10 +811,10 @@ class BaseAnalyticsView(APIView):
         # Combined Platform, Candidate, and Referral Sources Stats
         combined_source_counts = {}
         for s in app_qs.values('source').annotate(count=Count('id')):
-            src = s['source'] or 'Unknown'
+            src = normalize_source_name(s['source'])
             combined_source_counts[src] = combined_source_counts.get(src, 0) + s['count']
         for s in platform_app_qs.values('source').annotate(count=Count('id')):
-            src = s['source'] or 'Unknown'
+            src = normalize_source_name(s['source'])
             combined_source_counts[src] = combined_source_counts.get(src, 0) + s['count']
         
         # Include referrals count with 'Referral' source
