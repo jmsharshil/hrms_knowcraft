@@ -1040,6 +1040,8 @@ class BaseAnalyticsView(APIView):
         for i in range(len(stages_list) - 1):
             from_stage = stages_list[i]
             to_stage = stages_list[i + 1]
+            if from_stage in TERMINAL_REJECTIONS:
+                continue
             from_c = stage_counts[from_stage]
             to_c = stage_counts[to_stage]
             drop_off = get_drop_off_pct(from_stage, to_stage, from_c, to_c)
@@ -1079,6 +1081,8 @@ class BaseAnalyticsView(APIView):
             for i in range(len(part_names) - 1):
                 from_stage = part_names[i]
                 to_stage = part_names[i + 1]
+                if from_stage in TERMINAL_REJECTIONS:
+                    continue
                 fc = part_counts[from_stage]
                 tc = part_counts[to_stage]
                 drop = get_drop_off_pct(from_stage, to_stage, fc, tc)
@@ -1260,9 +1264,11 @@ class BaseAnalyticsView(APIView):
         cv_to_short_deltas = []
         short_to_hr_deltas = []
         hr_to_tech_deltas = []
-        tech_to_case_or_final_deltas = []
+        tech_to_case_deltas = []
+        tech_to_final_deltas = []
         case_to_final_deltas = []
-        final_to_review_or_mgt_deltas = []
+        final_to_review_deltas = []
+        final_to_mgt_deltas = []
         mgt_to_review_deltas = []
         review_to_selected_deltas = []
         selected_to_note_deltas = []
@@ -1348,15 +1354,19 @@ class BaseAnalyticsView(APIView):
                 if d >= 0:
                     hr_to_tech_deltas.append(d)
 
-            # 4. Technical Round -> Case Study / Final
-            if fb_tech:
-                fb_next = fb_case or fb_final
-                if fb_next:
-                    d = (fb_next['created_at'] - fb_tech['created_at']).total_seconds() / 86400
-                    if d >= 0:
-                        tech_to_case_or_final_deltas.append(d)
+            # 4. Technical Round -> Case Study
+            if fb_tech and fb_case:
+                d = (fb_case['created_at'] - fb_tech['created_at']).total_seconds() / 86400
+                if d >= 0:
+                    tech_to_case_deltas.append(d)
 
-            # 5. Case Study -> Final
+            # 5. Technical Round -> Final Round
+            if fb_tech and fb_final:
+                d = (fb_final['created_at'] - fb_tech['created_at']).total_seconds() / 86400
+                if d >= 0:
+                    tech_to_final_deltas.append(d)
+
+            # 6. Case Study -> Final Round
             if fb_case and fb_final:
                 d = (fb_final['created_at'] - fb_case['created_at']).total_seconds() / 86400
                 if d >= 0:
@@ -1364,18 +1374,19 @@ class BaseAnalyticsView(APIView):
 
             note = app_notes.get(app_id)
 
-            # 6. Final -> Under HR Review / Management Client
-            if fb_final:
-                if fb_mgt:
-                    d = (fb_mgt['created_at'] - fb_final['created_at']).total_seconds() / 86400
-                    if d >= 0:
-                        final_to_review_or_mgt_deltas.append(d)
-                elif note:
-                    d = (note['created_at'] - fb_final['created_at']).total_seconds() / 86400
-                    if d >= 0:
-                        final_to_review_or_mgt_deltas.append(d)
+            # 7. Final Round -> Under HR Review
+            if fb_final and note:
+                d = (note['created_at'] - fb_final['created_at']).total_seconds() / 86400
+                if d >= 0:
+                    final_to_review_deltas.append(d)
 
-            # 7. Management / Client Round -> Under HR Review
+            # 8. Final Round -> Management / Client Round
+            if fb_final and fb_mgt:
+                d = (fb_mgt['created_at'] - fb_final['created_at']).total_seconds() / 86400
+                if d >= 0:
+                    final_to_mgt_deltas.append(d)
+
+            # 9. Management / Client Round -> Under HR Review
             if fb_mgt and note:
                 d = (note['created_at'] - fb_mgt['created_at']).total_seconds() / 86400
                 if d >= 0:
@@ -1463,21 +1474,33 @@ class BaseAnalyticsView(APIView):
             },
             {
                 'from_round': 'Technical Round',
-                'to_round': 'Case Study / Final',
-                'avg_days': round(sum(tech_to_case_or_final_deltas) / len(tech_to_case_or_final_deltas), 2) if tech_to_case_or_final_deltas else 0.0,
-                'num_applications': len(tech_to_case_or_final_deltas)
+                'to_round': 'Case Study',
+                'avg_days': round(sum(tech_to_case_deltas) / len(tech_to_case_deltas), 2) if tech_to_case_deltas else 0.0,
+                'num_applications': len(tech_to_case_deltas)
+            },
+            {
+                'from_round': 'Technical Round',
+                'to_round': 'Final Round',
+                'avg_days': round(sum(tech_to_final_deltas) / len(tech_to_final_deltas), 2) if tech_to_final_deltas else 0.0,
+                'num_applications': len(tech_to_final_deltas)
             },
             {
                 'from_round': 'Case Study',
-                'to_round': 'Final',
+                'to_round': 'Final Round',
                 'avg_days': round(sum(case_to_final_deltas) / len(case_to_final_deltas), 2) if case_to_final_deltas else 0.0,
                 'num_applications': len(case_to_final_deltas)
             },
             {
-                'from_round': 'Final',
-                'to_round': 'Under HR Review / Management Client',
-                'avg_days': round(sum(final_to_review_or_mgt_deltas) / len(final_to_review_or_mgt_deltas), 2) if final_to_review_or_mgt_deltas else 0.0,
-                'num_applications': len(final_to_review_or_mgt_deltas)
+                'from_round': 'Final Round',
+                'to_round': 'Under HR Review',
+                'avg_days': round(sum(final_to_review_deltas) / len(final_to_review_deltas), 2) if final_to_review_deltas else 0.0,
+                'num_applications': len(final_to_review_deltas)
+            },
+            {
+                'from_round': 'Final Round',
+                'to_round': 'Management / Client Round',
+                'avg_days': round(sum(final_to_mgt_deltas) / len(final_to_mgt_deltas), 2) if final_to_mgt_deltas else 0.0,
+                'num_applications': len(final_to_mgt_deltas)
             },
             {
                 'from_round': 'Management / Client Round',
