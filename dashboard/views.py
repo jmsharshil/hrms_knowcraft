@@ -754,7 +754,7 @@ class BaseAnalyticsView(APIView):
         section3['duplicate_cvs_count'] = dups
         section3['duplicate_cvs_percentage'] = round((dups / total_cvs * 100), 2) if total_cvs else 0
 
-        untouched = app_qs.filter(status='received').count() + platform_app_qs.filter(is_rejected=False).count()
+        untouched = app_qs.filter(status='received').count() + platform_app_qs.filter(is_touched=False,is_rejected=False).count()
         section3['untouched_cvs_count'] = untouched
         subquery = Job.objects.filter(
             job_title=OuterRef('job__job_title'),
