@@ -171,9 +171,9 @@ def automation_engine(candidate, old, new):
         "interview_rejected_3",
         "interview_rejected_final",
         "interview_rejected_management_client",
-        "approval_rejected",
-        "rejected",
-        "offer_rejected",
+        # "approval_rejected",
+        # "rejected",
+        # "offer_rejected",
     }
     
     if new in FEEDBACK_REJECTION_STATES:

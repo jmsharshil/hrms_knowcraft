@@ -232,6 +232,28 @@ class DashboardAPIView(APIView):
                     {"department": r['referral_department'] or 'Unknown', "count": r['count']}
                     for r in referral_qs.values('referral_department').annotate(count=Count('id')).order_by('-count')
                 ]
+            },
+            "approval_note_stats": {
+                "total": ApprovalNote.objects.filter(candidate__in=apps_qs).count(),
+                "by_status": [
+                    {
+                        "status": item['status'],
+                        "status_display": dict(ApprovalNote.STATUS_CHOICES).get(item['status'], item['status']),
+                        "count": item['count']
+                    }
+                    for item in ApprovalNote.objects.filter(candidate__in=apps_qs).values('status').annotate(count=Count('id')).order_by('-count')
+                ]
+            },
+            "salary_annexure_stats": {
+                "total": SalaryAnnexure.objects.filter(job_application__in=apps_qs).count(),
+                "by_status": [
+                    {
+                        "status": item['status'],
+                        "status_display": dict(SalaryAnnexure.STATUS_CHOICES).get(item['status'], item['status']),
+                        "count": item['count']
+                    }
+                    for item in SalaryAnnexure.objects.filter(job_application__in=apps_qs).values('status').annotate(count=Count('id')).order_by('-count')
+                ]
             }
         }
 
@@ -497,13 +519,59 @@ class BaseAnalyticsView(APIView):
         section1['total_on_hold'] = mrf_qs.filter(status='on_hold').count()
         section1['total_pending'] = mrf_qs.exclude(status__in=['approved', 'filled', 'joining_pending', 'rejected', 'on_hold']).count()
 
+        # Calculate transition time between levels:
+        # Level 1: mrf.submitted_at to level 1 approval
+        # Level 2: level 1 approval to level 2 approval
+        # Level 3: level 2 approval to level 3 approval
+        approvals = MRFApproval.objects.filter(
+            mrf__in=mrf_qs,
+            action='approved'
+        ).values('mrf_id', 'level', 'created_at', 'mrf__submitted_at')
+
+        mrf_approval_times = defaultdict(dict)
+        mrf_submitted_at = {}
+        for app in approvals:
+            mrf_id = app['mrf_id']
+            level = app['level']
+            mrf_approval_times[mrf_id][level] = app['created_at']
+            if app['mrf__submitted_at']:
+                mrf_submitted_at[mrf_id] = app['mrf__submitted_at']
+
+        level_durations = defaultdict(list)
+        for mrf_id, times in mrf_approval_times.items():
+            submitted = mrf_submitted_at.get(mrf_id)
+            if not submitted:
+                continue
+            
+            # Level 1: submitted_at -> level 1
+            if 1 in times:
+                dur = (times[1] - submitted).total_seconds()
+                if dur >= 0:
+                    level_durations[1].append(dur)
+            
+            # Level 2: level 1 -> level 2 (fallback to submitted_at if level 1 is missing)
+            if 2 in times:
+                start = times.get(1, submitted)
+                dur = (times[2] - start).total_seconds()
+                if dur >= 0:
+                    level_durations[2].append(dur)
+                
+            # Level 3: level 2 -> level 3 (fallback to level 1, then submitted_at)
+            if 3 in times:
+                start = times.get(2, times.get(1, submitted))
+                dur = (times[3] - start).total_seconds()
+                if dur >= 0:
+                    level_durations[3].append(dur)
+
         approval_funnel = []
         for level in range(1, 4):
-            level_approvals = MRFApproval.objects.filter(mrf__in=mrf_qs, level=level, action='approved')
-            if level_approvals.exists():
-                avg_time = level_approvals.aggregate(avg=Avg(F('created_at') - F('mrf__submitted_at')))['avg']
-                avg_days = round(avg_time.total_seconds() / 86400, 2) if avg_time else 0
-                approval_funnel.append({'level': level, 'avg_time_days': avg_days})
+            durations = level_durations.get(level, [])
+            if durations:
+                avg_seconds = sum(durations) / len(durations)
+                avg_days = round(avg_seconds / 86400, 2)
+            else:
+                avg_days = 0
+            approval_funnel.append({'level': level, 'avg_time_days': avg_days})
         section1['approval_funnel'] = approval_funnel
 
         total_jobs_from_mrf = Job.objects.filter(mrf__in=mrf_qs).count()
@@ -511,7 +579,12 @@ class BaseAnalyticsView(APIView):
 
         approved_mrfs = mrf_qs.filter(status__in=['approved', 'filled', 'joining_pending'])
         if approved_mrfs.exists():
-            durations = [(mrf.approved_at - mrf.submitted_at).total_seconds() / 86400 for mrf in approved_mrfs if mrf.approved_at and mrf.submitted_at]
+            durations = []
+            for mrf in approved_mrfs:
+                if mrf.approved_at and mrf.submitted_at:
+                    td = (mrf.approved_at - mrf.submitted_at).total_seconds() / 86400
+                    if td >= 0:
+                        durations.append(td)
             section1['avg_mrf_approval_time_days'] = round(sum(durations) / len(durations), 2) if durations else 0
         else:
             section1['avg_mrf_approval_time_days'] = 0
@@ -521,7 +594,12 @@ class BaseAnalyticsView(APIView):
         for d in dept_stats:
             dept_name = d['department__name']
             dept_mrfs = approved_mrfs.filter(department__name=dept_name)
-            durations = [(mrf.approved_at - mrf.submitted_at).total_seconds() / 86400 for mrf in dept_mrfs if mrf.approved_at and mrf.submitted_at]
+            durations = []
+            for mrf in dept_mrfs:
+                if mrf.approved_at and mrf.submitted_at:
+                    td = (mrf.approved_at - mrf.submitted_at).total_seconds() / 86400
+                    if td >= 0:
+                        durations.append(td)
             avg_days = round(sum(durations) / len(durations), 2) if durations else 0
             mrf_by_dept.append({'department': dept_name, 'count': d['count'], 'avg_approval_time_days': avg_days})
         section1['mrf_by_department'] = mrf_by_dept
@@ -677,8 +755,9 @@ class BaseAnalyticsView(APIView):
         section3 = {}
         # Union-like total count across both models
         ja_count = app_qs.count()
-        pa_count = platform_app_qs.count()
-        total_cvs = ja_count + pa_count
+        pa_count = platform_app_qs.filter(is_touched=False).count()
+        referral_count = referral_qs.filter(is_touched=False).count()
+        total_cvs = ja_count + pa_count + referral_count
         section3['total_cvs_received'] = total_cvs
 
         # Aggregated Source Stats
@@ -709,6 +788,22 @@ class BaseAnalyticsView(APIView):
         platform_cvs_by_source.sort(key=lambda x: x['count'], reverse=True)
         section3['platform_cvs_by_source'] = platform_cvs_by_source[:10]
 
+        # Combined Platform and Candidate Sources Stats
+        combined_source_counts = {}
+        for s in app_qs.values('source').annotate(count=Count('id')):
+            src = s['source'] or 'Unknown'
+            combined_source_counts[src] = combined_source_counts.get(src, 0) + s['count']
+        for s in platform_app_qs.values('source').annotate(count=Count('id')):
+            src = s['source'] or 'Unknown'
+            combined_source_counts[src] = combined_source_counts.get(src, 0) + s['count']
+
+        combined_cvs_by_source = []
+        for source, count in combined_source_counts.items():
+            percentage = round((count / total_cvs * 100), 2) if total_cvs else 0
+            combined_cvs_by_source.append({'source': source, 'count': count, 'percentage': percentage})
+
+        combined_cvs_by_source.sort(key=lambda x: x['count'], reverse=True)
+        section3['combined_cvs_by_source'] = combined_cvs_by_source
         # Deduplicated Job Stats (Unique Candidate Email per Job Title)
         # We merge counts for the same job title from both models
         job_counts = {}
@@ -717,9 +812,9 @@ class BaseAnalyticsView(APIView):
             title = j['job__job_title'] or 'Unknown'
             job_counts[title] = job_counts.get(title, 0) + j['unique_cvs']
             
-        pa_stats = platform_app_qs.values('job__job_title').annotate(unique_cvs=Count('candidate_email', distinct=True))
+        pa_stats = platform_app_qs.values('job__job_title', 'position_title').annotate(unique_cvs=Count('candidate_email', distinct=True))
         for j in pa_stats:
-            title = j['job__job_title'] or 'Unknown'
+            title = j['job__job_title'] or j.get('position_title') or 'Unknown'
             job_counts[title] = job_counts.get(title, 0) + j['unique_cvs']
 
         cvs_by_job_list = [{'job_title': title, 'total_cvs': count} for title, count in job_counts.items()]
@@ -754,41 +849,67 @@ class BaseAnalyticsView(APIView):
         section3['duplicate_cvs_count'] = dups
         section3['duplicate_cvs_percentage'] = round((dups / total_cvs * 100), 2) if total_cvs else 0
 
-        untouched = app_qs.filter(status='received').count() + platform_app_qs.filter(is_rejected=False).count()
-        section3['untouched_cvs_count'] = untouched
-        subquery = Job.objects.filter(
-            job_title=OuterRef('job__job_title'),
-        ).order_by('-id')
-        
-        untouched_filter = Q(status='received')
-        # Untouched by designation + dept (filtered, with rep job)
-        untouched_by_desig_dept = app_qs.filter(untouched_filter).values(
-            'job__designation',
-            'job__designation__name',
-            'job__department',
-            'job__department__name',
-            'job__job_title'
-        ).annotate(
-            untouched_count=Count('id'),
-            job_ids=ArrayAgg('job__id', distinct=True),
-            rep_job_id=Subquery(subquery.values('id')[:1]),
-            rep_job_title=Subquery(subquery.values('job_title')[:1]),
-        ).filter(untouched_count__gt=0).order_by('-untouched_count')
-        
-        untouched_list = []
-        for u in untouched_by_desig_dept:
-            untouched_list.append({
-                'designation_name': u['job__designation__name'] or 'Unknown',
-                'department_name': u['job__department__name'] or 'Unknown',
-                'untouched_count': u['untouched_count'],
-                'job_title': u['rep_job_title'] or 'Unknown',
-                'job_ids': u['job_ids'] or [],
-            })
-        
-        # DEBUG: Sample and sum check
-        sum_untouched = sum(u['untouched_count'] for u in untouched_list)
+        # Combined untouched aggregation from all 3 querysets (Candidate Management, Platform, and Referral)
+        untouched_map = defaultdict(lambda: {'count': 0, 'job_ids': set()})
 
-        # Sort by count desc and limit to top 10
+        # 1. Candidate Management (app_qs)
+        for u in app_qs.filter(status='received').values(
+            'job__designation__name',
+            'job__department__name',
+            'job__job_title',
+            'job__id'
+        ):
+            desig = u['job__designation__name'] or 'Unknown'
+            dept = u['job__department__name'] or 'Unknown'
+            title = u['job__job_title'] or 'Unknown'
+            key = (desig, dept, title)
+            untouched_map[key]['count'] += 1
+            if u['job__id']:
+                untouched_map[key]['job_ids'].add(u['job__id'])
+
+        # 2. Platform Applications (platform_app_qs)
+        for u in platform_app_qs.filter(is_touched=False, is_rejected=False).values(
+            'designation__name',
+            'department__name',
+            'job__job_title',
+            'position_title',
+            'job__id'
+        ):
+            desig = u['designation__name'] or 'Unknown'
+            dept = u['department__name'] or 'Unknown'
+            title = u['job__job_title'] or u['position_title'] or 'Unknown'
+            key = (desig, dept, title)
+            untouched_map[key]['count'] += 1
+            if u['job__id']:
+                untouched_map[key]['job_ids'].add(u['job__id'])
+
+        # 3. Referral Applications (referral_qs)
+        for u in referral_qs.values(
+            'referral_designation',
+            'referral_department',
+            'position_title'
+        ):
+            desig = u['referral_designation'] or 'Unknown'
+            dept = u['referral_department'] or 'Unknown'
+            title = u['position_title'] or 'Unknown'
+            key = (desig, dept, title)
+            untouched_map[key]['count'] += 1
+
+        # Build list
+        untouched_list = []
+        for (desig, dept, title), data in untouched_map.items():
+            untouched_list.append({
+                'designation_name': desig,
+                'department_name': dept,
+                'untouched_count': data['count'],
+                'job_title': title,
+                'job_ids': list(data['job_ids']),
+            })
+
+        # Sort by count desc
+        untouched_list.sort(key=lambda x: x['untouched_count'], reverse=True)
+        
+        section3['untouched_cvs_count'] = sum(x['untouched_count'] for x in untouched_list)
         section3['untouched_cvs_by_job'] = untouched_list
         section3['interview_no_show_reschedule'] = calc_interview_no_show_reschedule(app_qs, total_interviews_override)
 
@@ -895,13 +1016,31 @@ class BaseAnalyticsView(APIView):
         stage_counts = {name: app_qs.filter(status__in=statuses).count() for name, statuses in ordered_stages}
         section4['funnel_stages'] = [{'stage': k, 'count': v} for k, v in stage_counts.items()]
 
+        # Define terminal rejection stages to calculate drop-offs correctly without negative percentages
+        TERMINAL_REJECTIONS = {
+            'Duplicate Rejected', 'Rejected',
+            'Rejected at HR', 'Rejected at Tech', 'Rejected at Case Study', 'Rejected at Final', 'Rejected at Mgt/Client',
+            'Offer Rejected'
+        }
+
+        def get_drop_off_pct(from_stage, to_stage, from_c, to_c):
+            if not from_c:
+                return 0.0
+            if from_stage in TERMINAL_REJECTIONS:
+                return 0.0
+            if to_stage in TERMINAL_REJECTIONS:
+                return max(0.0, round((to_c / from_c * 100), 2))
+            return max(0.0, round(((from_c - to_c) / from_c * 100), 2))
+
         stages_list = [s[0] for s in ordered_stages]
         drop_offs = []
         for i in range(len(stages_list) - 1):
-            from_c = stage_counts[stages_list[i]]
-            to_c = stage_counts[stages_list[i + 1]]
-            drop_off = round(((from_c - to_c) / from_c * 100), 2) if from_c else 0
-            drop_offs.append({'from_stage': stages_list[i], 'to_stage': stages_list[i + 1], 'drop_off_percentage': drop_off})
+            from_stage = stages_list[i]
+            to_stage = stages_list[i + 1]
+            from_c = stage_counts[from_stage]
+            to_c = stage_counts[to_stage]
+            drop_off = get_drop_off_pct(from_stage, to_stage, from_c, to_c)
+            drop_offs.append({'from_stage': from_stage, 'to_stage': to_stage, 'drop_off_percentage': drop_off})
         section4['drop_off_rates'] = drop_offs
 
         stage_times_wrapper = calc_stage_turnaround_time(app_qs)
@@ -935,10 +1074,12 @@ class BaseAnalyticsView(APIView):
             part_names = [s[0] for s in part_stages]
             part_drops = []
             for i in range(len(part_names) - 1):
-                fc = part_counts[part_names[i]]
-                tc = part_counts[part_names[i + 1]]
-                drop = round(((fc - tc) / fc * 100), 2) if fc else 0
-                part_drops.append({'from_stage': part_names[i], 'to_stage': part_names[i + 1], 'drop_off_percentage': drop})
+                from_stage = part_names[i]
+                to_stage = part_names[i + 1]
+                fc = part_counts[from_stage]
+                tc = part_counts[to_stage]
+                drop = get_drop_off_pct(from_stage, to_stage, fc, tc)
+                part_drops.append({'from_stage': from_stage, 'to_stage': to_stage, 'drop_off_percentage': drop})
             # Avg turnaround: avg days from first stage entry to last stage entry
             part_status_keys = set()
             for _, sts in part_stages:
@@ -1147,27 +1288,153 @@ class BaseAnalyticsView(APIView):
                 'num_applications': len(deltas)
             })
 
-        extra_pairs = [('technical_round', 'final_round')]
-        for from_round, to_round in extra_pairs:
-            deltas = between_deltas.get((from_round, to_round), [])
+        # Collect all other occurring round-to-round transitions dynamically
+        for (from_r, to_r), deltas in between_deltas.items():
             if deltas:
-                avg_between.append({
-                    'from_round': round_display.get(from_round, from_round),
-                    'to_round': round_display.get(to_round, to_round),
-                    'avg_days': round(sum(deltas) / len(deltas), 2),
-                    'num_applications': len(deltas)
-                })
+                from_disp = round_display.get(from_r, from_r)
+                to_disp = round_display.get(to_r, to_r)
+                if not any(x['from_round'] == from_disp and x['to_round'] == to_disp for x in avg_between):
+                    avg_between.append({
+                        'from_round': from_disp,
+                        'to_round': to_disp,
+                        'avg_days': round(sum(deltas) / len(deltas), 2),
+                        'num_applications': len(deltas)
+                    })
 
-        # Sort by logical round progression
-        pair_order = {
-            ('CV Received', 'Shortlisted'): 1,
-            ('HR Round', 'Technical Round'): 2,
-            ('Technical Round', 'Case Study Round'): 3,
-            ('Technical Round', 'Final Round'): 4,
-            ('Case Study Round', 'Final Round'): 5,
-            ('Final Round', 'Management / Client Round'): 6
+        from onboarding.models import ApprovalNote, OfferDocument
+
+        # Management / Client Round -> Selected
+        mgt_feedbacks = feedback_qs.filter(interview_round='management_client_round')
+        mgt_to_sel_deltas = []
+        for fb in mgt_feedbacks:
+            note = ApprovalNote.objects.filter(candidate_id=fb.job_application_id).order_by('created_at').first()
+            if note:
+                delta = (note.created_at - fb.created_at).total_seconds() / 86400
+                if delta >= 0:
+                    mgt_to_sel_deltas.append(delta)
+        if mgt_to_sel_deltas:
+            avg_between.append({
+                'from_round': 'Management / Client Round',
+                'to_round': 'Selected',
+                'avg_days': round(sum(mgt_to_sel_deltas) / len(mgt_to_sel_deltas), 2),
+                'num_applications': len(mgt_to_sel_deltas)
+            })
+
+        # Final Round -> Selected
+        final_feedbacks = feedback_qs.filter(interview_round='final_round')
+        final_to_sel_deltas = []
+        for fb in final_feedbacks:
+            note = ApprovalNote.objects.filter(candidate_id=fb.job_application_id).order_by('created_at').first()
+            if note:
+                delta = (note.created_at - fb.created_at).total_seconds() / 86400
+                if delta >= 0:
+                    final_to_sel_deltas.append(delta)
+        if final_to_sel_deltas:
+            avg_between.append({
+                'from_round': 'Final Round',
+                'to_round': 'Selected',
+                'avg_days': round(sum(final_to_sel_deltas) / len(final_to_sel_deltas), 2),
+                'num_applications': len(final_to_sel_deltas)
+            })
+
+        # Selected -> Approved
+        selected_to_approved_deltas = []
+        notes_approved = ApprovalNote.objects.filter(candidate__in=app_qs, status__in=[
+            'approved','docs_pending','docs_uploaded','review_docs','docs_approved',
+            'salary_annexure_prep','salary_annexure_review','approved_annexure',
+            'offer_pending','offer_sent','offer_accepted','offer_rejected',
+            'joining_pending','joined','joining_poned','docs_incomplete','docs_unclear'
+        ], approved_at__isnull=False)
+        for note in notes_approved:
+            delta = (note.approved_at - note.created_at).total_seconds() / 86400
+            if delta >= 0:
+                selected_to_approved_deltas.append(delta)
+        if selected_to_approved_deltas:
+            avg_between.append({
+                'from_round': 'Selected',
+                'to_round': 'Approved',
+                'avg_days': round(sum(selected_to_approved_deltas) / len(selected_to_approved_deltas), 2),
+                'num_applications': len(selected_to_approved_deltas)
+            })
+
+        # Approved -> Offer Sent
+        approved_to_offer_sent_deltas = []
+        notes_map = {n.candidate_id: n.approved_at for n in notes_approved if n.approved_at}
+        sent_offers = OfferDocument.objects.filter(application__in=app_qs, sent_at__isnull=False)
+        for offer in sent_offers:
+            app_id = offer.application_id
+            if app_id in notes_map:
+                delta = (offer.sent_at - notes_map[app_id]).total_seconds() / 86400
+                if delta >= 0:
+                    approved_to_offer_sent_deltas.append(delta)
+        if approved_to_offer_sent_deltas:
+            avg_between.append({
+                'from_round': 'Approved',
+                'to_round': 'Offer Sent',
+                'avg_days': round(sum(approved_to_offer_sent_deltas) / len(approved_to_offer_sent_deltas), 2),
+                'num_applications': len(approved_to_offer_sent_deltas)
+            })
+
+        # Offer Sent -> Offer Accepted
+        offer_sent_to_accepted_deltas = []
+        accepted_offers = OfferDocument.objects.filter(application__in=app_qs, sent_at__isnull=False).filter(
+            Q(status__in=['completed', 'signed']) | Q(completed_at__isnull=False) | Q(signed_at__isnull=False)
+        )
+        for offer in accepted_offers:
+            resp_time = offer.completed_at or offer.signed_at or offer.updated_at
+            delta = (resp_time - offer.sent_at).total_seconds() / 86400
+            if delta >= 0:
+                offer_sent_to_accepted_deltas.append(delta)
+        if offer_sent_to_accepted_deltas:
+            avg_between.append({
+                'from_round': 'Offer Sent',
+                'to_round': 'Offer Accepted',
+                'avg_days': round(sum(offer_sent_to_accepted_deltas) / len(offer_sent_to_accepted_deltas), 2),
+                'num_applications': len(offer_sent_to_accepted_deltas)
+            })
+
+        # Offer Accepted -> Joined
+        accepted_to_joined_deltas = []
+        joined_apps = app_qs.filter(status='joined')
+        offers_map = {}
+        for offer in accepted_offers:
+            resp_time = offer.completed_at or offer.signed_at or offer.updated_at
+            offers_map[offer.application_id] = resp_time
+        for app in joined_apps:
+            if app.id in offers_map:
+                delta = (app.updated_at - offers_map[app.id]).total_seconds() / 86400
+                if delta >= 0:
+                    accepted_to_joined_deltas.append(delta)
+        if accepted_to_joined_deltas:
+            avg_between.append({
+                'from_round': 'Offer Accepted',
+                'to_round': 'Joined',
+                'avg_days': round(sum(accepted_to_joined_deltas) / len(accepted_to_joined_deltas), 2),
+                'num_applications': len(accepted_to_joined_deltas)
+            })
+
+        # Sort dynamically by logical round progression
+        round_order = {
+            'CV Received': 0,
+            'Shortlisted': 1,
+            'HR Round': 2,
+            'Technical Round': 3,
+            'Case Study Round': 4,
+            'Final Round': 5,
+            'Management / Client Round': 6,
+            'Selected': 7,
+            'Approved': 8,
+            'Offer Sent': 9,
+            'Offer Accepted': 10,
+            'Joined': 11
         }
-        avg_between.sort(key=lambda x: pair_order.get((x['from_round'], x['to_round']), 99))
+        
+        def get_pair_key(item):
+            from_o = round_order.get(item['from_round'], 99)
+            to_o = round_order.get(item['to_round'], 99)
+            return (from_o, to_o)
+            
+        avg_between.sort(key=get_pair_key)
         section5['avg_time_between_rounds_days'] = avg_between
 
         # Round completion analytics with "Not Moved" and "Unassigned" logic
@@ -1445,14 +1712,25 @@ class BaseAnalyticsView(APIView):
         # Stage turnaround times
         stage_times_wrapper = calc_stage_turnaround_time(app_qs)
         stage_times = stage_times_wrapper.get('stages', [])
-        avg_times = [{'stage': st['stage_display'], 'avg_days': st['avg_days_in_stage']} for st in stage_times]
+        terminal_rejections = {
+            'rejected', 'duplicate_rejected', 
+            'interview_rejected_1', 'interview_rejected_2', 'interview_rejected_3',
+            'interview_rejected_final', 'interview_rejected_management_client',
+            'approval_rejected', 'offer_rejected', 'rejected_annexure'
+        }
+        avg_times = [
+            {'stage': st['stage_display'], 'avg_days': st['avg_days_in_stage']} 
+            for st in stage_times 
+            if st['stage'] not in terminal_rejections and st['avg_days_in_stage'] >= 0
+        ]
         if avg_times:
             slowest = max(avg_times, key=lambda x: x['avg_days'])
             fastest = min(avg_times, key=lambda x: x['avg_days'])
             section5['slowest_stage'] = {'stage_name': slowest['stage'], 'avg_days': slowest['avg_days']}
             section5['fastest_stage'] = {'stage_name': fastest['stage'], 'avg_days': fastest['avg_days']}
         else:
-            section5['slowest_stage'] = {'stage_name': 'N/A', 'avg_days': 0}; section5['fastest_stage'] = {'stage_name': 'N/A', 'avg_days': 0}
+            section5['slowest_stage'] = {'stage_name': 'N/A', 'avg_days': 0}
+            section5['fastest_stage'] = {'stage_name': 'N/A', 'avg_days': 0}
         return section5
 
     def calc_approval_note_analytics(self, job_qs, date_range, target_user=None):
