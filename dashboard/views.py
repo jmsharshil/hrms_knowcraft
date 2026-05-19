@@ -1185,6 +1185,7 @@ class BaseAnalyticsView(APIView):
         return section4
 
     def calc_interview_round_time_analytics(self, app_qs, date_range, company, interviewer_app_ids=None, broad_job_qs=None):
+        from collections import defaultdict
         section5 = {}
         date_from, date_to = date_range
         
@@ -1255,7 +1256,6 @@ class BaseAnalyticsView(APIView):
         # 16-Stage Turnaround Time (TAT) Progression
         # ──────────────────────────────────────────────────────────────
         from onboarding.models import ApprovalNote, OfferDocument, SalaryAnnexureHistory
-        from collections import defaultdict
 
         cv_to_short_deltas = []
         short_to_hr_deltas = []
@@ -2020,7 +2020,7 @@ class BaseAnalyticsView(APIView):
         section8 = {}
         base_app_qs = JobApplication.objects.filter(job__company=company)
         
-        section8['total_candidates'] = app_qs.count() + platform_app_qs.count() + referral_qs.count()
+        section8['total_candidates'] = app_qs.count() + platform_app_qs.filter(is_touched=False).count() + referral_qs.filter(is_touched=False).count()
         section8['total_positions_filled'] = sum(j.positions_filled for j in job_qs)
         section8['total_positions_open'] = sum((j.no_of_positions - j.positions_filled) for j in job_qs)
         section8['total_positions'] = sum(j.no_of_positions for j in job_qs)
@@ -2090,8 +2090,8 @@ class BaseAnalyticsView(APIView):
         jobs_for_count = job_qs
         
         direct_count = app_qs.count()
-        platform_count = platform_app_qs.count()
-        referral_count = referral_qs.count()
+        platform_count = platform_app_qs.filter(is_touched=False).count()
+        referral_count = referral_qs.filter(is_touched=False).count()
         combined_count = direct_count + platform_count + referral_count
 
         return {
@@ -2121,9 +2121,6 @@ class BaseAnalyticsView(APIView):
             return Response({"detail": err}, status=status.HTTP_400_BAD_REQUEST)
 
         mrf_qs, job_qs, broad_job_qs, app_qs, platform_app_qs, referral_qs, company, date_filter, target_user, date_from, date_to = ctx["mrf_qs"], ctx["job_qs"], ctx["broad_job_qs"], ctx["app_qs"], ctx["platform_app_qs"], ctx["referral_qs"], ctx["company"], ctx["date_filter"], ctx.get("target_user"), ctx.get("date_from"), ctx.get("date_to")
-        # Apply is_touched=False filter globally to platform applications and referral applications for all totals
-        platform_app_qs = platform_app_qs.filter(is_touched=False)
-        referral_qs = referral_qs.filter(is_touched=False)
         allowed_sections = self.get_sections()
 
         # Resolve Interviewer Entities using Email via Booking table for reliability
