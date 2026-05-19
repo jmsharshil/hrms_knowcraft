@@ -792,6 +792,9 @@ class ReferralApplication(models.Model):
     referral_department = models.CharField(null=True,blank=True)
     position_title = models.CharField(null=True,blank=True)
     
+    is_touched = models.BooleanField(default=False, help_text="Has the candidate been touched at least once?")
+    touched_at = models.DateTimeField(null=True, blank=True, help_text="When was the candidate last touched?")
+    
     class Meta:
         db_table = 'referral_applications'
         ordering = ['-created_at']

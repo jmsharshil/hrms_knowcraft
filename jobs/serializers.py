@@ -1,3 +1,4 @@
+from django.utils import timezone
 from mrf.serializers import MRFListSerializer
 from rest_framework import serializers
 from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLink,ReferralApplication,Application,ApplicationSource
@@ -914,7 +915,8 @@ class ReferralApplicationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'resume', 'resume_url','original_filename', 'file_size','referral_phone',
             'file_size_mb',"referral_name","referral_email","referral_emp_code","position_title",
-            "referral_designation","referral_department",'notes','created_at', 'updated_at'
+            "referral_designation","referral_department",'notes','created_at', 'updated_at',
+            'is_touched', 'touched_at'
         ]
     
     def get_resume_url(self, obj):
@@ -986,6 +988,10 @@ class ReferralToJobApplicationCreateSerializer(serializers.Serializer):
                     referral_department=referral_department,
                     referral_designation=referral_designation
                 )
+
+                referral_application.is_touched = True
+                referral_application.touched_at = timezone.now()
+                referral_application.save()
 
                 # Trigger background task for resume parsing
                 from onboarding.utils.task_queue import TASK_QUEUE

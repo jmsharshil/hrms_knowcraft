@@ -755,8 +755,9 @@ class BaseAnalyticsView(APIView):
         section3 = {}
         # Union-like total count across both models
         ja_count = app_qs.count()
-        pa_count = platform_app_qs.count()
-        total_cvs = ja_count + pa_count
+        pa_count = platform_app_qs.filter(is_touched=False).count()
+        referral_count = referral_qs.filter(is_touched=False).count()
+        total_cvs = ja_count + pa_count + referral_count
         section3['total_cvs_received'] = total_cvs
 
         # Aggregated Source Stats
@@ -803,7 +804,6 @@ class BaseAnalyticsView(APIView):
 
         combined_cvs_by_source.sort(key=lambda x: x['count'], reverse=True)
         section3['combined_cvs_by_source'] = combined_cvs_by_source
-
         # Deduplicated Job Stats (Unique Candidate Email per Job Title)
         # We merge counts for the same job title from both models
         job_counts = {}
