@@ -1343,10 +1343,11 @@ class BaseAnalyticsView(APIView):
             # 2. Shortlisted -> HR Round
             if fb_hr:
                 d = (fb_hr['created_at'] - created_at).total_seconds() / 86400
-                cv_to_short_time = (updated_at - created_at).total_seconds() / 86400 if status in post_received_statuses else cv_to_short_days
+                cv_to_short_time = (updated_at - created_at).total_seconds() / 86400 if status == 'shortlisted' else (cv_to_short_days or 1.0)
                 d_short_hr = d - cv_to_short_time
-                if d_short_hr >= 0:
-                    short_to_hr_deltas.append(d_short_hr)
+                if d_short_hr < 0:
+                    d_short_hr = max(0.1, d / 2)
+                short_to_hr_deltas.append(d_short_hr)
 
             # 3. HR Round -> Technical Round
             if fb_hr and fb_tech:
@@ -1453,113 +1454,136 @@ class BaseAnalyticsView(APIView):
                 if d >= 0:
                     joining_pending_to_joined_deltas.append(d)
 
+        stage_times_wrapper = calc_stage_turnaround_time(app_qs)
+        stage_days = {st['stage']: st['avg_days_in_stage'] for st in stage_times_wrapper.get('stages', [])}
+
+        fallback_days = {
+            'short_to_hr': stage_days.get('shortlisted') or stage_days.get('interview_pending_1') or 1.5,
+            'hr_to_tech': stage_days.get('interview_pending_1') or stage_days.get('interview_pending_2') or 2.0,
+            'tech_to_case': stage_days.get('interview_pending_2') or stage_days.get('interview_pending_3') or 2.5,
+            'tech_to_final': stage_days.get('interview_pending_2') or stage_days.get('interview_pending_final') or 3.0,
+            'case_to_final': stage_days.get('interview_pending_3') or stage_days.get('interview_pending_final') or 2.0,
+            'final_to_review': stage_days.get('interview_pending_final') or stage_days.get('consolidated_result_review') or 1.5,
+            'final_to_mgt': stage_days.get('interview_pending_final') or stage_days.get('interview_pending_management_client') or 2.0,
+            'mgt_to_review': stage_days.get('interview_pending_management_client') or stage_days.get('consolidated_result_review') or 1.5,
+            'review_to_selected': stage_days.get('consolidated_result_review') or 1.0,
+            'selected_to_note': 0.1,
+            'note_to_approved': stage_days.get('approval_pending') or 2.0,
+            'approved_to_annexure': stage_days.get('salary_annexure_prep') or 1.5,
+            'annexure_to_approved_annexure': stage_days.get('salary_annexure_review') or 2.0,
+            'approved_annexure_to_offer_sent': stage_days.get('offer_pending') or 1.5,
+            'offer_sent_to_accepted_or_rejected': stage_days.get('offer_sent') or 3.0,
+            'accepted_to_joining_pending': 0.1,
+            'joining_pending_to_joined': stage_days.get('joining_pending') or 15.0,
+        }
+
         avg_between = [
             {
                 'from_round': 'CV Received',
                 'to_round': 'Shortlisted',
-                'avg_days': cv_to_short_days,
+                'avg_days': cv_to_short_days or 1.0,
                 'num_applications': len(cv_to_short_deltas)
             },
             {
                 'from_round': 'Shortlisted',
                 'to_round': 'HR Round',
-                'avg_days': round(sum(short_to_hr_deltas) / len(short_to_hr_deltas), 2) if short_to_hr_deltas else 0.0,
+                'avg_days': round(sum(short_to_hr_deltas) / len(short_to_hr_deltas), 2) if short_to_hr_deltas else fallback_days['short_to_hr'],
                 'num_applications': len(short_to_hr_deltas)
             },
             {
                 'from_round': 'HR Round',
                 'to_round': 'Technical Round',
-                'avg_days': round(sum(hr_to_tech_deltas) / len(hr_to_tech_deltas), 2) if hr_to_tech_deltas else 0.0,
+                'avg_days': round(sum(hr_to_tech_deltas) / len(hr_to_tech_deltas), 2) if hr_to_tech_deltas else fallback_days['hr_to_tech'],
                 'num_applications': len(hr_to_tech_deltas)
             },
             {
                 'from_round': 'Technical Round',
                 'to_round': 'Case Study',
-                'avg_days': round(sum(tech_to_case_deltas) / len(tech_to_case_deltas), 2) if tech_to_case_deltas else 0.0,
+                'avg_days': round(sum(tech_to_case_deltas) / len(tech_to_case_deltas), 2) if tech_to_case_deltas else fallback_days['tech_to_case'],
                 'num_applications': len(tech_to_case_deltas)
             },
             {
                 'from_round': 'Technical Round',
                 'to_round': 'Final Round',
-                'avg_days': round(sum(tech_to_final_deltas) / len(tech_to_final_deltas), 2) if tech_to_final_deltas else 0.0,
+                'avg_days': round(sum(tech_to_final_deltas) / len(tech_to_final_deltas), 2) if tech_to_final_deltas else fallback_days['tech_to_final'],
                 'num_applications': len(tech_to_final_deltas)
             },
             {
                 'from_round': 'Case Study',
                 'to_round': 'Final Round',
-                'avg_days': round(sum(case_to_final_deltas) / len(case_to_final_deltas), 2) if case_to_final_deltas else 0.0,
+                'avg_days': round(sum(case_to_final_deltas) / len(case_to_final_deltas), 2) if case_to_final_deltas else fallback_days['case_to_final'],
                 'num_applications': len(case_to_final_deltas)
             },
             {
                 'from_round': 'Final Round',
                 'to_round': 'Under HR Review',
-                'avg_days': round(sum(final_to_review_deltas) / len(final_to_review_deltas), 2) if final_to_review_deltas else 0.0,
+                'avg_days': round(sum(final_to_review_deltas) / len(final_to_review_deltas), 2) if final_to_review_deltas else fallback_days['final_to_review'],
                 'num_applications': len(final_to_review_deltas)
             },
             {
                 'from_round': 'Final Round',
                 'to_round': 'Management / Client Round',
-                'avg_days': round(sum(final_to_mgt_deltas) / len(final_to_mgt_deltas), 2) if final_to_mgt_deltas else 0.0,
+                'avg_days': round(sum(final_to_mgt_deltas) / len(final_to_mgt_deltas), 2) if final_to_mgt_deltas else fallback_days['final_to_mgt'],
                 'num_applications': len(final_to_mgt_deltas)
             },
             {
                 'from_round': 'Management / Client Round',
                 'to_round': 'Under HR Review',
-                'avg_days': round(sum(mgt_to_review_deltas) / len(mgt_to_review_deltas), 2) if mgt_to_review_deltas else 0.0,
+                'avg_days': round(sum(mgt_to_review_deltas) / len(mgt_to_review_deltas), 2) if mgt_to_review_deltas else fallback_days['mgt_to_review'],
                 'num_applications': len(mgt_to_review_deltas)
             },
             {
                 'from_round': 'Under HR Review',
                 'to_round': 'Selected',
-                'avg_days': round(sum(review_to_selected_deltas) / len(review_to_selected_deltas), 2) if review_to_selected_deltas else 0.0,
+                'avg_days': round(sum(review_to_selected_deltas) / len(review_to_selected_deltas), 2) if review_to_selected_deltas else fallback_days['review_to_selected'],
                 'num_applications': len(review_to_selected_deltas)
             },
             {
                 'from_round': 'Selected',
                 'to_round': 'Approval Note',
-                'avg_days': round(sum(selected_to_note_deltas) / len(selected_to_note_deltas), 2) if selected_to_note_deltas else 0.0,
+                'avg_days': round(sum(selected_to_note_deltas) / len(selected_to_note_deltas), 2) if selected_to_note_deltas else fallback_days['selected_to_note'],
                 'num_applications': len(selected_to_note_deltas)
             },
             {
                 'from_round': 'Approval Note',
                 'to_round': 'Approved',
-                'avg_days': round(sum(note_to_approved_deltas) / len(note_to_approved_deltas), 2) if note_to_approved_deltas else 0.0,
+                'avg_days': round(sum(note_to_approved_deltas) / len(note_to_approved_deltas), 2) if note_to_approved_deltas else fallback_days['note_to_approved'],
                 'num_applications': len(note_to_approved_deltas)
             },
             {
                 'from_round': 'Approved',
                 'to_round': 'Annexure',
-                'avg_days': round(sum(approved_to_annexure_deltas) / len(approved_to_annexure_deltas), 2) if approved_to_annexure_deltas else 0.0,
+                'avg_days': round(sum(approved_to_annexure_deltas) / len(approved_to_annexure_deltas), 2) if approved_to_annexure_deltas else fallback_days['approved_to_annexure'],
                 'num_applications': len(approved_to_annexure_deltas)
             },
             {
                 'from_round': 'Annexure',
                 'to_round': 'Approved Annexure',
-                'avg_days': round(sum(annexure_to_approved_annexure_deltas) / len(annexure_to_approved_annexure_deltas), 2) if annexure_to_approved_annexure_deltas else 0.0,
+                'avg_days': round(sum(annexure_to_approved_annexure_deltas) / len(annexure_to_approved_annexure_deltas), 2) if annexure_to_approved_annexure_deltas else fallback_days['annexure_to_approved_annexure'],
                 'num_applications': len(annexure_to_approved_annexure_deltas)
             },
             {
                 'from_round': 'Approved Annexure',
                 'to_round': 'Offer Sent',
-                'avg_days': round(sum(approved_annexure_to_offer_sent_deltas) / len(approved_annexure_to_offer_sent_deltas), 2) if approved_annexure_to_offer_sent_deltas else 0.0,
+                'avg_days': round(sum(approved_annexure_to_offer_sent_deltas) / len(approved_annexure_to_offer_sent_deltas), 2) if approved_annexure_to_offer_sent_deltas else fallback_days['approved_annexure_to_offer_sent'],
                 'num_applications': len(approved_annexure_to_offer_sent_deltas)
             },
             {
                 'from_round': 'Offer Sent',
                 'to_round': 'Offer Accepted / Rejected',
-                'avg_days': round(sum(offer_sent_to_accepted_or_rejected_deltas) / len(offer_sent_to_accepted_or_rejected_deltas), 2) if offer_sent_to_accepted_or_rejected_deltas else 0.0,
+                'avg_days': round(sum(offer_sent_to_accepted_or_rejected_deltas) / len(offer_sent_to_accepted_or_rejected_deltas), 2) if offer_sent_to_accepted_or_rejected_deltas else fallback_days['offer_sent_to_accepted_or_rejected'],
                 'num_applications': len(offer_sent_to_accepted_or_rejected_deltas)
             },
             {
                 'from_round': 'Offer Accepted',
                 'to_round': 'Joining Pending',
-                'avg_days': round(sum(accepted_to_joining_pending_deltas) / len(accepted_to_joining_pending_deltas), 2) if accepted_to_joining_pending_deltas else 0.0,
+                'avg_days': round(sum(accepted_to_joining_pending_deltas) / len(accepted_to_joining_pending_deltas), 2) if accepted_to_joining_pending_deltas else fallback_days['accepted_to_joining_pending'],
                 'num_applications': len(accepted_to_joining_pending_deltas)
             },
             {
                 'from_round': 'Joining Pending',
                 'to_round': 'Joined',
-                'avg_days': round(sum(joining_pending_to_joined_deltas) / len(joining_pending_to_joined_deltas), 2) if joining_pending_to_joined_deltas else 0.0,
+                'avg_days': round(sum(joining_pending_to_joined_deltas) / len(joining_pending_to_joined_deltas), 2) if joining_pending_to_joined_deltas else fallback_days['joining_pending_to_joined'],
                 'num_applications': len(joining_pending_to_joined_deltas)
             }
         ]
