@@ -127,9 +127,9 @@ def calc_stage_turnaround_time(apps_qs):
         )
         avg_seconds = avg_age['avg_days']
         if avg_seconds and hasattr(avg_seconds, 'total_seconds'):
-            avg_days = round(avg_seconds.total_seconds() / 86400, 1)
+            avg_days = max(0.0, round(avg_seconds.total_seconds() / 86400, 1))
         else:
-            avg_days = 0
+            avg_days = 0.0
 
         results.append({
             "stage": stage,
