@@ -28,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-0(s=ka%+mzk+5n3*t-h8l0#6yh7$bnt*y)=a!zy!7_q192j%$t'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net','127.0.0.1','localhost','demp-hrms-hzdme4brg0dgfxa3.centralindia-01.azurewebsites.net','hireproknowcraft-crhacdc8dxd7dfhh.centralindia-01.azurewebsites.net','d7b9-2405-201-2005-1965-9445-471c-b9b-214.ngrok-free.app']
 
@@ -54,7 +54,7 @@ INSTALLED_APPS = [
     'slots',
     'booking',
     'dashboard',
-    # 'bgv',
+    'bgv',
 ]
 
 MIDDLEWARE = [
@@ -360,14 +360,14 @@ DOCUSIGN_AUTH_SERVER = "account-d.docusign.com"
 DOCUSIGN_BASE_URL = "https://demo.docusign.net/restapi"
 DOCUSIGN_TEMPLATE_ID ="b2959f26-b5c3-4268-928b-422347796b31"
 
-# ONGRID_CLIENT_ID = os.getenv("ONGRID_CLIENT_ID","")
-# ONGRID_SECRET = os.getenv("ONGRID_SECRET","")
-# ONGRID_COMMUNITY_ID = os.getenv("ONGRID_COMMUNITY_ID","")
+ONGRID_CLIENT_ID = os.getenv("ONGRID_CLIENT_ID","")
+ONGRID_SECRET = os.getenv("ONGRID_SECRET","")
+ONGRID_COMMUNITY_ID = os.getenv("ONGRID_COMMUNITY_ID","")
 
-# ONGRID_PROFESSION_ID = os.getenv("ONGRID_PROFESSION_ID","")
-# ONGRID_WEBHOOK_SECRET = os.getenv("ONGRID_WEBHOOK_SECRET","")
+ONGRID_PROFESSION_ID = os.getenv("ONGRID_PROFESSION_ID","")
+ONGRID_WEBHOOK_SECRET = os.getenv("ONGRID_WEBHOOK_SECRET","")
 
-# ONGRID_CONSENT_TEXT = """
-# I hereby authorize the company and OnGrid
-# to conduct background verification checks.
-# """
+ONGRID_CONSENT_TEXT = """
+I hereby authorize the company and OnGrid
+to conduct background verification checks.
+"""
