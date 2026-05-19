@@ -1406,6 +1406,10 @@ class ApplicationToJobSerializer(serializers.Serializer):
                     file_size=application.file_size,
                 )
 
+                application.is_touched = True
+                application.touched_at = timezone.now()
+                application.save()
+
                 history = []
                 if application.candidate_email:
                     today = timezone.now()
