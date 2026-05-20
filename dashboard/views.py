@@ -971,9 +971,9 @@ class BaseAnalyticsView(APIView):
         
         # Management / Client Round (Optional)
         # Strictly checking current status only, as requested, to prevent false counts from skipped rounds.
-        mgt_base_st = ['interview_pending_management_client', 'interview_done_management_client', 'interview_rejected_management_client', 'interview_next_management_client', 'consolidated_result_review']
+        mgt_base_st = ['interview_pending_management_client', 'interview_done_management_client', 'interview_rejected_management_client', 'interview_next_management_client']
         mgt_reached_st = mgt_base_st
-        mgt_completed_st = ['interview_done_management_client', 'interview_rejected_management_client', 'consolidated_result_review', 'selected', 'approval_pending']
+        mgt_completed_st = ['interview_done_management_client', 'interview_rejected_management_client']
         
         # Final Round (Mandatory)
         final_promoted_st = ['interview_next_management_client'] + mgt_base_st + selected_st
