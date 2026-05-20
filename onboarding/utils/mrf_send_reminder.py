@@ -36,7 +36,7 @@ HR Team
 <table align="center" width="100%" style="max-width:620px;background:#ffffff;border-radius:10px;">
 <tr>
 <td style="padding:40px;text-align:center;">
-<img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" style="max-width:250px;">
+<img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" style="max-width:250px;">
 </td>
 </tr>
 
@@ -63,7 +63,7 @@ Submit for Approval
 
 <p>Warm Regards,<br>
 <b>HR Team</b><br>
-<b>Knowcraft Analytics Private Limited.</b>
+<b>JMS TechNova Private Limited.</b>
 </p>
 
 </td>

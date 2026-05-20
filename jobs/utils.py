@@ -487,7 +487,7 @@ def render_beautiful_report(parsed, job, overall_score):
     projects = parsed.get("projects", [])
     certifications = parsed.get("certifications", [])
     achievements = parsed.get("achievements", [])
-    logo_url = "https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png"
+    logo_url = "https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png"
     def list_section(items):
         if not items:
             return "<p>Not Provided</p>"
@@ -617,7 +617,7 @@ li {{
             <div><strong>Applied For:</strong> {job_title}</div>
         </td>
         <td align="right">
-            <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" class="logo">
+            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" class="logo">
         </td>
     </tr>
 </table>
@@ -927,7 +927,7 @@ email_html_templates = {
                         <!-- Logo -->
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <!-- Separator -->
@@ -973,13 +973,13 @@ email_html_templates = {
                                 
                                 <p style="margin:20px 0 6px 0;color:#555555;">Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <!-- Footer -->
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -1048,7 +1048,7 @@ email_html_templates["job_unassigned"] = f"""
                     <!-- Logo -->
                     <tr>
                         <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                            <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                         </td>
                     </tr>
 
@@ -1097,14 +1097,14 @@ email_html_templates["job_unassigned"] = f"""
 
                             <p style="margin:20px 0 6px 0;color:#555555;">Regards,</p>
                             <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                            <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                         </td>
                     </tr>
 
                     <!-- Footer -->
                     <tr>
                         <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                            © 2026 Knowcraft Analytics Private Limited • Confidential
+                            © 2026 JMS TechNova Private Limited • Confidential
                         </td>
                     </tr>
 
@@ -1340,7 +1340,7 @@ email_html_templates["application_rejected"] = f"""
                     <!-- Logo -->
                     <tr>
                         <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                            <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                         </td>
                     </tr>
                     <!-- Separator -->
@@ -1353,7 +1353,7 @@ email_html_templates["application_rejected"] = f"""
                             <p style="margin:0 0 16px 0;">Dear <strong>{{candidate_name}}</strong>,</p>
                             
                             <p style="margin:0 0 20px 0;">
-                                Thank you for your interest in the <strong>{{job_title}}</strong> position at Knowcraft Analytics. We appreciate the time you took to apply and submit your resume.
+                                Thank you for your interest in the <strong>{{job_title}}</strong> position at JMS TechNova. We appreciate the time you took to apply and submit your resume.
                             </p>
                             
                             <p style="margin:0 0 20px 0;">
@@ -1367,18 +1367,18 @@ email_html_templates["application_rejected"] = f"""
                             </p>
                             
                             <p style="margin:0 0 20px 0;">
-                                Thank you again for your interest in Knowcraft Analytics. We wish you all the best in your career search.
+                                Thank you again for your interest in JMS TechNova. We wish you all the best in your career search.
                             </p>
                             
                             <p style="margin:20px 0 6px 0;color:#555555;">Best Regards,</p>
                             <p style="margin:0;font-weight:700;color:#1f2937;">Hiring Team</p>
-                            <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                         </td>
                     </tr>
                     <!-- Footer -->
                     <tr>
                         <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                            © 2026 Knowcraft Analytics Private Limited • Confidential
+                            © 2026 JMS TechNova Private Limited • Confidential
                         </td>
                     </tr>
                 </table>
@@ -1391,7 +1391,7 @@ email_html_templates["application_rejected"] = f"""
 
 email_alt_text["application_rejected"] = f"""Dear {{candidate_name}},
 
-Thank you for applying for the {{job_title}} position at Knowcraft Analytics.
+Thank you for applying for the {{job_title}} position at JMS TechNova.
 
 After careful review, we have decided to pursue other candidates whose experience more closely aligns with our current needs.
 
@@ -1401,7 +1401,7 @@ We appreciate your interest and encourage you to apply for other positions. We w
 
 Best regards,
 Hiring Team
-Knowcraft Analytics
+JMS TechNova
 """
 
 def send_rejection_notification(application, rejection_reason=""):

@@ -11,14 +11,14 @@ cancel_online_interview_template = """<html>
         <table align="center" width="100%" style="max-width:620px;margin:0 auto;">
             <tr><td align="center" style="padding:30px;">
                 <table width="100%" style="background:#fff;border-radius:12px;overflow:hidden;">
-                    <tr><td align="center" style="padding:40px;"><img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft" style="max-width:200px;"></td></tr>
+                    <tr><td align="center" style="padding:40px;"><img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="Knowcraft" style="max-width:200px;"></td></tr>
                     <tr><td style="padding:35px;color:#333;">
                         <h2>Interview Cancelled — {candidate.round_name}</h2>
                         <p>Dear {candidate.candidate_name},</p>
                         <p>We regret to inform you that your interview for <strong>{candidate.job.mrf.designation.name}</strong> scheduled at <strong>{candidate.interview_scheduled_at}</strong> has been cancelled.</p>
                         <p>Please contact HR for next steps.</p>
                         <br>
-                        <p>Warm regards,<br>Team-HR, Knowcraft Analytics</p>
+                        <p>Warm regards,<br>Team-HR, JMS TechNova</p>
                     </td></tr>
                 </table>
             </td></tr>
@@ -46,7 +46,7 @@ cancel_offline_interview_template = """
                         
                         <tr>
                             <td align="center" style="padding:30px;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" style="max-width:250px;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" style="max-width:250px;">
                             </td>
                         </tr>
 
@@ -95,14 +95,14 @@ Kindly ensure you join the interview on time using a laptop/desktop.
 
 Warm regards,
 Team-HR
-Knowcraft Analytics"""
+JMS TechNova"""
 
 reschedule_online_interview_template = """<html>
     <body style="font-family:Arial,sans-serif;background-color:#f4f4f7;margin:0;padding:0;">
         <table align="center" width="100%" style="max-width:620px;margin:0 auto;">
             <tr><td align="center" style="padding:30px;">
                 <table width="100%" style="background:#fff;border-radius:12px;overflow:hidden;">
-                    <tr><td align="center" style="padding:40px;"><img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft" style="max-width:200px;"></td></tr>
+                    <tr><td align="center" style="padding:40px;"><img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="Knowcraft" style="max-width:200px;"></td></tr>
                     <tr><td style="padding:35px;color:#333;">
                         <h2>Interview Rescheduled — {candidate.round_name}</h2>
                         <p>Dear {candidate.candidate_name},</p>
@@ -112,7 +112,7 @@ reschedule_online_interview_template = """<html>
                         </p>
                         <p>Please join on time using a laptop/desktop for a smooth experience.</p>
                         <br>
-                        <p>Warm regards,<br>Team-HR, Knowcraft Analytics</p>
+                        <p>Warm regards,<br>Team-HR, JMS TechNova</p>
                     </td></tr>
                 </table>
             </td></tr>
@@ -147,7 +147,7 @@ reschedule_offline_interview_template = """
                         <!-- Logo -->
                         <tr>
                             <td align="center" style="padding:35px;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" style="max-width:260px;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" style="max-width:260px;">
                             </td>
                         </tr>
 
@@ -205,7 +205,7 @@ reschedule_offline_interview_candidate_template = """
                         
                         <tr>
                             <td align="center" style="padding:35px;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" style="max-width:260px;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" style="max-width:260px;">
                             </td>
                         </tr>
 
@@ -260,7 +260,7 @@ Kindly report 10–15 minutes before the scheduled time.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited"""
+JMS TechNova Private Limited"""
 
 cancel_offline_interview_candidate_template = """
     <html>
@@ -272,7 +272,7 @@ cancel_offline_interview_candidate_template = """
                         
                         <tr>
                             <td align="center" style="padding:35px;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" style="max-width:260px;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" style="max-width:260px;">
                             </td>
                         </tr>
 
@@ -323,7 +323,7 @@ If applicable, we will inform you of the next steps.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited"""
+JMS TechNova Private Limited"""
 
 attendees_update_template = """
         <html>
@@ -336,7 +336,7 @@ attendees_update_template = """
                             <!-- Logo -->
                             <tr>
                                 <td align="center" style="padding:35px;">
-                                    <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" style="max-width:260px;">
+                                    <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" style="max-width:260px;">
                                 </td>
                             </tr>
 
@@ -415,7 +415,7 @@ attendees_update_online_template = """
                         <!-- Logo -->
                         <tr>
                             <td align="center" style="padding:35px;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" style="max-width:260px;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" style="max-width:260px;">
                             </td>
                         </tr>
 
@@ -481,7 +481,7 @@ attendees_update_interviewer_template = """
                             
                             <tr>
                                 <td align="center" style="padding:30px;">
-                                    <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" style="max-width:250px;">
+                                    <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" style="max-width:250px;">
                                 </td>
                             </tr>
 
@@ -545,7 +545,7 @@ reschedule_online_interview_extra_template = """
                         <!-- Logo -->
                         <tr>
                             <td align="center" style="padding:35px;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" style="max-width:260px;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" style="max-width:260px;">
                             </td>
                         </tr>
 
@@ -614,7 +614,7 @@ reschedule_offline_interview_extra_template = """
                         <!-- Logo -->
                         <tr>
                             <td align="center" style="padding:35px;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" style="max-width:260px;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" style="max-width:260px;">
                             </td>
                         </tr>
 
@@ -676,7 +676,7 @@ cancel_offline_interview_extra_template = """
                         
                         <tr>
                             <td align="center" style="padding:35px;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" style="max-width:260px;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" style="max-width:260px;">
                             </td>
                         </tr>
 
@@ -736,7 +736,7 @@ cancel_online_interview_extra_template = """
                         
                         <tr>
                             <td align="center" style="padding:35px;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" style="max-width:260px;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" style="max-width:260px;">
                             </td>
                         </tr>
 
@@ -812,7 +812,7 @@ def get_interviewer_email_template(action, candidate, interviewer, start_str, me
                         <!-- Logo -->
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <!-- Separator -->
@@ -841,13 +841,13 @@ def get_interviewer_email_template(action, candidate, interviewer, start_str, me
         <br>
         <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
         <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-        <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+        <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
         </td>
         </tr>
         <!-- Footer -->
         <tr>
             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                © 2026 Knowcraft Analytics Private Limited • Confidential
+                © 2026 JMS TechNova Private Limited • Confidential
             </td>
         </tr>
         </table>

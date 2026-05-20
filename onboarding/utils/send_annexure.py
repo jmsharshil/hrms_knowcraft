@@ -24,7 +24,7 @@ def send_salary_annexure_email(annexure, requested_by):
                         <!-- Logo -->
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <!-- Separator -->
@@ -154,14 +154,14 @@ def send_salary_annexure_email(annexure, requested_by):
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">{requested_by.name}</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Recruitment Team<br>Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Recruitment Team<br>JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         
                         <!-- Footer -->
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -254,7 +254,7 @@ Kindly review and approve / reject the annexure at the earliest.
 Regards,
 {requested_by.name}
 Recruitment Team
-Knowcraft Analytics Private Limited
+JMS TechNova Private Limited
 """
         if approver.phone:
             send_text(to=approver.phone,text=whatsapp_text)

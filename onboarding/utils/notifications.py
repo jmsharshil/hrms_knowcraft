@@ -23,19 +23,19 @@ _NOTIFICATION_MAP: dict[str, dict[str, Any]] = {
     "received": {
         "email": {
             "subject": "Application Received - Thank You",
-            "text": "Thank you for applying to Knowcraft Analytics. Your application has been successfully received and is now under review by our HR team.",
+            "text": "Thank you for applying to JMS TechNova. Your application has been successfully received and is now under review by our HR team.",
         },
-        "sms": "Thank you for applying to Knowcraft Analytics. Your application has been received and is under review.",
+        "sms": "Thank you for applying to JMS TechNova. Your application has been received and is under review.",
         "log": "Application acknowledgment sent to {candidate.candidate_email}",
     },
     "duplicate_rejected": {
         "email": {
             "subject": "Duplicate Application Notification",
-            "text": "Thank you for your interest in Knowcraft Analytics. We have already received a recent application from you. As per our duplicate application policy, this submission cannot be processed further.",
+            "text": "Thank you for your interest in JMS TechNova. We have already received a recent application from you. As per our duplicate application policy, this submission cannot be processed further.",
         },
         "sms": """Dear {candidate.candidate_name},
 
-Thank you for your interest in opportunities with Knowcraft Analytics.
+Thank you for your interest in opportunities with JMS TechNova.
 
 Our records indicate that a recent application has already been received from you. As per our duplicate application policy, we are unable to process this submission further at this time.
 
@@ -43,7 +43,7 @@ You are welcome to apply again after a reasonable period.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
         "log": "Duplicate rejection sent to {candidate.candidate_email}",
     },
 
@@ -55,7 +55,7 @@ Knowcraft Analytics Private Limited""",
             "subject": "You Have Been Shortlisted",
             "text": "We are pleased to inform you that your profile has been shortlisted for the next stage of our selection process.",
         },
-        "sms": "Congratulations! Your profile has been shortlisted for the next stage at Knowcraft Analytics.",
+        "sms": "Congratulations! Your profile has been shortlisted for the next stage at JMS TechNova.",
         "log": "Shortlisting notification sent to {candidate.candidate_email}",
         "schedule_link": True
     },
@@ -82,7 +82,7 @@ Knowcraft Analytics Private Limited""",
         },
         "sms": """Dear {candidate.candidate_name},
 
-Greetings from Knowcraft Analytics.
+Greetings from JMS TechNova.
 
 Thank you for taking the time to participate in the HR round of our interview process.
 
@@ -92,7 +92,7 @@ We sincerely appreciate your interest and wish you every success in your future 
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
         "log": "Interview round 1 rejection sent to {candidate.candidate_email}",
     },
     "interview_next_2": {
@@ -127,7 +127,7 @@ Knowcraft Analytics Private Limited""",
         },
         "sms": """Dear {candidate.candidate_name},
 
-Greetings from Knowcraft Analytics.
+Greetings from JMS TechNova.
 
 Thank you for participating in the Technical Round of our interview process.
 
@@ -137,7 +137,7 @@ We encourage you to explore future opportunities with us and wish you continued 
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
         "log": "Interview rejection for round 2 sent to {candidate.candidate_email}",
     },
     "interview_next_3": {
@@ -170,7 +170,7 @@ Knowcraft Analytics Private Limited""",
             "subject": "Case Study Round Outcome",
             "text": """Dear {candidate.candidate_name},
 
-Greetings from Knowcraft Analytics.
+Greetings from JMS TechNova.
 
 Thank you for participating in the Case Study Round of our interview process.
 
@@ -180,7 +180,7 @@ We wish you the very best for your professional journey ahead.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
         },
         "sms": "Thank you for the Case Study round. We will not be moving forward with your application.",
         "log": "Interview rejection for round 3 sent to {candidate.candidate_email}",
@@ -217,7 +217,7 @@ Knowcraft Analytics Private Limited""",
         },
         "sms": """Dear {candidate.candidate_name},
 
-Greetings from Knowcraft Analytics.
+Greetings from JMS TechNova.
 
 Thank you for taking the time to participate in the Final Round of our selection process.
 
@@ -227,7 +227,7 @@ We wish you success in all your future endeavors.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
         "log": "Interview rejection for final round sent to {candidate.candidate_email}",
     },
     "interview_next_management_client": {
@@ -262,7 +262,7 @@ Knowcraft Analytics Private Limited""",
         },
         "sms": """Dear {candidate.candidate_name},
 
-Greetings from Knowcraft Analytics.
+Greetings from JMS TechNova.
 
 Thank you for participating in the Management / Client Round of our interview process.
 
@@ -272,7 +272,7 @@ We encourage you to stay connected for future opportunities and wish you continu
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
         "log": "Interview rejection for management client round sent to {candidate.candidate_email}",
     },
 
@@ -287,17 +287,17 @@ Knowcraft Analytics Private Limited""",
         "sms": """Dear {candidate.candidate_name},
 Congratulations! 🎉
 
-We are pleased to inform you that you have been selected for the position of *{candidate.job.mrf.designation.name}* at Knowcraft Analytics after successfully completing all interview rounds.
+We are pleased to inform you that you have been selected for the position of *{candidate.job.mrf.designation.name}* at JMS TechNova after successfully completing all interview rounds.
 
 Our team was impressed with your skills and performance, and we look forward to having you onboard.
 
 Our HR team will connect with you shortly to share the offer details and next steps.
 
-Congratulations once again and welcome to Knowcraft Analytics!
+Congratulations once again and welcome to JMS TechNova!
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
         "log": "Selection notification sent to {candidate.candidate_email}",
     },
     "approval_pending": {
@@ -430,7 +430,7 @@ Knowcraft Analytics Private Limited""",
     "offer_rejected": {
         "email": {
             "subject": "Offer Declined",
-            "text": "We note that you have declined the offer. Your application has been closed. Thank you for considering Knowcraft Analytics.",
+            "text": "We note that you have declined the offer. Your application has been closed. Thank you for considering JMS TechNova.",
         },
         "sms": "You have declined the offer. Your application is now closed.",
         "log": "Offer rejection notification sent to {candidate.candidate_email}",
@@ -490,7 +490,7 @@ Knowcraft Analytics Private Limited""",
         },
         "sms": """Dear {candidate.candidate_name},
 
-Greetings from Knowcraft Analytics!
+Greetings from JMS TechNova!
 
 Congratulations on your selection. We are excited to move forward with your onboarding process.
 
@@ -514,7 +514,7 @@ Feel free to reach out in case of any questions.
 
 Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
         "log": "Document upload request sent to {candidate.candidate_email}",
     },
     "docs_uploaded": {
@@ -540,7 +540,7 @@ Knowcraft Analytics Private Limited""",
         },
         "sms": """Dear {candidate.candidate_name},
 
-Greetings from Knowcraft Analytics.
+Greetings from JMS TechNova.
 
 Thank you for submitting your documents as part of the recruitment process.
 
@@ -554,7 +554,7 @@ If you need any assistance, please feel free to reach out to us.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
         "log": "Documents unclear notification sent to {candidate.candidate_email}",
     },
     "docs_incomplete": {
@@ -564,7 +564,7 @@ Knowcraft Analytics Private Limited""",
         },
         "sms": """Dear {candidate.candidate_name},
 
-Greetings from Knowcraft Analytics.
+Greetings from JMS TechNova.
 
 Thank you for submitting your documents as part of the recruitment process.
 
@@ -578,7 +578,7 @@ If you need any assistance, please feel free to reach out to us.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
         "log": "Documents incomplete notification sent to {candidate.candidate_email}",
     },
     "docs_approved": {
@@ -604,11 +604,11 @@ We are pleased to inform you that your joining process has been initiated.
 
 Our HR team will share further details and next steps with you shortly.
 
-We look forward to welcoming you to Knowcraft Analytics.
+We look forward to welcoming you to JMS TechNova.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
         "log": "Joining pending notification sent to {candidate.candidate_email}",
     },
     "joining_poned": {
@@ -621,10 +621,10 @@ Knowcraft Analytics Private Limited""",
     },
     "joined": {
         "email": {
-            "subject": "Welcome to Knowcraft Analytics!",
-            "text": "Congratulations! You have successfully joined Knowcraft Analytics. We look forward to your valuable contribution.",
+            "subject": "Welcome to JMS TechNova!",
+            "text": "Congratulations! You have successfully joined JMS TechNova. We look forward to your valuable contribution.",
         },
-        "sms": "Welcome to Knowcraft Analytics! Congratulations on joining the team.",
+        "sms": "Welcome to JMS TechNova! Congratulations on joining the team.",
         "log": "Joining confirmation sent to {candidate.candidate_email}",
     },
 
@@ -634,11 +634,11 @@ Knowcraft Analytics Private Limited""",
     "rejected": {
         "email": {
             "subject": "Application Closed",
-            "text": "We thank you for your interest in Knowcraft Analytics. Your application has been closed at this stage.",
+            "text": "We thank you for your interest in JMS TechNova. Your application has been closed at this stage.",
         },
         "sms": """Dear {candidate.candidate_name},
 
-Thank you for your interest in opportunities with Knowcraft Analytics.
+Thank you for your interest in opportunities with JMS TechNova.
 
 We regret to inform you that your application has been closed at this stage.
 
@@ -646,12 +646,12 @@ We appreciate the time you invested and wish you success in your future opportun
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
         "log": "Final rejection sent to {candidate.candidate_email}",
     },
     "candidate_feedback": {
         "email": {
-            "subject": "Candidate Experience Feedback - Knowcraft Analytics",
+            "subject": "Candidate Experience Feedback - JMS TechNova",
             "text": "Thank you for your time during our recruitment process. We'd love to hear about your experience.",
         },
         "sms": "Dear {candidate.candidate_name},\n\nThank you for your time during our recruitment process. We'd love to hear about your experience.\nPlease fill the feedback form:\n {FRONTEND_URL}/candidate/feedback/{candidate.id}",
@@ -873,7 +873,7 @@ Please proceed with the next steps in the hiring process.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
     },
     "interview_next_2": {
         "receivers": ["interviewer","hr"],
@@ -887,7 +887,7 @@ Please proceed with the next stage of the hiring process.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
     },
     "interview_next_3": {
         "receivers": ["interviewer","hr"],
@@ -901,7 +901,7 @@ Please proceed with the next stage.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
     },
     "interview_next_final": {
         "receivers": ["interviewer","hr"],
@@ -915,7 +915,7 @@ Please proceed with the next stage.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
     },
     "interview_rejected_1": {
         "receivers": ["interviewer",'referral'],
@@ -927,7 +927,7 @@ The candidate {candidate.candidate_name} has been rejected following the HR inte
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
     },
     "interview_rejected_2": {
         "receivers": ["interviewer",'referral'],
@@ -939,7 +939,7 @@ The candidate {candidate.candidate_name} has been rejected following the Technic
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
     },
     "interview_rejected_3": {
         "receivers": ["interviewer",'referral'],
@@ -951,7 +951,7 @@ The candidate {candidate.candidate_name} has been rejected following the Case St
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
     },
     "interview_rejected_final": {
         "receivers": ["interviewer",'referral'],
@@ -963,7 +963,7 @@ The candidate {candidate.candidate_name} has been rejected following the Final i
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
     },
     "interview_pending_management_client": {
         "receivers": ["interviewer"],
@@ -983,7 +983,7 @@ Please proceed with the next stage.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
     },
     "interview_rejected_management_client": {
         "receivers": ["interviewer", "referral"],
@@ -995,7 +995,7 @@ The candidate {candidate.candidate_name} has been rejected following the Managem
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
     },
     "approval_pending": {
         "receivers": ["department_head"],
@@ -1021,7 +1021,7 @@ Please take the necessary action to close the process.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
     },
     # "salary_docs_uploaded": {
     #     "receivers": ["hr"],
@@ -1073,7 +1073,7 @@ Kindly let us know if any additional details are required.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
     },
     "offer_rejected": {
         "receivers": ["consultancy","hr","hr_manager"],
@@ -1089,7 +1089,7 @@ Kindly let us know if any additional information is required.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
     },
     # "resignation_uploaded": {
     #     "receivers": ["hr"],
@@ -1111,7 +1111,7 @@ Please let us know if any additional information is required.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
     },
     "joining_pending": {
         "receivers": ["hr", "internal_team", "admin", "department_head"],
@@ -1133,7 +1133,7 @@ Please let us know if any follow-up is required.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
     },
     "joined": {
         "receivers": ["hr", "internal_team", "admin", "department_head", "consultancy", "referer"],
@@ -1143,11 +1143,11 @@ Knowcraft Analytics Private Limited""",
 
 We are pleased to inform you that {candidate.candidate_name} has successfully joined the organization.
 
-We wish them a successful journey with Knowcraft Analytics.
+We wish them a successful journey with JMS TechNova.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
     },
     "duplicate_rejected": {
         "receivers": ["consultancy"],
@@ -1167,7 +1167,7 @@ This concludes the hiring process for this profile.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited""",
+JMS TechNova Private Limited""",
     },
 }
 

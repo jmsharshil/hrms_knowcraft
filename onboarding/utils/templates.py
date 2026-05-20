@@ -14,7 +14,7 @@ HTML_TEMPLATES = {
                         <!-- Logo -->
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <!-- Separator -->
@@ -24,13 +24,13 @@ HTML_TEMPLATES = {
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Application Status Update</h2>
                                 <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
-                                <p style="margin:0 0 16px 0;">Thank you for your interest in opportunities with Knowcraft Analytics.</p>
+                                <p style="margin:0 0 16px 0;">Thank you for your interest in opportunities with JMS TechNova.</p>
                                 <p style="margin:0 0 16px 0;">Our records indicate that a recent application has already been received from you. As per our duplicate application policy, we are unable to process this submission further at this time.</p>
                                 <p style="margin:0 0 16px 0;">You are welcome to apply again in the future after a reasonable period.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -50,21 +50,21 @@ HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
                         <tr>
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
                                 <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
-                                <p style="margin:0 0 16px 0;">Greetings from Knowcraft Analytics!</p>
+                                <p style="margin:0 0 16px 0;">Greetings from JMS TechNova!</p>
                                 <p style="margin:0 0 16px 0;">Thank you for taking the time to participate in the HR round of our interview process.</p>
                                 <p style="margin:0 0 16px 0;">After careful consideration, we regret to inform you that we will not be proceeding with your application further at this stage. While we were impressed with your profile, we had to make a difficult decision based on current requirements.</p>
                                 <p style="margin:0 0 16px 0;">We sincerely appreciate your interest in joining our organization and wish you every success in your future endeavors.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -84,21 +84,21 @@ HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
                         <tr>
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
                                 <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
-                                <p style="margin:0 0 16px 0;">Greetings from Knowcraft Analytics!</p>
+                                <p style="margin:0 0 16px 0;">Greetings from JMS TechNova!</p>
                                 <p style="margin:0 0 16px 0;">Thank you for participating in the <b>Technical Round</b> of our interview process.</p>
                                 <p style="margin:0 0 16px 0;">Following a thorough evaluation, we regret to inform you that we will not be moving forward with your application. We truly value the time and effort you invested in the process.</p>
                                 <p style="margin:0 0 16px 0;">We encourage you to explore future opportunities with us and wish you continued success in your career.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -118,21 +118,21 @@ HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
                         <tr>
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
                                 <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
-                                <p style="margin:0 0 16px 0;">Greetings from Knowcraft Analytics!</p>
+                                <p style="margin:0 0 16px 0;">Greetings from JMS TechNova!</p>
                                 <p style="margin:0 0 16px 0;">Thank you for participating in the <b>Case Study Round</b> of our interview process.</p>
                                 <p style="margin:0 0 16px 0;">After careful consideration, we regret to inform you that we will not be proceeding further with your application. We sincerely appreciate your effort and interest in our organization.</p>
                                 <p style="margin:0 0 16px 0;">We wish you the very best for your professional journey ahead.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -152,21 +152,21 @@ HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
                         <tr>
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
                                 <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
-                                <p style="margin:0 0 16px 0;">Greetings from Knowcraft Analytics!</p>
+                                <p style="margin:0 0 16px 0;">Greetings from JMS TechNova!</p>
                                 <p style="margin:0 0 16px 0;">Thank you for taking the time to participate in the <b>Final Round</b> of our selection process.</p>
                                 <p style="margin:0 0 16px 0;">After comprehensive evaluation, we regret to inform you that we will not be moving forward with your application. This was a competitive process, and we appreciate your interest and engagement throughout.</p>
                                 <p style="margin:0 0 16px 0;">We wish you success in all your future endeavors.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -186,21 +186,21 @@ HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
                         <tr>
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
                                 <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
-                                <p style="margin:0 0 16px 0;">Greetings from Knowcraft Analytics!</p>
+                                <p style="margin:0 0 16px 0;">Greetings from JMS TechNova!</p>
                                 <p style="margin:0 0 16px 0;">Thank you for participating in the <b>Management / Client Round</b> of our interview process.</p>
                                 <p style="margin:0 0 16px 0;">Following detailed discussions and evaluation, we regret to inform you that we will not be progressing further with your application. We greatly appreciate the time and effort you invested in meeting with our team.</p>
                                 <p style="margin:0 0 16px 0;">We encourage you to stay connected for future opportunities and wish you continued success.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -220,7 +220,7 @@ HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -230,11 +230,11 @@ HTML_TEMPLATES = {
                                 <p style="margin:0 0 16px 0;">We are pleased to inform you that you have been selected for the position of <b>{{candidate.job.mrf.designation.name}}</b> after successfully completing all interview rounds.</p>
                                 <p style="margin:0 0 16px 0;">The team was impressed with your skills and performance, and we look forward to having you onboard.</p>
                                 <p style="margin:0 0 16px 0;">Our HR team will reach out shortly with the offer details and next steps.</p>
-                                <p style="margin:0 0 16px 0;color:#10b981;font-weight:600;">Congratulations once again, and welcome to Knowcraft Analytics!</p>
+                                <p style="margin:0 0 16px 0;color:#10b981;font-weight:600;">Congratulations once again, and welcome to JMS TechNova!</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -254,7 +254,7 @@ HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -268,7 +268,7 @@ HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -288,7 +288,7 @@ HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -296,13 +296,13 @@ HTML_TEMPLATES = {
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Application Update</h2>
                                 <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
-                                <p style="margin:0 0 16px 0;">Thank you for your interest in opportunities with Knowcraft Analytics.</p>
+                                <p style="margin:0 0 16px 0;">Thank you for your interest in opportunities with JMS TechNova.</p>
                                 <p style="margin:0 0 16px 0;">After careful review, the hiring team has decided not to proceed with your profile at this stage.</p>
                                 <p style="margin:0 0 16px 0;">We appreciate the time and effort you invested during the process and wish you continued success in your career.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -322,14 +322,14 @@ HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
                         <tr>
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
                                 <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
-                                <p style="margin:0 0 16px 0;">Greetings from Knowcraft Analytics!</p>
+                                <p style="margin:0 0 16px 0;">Greetings from JMS TechNova!</p>
                                 <p style="margin:0 0 22px 0;">Congratulations on being selected to join our organization. We are excited about the opportunity to work together.</p>
                                 <p style="margin:0 0 20px 0;">To proceed further with your onboarding process, we kindly request you to upload the required documents using the link below.</p>
                                 
@@ -375,7 +375,7 @@ HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -395,7 +395,7 @@ HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -405,11 +405,11 @@ HTML_TEMPLATES = {
                                 <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
                                 <p style="margin:0 0 16px 0;">We are pleased to inform you that your joining process has been initiated.</p>
                                 <p style="margin:0 0 16px 0;">Our HR team will be sharing further details and next steps with you shortly.</p>
-                                <p style="margin:0 0 16px 0;">We look forward to welcoming you to Knowcraft Analytics.</p>
+                                <p style="margin:0 0 16px 0;">We look forward to welcoming you to JMS TechNova.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -429,7 +429,7 @@ HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -437,13 +437,13 @@ HTML_TEMPLATES = {
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Application Update</h2>
                                 <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
-                                <p style="margin:0 0 16px 0;">Thank you for your interest in opportunities with Knowcraft Analytics.</p>
+                                <p style="margin:0 0 16px 0;">Thank you for your interest in opportunities with JMS TechNova.</p>
                                 <p style="margin:0 0 16px 0;">We regret to inform you that your application has been closed at this stage.</p>
                                 <p style="margin:0 0 16px 0;">We appreciate the time you invested and wish you success in your future opportunities.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -463,14 +463,14 @@ HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
                         <tr>
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
                                 <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
-                                <p style="margin:0 0 16px 0;">Greetings from Knowcraft Analytics!</p>
+                                <p style="margin:0 0 16px 0;">Greetings from JMS TechNova!</p>
                                 <p style="margin:0 0 16px 0;">Thank you for submitting your documents as part of the recruitment process.</p>
                                 <p style="margin:0 0 16px 0;">Upon review, we noticed that some of the submitted documents are incomplete or unclear. We kindly request you to re-upload the required documents.</p>
                                 
@@ -484,7 +484,7 @@ HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -504,14 +504,14 @@ HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
                         <tr>
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
                                 <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
-                                <p style="margin:0 0 16px 0;">Greetings from Knowcraft Analytics!</p>
+                                <p style="margin:0 0 16px 0;">Greetings from JMS TechNova!</p>
                                 <p style="margin:0 0 16px 0;">Thank you for submitting your documents as part of the recruitment process.</p>
                                 <p style="margin:0 0 16px 0;">Upon review, we noticed that some documents are incomplete or unclear. We kindly request you to re-upload the required documents.</p>
                                 
@@ -525,7 +525,7 @@ HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                     </table>
@@ -544,7 +544,7 @@ HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -552,7 +552,7 @@ HTML_TEMPLATES = {
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">We'd Love to Hear From You!</h2>
                                 <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
-                                <p style="margin:0 0 16px 0;">Thank you for your interest in Knowcraft Analytics and for the time you've invested in our recruitment process.</p>
+                                <p style="margin:0 0 16px 0;">Thank you for your interest in JMS TechNova and for the time you've invested in our recruitment process.</p>
                                 <p style="margin:0 0 16px 0;">We are constantly striving to improve our candidate experience, and your feedback is incredibly valuable to us. We would appreciate it if you could take a few moments to share your thoughts on your journey with us so far.</p>
                                 
                                 <p style="margin:30px 0 35px 0;text-align:center;">
@@ -565,12 +565,12 @@ HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -594,7 +594,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                         <!-- Logo -->
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <!-- Separator -->
@@ -608,13 +608,13 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <!-- Footer -->
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -634,7 +634,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -646,12 +646,12 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -671,7 +671,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -683,12 +683,12 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -708,7 +708,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -720,12 +720,12 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -745,7 +745,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -757,12 +757,12 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -782,7 +782,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -795,12 +795,12 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -820,7 +820,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -833,12 +833,12 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -858,7 +858,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -871,12 +871,12 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -896,7 +896,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -909,12 +909,12 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -934,7 +934,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -947,12 +947,12 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -972,7 +972,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -985,12 +985,12 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -1010,7 +1010,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -1023,12 +1023,12 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -1048,7 +1048,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -1061,12 +1061,12 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -1086,7 +1086,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -1099,12 +1099,12 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -1124,7 +1124,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -1133,16 +1133,16 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Candidate Joined Successfully</h2>
                                 <p style="margin:0 0 16px 0;">Dear Team,</p>
                                 <p style="margin:0 0 16px 0;">We are pleased to inform you that <strong>{{candidate.candidate_name}}</strong> has successfully joined the organization.</p>
-                                <p style="margin:0 0 16px 0;">We wish them a successful journey with Knowcraft Analytics.</p>
+                                <p style="margin:0 0 16px 0;">We wish them a successful journey with JMS TechNova.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -1162,7 +1162,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -1175,12 +1175,12 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -1200,7 +1200,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -1213,12 +1213,12 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -1238,7 +1238,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
@@ -1251,12 +1251,12 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -1276,7 +1276,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                         <!-- Logo -->
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <!-- Separator -->
@@ -1305,13 +1305,13 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <!-- Footer -->
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>
@@ -1331,7 +1331,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                         <!-- Logo -->
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <!-- Separator -->
@@ -1360,13 +1360,13 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <!-- Footer -->
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                © 2026 JMS TechNova Private Limited • Confidential
                             </td>
                         </tr>
                     </table>

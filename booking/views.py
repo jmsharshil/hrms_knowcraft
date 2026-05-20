@@ -238,13 +238,13 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
 
     if not is_private:
         send_email(
-            subject=f"Interview Scheduled – {candidate.job.mrf.designation.name} at Knowcraft Analytics Private Limited",
+            subject=f"Interview Scheduled – {candidate.job.mrf.designation.name} at JMS TechNova Private Limited",
         text=f"""Dear {candidate.candidate_name},\nWe are pleased to inform you have been shortlisted for {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled at {start_str}.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
 \nWe look forward to speaking with you.
 \nPlease feel free to reach out if you have any questions or require further assistance.
 \nWarm regards,
 \nTeam-HR
-\nKnowcraft Analytics Private Limited""",
+\nJMS TechNova Private Limited""",
         template=f"""<html>
     <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
         <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
@@ -254,7 +254,7 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
                         <!-- Logo -->
                         <tr>
                             <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <!-- Separator -->
@@ -280,13 +280,13 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                             </td>
                         </tr>
                         <!-- Footer -->
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited
+                                © 2026 JMS TechNova Private Limited
                             </td>
                         </tr>
                     </table>
@@ -302,7 +302,7 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
 \nPlease feel free to reach out if you have any questions or require further assistance.
 \nWarm regards,
 \nTeam-HR
-\nKnowcraft Analytics Private Limited""")
+\nJMS TechNova Private Limited""")
     interviewer,created = Interviewer.objects.get_or_create(id=interviewer_id)
     if not is_private:
         send_email(
@@ -318,7 +318,7 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
                             <!-- Logo -->
                             <tr>
                                 <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                    <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                    <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                                 </td>
                             </tr>
                             <!-- Separator -->
@@ -356,13 +356,13 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
                                     <br>
                                     <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                     <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                    <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                    <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                                 </td>
                             </tr>
                             <!-- Footer -->
                             <tr>
                                 <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                    © 2026 Knowcraft Analytics Private Limited • Confidential
+                                    © 2026 JMS TechNova Private Limited • Confidential
                                 </td>
                             </tr>
                         </table>
@@ -392,7 +392,7 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
                                 <!-- Logo -->
                                 <tr>
                                     <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                        <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                                     </td>
                                 </tr>
                                 <!-- Separator -->
@@ -425,13 +425,13 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
                                         <br>
                                         <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                         <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                        <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                        <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                                     </td>
                                 </tr>
                                 <!-- Footer -->
                                 <tr>
                                     <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                        © 2026 Knowcraft Analytics Private Limited • Confidential
+                                        © 2026 JMS TechNova Private Limited • Confidential
                                     </td>
                                 </tr>
                             </table>
@@ -579,7 +579,7 @@ Team – HR""",
                                     <!-- Logo -->
                                     <tr>
                                         <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                            <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                            <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                                         </td>
                                     </tr>
                                     <!-- Separator -->
@@ -609,13 +609,13 @@ Team – HR""",
                                             <br>
                                             <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                             <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                            <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                            <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                                         </td>
                                     </tr>
                                     <!-- Footer -->
                                     <tr>
                                         <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                            © 2026 Knowcraft Analytics Private Limited • Confidential
+                                            © 2026 JMS TechNova Private Limited • Confidential
                                         </td>
                                     </tr>
                                 </table>
@@ -710,7 +710,7 @@ Kindly report 10-15 minutes before the scheduled time.
 
 Warm Regards,
 Team – HR
-Knowcraft Analytics Private Limited
+JMS TechNova Private Limited
     """,
             to=candidate.candidate_email,
             template=f"""
@@ -723,7 +723,7 @@ Knowcraft Analytics Private Limited
                                 <!-- Logo -->
                                 <tr>
                                     <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                        <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                                     </td>
                                 </tr>
                                 <!-- Separator -->
@@ -760,13 +760,13 @@ Knowcraft Analytics Private Limited
                                         <br>
                                         <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                         <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                        <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                        <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                                     </td>
                                 </tr>
                                 <!-- Footer -->
                                 <tr>
                                     <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                        © 2026 Knowcraft Analytics Private Limited • Confidential
+                                        © 2026 JMS TechNova Private Limited • Confidential
                                     </td>
                                 </tr>
                             </table>
@@ -816,7 +816,7 @@ Team – HR""",
                                 <!-- Logo -->
                                 <tr>
                                     <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                        <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                        <img src="https://hrmsknowcraftstorage.blob.core.windows.net/media/JMS.png" alt="JMS TechNova" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                                     </td>
                                 </tr>
                                 <!-- Separator -->
@@ -857,13 +857,13 @@ Team – HR""",
                                         <br>
                                         <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                         <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                        <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                        <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">JMS TechNova Private Limited.</p>
                                     </td>
                                 </tr>
                                 <!-- Footer -->
                                 <tr>
                                     <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                        © 2026 Knowcraft Analytics Private Limited • Confidential
+                                        © 2026 JMS TechNova Private Limited • Confidential
                                     </td>
                                 </tr>
                             </table>
@@ -1299,7 +1299,7 @@ class BranchWiseInterviewReportView(APIView):
 #                 send_document(to=booking.interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
 
 #             send_email(
-#                 subject=f"Interview Rescheduled – {candidate.job.mrf.designation.name} at Knowcraft Analytics",
+#                 subject=f"Interview Rescheduled – {candidate.job.mrf.designation.name} at JMS TechNova",
 #                 text=reschedule_online_interview_text.format(candidate=candidate,start_str=start_str),
 #                 template=reschedule_online_interview_template.format(candidate=candidate,start_str=start_str),
 #                 to=candidate.candidate_email
@@ -1394,7 +1394,7 @@ class BranchWiseInterviewReportView(APIView):
 #             )
 
 #             send_email(
-#                 subject=f"Interview Cancelled – {candidate.job.mrf.designation.name} at Knowcraft Analytics",
+#                 subject=f"Interview Cancelled – {candidate.job.mrf.designation.name} at JMS TechNova",
 #                 text=cancel_online_interview_text.format(candidate=candidate),
 #                 template=cancel_online_interview_template.format(candidate=candidate),
 #                 to=candidate.candidate_email
@@ -1726,7 +1726,7 @@ class ManageBookingView(APIView):
                 send_document(to=booking.interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
 
             send_email(
-                subject=f"Interview Rescheduled – {candidate.job.mrf.designation.name} at Knowcraft Analytics",
+                subject=f"Interview Rescheduled – {candidate.job.mrf.designation.name} at JMS TechNova",
                 text=reschedule_online_interview_text.format(candidate=candidate,start_str=start_str),
                 template=reschedule_online_interview_template.format(candidate=candidate,start_str=start_str),
                 to=candidate.candidate_email
@@ -1873,7 +1873,7 @@ class ManageBookingView(APIView):
             )
 
             send_email(
-                subject=f"Interview Cancelled – {candidate.job.mrf.designation.name} at Knowcraft Analytics",
+                subject=f"Interview Cancelled – {candidate.job.mrf.designation.name} at JMS TechNova",
                 text=cancel_online_interview_text.format(candidate=candidate),
                 template=cancel_online_interview_template.format(candidate=candidate),
                 to=candidate.candidate_email
