@@ -792,6 +792,9 @@ class ReferralApplication(models.Model):
     referral_department = models.CharField(null=True,blank=True)
     position_title = models.CharField(null=True,blank=True)
     
+    is_touched = models.BooleanField(default=False, help_text="Has the candidate been touched at least once?")
+    touched_at = models.DateTimeField(null=True, blank=True, help_text="When was the candidate last touched?")
+    
     class Meta:
         db_table = 'referral_applications'
         ordering = ['-created_at']
@@ -860,6 +863,9 @@ class Application(models.Model):
     is_rejected = models.BooleanField(default=False)
     rejected_by = models.ForeignKey("accounts.user",on_delete=models.SET_NULL,null=True,blank=True)
     rejection_reason = models.TextField(null=True,blank=True)
+
+    is_touched = models.BooleanField(default=False, help_text="Has the candidate been touched at least once?")
+    touched_at = models.DateTimeField(null=True, blank=True, help_text="When was the candidate last touched?")
 
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now)

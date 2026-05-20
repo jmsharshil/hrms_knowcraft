@@ -54,7 +54,7 @@ INSTALLED_APPS = [
     'slots',
     'booking',
     'dashboard',
-    # 'bgv',
+    'bgv',
 ]
 
 MIDDLEWARE = [
@@ -360,14 +360,14 @@ DOCUSIGN_AUTH_SERVER = "account-d.docusign.com"
 DOCUSIGN_BASE_URL = "https://demo.docusign.net/restapi"
 DOCUSIGN_TEMPLATE_ID ="b2959f26-b5c3-4268-928b-422347796b31"
 
-# ONGRID_CLIENT_ID = os.getenv("ONGRID_CLIENT_ID","")
-# ONGRID_SECRET = os.getenv("ONGRID_SECRET","")
-# ONGRID_COMMUNITY_ID = os.getenv("ONGRID_COMMUNITY_ID","")
+ONGRID_CLIENT_ID = os.getenv("ONGRID_CLIENT_ID","")
+ONGRID_SECRET = os.getenv("ONGRID_SECRET","")
+ONGRID_COMMUNITY_ID = os.getenv("ONGRID_COMMUNITY_ID","")
 
-# ONGRID_PROFESSION_ID = os.getenv("ONGRID_PROFESSION_ID","")
-# ONGRID_WEBHOOK_SECRET = os.getenv("ONGRID_WEBHOOK_SECRET","")
+ONGRID_PROFESSION_ID = os.getenv("ONGRID_PROFESSION_ID","")
+ONGRID_WEBHOOK_SECRET = os.getenv("ONGRID_WEBHOOK_SECRET","")
 
-# ONGRID_CONSENT_TEXT = """
-# I hereby authorize the company and OnGrid
-# to conduct background verification checks.
-# """
+ONGRID_CONSENT_TEXT = """
+I hereby authorize the company and OnGrid
+to conduct background verification checks.
+"""

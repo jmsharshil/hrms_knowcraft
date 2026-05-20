@@ -134,12 +134,14 @@ def automation_engine(candidate, old, new):
     elif new == 'joined':
         job = candidate.job
         if job:
-            job.status = 'filled'
-            job.positions_filled += 1
+            if job.positions_filled < job.no_of_positions:
+                job.positions_filled += 1
+            if job.positions_filled >= job.no_of_positions:
+                job.status = 'filled'
+                if job.mrf and job.mrf.status != 'filled':
+                    job.mrf.status = 'filled'
+                    job.mrf.save(update_fields=['status'])
             job.save(update_fields=['status', 'positions_filled'])
-            if job.mrf and job.mrf.status != 'filled':
-                job.mrf.status = 'filled'
-                job.mrf.save(update_fields=['status'])
 
     # 2️⃣ Validate transition (for notifications and auto-next)
     ok, reason = validate_transition(old, new)
@@ -171,9 +173,9 @@ def automation_engine(candidate, old, new):
         "interview_rejected_3",
         "interview_rejected_final",
         "interview_rejected_management_client",
-        "approval_rejected",
-        "rejected",
-        "offer_rejected",
+        # "approval_rejected",
+        # "rejected",
+        # "offer_rejected",
     }
     
     if new in FEEDBACK_REJECTION_STATES:

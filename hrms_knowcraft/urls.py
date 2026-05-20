@@ -31,6 +31,7 @@ urlpatterns = [
     path("api/booking/", include("booking.urls")),
     path('api/',include('support.urls')),
     path('api/dashboard/', include('dashboard.urls')),
+    path('api/bgv/', include('bgv.urls')),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
