@@ -2158,21 +2158,6 @@ class BaseAnalyticsView(APIView):
             sent_at__gte=thirty_days_ago
         ).count()
 
-        # Joining Pending in next 30 / 60 days
-        from datetime import date
-        today = date.today()
-        joining_pending_qs = app_qs.filter(
-            status='joining_pending',
-            joining_date__isnull=False,
-            joining_date__gte=today,
-        )
-        section8['joining_pending_next_30_days'] = joining_pending_qs.filter(
-            joining_date__lte=today + timedelta(days=30)
-        ).count()
-        section8['joining_pending_next_60_days'] = joining_pending_qs.filter(
-            joining_date__lte=today + timedelta(days=60)
-        ).count()
-
         return section8
 
     def get_sections(self):
@@ -2196,12 +2181,30 @@ class BaseAnalyticsView(APIView):
         referral_count = referral_qs.filter(is_touched=False).count()
         combined_count = direct_count + platform_count + referral_count
 
+        # Joining Pending in next 30 / 60 days
+        from datetime import date
+        today = date.today()
+        joining_pending_qs = app_qs.filter(
+            status='joining_pending',
+            joining_date__isnull=False,
+            joining_date__gte=today,
+        )
+        joining_pending_next_30_days = joining_pending_qs.filter(
+            joining_date__lte=today + timedelta(days=30)
+        ).count()
+        joining_pending_next_60_days = joining_pending_qs.filter(
+            joining_date__lte=today + timedelta(days=60)
+        ).count()
+
+
         return {
             "total_mrfs": mrf_qs.count(),
             "total_mrfs_on_hold": mrf_qs.filter(status='on_hold').count(),
             "total_jobs": jobs_for_count.count(),
             "total_jobs_on_hold": jobs_for_count.filter(status='on_hold').count(),
             "total_combined_cv_count": combined_count,
+            "joining_pending_next_30_days": joining_pending_next_30_days,
+            "joining_pending_next_60_days": joining_pending_next_60_days,
             "cv_counts": {
                 "direct_applications": direct_count,
                 "platform_applications": platform_count,
