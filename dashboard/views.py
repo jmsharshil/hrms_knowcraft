@@ -970,10 +970,10 @@ class BaseAnalyticsView(APIView):
         selected_st = ['selected'] + approval_pending_st
         
         # Management / Client Round (Optional)
-        # Uses explicit statuses + any candidates who actually did this round (InterviewFeedback)
+        # Strictly checking current status only, as requested, to prevent false counts from skipped rounds.
         mgt_base_st = ['interview_pending_management_client', 'interview_done_management_client', 'interview_rejected_management_client', 'interview_next_management_client', 'consolidated_result_review']
-        mgt_reached_q = Q(status__in=mgt_base_st) | Q(interview_feedbacks__interview_round='management_client_round')
-        mgt_completed_q = Q(status__in=['interview_done_management_client', 'interview_rejected_management_client', 'consolidated_result_review', 'selected', 'approval_pending']) | Q(interview_feedbacks__interview_round='management_client_round')
+        mgt_reached_st = mgt_base_st
+        mgt_completed_st = ['interview_done_management_client', 'interview_rejected_management_client', 'consolidated_result_review', 'selected', 'approval_pending']
         
         # Final Round (Mandatory)
         final_promoted_st = ['interview_next_management_client'] + mgt_base_st + selected_st
@@ -981,10 +981,10 @@ class BaseAnalyticsView(APIView):
         final_reached_st = ['interview_pending_final', 'interview_next_final'] + final_completed_st
 
         # Case Study Round (Optional)
+        # Strictly checking current status only
         case_base_st = ['interview_pending_3', 'interview_done_3', 'interview_rejected_3', 'interview_next_3']
-        case_reached_q = Q(status__in=case_base_st) | Q(interview_feedbacks__interview_round='case_study_round')
-        # They completed Case Study if they have a 'done' or 'rejected' status for it, or an interview feedback for it
-        case_completed_q = Q(status__in=['interview_done_3', 'interview_rejected_3']) | Q(interview_feedbacks__interview_round='case_study_round')
+        case_reached_st = case_base_st
+        case_completed_st = ['interview_done_3', 'interview_rejected_3']
 
         # Technical Round (Mandatory)
         tech_promoted_st = list(set(case_base_st + final_reached_st))
@@ -1014,20 +1014,20 @@ class BaseAnalyticsView(APIView):
             ('Reached Technical Round', tech_reached_st),
             ('Completed Technical Round', tech_completed_st),
             ('Rejected at Tech', ['interview_rejected_2']),
-            ('Promoted to Case Study', case_reached_q),
+            ('Promoted to Case Study', case_reached_st),
             
-            ('Reached Case Study Round', case_reached_q),
-            ('Completed Case Study Round', case_completed_q),
+            ('Reached Case Study Round', case_reached_st),
+            ('Completed Case Study Round', case_completed_st),
             ('Rejected at Case Study', ['interview_rejected_3']),
             ('Promoted to Final Round', final_reached_st),
             
             ('Reached Final Round', final_reached_st),
             ('Completed Final Round', final_completed_st),
             ('Rejected at Final', ['interview_rejected_final']),
-            ('Promoted to Mgt/Client Round', mgt_reached_q),
+            ('Promoted to Mgt/Client Round', mgt_reached_st),
             
-            ('Reached Mgt/Client Round', mgt_reached_q),
-            ('Completed Mgt/Client Round', mgt_completed_q),
+            ('Reached Mgt/Client Round', mgt_reached_st),
+            ('Completed Mgt/Client Round', mgt_completed_st),
             ('Rejected at Mgt/Client', ['interview_rejected_management_client']),
             ('Selected', selected_st),
             
@@ -1157,14 +1157,14 @@ class BaseAnalyticsView(APIView):
             ('Reached Technical Round', tech_reached_st),
             ('Completed Technical Round', tech_completed_st),
             ('Rejected at Tech', ['interview_rejected_2']),
-            ('Reached Case Study Round', case_reached_q),
-            ('Completed Case Study Round', case_completed_q),
+            ('Reached Case Study Round', case_reached_st),
+            ('Completed Case Study Round', case_completed_st),
             ('Rejected at Case Study', ['interview_rejected_3']),
             ('Reached Final Round', final_reached_st),
             ('Completed Final Round', final_completed_st),
             ('Rejected at Final', ['interview_rejected_final']),
-            ('Reached Mgt/Client Round', mgt_reached_q),
-            ('Completed Mgt/Client Round', mgt_completed_q),
+            ('Reached Mgt/Client Round', mgt_reached_st),
+            ('Completed Mgt/Client Round', mgt_completed_st),
             ('Rejected at Mgt/Client', ['interview_rejected_management_client']),
             ('Under HR Review', ['consolidated_result_review'] + selected_st),
             ('Selected', selected_st),
