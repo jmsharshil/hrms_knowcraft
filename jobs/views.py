@@ -557,10 +557,12 @@ class JobViewSet(viewsets.ModelViewSet):
         
         # Increment positions filled
         job.positions_filled += 1
-        job.previous_status = job.status
-        job.status = 'filled'
-        job.mrf.status = 'filled'
-        job.mrf.save()
+        if job.positions_filled >= job.no_of_positions:
+            job.previous_status = job.status
+            job.status = 'filled'
+            if hasattr(job, 'mrf') and job.mrf:
+                job.mrf.status = 'filled'
+                job.mrf.save()
         job.save()
         
         serializer = JobDetailSerializer(job, context={'request': request})
@@ -852,23 +854,6 @@ class JobViewSet(viewsets.ModelViewSet):
             ok, reason = automation_engine(app, old_status, 'joined')
             if ok:
                 updated_count += 1
-                
-                # Update job positions_filled
-                job = app.job
-                if job.positions_filled < job.no_of_positions:
-                    job.positions_filled += 1
-                    job.save(update_fields=['positions_filled'])
-                    
-                    if job.positions_filled >= job.no_of_positions:
-                        job.status = 'filled'
-                        job.save(update_fields=['status'])
-                        
-                        # Sync to MRF
-                        if hasattr(job, 'mrf') and job.mrf:
-                            mrf = job.mrf
-                            if mrf.status != 'filled':
-                                mrf.status = 'filled'
-                                mrf.save(update_fields=['status'])
 
         return Response({
             'message': f'Updated {updated_count} applications to joined status',
