@@ -972,8 +972,8 @@ class BaseAnalyticsView(APIView):
         # Management / Client Round (Optional)
         # Uses explicit statuses + any candidates who actually did this round (InterviewFeedback)
         mgt_base_st = ['interview_pending_management_client', 'interview_done_management_client', 'interview_rejected_management_client', 'interview_next_management_client', 'consolidated_result_review']
-        mgt_reached_q = Q(status__in=mgt_base_st) | Q(interviewfeedback__interview_round='management_client_round')
-        mgt_completed_q = Q(status__in=['interview_done_management_client', 'interview_rejected_management_client', 'consolidated_result_review', 'selected', 'approval_pending']) | Q(interviewfeedback__interview_round='management_client_round')
+        mgt_reached_q = Q(status__in=mgt_base_st) | Q(interview_feedbacks__interview_round='management_client_round')
+        mgt_completed_q = Q(status__in=['interview_done_management_client', 'interview_rejected_management_client', 'consolidated_result_review', 'selected', 'approval_pending']) | Q(interview_feedbacks__interview_round='management_client_round')
         
         # Final Round (Mandatory)
         final_promoted_st = ['interview_next_management_client'] + mgt_base_st + selected_st
@@ -982,9 +982,9 @@ class BaseAnalyticsView(APIView):
 
         # Case Study Round (Optional)
         case_base_st = ['interview_pending_3', 'interview_done_3', 'interview_rejected_3', 'interview_next_3']
-        case_reached_q = Q(status__in=case_base_st) | Q(interviewfeedback__interview_round='case_study_round')
+        case_reached_q = Q(status__in=case_base_st) | Q(interview_feedbacks__interview_round='case_study_round')
         # They completed Case Study if they have a 'done' or 'rejected' status for it, or an interview feedback for it
-        case_completed_q = Q(status__in=['interview_done_3', 'interview_rejected_3']) | Q(interviewfeedback__interview_round='case_study_round')
+        case_completed_q = Q(status__in=['interview_done_3', 'interview_rejected_3']) | Q(interview_feedbacks__interview_round='case_study_round')
 
         # Technical Round (Mandatory)
         tech_promoted_st = list(set(case_base_st + final_reached_st))
