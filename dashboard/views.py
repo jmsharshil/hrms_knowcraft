@@ -2138,6 +2138,22 @@ class BaseAnalyticsView(APIView):
             application__in=app_qs,
             sent_at__gte=thirty_days_ago
         ).count()
+
+        # Joining Pending in next 30 / 60 days
+        from datetime import date
+        today = date.today()
+        joining_pending_qs = app_qs.filter(
+            status='joining_pending',
+            joining_date__isnull=False,
+            joining_date__gte=today,
+        )
+        section8['joining_pending_next_30_days'] = joining_pending_qs.filter(
+            joining_date__lte=today + timedelta(days=30)
+        ).count()
+        section8['joining_pending_next_60_days'] = joining_pending_qs.filter(
+            joining_date__lte=today + timedelta(days=60)
+        ).count()
+
         return section8
 
     def get_sections(self):
