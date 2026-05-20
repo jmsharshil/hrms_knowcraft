@@ -28,24 +28,6 @@ def run_joining_date_check():
             print(f"[JOINING CHECK] Auto-transitioning {app.candidate_name} (ID: {app.id}) to joined")
             # automation_engine will handle status change and Job/MRF updates
             ok,reason = automation_engine(app, 'joining_pending', 'joined')
-            if ok:                
-                # Update job positions_filled
-                job = app.job
-                if job.positions_filled < job.no_of_positions:
-                    job.positions_filled += 1
-                    job.save(update_fields=['positions_filled'])
-                    
-                    if job.positions_filled >= job.no_of_positions:
-                        job.status = 'filled'
-                        job.save(update_fields=['status'])
-                        
-                        # Sync to MRF
-                        if hasattr(job, 'mrf') and job.mrf:
-                            mrf = job.mrf
-                            if mrf.status != 'filled':
-                                mrf.status = 'filled'
-                                mrf.save(update_fields=['status'])
-            
         print(f"[JOINING CHECK] Successfully processed {len(apps_to_update)} candidates.")
     except Exception as e:
         logger.error(f"[JOINING CHECK] Error during background joining check: {e}")
