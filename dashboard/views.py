@@ -956,24 +956,43 @@ class BaseAnalyticsView(APIView):
             experience_app_qs = app_qs.filter(id__in=interviewer_app_ids)
         total_cvs = app_qs.count()
         # statuses in order of progression
+        # Fetch applications with feedback for optional rounds to avoid bypassed count issues
+        case_study_feedback_app_ids = set(
+            InterviewFeedback.objects.filter(
+                job_application__in=app_qs,
+                interview_round='case_study_round'
+            ).values_list('job_application_id', flat=True)
+        )
+        mgt_client_feedback_app_ids = set(
+            InterviewFeedback.objects.filter(
+                job_application__in=app_qs,
+                interview_round='management_client_round'
+            ).values_list('job_application_id', flat=True)
+        )
+
         # Define base lists of subsequent statuses for each stage to ensure cumulative logic is robust
         # Base terminal successes
         joined_st = ['joined']
         joining_pending_st = ['joining_pending', 'joining_poned'] + joined_st
-        docs_st = ['docs_pending', 'docs_uploaded', 'review_docs', 'docs_approved', 'docs_incomplete', 'docs_unclear'] + joining_pending_st
-        offer_accepted_st = ['offer_accepted'] + docs_st
+        offer_accepted_st = ['offer_accepted'] + joining_pending_st
         offer_sent_st = ['offer_sent', 'offer_rejected'] + offer_accepted_st
         offer_prep_st = ['offer_pending'] + offer_sent_st
         salary_st = ['salary_annexure_prep', 'salary_annexure_review', 'approved_annexure', 'rejected_annexure'] + offer_prep_st
-        approved_st = ['approved', 'approval_rejected'] + salary_st
-        approval_pending_st = ['approval_pending'] + approved_st
+        # Chronological Separate Document Stages
+        docs_approved_st = ['docs_approved'] + salary_st
+        review_docs_st = ['review_docs'] + docs_approved_st
+        docs_uploaded_st = ['docs_uploaded'] + review_docs_st
+        docs_pending_st = ['docs_pending', 'docs_incomplete', 'docs_unclear'] + docs_uploaded_st
+        
+        approved_st = ['approved'] + docs_pending_st
+        approval_pending_st = ['approval_pending', 'approval_rejected'] + approved_st
         selected_st = ['selected'] + approval_pending_st
         
         # Management / Client Round (Optional)
-        # Strictly checking current status only, as requested, to prevent false counts from skipped rounds.
-        mgt_base_st = ['interview_pending_management_client', 'interview_done_management_client', 'interview_rejected_management_client', 'interview_next_management_client', 'consolidated_result_review']
-        mgt_reached_st = mgt_base_st
-        mgt_completed_st = ['interview_done_management_client', 'interview_rejected_management_client', 'consolidated_result_review', 'selected', 'approval_pending']
+        # Use transition rules and feedback to correctly count active and historic candidates who passed through this stage
+        mgt_base_st = ['interview_pending_management_client', 'interview_done_management_client', 'interview_rejected_management_client', 'interview_next_management_client']
+        mgt_reached_st = Q(status__in=mgt_base_st) | Q(id__in=mgt_client_feedback_app_ids)
+        mgt_completed_st = Q(status__in=['interview_done_management_client', 'interview_rejected_management_client']) | Q(id__in=mgt_client_feedback_app_ids)
         
         # Final Round (Mandatory)
         final_promoted_st = ['interview_next_management_client'] + mgt_base_st + selected_st
@@ -981,10 +1000,10 @@ class BaseAnalyticsView(APIView):
         final_reached_st = ['interview_pending_final', 'interview_next_final'] + final_completed_st
 
         # Case Study Round (Optional)
-        # Strictly checking current status only
+        # Use transition rules and feedback to correctly count active and historic candidates who passed through this stage
         case_base_st = ['interview_pending_3', 'interview_done_3', 'interview_rejected_3', 'interview_next_3']
-        case_reached_st = case_base_st
-        case_completed_st = ['interview_done_3', 'interview_rejected_3']
+        case_reached_st = Q(status__in=case_base_st) | Q(id__in=case_study_feedback_app_ids)
+        case_completed_st = Q(status__in=['interview_done_3', 'interview_rejected_3']) | Q(id__in=case_study_feedback_app_ids)
 
         # Technical Round (Mandatory)
         tech_promoted_st = list(set(case_base_st + final_reached_st))
@@ -1033,6 +1052,10 @@ class BaseAnalyticsView(APIView):
             
             ('Approval Pending', approval_pending_st),
             ('Approved', approved_st),
+            ('Joining Documents Pending', docs_pending_st),
+            ('Joining Documents Uploaded', docs_uploaded_st),
+            ('Document Review In Progress', review_docs_st),
+            ('Documents Approved', docs_approved_st),
             ('Offer Sent', offer_sent_st),
             ('Offer Accepted', offer_accepted_st),
             ('Joined', joined_st),
@@ -1175,6 +1198,10 @@ class BaseAnalyticsView(APIView):
             ('Approval Pending', approval_pending_st),
             ('Approval Rejected', ['approval_rejected']),
             ('Approved', approved_st),
+            ('Joining Documents Pending', docs_pending_st),
+            ('Joining Documents Uploaded', docs_uploaded_st),
+            ('Document Review In Progress', review_docs_st),
+            ('Documents Approved', docs_approved_st),
             ('Salary Annexure', salary_st),
             ('Approved Annexure', ['approved_annexure'] + offer_prep_st),
             ('Rejected Annexure', ['rejected_annexure']),
