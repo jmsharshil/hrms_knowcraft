@@ -1043,7 +1043,7 @@ class BaseAnalyticsView(APIView):
         TERMINAL_REJECTIONS = {
             'Duplicate Rejected', 'Rejected',
             'Rejected at HR', 'Rejected at Tech', 'Rejected at Case Study', 'Rejected at Final', 'Rejected at Mgt/Client',
-            'Offer Rejected'
+            'Offer Rejected', 'Approval Rejected', 'Rejected Annexure'
         }
 
         def get_drop_off_pct(from_stage, to_stage, from_c, to_c):
@@ -1123,15 +1123,13 @@ class BaseAnalyticsView(APIView):
                 'avg_turnaround_days': avg_days
             }
 
-        # Part 1: Screening (Received → Shortlisted)
+        # Part 1: Screening (Received → Shortlisted only)
         screening_stages = [
             ('CVs Received', received_st),
-            ('Duplicate Rejected', ['duplicate_rejected']),
-            ('Rejected', ['rejected']),
             ('Shortlisted', shortlisted_st),
         ]
 
-        # Part 2: Interview (HR Round → Under HR Review)
+        # Part 2: Interview (HR Round → Selected)
         screening_data = _build_pipeline_part(screening_stages, app_qs)
         interview_stages = [
             ('Reached HR Round', hr_reached_st),
@@ -1150,18 +1148,20 @@ class BaseAnalyticsView(APIView):
             ('Completed Mgt/Client Round', mgt_completed_st),
             ('Rejected at Mgt/Client', ['interview_rejected_management_client']),
             ('Under HR Review', ['consolidated_result_review'] + selected_st),
+            ('Selected', selected_st),
         ]
         interview_data = _build_pipeline_part(interview_stages, app_qs)
         offer_stages = [
             ('Selected', selected_st),
             ('Approval Pending', approval_pending_st),
+            ('Approval Rejected', ['approval_rejected']),
             ('Approved', approved_st),
             ('Salary Annexure', salary_st),
-            ('Offer Pending', offer_prep_st),
+            ('Approved Annexure', ['approved_annexure'] + offer_prep_st),
+            ('Rejected Annexure', ['rejected_annexure']),
             ('Offer Sent', offer_sent_st),
-            ('Offer Accepted', offer_accepted_st),
             ('Offer Rejected', ['offer_rejected']),
-            ('Docs Pending', docs_st),
+            ('Offer Accepted', offer_accepted_st),
             ('Joining Pending', joining_pending_st),
             ('Joined', joined_st),
         ]
