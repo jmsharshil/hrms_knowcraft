@@ -9,7 +9,7 @@ from requests.auth import HTTPBasicAuth
 from django.conf import settings
 
 from .models import CandidateBGV
-from .utils import extract_pan_from_openai
+from .utils import extract_pan_smart,extract_aadhaar_smart,extract_candidate_kyc_details
 
 
 logger = logging.getLogger(__name__)    
@@ -231,91 +231,171 @@ def _ongrid_request(method, url, json_payload=None, timeout=60):
         logger.exception("OnGrid API request failed: %s", exc)
         return {"error": str(exc)}, 0, False
 
-def _build_verifications(candidate):
-    codes = get_verification_codes(candidate)
+def _build_verifications(candidate, extra_data=None):
+    extra = extra_data or {}
+
     verifications = []
 
-    pan_number = None
-    try:
-        pan_file = getattr(candidate.documents, "pan", None)
-        print(pan_file,"pan_file--------------------")
-        if pan_file:
-            pan_data = extract_pan_from_openai(pan_file)
-            print(pan_data,"pan_data--------------------")
-            if pan_data:
-                pan_number = pan_data.get("pan_number")
-                print(pan_number,"pan_number--------------------")
-    except Exception:
-        logger.exception("PAN extraction failed")
+    for code in get_verification_codes(candidate):
 
-    for code in codes:
         item = {
             "code": code,
-            "key": str(uuid.uuid4()),  # ✅ REQUIRED UNIQUE KEY
-            "data": {}
+            "key": str(uuid.uuid4()),
         }
 
-        if code == "PANV" and pan_number:
-            print(pan_number,"pan_number--------------------in panv")
+        # PAN Verification
+        if code == "PANV":
+            pan_file = getattr(candidate.documents, "pan", None)
+
+            pan_data = extract_pan_smart(pan_file)
+
+            pan_number = None
+
+            if pan_data:
+                pan_number = pan_data.get("pan_number")
+
             item["data"] = {
                 "panNumber": pan_number
             }
+
+        # Education Verification
+        elif code == "EDUV":
+
+            item["data"] = {
+                "educationDocument": {
+                    "nameAsPerDocument": candidate.candidate_name,
+                    "level": extra.get("education_level", ""),
+                    "nameOfInstitute": extra.get("institute_name", ""),
+                    "yearOfPassing": extra.get("year_of_passing", ""),
+                    "degree": extra.get("degree", ""),
+                    "fieldOfStudy": extra.get("field_of_study", ""),
+                    "documents": _get_education_documents(candidate),
+                }
+            }
+
+        # Employment Verification
+        elif code == "EMPV":
+
+            item["data"] = {
+                "employmentRecord": {
+                    "nameAsPerEmployerRecords": candidate.candidate_name,
+                    "employeeId": str(candidate.id),
+                    "employerName": extra.get("employer_name", ""),
+                    "lastDesignation": extra.get("designation", ""),
+                    "joiningDate": extra.get("joining_date", ""),
+                    "lastWorkingDate": extra.get("last_working_date", ""),
+                    "documents": _get_employment_documents(candidate),
+                }
+            }
+
+        else:
+            item["data"] = {}
 
         verifications.append(item)
 
     return verifications
 
-def _collect_documents(candidate):
-    """
-    Collect documents as URL-based payload (NOT base64).
-    """
+def _build_document(file_field, document_type):
 
-    try:
-        docs = candidate.documents
-    except Exception:
-        logger.info("No documents found for %s", candidate.id)
-        return []
+    if not file_field:
+        return None
 
-    # Map model fields → OnGrid documentType
-    DOCUMENT_MAP = {
-        "aadhaar": "CustomDocument",
-        "pan": "PANCard",
-        "passport": "Passport",
-        "photograph": "ProfileImage",
-        "address_proof": "AddressProof",
-        "tenth_certificate": "EducationalCertificates",
-        "twelfth_certificate": "EducationalCertificates",
-        "graduation_certificate": "EducationalCertificates",
-        "post_graduation_certificate": "EducationalCertificates",
-        "experience_letter_1": "ExperienceLetter",
-        "experience_letter_2": "ExperienceLetter",
-        "salary_slip_1": "SalarySlip",
-        "salary_slip_2": "SalarySlip",
-        "bank_statement": "FinancialDocument",
+    return {
+        "documentType": document_type,
+        "fileDataType": "Url",
+        "fileName": file_field.name.split("/")[-1],
+        "fileContent": file_field.url,
     }
 
-    collected = []
+def _get_education_documents(candidate):
 
-    for field_name, doc_type in DOCUMENT_MAP.items():
-        file_field = getattr(docs, field_name, None)
-        print(file_field,"file",field_name,"field_name",docs.id,"docs.id")
-        if not file_field or not file_field.name:
-            continue
+    docs = []
 
-        try:
-            collected.append({
-                "documentType": doc_type,
-                "fileDataType": "URL",
-                "servingUrl": file_field.url,
-                "fileName": file_field.name.split("/")[-1],
-            })
+    certs = [
+        candidate.documents.tenth_certificate,
+        candidate.documents.twelfth_certificate,
+        candidate.documents.graduation_certificate,
+        candidate.documents.post_graduation_certificate,
+    ]
 
-            print("Collected document: %s (%s)", field_name, file_field.name)
+    for cert in certs:
+        if cert:
+            docs.append(
+                _build_document(cert, "EducationalCertificates")
+            )
 
-        except Exception as exc:
-            logger.exception("Document error %s: %s", field_name, exc)
+    return docs
 
-    return collected
+def _get_employment_documents(candidate):
+
+    docs = []
+
+    mappings = [
+        (candidate.documents.experience_letter_1, "ExperienceLetter"),
+        (candidate.documents.experience_letter_2, "ExperienceLetter"),
+        (candidate.documents.salary_slip_1, "SalarySlip"),
+        (candidate.documents.salary_slip_2, "SalarySlip"),
+    ]
+
+    for file_obj, doc_type in mappings:
+        if file_obj:
+            docs.append(
+                _build_document(file_obj, doc_type)
+            )
+
+    return docs
+
+# def _collect_documents(candidate):
+#     """
+#     Collect documents as URL-based payload (NOT base64).
+#     """
+
+#     try:
+#         docs = candidate.documents
+#     except Exception:
+#         logger.info("No documents found for %s", candidate.id)
+#         return []
+
+#     # Map model fields → OnGrid documentType
+#     DOCUMENT_MAP = {
+#         "aadhaar": "CustomDocument",
+#         "pan": "PANCard",
+#         "passport": "Passport",
+#         "photograph": "ProfileImage",
+#         "address_proof": "AddressProof",
+#         "tenth_certificate": "EducationalCertificates",
+#         "twelfth_certificate": "EducationalCertificates",
+#         "graduation_certificate": "EducationalCertificates",
+#         "post_graduation_certificate": "EducationalCertificates",
+#         "experience_letter_1": "ExperienceLetter",
+#         "experience_letter_2": "ExperienceLetter",
+#         "salary_slip_1": "SalarySlip",
+#         "salary_slip_2": "SalarySlip",
+#         "bank_statement": "FinancialDocument",
+#     }
+
+#     collected = []
+
+#     for field_name, doc_type in DOCUMENT_MAP.items():
+#         file_field = getattr(docs, field_name, None)
+#         print(file_field,"file",field_name,"field_name",docs.id,"docs.id")
+#         if not file_field or not file_field.name:
+#             continue
+
+#         try:
+#             collected.append({
+#                 "documentType": doc_type,
+#                 "fileDataType": "URL",
+#                 "servingUrl": file_field.url,
+#                 "fileName": file_field.name.split("/")[-1],
+#             })
+
+#             print("Collected document: %s (%s)", field_name, file_field.name)
+
+#         except Exception as exc:
+#             logger.exception("Document error %s: %s", field_name, exc)
+
+#     return collected
 
 
 def _build_payload(candidate, extra_data=None):
@@ -338,12 +418,6 @@ def _build_payload(candidate, extra_data=None):
         "hasConsent": True,
         "consentText": settings.ONGRID_CONSENT_TEXT.strip(),
         "deduplicationKeys": [str(candidate.id)],
-        # "deduplicationKeys": [
-        #     {
-        #         "keyName": "candidateId",
-        #         "keyValue": str(candidate.id)
-        #     }
-        # ],
         # "uid": str(candidate.id)  # safer idempotency
     }
 
@@ -363,15 +437,20 @@ def _build_payload(candidate, extra_data=None):
         payload["otherProfession"] = other_prof
 
     # optional fields
-    if extra.get("fathersName"):
-        payload["fathersName"] = extra["fathersName"]
+    kyc = extract_candidate_kyc_details(candidate)
 
-    if extra.get("gender"):
-        payload["gender"] = extra["gender"]
+    if kyc.get("father_name"):
+        payload["fathersName"] = kyc["father_name"]
 
-    if extra.get("dob"):
-        payload["dob"] = extra["dob"]
+    if kyc.get("gender"):
+        payload["gender"] = kyc["gender"]
 
+    if kyc.get("dob"):
+        payload["dob"] = kyc["dob"]
+
+    if kyc.get("address"):
+        payload["currentAddress"] = kyc["address"] or extra.get("currentAddress")
+    
     if extra.get("city"):
         payload["city"] = extra["city"]
     elif candidate.location:
@@ -380,18 +459,10 @@ def _build_payload(candidate, extra_data=None):
     if extra.get("permanentAddress"):
         payload["permanentAddress"] = extra["permanentAddress"]
 
-    if extra.get("currentAddress"):
-        payload["currentAddress"] = extra["currentAddress"]
-
     # ✅ FIXED VERIFICATIONS
-    payload["verifications"] = _build_verifications(candidate)
+    payload["verifications"] = _build_verifications(candidate,extra_data)
 
-    # ✅ FIXED DOCUMENTS (URL ONLY)
-    documents = _collect_documents(candidate)
-    if documents:
-        payload["documents"] = documents
-
-    return payload, len(documents)
+    return payload
 
 def initiate_bgv(candidate, extra_data=None):
     """
@@ -411,7 +482,7 @@ def initiate_bgv(candidate, extra_data=None):
         f"{settings.ONGRID_COMMUNITY_ID}/individuals/initiate"
     )
 
-    payload, doc_count = _build_payload(candidate, extra_data)
+    payload = _build_payload(candidate, extra_data)
 
     print(payload,"payload")
 
@@ -419,8 +490,8 @@ def initiate_bgv(candidate, extra_data=None):
 
     if api_success:
         logger.info(
-            "OnGrid BGV initiated for %s (app=%s) with %d documents",
-            candidate.candidate_name, candidate.id, doc_count,
+            "OnGrid BGV initiated for %s (app=%s)",
+            candidate.candidate_name, candidate.id
         )
 
     # ── persist ──────────────────────────────────────────────
@@ -494,9 +565,9 @@ def onboard_individual(candidate, extra_data=None):
         payload["currentAddress"] = extra["currentAddress"]
 
     # Collect and attach documents
-    documents = _collect_documents(candidate)
-    if documents:
-        payload["documents"] = documents
+    # documents = _collect_documents(candidate)
+    # if documents:
+    #     payload["documents"] = documents
 
     data, status_code, api_success = _ongrid_request("POST", url, payload)
 
