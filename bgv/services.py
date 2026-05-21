@@ -288,6 +288,7 @@ def _collect_documents(candidate):
 
     for field_name, doc_type in DOCUMENT_MAP.items():
         file_field = getattr(docs, field_name, None)
+        print(file_field,"file",field_name,"field_name",docs.id,"docs.id")
         if not file_field or not file_field.name:
             continue
 
@@ -308,10 +309,10 @@ def _collect_documents(candidate):
                 "fileName": filename,
             })
 
-            logger.info("Collected document: %s (%s)", field_name, filename)
+            print("Collected document: %s (%s)", field_name, filename)
 
         except Exception as exc:
-            logger.warning(
+            print(
                 "Failed to read document field '%s' for application %s: %s",
                 field_name, candidate.id, exc
             )
@@ -412,6 +413,8 @@ def initiate_bgv(candidate, extra_data=None):
 
     payload, doc_count = _build_payload(candidate, extra_data)
 
+    print(payload,"payload")
+
     data, status_code, api_success = _ongrid_request("POST", url, payload)
 
     if api_success:
@@ -431,6 +434,7 @@ def initiate_bgv(candidate, extra_data=None):
             "is_fresher": is_fresher(candidate),
         },
     )
+    print(bgv)
 
     return bgv
 
