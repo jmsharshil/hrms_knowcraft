@@ -271,7 +271,9 @@ CORS_ALLOWED_ORIGINS = [
     "https://demp-hrms-hzdme4brg0dgfxa3.centralindia-01.azurewebsites.net",
     "https://hrms.hirewithjms.com",
     "http://hireproui-gmfbf9hucjbqd2e6.centralindia-01.azurewebsites.net",
-    'https://knowcraft.recruitsmart.co'
+    'https://knowcraft.recruitsmart.co',
+    "https://hrms.jmstech.co",
+    "https://jms-hrms-ui-crh8aac4f3hrh8gx.centralindia-01.azurewebsites.net"
 ]
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
