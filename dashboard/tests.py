@@ -49,22 +49,21 @@ class AnalyticsTestBase(TestCase):
             requested_by=cls.admin, requested_by_name='Admin',
             requested_by_designation='CTO', designation=cls.desig,
             team='Backend', position_department=cls.dept,
-            experience_range='2-5', business_justification='Need',
-            salary_range='5-8 LPA', expected_date_of_joining=date.today(),
+            business_justification='Need',
+            expected_date_of_joining=date.today(),
             workflow_template=cls.wf, status='approved',
             submitted_at=timezone.now() - timedelta(days=10),
-        )
-
-        # Create Job
-        cls.job = Job.objects.create(
-            mrf=cls.mrf, job_title='Backend Dev', department=cls.dept,
-            designation=cls.desig, location='Remote', no_of_positions=3,
+            no_of_vacancies=3,
             key_responsibility='Code', required_qualifications='CS',
             experience_range='2-5', skills_competencies='Python',
-            technical_skills='Django', salary_range='5-8 LPA',
-            company=cls.company, posted_by=cls.admin,
-            assigned_to_internal_hr=cls.hr, status='assigned_to_internal_hr',
+            salary_range='5-8 LPA',
         )
+
+        # Job is auto-created via signal `create_job_on_mrf_approval`
+        cls.job = cls.mrf.job
+        cls.job.assigned_to_internal_hr = cls.hr
+        cls.job.status = 'assigned_to_internal_hr'
+        cls.job.save()
 
         # ── Create apps at SPECIFIC times to test boundary conditions ──
         # "morning" = 09:00 on target date, "evening" = 20:00 on target date

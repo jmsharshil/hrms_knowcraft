@@ -252,6 +252,11 @@ class ApprovalNote(models.Model):
     ("offer_sent", "Offer Drafted to Zoho Sign"),
     ("offer_accepted", "Offer Accepted"),
     ("offer_rejected", "Offer Rejected by Candidate"),
+    # BGV FLOW
+    ("bgv_initiated", "BGV Initiated"),
+    ("bgv_in_progress", "BGV In Progress"),
+    ("bgv_completed", "BGV Completed"),
+    ("bgv_insufficient", "BGV Data Insufficient"),
     # JOINING DOCUMENT FLOW
     ("docs_pending", "Joining Documents Pending"),
     ("docs_uploaded", "Joining Documents Uploaded"),

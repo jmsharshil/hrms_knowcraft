@@ -364,10 +364,4 @@ ONGRID_CLIENT_ID = os.getenv("ONGRID_CLIENT_ID","")
 ONGRID_SECRET = os.getenv("ONGRID_SECRET","")
 ONGRID_COMMUNITY_ID = os.getenv("ONGRID_COMMUNITY_ID","")
 
-ONGRID_PROFESSION_ID = os.getenv("ONGRID_PROFESSION_ID","")
-ONGRID_WEBHOOK_SECRET = os.getenv("ONGRID_WEBHOOK_SECRET","")
-
-ONGRID_CONSENT_TEXT = """
-I hereby authorize the company and OnGrid
-to conduct background verification checks.
-"""
+ONGRID_CONSENT_TEXT = """The Individual does not and will not have any objection to Knowcraft the Individual's personal information and documents, including but not limited to name, gender, date of birth, addresses, mobile number, email, education record, employment record, Aadhaar number, other government issued IDs such as Voter ID, PAN card, driving license etc. (collectively Proprietary Information) with OnGrid (Handy Online Solutions Private Limited) for the purpose of background checks and verification. The individual understands that OnGrid maintains Proprietary Information on its platform in a secure manner, and it will only be accessible to Knowcraft and its associates/partners/affiliates, and will not be shared with any other individual or organization without the Individual's explicit consent."""

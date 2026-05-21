@@ -14,7 +14,13 @@ from jobs.models import JobApplication
 
 from .models import CandidateBGV
 from .serializers import CandidateBGVSerializer
-from .services import initiate_bgv
+from .services import (
+    initiate_bgv,
+    onboard_individual,
+    trigger_verifications,
+    get_individual_status,
+    get_verification_report,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -36,15 +42,36 @@ class CandidateBGVViewSet(viewsets.ModelViewSet):
         OneToOneField violation.
         """
         bgv = self.get_object()
-        result = initiate_bgv(bgv.candidate)
+        extra_data = request.data.get("extra_data", {})
+        result = initiate_bgv(bgv.candidate, extra_data=extra_data or None)
         serializer = self.get_serializer(result)
         return Response(serializer.data)
 
     @action(detail=False, methods=["post"], url_path="initiate-by-application")
     def initiate_by_application(self, request):
         """
-        Manually initiate BGV by providing a job application ID.
-        POST {"application_id": "<uuid>"}
+        Initiate BGV (onboard + start verifications) by providing a job application ID.
+
+        POST {
+            "application_id": "<uuid>",
+            "extra_data": {                       # optional
+                "fathersName": "...",
+                "gender": "M",                    # M, F, T, O, U
+                "dob": "DD/MM/YYYY",
+                "city": "...",
+                "permanentAddress": {
+                    "line1": "...",
+                    "line2": "...",
+                    "city": "...",
+                    "state": "...",
+                    "pincode": "...",
+                    "country": "IN",
+                    "fullAddress": "..."
+                },
+                "currentAddress": "full address string",
+                "verifications": [{"code": "CCRV"}, {"code": "PANV"}]
+            }
+        }
         """
         application_id = request.data.get("application_id")
         if not application_id:
@@ -61,7 +88,8 @@ class CandidateBGVViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        result = initiate_bgv(application)
+        extra_data = request.data.get("extra_data", {})
+        result = initiate_bgv(application, extra_data=extra_data or None)
         serializer = self.get_serializer(result)
 
         http_status = (
@@ -71,80 +99,116 @@ class CandidateBGVViewSet(viewsets.ModelViewSet):
         )
         return Response(serializer.data, status=http_status)
 
+    @action(detail=False, methods=["post"], url_path="onboard-only")
+    def onboard_only(self, request):
+        """
+        Step 1: Onboard an individual into OnGrid WITHOUT starting verifications.
+        Use this when you need to register the candidate first and initiate
+        verifications later (e.g., after collecting father's name / address).
 
-class OnGridWebhookAPIView(APIView):
-    """
-    Receives webhook callbacks from OnGrid.
-    No auth required (public endpoint), but verified via shared secret header.
-    """
-
-    authentication_classes = []
-    permission_classes = []
-
-    def post(self, request):
-        payload = request.data
-
-        # ── secret verification ──────────────────────────────
-        secret = request.headers.get("X-ONGRID-SECRET", "")
-        expected = getattr(settings, "ONGRID_WEBHOOK_SECRET", "")
-
-        if not expected or secret != expected:
-            logger.warning("OnGrid webhook: invalid secret header.")
+        POST {
+            "application_id": "<uuid>",
+            "extra_data": { ... }                 # optional
+        }
+        """
+        application_id = request.data.get("application_id")
+        if not application_id:
             return Response(
-                {"error": "Unauthorized"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-
-        # ── extract fields ───────────────────────────────────
-        individual_id = payload.get("individualId")
-        activity_type = payload.get("activityType")
-
-        if not individual_id:
-            return Response(
-                {"error": "individualId is required."},
+                {"error": "application_id is required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
-            bgv = CandidateBGV.objects.get(
-                ongrid_individual_id=individual_id,
-            )
-        except CandidateBGV.DoesNotExist:
-            logger.warning(
-                "OnGrid webhook: no BGV found for individualId=%s",
-                individual_id,
-            )
+            application = JobApplication.objects.get(id=application_id)
+        except JobApplication.DoesNotExist:
             return Response(
-                {"error": "BGV record not found."},
+                {"error": "Job application not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # ── update record ────────────────────────────────────
-        bgv.callback_payload = payload
+        extra_data = request.data.get("extra_data", {})
+        result = onboard_individual(application, extra_data=extra_data or None)
 
-        if activity_type == "VerificationsConcluded":
-            bgv.status = "completed"
-            bgv.completed_at = timezone.now()
-            report_url = payload.get("reportDownloadUrl")
-            if report_url:
-                bgv.report_url = report_url
+        if result is None:
+            return Response(
+                {"error": "Failed to onboard individual on OnGrid."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
 
-        elif activity_type == "DataInsufficient":
-            bgv.status = "insufficient"
+        serializer = self.get_serializer(result)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-        else:
-            bgv.status = "in_progress"
+    @action(detail=True, methods=["post"], url_path="trigger-verifications")
+    def trigger_verifications_action(self, request, pk=None):
+        """
+        Step 2: Trigger verifications for an already-onboarded individual.
 
-        bgv.save()
+        POST {
+            "verification_codes": ["CCRV", "PANV"]   # optional, defaults to CCRV
+        }
+        """
+        bgv = self.get_object()
 
-        logger.info(
-            "OnGrid webhook processed: individual=%s, activity=%s, status=%s",
-            individual_id,
-            activity_type,
-            bgv.status,
-        )
+        if not bgv.ongrid_individual_id:
+            return Response(
+                {"error": "Individual not yet onboarded on OnGrid."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        codes = request.data.get("verification_codes", None)
+        data, success = trigger_verifications(bgv.ongrid_individual_id, codes)
+
+        if success:
+            bgv.refresh_from_db()
+            serializer = self.get_serializer(bgv)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
         return Response(
-            {"success": True},
-            status=status.HTTP_200_OK,
+            {"error": "Failed to trigger verifications.", "details": data},
+            status=status.HTTP_502_BAD_GATEWAY,
         )
+
+    @action(detail=True, methods=["get"], url_path="ongrid-status")
+    def ongrid_status(self, request, pk=None):
+        """
+        Fetch current individual status from OnGrid API (polling).
+        """
+        bgv = self.get_object()
+
+        if not bgv.ongrid_individual_id:
+            return Response(
+                {"error": "No OnGrid individual ID found."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        data = get_individual_status(bgv.ongrid_individual_id)
+        if data is None:
+            return Response(
+                {"error": "Failed to fetch status from OnGrid."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        return Response(data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["get"], url_path="verification-report")
+    def verification_report(self, request, pk=None):
+        """
+        Fetch verification report/results from OnGrid API.
+        """
+        bgv = self.get_object()
+
+        if not bgv.ongrid_individual_id:
+            return Response(
+                {"error": "No OnGrid individual ID found."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        data = get_verification_report(bgv.ongrid_individual_id)
+        if data is None:
+            return Response(
+                {"error": "Failed to fetch report from OnGrid."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        return Response(data, status=status.HTTP_200_OK)
+
