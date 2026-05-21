@@ -14,10 +14,8 @@ def send_email(to,subject,cc=[],text="",template=None,attachments=None, use_defa
         return
 
     cc_list = list(cc)
-    if use_default_cc:
-        cc_list.append("talent@knowcraft.in")
 
-    msg = EmailMultiAlternatives(subject, text, "talent@knowcraft.in",to= [to],cc= cc_list)
+    msg = EmailMultiAlternatives(subject, text, "noreply@jmsadvisory.in",to= [to],cc= cc_list)
     if template:
         msg.attach_alternative(template, "text/html")
     if attachments:
