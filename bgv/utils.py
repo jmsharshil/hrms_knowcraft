@@ -33,10 +33,10 @@ def extract_pan_from_openai(file_field):
 
     if not file_field:
         return None
-
+    print(file_field,"file_field--------------------")
     try:
         b64 = _file_to_base64(file_field)
-
+        print(b64,"b64--------------------")
         response = client.chat.completions.create(
             model="gpt-4.1-mini",
             messages=[
@@ -76,6 +76,8 @@ def extract_pan_from_openai(file_field):
         )
 
         text = response.choices[0].message.content or ""
+
+        print(text,"text--------------------")
 
         # ---- Extract PAN using regex ----
         pan_match = re.search(PAN_REGEX, text)
