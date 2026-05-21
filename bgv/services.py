@@ -255,33 +255,33 @@ def _collect_documents(candidate):
     DOCUMENT_MAP = {
         # Personal / Identity
         "aadhaar":          "CustomDocument",
-        "pan":              "CustomDocument",
-        "passport":         "CustomDocument",
+        "pan":              "PANCard",
+        "passport":         "Passport",
         "photograph":       "ProfileImage",
-        "address_proof":    "CustomDocument",
+        "address_proof":    "AddressProof",
 
         # Education
         "tenth_certificate":             "EducationalCertificates",
         "twelfth_certificate":           "EducationalCertificates",
         "graduation_certificate":        "EducationalCertificates",
         "post_graduation_certificate":   "EducationalCertificates",
-        "additional_certificate_1":      "EducationalCertificates",
-        "additional_certificate_2":      "EducationalCertificates",
-        "additional_certificate_3":      "EducationalCertificates",
+        "additional_certificate_1":      "SkillDocuments",
+        "additional_certificate_2":      "SkillDocuments",
+        "additional_certificate_3":      "SkillDocuments",
 
         # Experience / Employment
         "experience_letter_1":   "ExperienceLetter",
         "experience_letter_2":   "ExperienceLetter",
         "offer_letter_1":        "AppointmentLetter",
         "offer_letter_2":        "AppointmentLetter",
-        "relieving_letter":      "ExperienceLetter",
-        "increment_letter":      "SalarySlip",
+        "relieving_letter":      "CustomDocument",
+        "increment_letter":      "CustomDocument",
 
         # Salary
         "salary_slip_1":    "SalarySlip",
         "salary_slip_2":    "SalarySlip",
         "salary_slip_3":    "SalarySlip",
-        "bank_statement":   "Other",
+        "bank_statement":   "FinancialDocument",
     }
 
     collected = []
