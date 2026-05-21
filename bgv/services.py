@@ -231,58 +231,69 @@ def _ongrid_request(method, url, json_payload=None, timeout=60):
         logger.exception("OnGrid API request failed: %s", exc)
         return {"error": str(exc)}, 0, False
 
+def _build_verifications(candidate):
+    """
+    Build OnGrid-compliant verification payload.
+    """
+
+    codes = get_verification_codes(candidate)
+    verifications = []
+
+    # Try PAN extraction safely
+    pan_number = None
+    try:
+        pan_file = getattr(candidate.documents, "pan", None)
+        if pan_file:
+            pan_data = extract_pan_from_openai(pan_file)
+            if pan_data:
+                pan_number = pan_data.get("pan_number")
+    except Exception:
+        logger.exception("PAN extraction failed")
+
+    for code in codes:
+        item = {
+            "code": code,
+            "data": {},
+            "key": str(candidate.id)
+        }
+
+        # Inject PAN into PANV
+        if code == "PANV" and pan_number:
+            item["data"] = {
+                "panNumber": pan_number
+            }
+
+        verifications.append(item)
+
+    return verifications
 
 def _collect_documents(candidate):
     """
-    Collect available documents from the JobApplicationDocument model
-    linked to the candidate (JobApplication) and prepare them for
-    the OnGrid API in Base64 format.
-
-    Returns a list of dicts matching OnGrid's document schema:
-      {
-        "documentType": "...",
-        "fileDataType": "Base64",
-        "fileContent": "<base64>",
-        "fileName": "filename.ext"
-      }
+    Collect documents as URL-based payload (NOT base64).
     """
+
     try:
-        docs = candidate.documents  # OneToOneField reverse relation
+        docs = candidate.documents
     except Exception:
-        logger.info("No JobApplicationDocument found for application %s", candidate.id)
+        logger.info("No documents found for %s", candidate.id)
         return []
 
     # Map model fields → OnGrid documentType
     DOCUMENT_MAP = {
-        # Personal / Identity
-        "aadhaar":          "CustomDocument",
-        "pan":              "PANCard",
-        "passport":         "Passport",
-        "photograph":       "ProfileImage",
-        "address_proof":    "AddressProof",
-
-        # Education
-        "tenth_certificate":             "EducationalCertificates",
-        "twelfth_certificate":           "EducationalCertificates",
-        "graduation_certificate":        "EducationalCertificates",
-        "post_graduation_certificate":   "EducationalCertificates",
-        "additional_certificate_1":      "SkillDocuments",
-        "additional_certificate_2":      "SkillDocuments",
-        "additional_certificate_3":      "SkillDocuments",
-
-        # Experience / Employment
-        "experience_letter_1":   "ExperienceLetter",
-        "experience_letter_2":   "ExperienceLetter",
-        "offer_letter_1":        "AppointmentLetter",
-        "offer_letter_2":        "AppointmentLetter",
-        "relieving_letter":      "CustomDocument",
-        "increment_letter":      "CustomDocument",
-
-        # Salary
-        "salary_slip_1":    "SalarySlip",
-        "salary_slip_2":    "SalarySlip",
-        "salary_slip_3":    "SalarySlip",
-        "bank_statement":   "FinancialDocument",
+        "aadhaar": "CustomDocument",
+        "pan": "PANCard",
+        "passport": "Passport",
+        "photograph": "ProfileImage",
+        "address_proof": "AddressProof",
+        "tenth_certificate": "EducationalCertificates",
+        "twelfth_certificate": "EducationalCertificates",
+        "graduation_certificate": "EducationalCertificates",
+        "post_graduation_certificate": "EducationalCertificates",
+        "experience_letter_1": "ExperienceLetter",
+        "experience_letter_2": "ExperienceLetter",
+        "salary_slip_1": "SalarySlip",
+        "salary_slip_2": "SalarySlip",
+        "bank_statement": "FinancialDocument",
     }
 
     collected = []
@@ -294,29 +305,17 @@ def _collect_documents(candidate):
             continue
 
         try:
-            file_field.open("rb")
-            content = file_field.read()
-            file_field.close()
-
-            b64_content = base64.b64encode(content).decode("utf-8")
-
-            # Extract filename from storage path
-            filename = file_field.name.split("/")[-1] if "/" in file_field.name else file_field.name
-
             collected.append({
                 "documentType": doc_type,
-                "fileDataType": "Base64",
-                "fileContent": b64_content,
-                "fileName": filename,
+                "fileDataType": "URL",
+                "fileUrl": file_field.url,
+                "fileName": file_field.name.split("/")[-1],
             })
 
-            print("Collected document: %s (%s)", field_name, filename)
+            print("Collected document: %s (%s)", field_name, file_field.name)
 
         except Exception as exc:
-            print(
-                "Failed to read document field '%s' for application %s: %s",
-                field_name, candidate.id, exc
-            )
+            logger.exception("Document error %s: %s", field_name, exc)
 
     return collected
 
@@ -340,14 +339,16 @@ def _build_payload(candidate, extra_data=None):
         "employeeId": str(candidate.id),
         "hasConsent": True,
         "consentText": settings.ONGRID_CONSENT_TEXT.strip(),
-        "deduplicationKeys":[
+        "deduplicationKeys": [
             {
-                "keyName":"candidateId",
-                "keyValue":str(candidate.id)
+                "keyName": "candidateId",
+                "keyValue": str(candidate.id)
             }
-        ]
+        ],
+        "uid": str(candidate.id)  # safer idempotency
     }
 
+    # profession
     profession = ""
     if getattr(candidate, "job", None):
         if getattr(candidate.job, "designation", None):
@@ -357,58 +358,41 @@ def _build_payload(candidate, extra_data=None):
 
     # Resolve profession from OnGrid master list
     prof_id, other_prof = _resolve_profession_id(profession)
-    payload["professionId"] = prof_id
+    payload["professionId"] = str(prof_id)
+
     if other_prof:
         payload["otherProfession"] = other_prof
 
-    # Optional personal fields (required for CCRV)
+    # optional fields
     if extra.get("fathersName"):
         payload["fathersName"] = extra["fathersName"]
 
     if extra.get("gender"):
-        # OnGrid accepts: M, F, T, O, U
         payload["gender"] = extra["gender"]
 
     if extra.get("dob"):
-        payload["dob"] = extra["dob"]  # format: DD/MM/YYYY
+        payload["dob"] = extra["dob"]
 
     if extra.get("city"):
         payload["city"] = extra["city"]
     elif candidate.location:
         payload["city"] = candidate.location
 
-    # Address fields (required for CCRV)
     if extra.get("permanentAddress"):
         payload["permanentAddress"] = extra["permanentAddress"]
 
     if extra.get("currentAddress"):
         payload["currentAddress"] = extra["currentAddress"]
 
-    pan_data = extract_pan_from_openai(candidate.documents.pan)
+    # ✅ FIXED VERIFICATIONS
+    payload["verifications"] = _build_verifications(candidate)
 
-    if pan_data and pan_data.get("pan_number"):
-        verification_codes.append({
-            "code": "PANV",
-            "data": {
-                "panNumber": pan_data["pan_number"]
-            }
-        })
-
-    # Verifications
-    if "verifications" in extra:
-        verification_codes = extra["verifications"]
-    else:
-        codes = get_verification_codes(candidate)
-        verification_codes = [{"code": code} for code in codes]
-    payload["verifications"] = verification_codes
-
-    # Collect documents from the application
+    # ✅ FIXED DOCUMENTS (URL ONLY)
     documents = _collect_documents(candidate)
     if documents:
         payload["documents"] = documents
 
-    return payload, len(documents) if documents else 0
-
+    return payload, len(documents)
 
 def initiate_bgv(candidate, extra_data=None):
     """
