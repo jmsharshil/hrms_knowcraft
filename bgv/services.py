@@ -238,10 +238,13 @@ def _build_verifications(candidate):
     pan_number = None
     try:
         pan_file = getattr(candidate.documents, "pan", None)
+        print(pan_file,"pan_file--------------------")
         if pan_file:
             pan_data = extract_pan_from_openai(pan_file)
+            print(pan_data,"pan_data--------------------")
             if pan_data:
                 pan_number = pan_data.get("pan_number")
+                print(pan_number,"pan_number--------------------")
     except Exception:
         logger.exception("PAN extraction failed")
 
@@ -253,6 +256,7 @@ def _build_verifications(candidate):
         }
 
         if code == "PANV" and pan_number:
+            print(pan_number,"pan_number--------------------in panv")
             item["data"] = {
                 "panNumber": pan_number
             }
