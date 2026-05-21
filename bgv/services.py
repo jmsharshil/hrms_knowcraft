@@ -171,7 +171,7 @@ def get_verification_codes(candidate):
     """
     Returns the list of verification codes based on the candidate's experience.
     """
-    codes = ["PANV", "AADHAAR", "CCRV", "PAV", "LAV", "EDUV", "GDC"]
+    codes = ["PANV", "CCRV", "PAV", "LAV", "EDUV", "GDC"]
     if not is_fresher(candidate):
         codes.append("EMPV")
     return codes
