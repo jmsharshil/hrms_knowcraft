@@ -3,7 +3,7 @@
 import base64
 import logging
 import requests
-
+import uuid
 from requests.auth import HTTPBasicAuth
 
 from django.conf import settings
@@ -12,7 +12,7 @@ from .models import CandidateBGV
 from .utils import extract_pan_from_openai
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)    
 
 BASE_URL = "https://api-staging.ongrid.in/app"
 
@@ -232,14 +232,9 @@ def _ongrid_request(method, url, json_payload=None, timeout=60):
         return {"error": str(exc)}, 0, False
 
 def _build_verifications(candidate):
-    """
-    Build OnGrid-compliant verification payload.
-    """
-
     codes = get_verification_codes(candidate)
     verifications = []
 
-    # Try PAN extraction safely
     pan_number = None
     try:
         pan_file = getattr(candidate.documents, "pan", None)
@@ -253,11 +248,10 @@ def _build_verifications(candidate):
     for code in codes:
         item = {
             "code": code,
-            "data": {},
-            "key": str(candidate.id)
+            "key": str(uuid.uuid4()),  # ✅ REQUIRED UNIQUE KEY
+            "data": {}
         }
 
-        # Inject PAN into PANV
         if code == "PANV" and pan_number:
             item["data"] = {
                 "panNumber": pan_number
@@ -339,6 +333,7 @@ def _build_payload(candidate, extra_data=None):
         "employeeId": str(candidate.id),
         "hasConsent": True,
         "consentText": settings.ONGRID_CONSENT_TEXT.strip(),
+        "deduplicationKeys": [str(candidate.id)],
         # "deduplicationKeys": [
         #     {
         #         "keyName": "candidateId",
