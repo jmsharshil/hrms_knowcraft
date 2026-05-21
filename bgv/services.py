@@ -9,6 +9,7 @@ from requests.auth import HTTPBasicAuth
 from django.conf import settings
 
 from .models import CandidateBGV
+from .utils import extract_pan_from_openai
 
 
 logger = logging.getLogger(__name__)
@@ -339,6 +340,12 @@ def _build_payload(candidate, extra_data=None):
         "employeeId": str(candidate.id),
         "hasConsent": True,
         "consentText": settings.ONGRID_CONSENT_TEXT.strip(),
+        "deduplicationKeys":[
+            {
+                "keyName":"candidateId",
+                "keyValue":str(candidate.id)
+            }
+        ]
     }
 
     profession = ""
@@ -376,6 +383,16 @@ def _build_payload(candidate, extra_data=None):
 
     if extra.get("currentAddress"):
         payload["currentAddress"] = extra["currentAddress"]
+
+    pan_data = extract_pan_from_openai(candidate.documents.pan)
+
+    if pan_data and pan_data.get("pan_number"):
+        verification_codes.append({
+            "code": "PANV",
+            "data": {
+                "panNumber": pan_data["pan_number"]
+            }
+        })
 
     # Verifications
     if "verifications" in extra:
