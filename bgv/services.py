@@ -308,7 +308,7 @@ def _collect_documents(candidate):
             collected.append({
                 "documentType": doc_type,
                 "fileDataType": "URL",
-                "fileUrl": file_field.url,
+                "servingUrl": file_field.url,
                 "fileName": file_field.name.split("/")[-1],
             })
 
@@ -339,13 +339,13 @@ def _build_payload(candidate, extra_data=None):
         "employeeId": str(candidate.id),
         "hasConsent": True,
         "consentText": settings.ONGRID_CONSENT_TEXT.strip(),
-        "deduplicationKeys": [
-            {
-                "keyName": "candidateId",
-                "keyValue": str(candidate.id)
-            }
-        ],
-        "uid": str(candidate.id)  # safer idempotency
+        # "deduplicationKeys": [
+        #     {
+        #         "keyName": "candidateId",
+        #         "keyValue": str(candidate.id)
+        #     }
+        # ],
+        # "uid": str(candidate.id)  # safer idempotency
     }
 
     # profession
