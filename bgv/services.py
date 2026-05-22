@@ -233,7 +233,6 @@ def _ongrid_request(method, url, json_payload=None, timeout=60):
 
 def _build_verifications(candidate, extra_data=None):
     extra = extra_data or {}
-
     verifications = []
 
     for code in get_verification_codes(candidate):
@@ -243,25 +242,13 @@ def _build_verifications(candidate, extra_data=None):
             "key": str(uuid.uuid4()),
         }
 
-        # PAN Verification
         if code == "PANV":
             pan_file = getattr(candidate.documents, "pan", None)
-
             pan_data = extract_pan_smart(pan_file)
+            pan_number = pan_data.get("pan_number") if pan_data else None
+            item["data"] = {"panNumber": pan_number}
 
-            pan_number = None
-
-            if pan_data:
-                pan_number = pan_data.get("pan_number")
-
-            item["data"] = {
-                "documentUID": str(pan_number),
-                "panNumber": pan_number
-            }
-
-        # Education Verification
         elif code == "EDUV":
-
             item["data"] = {
                 "educationDocument": {
                     "nameAsPerDocument": candidate.candidate_name,
@@ -274,9 +261,7 @@ def _build_verifications(candidate, extra_data=None):
                 }
             }
 
-        # Employment Verification
         elif code == "EMPV":
-
             item["data"] = {
                 "employmentRecord": {
                     "nameAsPerEmployerRecords": candidate.candidate_name,
@@ -290,27 +275,31 @@ def _build_verifications(candidate, extra_data=None):
             }
 
         elif code == "LAV":
-            item["data"] = { "currentAddress": extra.get("currentAddress", "") or candidate.location }
-        
+            item["data"] = {
+                "currentAddress": extra.get("currentAddress") or candidate.location or ""
+            }
+
         elif code == "PAV":
-            item["data"] = {  
-                "permanentAddress": {   
-                    "co": extra.get("co", ""),   
-                    "line1": extra.get("line1", ""),
-                    "line2": extra.get("line2", ""),
-                    "locality": extra.get("locality", ""),
-                    "landmark": extra.get("landmark", ""),
-                    "vtc": extra.get("vtc", ""),
-                    "district":extra.get("district", ""),
-                    "state":extra.get("state", ""),
-                    "pincode": extra.get("pincode", ""),
-                    "fullAddress": extra.get("fullAddress", ""),
-                    "lFullAddress": extra.get("lFullAddress", ""),
-                    "lnCode": extra.get("lnCode", "hi-IN")
-                    }
+            perm = extra.get("permanentAddress") or {}
+            item["data"] = {
+                "permanentAddress": {
+                    "co":           perm.get("co", ""),
+                    "line1":        perm.get("line1", ""),
+                    "line2":        perm.get("line2", ""),
+                    "locality":     perm.get("locality", ""),
+                    "landmark":     perm.get("landmark", ""),
+                    "vtc":          perm.get("vtc", ""),
+                    "district":     perm.get("district", ""),
+                    "state":        perm.get("state", ""),
+                    "pincode":      perm.get("pincode", ""),
+                    "fullAddress":  perm.get("fullAddress", ""),
+                    "lFullAddress": perm.get("lFullAddress", ""),
+                    "lnCode":       perm.get("lnCode", "hi-IN"),
                 }
-        else:
-            item["data"] = {}
+            }
+
+        # CCRV, GDC — no data key at all, per OnGrid docs
+        # (the else/data:{} block is intentionally removed)
 
         verifications.append(item)
 
