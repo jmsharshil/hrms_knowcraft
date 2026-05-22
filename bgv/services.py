@@ -449,8 +449,9 @@ def _build_payload(candidate, extra_data=None):
     if kyc.get("dob"):
         payload["dob"] = kyc["dob"]
 
-    if kyc.get("address"):
-        payload["currentAddress"] = kyc["address"] or extra.get("currentAddress")
+    current_address = kyc.get("address") or extra.get("currentAddress")
+    if current_address:
+        payload["currentAddress"] = current_address
     
     if extra.get("city"):
         payload["city"] = extra["city"]
