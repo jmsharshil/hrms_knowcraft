@@ -256,7 +256,7 @@ def _build_verifications(candidate, extra_data=None):
 
             item["data"] = {
                 "panNumber": pan_number,
-                "documentUID": candidate.documents.id
+                "documentUID": str(candidate.documents.id)
             }
 
         # Education Verification
