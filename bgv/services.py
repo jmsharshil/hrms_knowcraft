@@ -434,7 +434,6 @@ def _build_payload(candidate, extra_data=None):
     payload = {
         "name": candidate.candidate_name or "",
         "email": candidate.candidate_email or "",
-        "phone": str(candidate.candidate_phone or ""),
         "employeeId": str(candidate.id),
         "hasConsent": True,
         "consentText": settings.ONGRID_CONSENT_TEXT.strip(),
@@ -442,6 +441,19 @@ def _build_payload(candidate, extra_data=None):
         # "uid": str(candidate.id)  # safer idempotency
     }
 
+    raw_phone = str(candidate.candidate_phone or "")
+
+    # Strip country code if present and set separately
+    if raw_phone.startswith("+91"):
+        payload["phone"] = raw_phone[3:]          # "8401611072"
+        payload["phoneCountryCode"] = "+91"
+    elif raw_phone.startswith("91") and len(raw_phone) == 12:
+        payload["phone"] = raw_phone[2:]          # "8401611072"
+        payload["phoneCountryCode"] = "+91"
+    else:
+        payload["phone"] = raw_phone
+        payload["phoneCountryCode"] = "+91"
+      
     # profession
     profession = ""
     if getattr(candidate, "job", None):
