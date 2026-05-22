@@ -439,6 +439,7 @@ def _build_payload(candidate, extra_data=None):
 
     # optional fields
     kyc = extract_candidate_kyc_details(candidate)
+    print(kyc,"kyc")
 
     if kyc.get("father_name"):
         payload["fathersName"] = kyc["father_name"]
@@ -449,7 +450,7 @@ def _build_payload(candidate, extra_data=None):
     if kyc.get("dob"):
         payload["dob"] = kyc["dob"]
 
-    current_address = kyc.get("address") or extra.get("currentAddress")
+    current_address = kyc.get("address") or extra.get("currentAddress") or candidate.location
     if current_address:
         payload["currentAddress"] = current_address
     
