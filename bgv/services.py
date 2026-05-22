@@ -255,8 +255,7 @@ def _build_verifications(candidate, extra_data=None):
                 pan_number = pan_data.get("pan_number")
 
             item["data"] = {
-                "panNumber": pan_number,
-                "documentUID": str(candidate.documents.id)
+                "documentUID": str(pan_number)
             }
 
         # Education Verification
@@ -289,6 +288,26 @@ def _build_verifications(candidate, extra_data=None):
                 }
             }
 
+        elif code == "LAV":
+            item["data"] = { "currentAddress": extra.get("currentAddress", "") or candidate.location }
+        
+        elif code == "PAV":
+            item["data"] = {  
+                "permanentAddress": {   
+                    "co": extra.get("co", ""),   
+                    "line1": extra.get("line1", ""),
+                    "line2": extra.get("line2", ""),
+                    "locality": extra.get("locality", ""),
+                    "landmark": extra.get("landmark", ""),
+                    "vtc": extra.get("vtc", ""),
+                    "district":extra.get("district", ""),
+                    "state":extra.get("state", ""),
+                    "pincode": extra.get("pincode", ""),
+                    "fullAddress": extra.get("fullAddress", ""),
+                    "lFullAddress": extra.get("lFullAddress", ""),
+                    "lnCode": extra.get("lnCode", "hi-IN")
+                    }
+                }
         else:
             item["data"] = {}
 
