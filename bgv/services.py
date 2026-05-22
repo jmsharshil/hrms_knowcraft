@@ -435,13 +435,13 @@ def _build_payload(candidate, extra_data=None):
     # Strip country code if present and set separately
     if raw_phone.startswith("+91"):
         payload["phone"] = raw_phone[3:]          # "8401611072"
-        payload["phoneCountryCode"] = "+91"
+        # payload["phoneCountryCode"] = "+91"
     elif raw_phone.startswith("91") and len(raw_phone) == 12:
         payload["phone"] = raw_phone[2:]          # "8401611072"
-        payload["phoneCountryCode"] = "+91"
+        # payload["phoneCountryCode"] = "+91"
     else:
         payload["phone"] = raw_phone
-        payload["phoneCountryCode"] = "+91"
+        # payload["phoneCountryCode"] = "+91"
       
     # profession
     profession = ""
