@@ -255,7 +255,8 @@ def _build_verifications(candidate, extra_data=None):
                 pan_number = pan_data.get("pan_number")
 
             item["data"] = {
-                "documentUID": str(pan_number)
+                "documentUID": str(pan_number),
+                "panNumber": pan_number
             }
 
         # Education Verification
@@ -463,11 +464,24 @@ def _build_payload(candidate, extra_data=None):
     if kyc.get("father_name"):
         payload["fathersName"] = kyc["father_name"]
 
+    GENDER_MAP = {
+        "male":   "M",
+        "female": "F",
+        "transgender": "T",
+        "other": "O",
+    }
+
     if kyc.get("gender"):
-        payload["gender"] = kyc["gender"]
+        payload["gender"] = GENDER_MAP.get(kyc["gender"].lower(), "U")
 
     if kyc.get("dob"):
-        payload["dob"] = kyc["dob"]
+        raw_dob = kyc["dob"]
+        try:
+            from datetime import datetime
+            # Handle dd/MM/yyyy → yyyy-MM-dd
+            payload["dob"] = datetime.strptime(raw_dob, "%d/%m/%Y").strftime("%Y-%m-%d")
+        except ValueError:
+            payload["dob"] = raw_dob
 
     current_address = kyc.get("address") or extra.get("currentAddress") or candidate.location
     if current_address:
