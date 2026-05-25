@@ -568,11 +568,14 @@ def initiate_bgv(candidate, extra_data=None):
         )
 
     # ── persist ──────────────────────────────────────────────
+    individual = get_individual_status(data.get("individual", "") if api_success else "")
+    if individual:
+        individual_id = individual.get("id", "")
     bgv, created = CandidateBGV.objects.update_or_create(
         candidate=candidate,
         defaults={
             "callback_payload": data,
-            "ongrid_individual_id": data.get("id", "") if api_success else "",
+            "ongrid_individual_id": individual_id,
             "status": "initiated" if api_success else "failed",
             "remarks": "" if api_success else f"API error (HTTP {status_code}): {data}",
             "is_fresher": is_fresher(candidate),
