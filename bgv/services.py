@@ -600,6 +600,9 @@ def _build_payload(candidate, extra_data=None):
     if extra.get("fathersName"):
         payload["fathersName"] = extra["fathersName"]
 
+    if extra.get('adhar_id'):
+        payload['uid'] = extra['adhar_id']
+
     # ✅ FIXED VERIFICATIONS
     payload["verifications"] = _build_verifications(candidate,extra_data)
 
