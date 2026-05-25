@@ -255,30 +255,43 @@ def _build_verifications(candidate, extra_data=None):
 
         # ---------------- EDUV ----------------
         elif code == "EDUV":
-
             if not extra.get("institute_name"):
                 continue
 
-            level = extra.get("education_level", "GRADUATION").upper()
+            level = extra.get("level", extra.get("education_level", "GRADUATE")).upper()
             if level not in ["NO_EDUCATION","LESS_THEN_FIFTH_STD","FIFTH_STD","EIGHT_STD","TENTH_STD","TWELFTH_STD","DIPLOMA","GRADUATE","MASTERS","PHD","POST_DOC","POST_GRADUATE_DIPLOMA"]:
-                raise ValueError(f"{level} is not a valid education level")
+                logger.error(f"Invalid education level: {level}")
+                continue
 
             education_document = {
-               "nameAsPerDocument": candidate.candidate_name,
-                "issueDate": extra.get("issue_date", "2020-01-01"),
-                "registrationNumber": extra.get("registration_number", "NA"),
-                # IMPORTANT
-                "level": extra.get("education_level", "GRADUATION"),
-                "nameOfInstitute": extra.get("institute_name", "NA"),
-                # Should be DATE format, not just year
-                "yearOfPassing": extra.get("year_of_passing", "2020-01-01"),
-                "degree": extra.get("degree", "NA"),
-                "fieldOfStudy": extra.get("field_of_study", "NA"),
-                "durationInMonths": str(extra.get("duration_in_months", "36")),
-                "grade": extra.get("grade", "NA"),
-                "nameOfBoardUniversity": extra.get("name_of_board_university", "NA"),
+                "nameAsPerDocument": candidate.candidate_name,
+                "level": level,
+                "nameOfInstitute": extra.get("institute_name", ""),
                 "documents": _get_education_documents(candidate),
             }
+
+            if extra.get("name_of_board_university"):
+                education_document["nameOfBoardUniversity"] = extra.get("name_of_board_university")
+
+            yop = extra.get("year_of_passing")
+            if yop:
+                education_document["yearOfPassing"] = str(yop)[:4]
+
+            if extra.get("issue_date"):
+                education_document["issueDate"] = extra.get("issue_date")
+            if extra.get("registration_number"):
+                education_document["registrationNumber"] = extra.get("registration_number")
+            if extra.get("degree"):
+                education_document["degree"] = extra.get("degree")
+            if extra.get("field_of_study"):
+                education_document["fieldOfStudy"] = extra.get("field_of_study")
+            if extra.get("duration_in_months"):
+                try:
+                    education_document["durationInMonths"] = int(extra.get("duration_in_months"))
+                except ValueError:
+                    pass
+            if extra.get("grade"):
+                education_document["grade"] = extra.get("grade")
 
             verifications.append({
                 "code": code,
@@ -322,21 +335,25 @@ def _build_verifications(candidate, extra_data=None):
             })
 
         elif code == "EMPV":
+            emp_record = {
+                "nameAsPerEmployerRecords": candidate.candidate_name,
+                "employeeId": str(candidate.id),
+                "employerName": extra.get("employer_name", ""),
+                "lastDesignation": extra.get("designation", ""),
+                "documents": _get_employment_documents(candidate),
+            }
+            if extra.get("joining_date"):
+                emp_record["joiningDate"] = extra.get("joining_date")
+            if extra.get("last_working_date"):
+                emp_record["lastWorkingDate"] = extra.get("last_working_date")
+
             verifications.append({
                 "code": code,
                 "key": str(uuid.uuid4()),
                 "data": {
-                "employmentRecord": {
-                    "nameAsPerEmployerRecords": candidate.candidate_name,
-                    "employeeId": str(candidate.id),
-                    "employerName": extra.get("employer_name", ""),
-                    "lastDesignation": extra.get("designation", ""),
-                    "joiningDate": extra.get("joining_date", ""),
-                    "lastWorkingDate": extra.get("last_working_date", ""), 
-                    "documents": _get_employment_documents(candidate),
+                    "employmentRecord": emp_record
                 }
-            }
-        })
+            })
 
         # ---------------- SIMPLE CHECKS ----------------
         else:
