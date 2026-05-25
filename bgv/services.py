@@ -278,7 +278,7 @@ def _build_verifications(candidate, extra_data=None):
                 education_document["yearOfPassing"] = str(yop)[:4]
 
             if extra.get("issue_date"):
-                education_document["issueDate"] = extra.get("issue_date")
+                education_document["issueDate"] = normalize_date(extra.get("issue_date"))
             if extra.get("registration_number"):
                 education_document["registrationNumber"] = extra.get("registration_number")
             if extra.get("degree"):
