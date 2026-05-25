@@ -547,6 +547,60 @@ def initiate_bgv(candidate, extra_data=None):
     return bgv
 
 
+def send_bgv_reminder_to_hr(candidate):
+    """
+    Instead of auto-initiating BGV, send a reminder to the assigned HR
+    to fill the details and initiate the BGV process manually from the UI.
+    """
+    from onboarding.utils.sender import send_email, send_text
+    
+    FRONTEND_URL = getattr(settings, "FRONTEND_URL", "")
+    # Placeholder link - change according to actual frontend route
+    form_link = f"{FRONTEND_URL}/candidate/bgv/{candidate.id}" 
+
+    email_subject = f"Reminder: Initiate Background Verification for {candidate.candidate_name}"
+    email_text = (
+        f"Dear HR,\n\n"
+        f"Please fill out the required details to initiate the Background Verification (BGV) process for {candidate.candidate_name}.\n"
+        f"You can access the form here: {form_link}\n\n"
+        f"Thank you,\nSystem"
+    )
+    
+    sms_text = (
+        f"Dear HR, please fill out the required details to initiate the "
+        f"Background Verification (BGV) process for {candidate.candidate_name}. Link: {form_link}"
+    )
+
+    hr_users = []
+    if getattr(candidate.job, "assigned_to_internal_hr", None):
+        hr_users.append(candidate.job.assigned_to_internal_hr)
+    if hasattr(candidate.job, "assigned_internal_hrs"):
+        for hr in candidate.job.assigned_internal_hrs.all():
+            if hr not in hr_users:
+                hr_users.append(hr)
+
+    for hr in hr_users:
+        try:
+            if hr.email:
+                send_email(to=hr.email, subject=email_subject, text=email_text)
+            if getattr(hr, "phone", None):
+                send_text(to=str(hr.phone), text=sms_text)
+            logger.info("BGV reminder sent to HR %s for candidate %s", hr.email, candidate.candidate_name)
+        except Exception as e:
+            logger.error("Failed to send BGV reminder to HR %s: %s", getattr(hr, "email", "unknown"), e)
+
+    # ── persist ──────────────────────────────────────────────
+    bgv, created = CandidateBGV.objects.update_or_create(
+        candidate=candidate,
+        defaults={
+            "status": "pending_data",
+            "remarks": "Reminder sent to HR to fill BGV details",
+            "is_fresher": is_fresher(candidate),
+        },
+    )
+    return bgv
+
+
 def onboard_individual(candidate, extra_data=None):
     """
     Step 1 of the two-step flow:

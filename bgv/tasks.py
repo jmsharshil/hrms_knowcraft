@@ -21,7 +21,7 @@ def run_bgv_schedule_check():
     whose bgv_scheduled_date <= today, and initiate BGV for them.
     """
     from .models import CandidateBGV
-    from .services import initiate_bgv
+    from .services import send_bgv_reminder_to_hr
 
     print("[BGV SCHEDULER] Starting check for scheduled BGV triggers...")
 
@@ -41,19 +41,19 @@ def run_bgv_schedule_check():
         for bgv_record in pending_bgvs:
             candidate = bgv_record.candidate
             print(
-                f"[BGV SCHEDULER] Initiating BGV for experienced candidate "
+                f"[BGV SCHEDULER] Sending BGV reminder for experienced candidate "
                 f"{candidate.candidate_name} (app={candidate.id}, "
                 f"scheduled={bgv_record.bgv_scheduled_date})"
             )
             try:
-                initiate_bgv(candidate)
+                send_bgv_reminder_to_hr(candidate)
                 logger.info(
-                    "BGV initiated for scheduled candidate %s (app=%s)",
+                    "BGV reminder sent for scheduled candidate %s (app=%s)",
                     candidate.candidate_name, candidate.id,
                 )
             except Exception as exc:
                 logger.exception(
-                    "Failed to initiate scheduled BGV for %s (app=%s): %s",
+                    "Failed to send scheduled BGV reminder for %s (app=%s): %s",
                     candidate.candidate_name, candidate.id, exc,
                 )
 

@@ -218,16 +218,17 @@ def trigger_bgv_on_offer_accepted(sender, instance, created, **kwargs):
     fresher = is_fresher(instance)
 
     if fresher:
-        # ── Fresher: Initiate BGV immediately ────────────────
+        # ── Fresher: Send BGV reminder immediately ────────────────
         logger.info(
-            "Fresher candidate %s – initiating BGV immediately.",
+            "Fresher candidate %s – sending BGV reminder immediately.",
             instance.candidate_name,
         )
         try:
-            initiate_bgv(instance)
+            from .services import send_bgv_reminder_to_hr
+            send_bgv_reminder_to_hr(instance)
         except Exception:
             logger.exception(
-                "Failed to auto-initiate BGV for fresher application %s",
+                "Failed to auto-send BGV reminder for fresher application %s",
                 instance.id,
             )
     else:
