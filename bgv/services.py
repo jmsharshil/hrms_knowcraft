@@ -237,85 +237,81 @@ def _build_verifications(candidate, extra_data=None):
 
     for code in get_verification_codes(candidate):
 
-        item = {
-            "code": code,
-            "key": str(uuid.uuid4()),
-        }
-
+        # ---------------- PANV ----------------
         if code == "PANV":
             pan_file = getattr(candidate.documents, "pan", None)
             pan_data = extract_pan_smart(pan_file)
-            pan_number = pan_data.get("pan_number") if pan_data else None
-            item["data"] = {"documentUID": pan_number}
 
+            if not pan_data or not pan_data.get("pan_number"):
+                continue
+
+            verifications.append({
+                "code": code,
+                "key": str(uuid.uuid4()),
+                "data": {
+                    "documentUID": pan_data["pan_number"]
+                }
+            })
+
+        # ---------------- EDUV ----------------
         elif code == "EDUV":
-            item["data"] = {
-                "educationDocument": {
-                    "nameAsPerDocument": candidate.candidate_name,
-                    "level": extra.get("education_level", ""),
-                    "nameOfInstitute": extra.get("institute_name", ""),
-                    "nameOfBoardUniversity": extra.get("name_of_board_university", ""),
-                    "yearOfPassing": extra.get("year_of_passing", ""),
-                    "degree": extra.get("degree", ""),
-                    "fieldOfStudy": extra.get("field_of_study", ""),
-                    "durationInMonths": extra.get("duration_in_months", ""),
-                    "grade": extra.get("grade", ""),
-                    "issueDate": extra.get("issue_date", ""),
-                    "registrationNumber": extra.get("registration_number", ""),
-                    "documents": _get_education_documents(candidate),
+
+            if not extra.get("institute_name"):
+                continue
+
+            verifications.append({
+                "code": code,
+                "key": str(uuid.uuid4()),
+                "data": {
+                    "educationDocument": {
+                        "nameAsPerDocument": candidate.candidate_name,
+                        "nameOfInstitute": extra.get("institute_name"),
+                        "nameOfBoardUniversity": extra.get("name_of_board_university"),
+                        "yearOfPassing": extra.get("year_of_passing"),
+                        "degree": extra.get("degree"),
+                    }
                 }
-            }
+            })
 
-        elif code == "EMPV":
-            item["data"] = {
-                "employmentRecord": {
-                    "nameAsPerEmployerRecords": candidate.candidate_name,
-                    "employeeId": str(candidate.id),
-                    "employerName": extra.get("employer_name", ""),
-                    "lastDesignation": extra.get("designation", ""),
-                    "joiningDate": extra.get("joining_date", ""),
-                    "lastWorkingDate": extra.get("last_working_date", ""),
-                    "annualCompensation": extra.get("annual_compensation", ""),        
-                    "managerName": extra.get("manager_name", ""),        
-                    "managerEmail": extra.get("manager_email", ""),        
-                    "managerPhone": extra.get("manager_phone", ""),        
-                    "managerPhoneCountryCode": extra.get("manager_phone_country_code", ""),        
-                    "hrName": extra.get("hr_name", ""),        
-                    "hrEmail": "string",        
-                    "hrPhone": "string",        
-                    "hrPhoneCountryCode": "string",  
-                    "documents": _get_employment_documents(candidate),
-                }
-            }
-
-        elif code == "LAV":
-            item["data"] = {
-                "currentAddress": extra.get("currentAddress") or candidate.location or ""
-            }
-
+        # ---------------- PAV ----------------
         elif code == "PAV":
             perm = extra.get("permanentAddress") or {}
-            item["data"] = {
-                "permanentAddress": {
-                    "co":           perm.get("co", ""),
-                    "line1":        perm.get("line1", ""),
-                    "line2":        perm.get("line2", ""),
-                    "locality":     perm.get("locality", ""),
-                    "landmark":     perm.get("landmark", ""),
-                    "vtc":          perm.get("vtc", ""),
-                    "district":     perm.get("district", ""),
-                    "state":        perm.get("state", ""),
-                    "pincode":      perm.get("pincode", ""),
-                    "fullAddress":  perm.get("fullAddress", ""),
-                    "lFullAddress": perm.get("lFullAddress", ""),
-                    "lnCode":       perm.get("lnCode", "hi-IN"),
+
+            if not perm.get("line1"):
+                continue
+
+            verifications.append({
+                "code": code,
+                "key": str(uuid.uuid4()),
+                "data": {
+                    "permanentAddress": perm
                 }
-            }
+            })
 
-        # CCRV, GDC — no data key at all, per OnGrid docs
-        # (the else/data:{} block is intentionally removed)
+        # ---------------- LAV ----------------
+        elif code == "LAV":
+            current_address = (
+                extra.get("currentAddress")
+                or candidate.location
+            )
 
-        verifications.append(item)
+            if not current_address:
+                continue
+
+            verifications.append({
+                "code": code,
+                "key": str(uuid.uuid4()),
+                "data": {
+                    "currentAddress": current_address
+                }
+            })
+
+        # ---------------- SIMPLE CHECKS ----------------
+        else:
+            verifications.append({
+                "code": code,
+                "key": str(uuid.uuid4()),
+            })
 
     return verifications
 
