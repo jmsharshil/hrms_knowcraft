@@ -650,7 +650,7 @@ def initiate_bgv(candidate, extra_data=None):
         defaults={
             "callback_payload": data,
             "ongrid_individual_id": individual_id if individual_id else None,
-            "status": "initiated" if api_success else "failed",
+            "status": "in_progress" if api_success else "failed",
             "remarks": "" if api_success else f"API error (HTTP {status_code}): {data}",
             "is_fresher": is_fresher(candidate),
         },
@@ -860,7 +860,7 @@ def get_individual_status(individual_id):
     """
     url = (
         f"{BASE_URL}/v1/community/"
-        f"{settings.ONGRID_COMMUNITY_ID}/individuals/{individual_id}"
+        f"{settings.ONGRID_COMMUNITY_ID}/individuals/{individual_id}/verificationstatus"
     )
 
     data, status_code, success = _ongrid_request("GET", url)
@@ -873,8 +873,7 @@ def get_verification_report(individual_id):
     """
     url = (
         f"{BASE_URL}/v1/community/"
-        f"{settings.ONGRID_COMMUNITY_ID}/individuals/{individual_id}"
-        f"/verifications"
+        f"{settings.ONGRID_COMMUNITY_ID}/individuals/{individual_id}/report"
     )
 
     data, status_code, success = _ongrid_request("GET", url)
