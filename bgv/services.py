@@ -259,17 +259,28 @@ def _build_verifications(candidate, extra_data=None):
             if not extra.get("institute_name"):
                 continue
 
+            education_document = {
+               "nameAsPerDocument": candidate.candidate_name,
+                "issueDate": extra.get("issue_date", "2020-01-01"),
+                "registrationNumber": extra.get("registration_number", "NA"),
+                # IMPORTANT
+                "level": extra.get("education_level", "GRADUATION"),
+                "nameOfInstitute": extra.get("institute_name", "NA"),
+                # Should be DATE format, not just year
+                "yearOfPassing": extra.get("year_of_passing", "2020-01-01"),
+                "degree": extra.get("degree", "NA"),
+                "fieldOfStudy": extra.get("field_of_study", "NA"),
+                "durationInMonths": str(extra.get("duration_in_months", "36")),
+                "grade": extra.get("grade", "NA"),
+                "nameOfBoardUniversity": extra.get("name_of_board_university", "NA"),
+                "documents": _get_education_documents(candidate),
+            }
+
             verifications.append({
                 "code": code,
                 "key": str(uuid.uuid4()),
                 "data": {
-                    "educationDocument": {
-                        "nameAsPerDocument": candidate.candidate_name,
-                        "nameOfInstitute": extra.get("institute_name"),
-                        "nameOfBoardUniversity": extra.get("name_of_board_university"),
-                        "yearOfPassing": extra.get("year_of_passing"),
-                        "degree": extra.get("degree"),
-                    }
+                    "educationDocument": education_document
                 }
             })
 
@@ -454,6 +465,7 @@ def _build_payload(candidate, extra_data=None):
         "hasConsent": True,
         "consentText": settings.ONGRID_CONSENT_TEXT.strip(),
         "deduplicationKeys": [str(candidate.id)],
+        "joiningDate": str(candidate.joining_date),
         # "uid": str(candidate.id)  # safer idempotency
     }
 
@@ -568,6 +580,7 @@ def initiate_bgv(candidate, extra_data=None):
         )
 
     # ── persist ──────────────────────────────────────────────
+    individual_id = None
     individual = get_individual_status(data.get("individual", "") if api_success else "")
     if individual:
         individual_id = individual.get("id", "")
@@ -575,7 +588,7 @@ def initiate_bgv(candidate, extra_data=None):
         candidate=candidate,
         defaults={
             "callback_payload": data,
-            "ongrid_individual_id": individual_id,
+            "ongrid_individual_id": individual_id if individual_id else None,
             "status": "initiated" if api_success else "failed",
             "remarks": "" if api_success else f"API error (HTTP {status_code}): {data}",
             "is_fresher": is_fresher(candidate),
