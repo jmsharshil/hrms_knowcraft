@@ -5,7 +5,7 @@ import logging
 import requests
 import uuid
 from requests.auth import HTTPBasicAuth
-
+from datetime import datetime
 from django.conf import settings
 
 from .models import CandidateBGV
@@ -343,10 +343,13 @@ def _build_verifications(candidate, extra_data=None):
                 "documents": _get_employment_documents(candidate),
             }
             if extra.get("joining_date"):
-                emp_record["joiningDate"] = extra.get("joining_date")
-            if extra.get("last_working_date"):
-                emp_record["lastWorkingDate"] = extra.get("last_working_date")
+                emp_record["joiningDate"] = normalize_date(extra.get("joining_date"))
 
+            if extra.get("last_working_date"):
+                emp_record["lastWorkingDate"] = normalize_date(extra.get("last_working_date"))
+
+            if extra.get("issue_date"):
+                education_document["issueDate"] = normalize_date(extra.get("issue_date"))
             verifications.append({
                 "code": code,
                 "key": str(uuid.uuid4()),
@@ -466,7 +469,38 @@ def _get_employment_documents(candidate):
 
 #     return collected
 
+def normalize_date(date_value):
+    """
+    Convert multiple date formats into YYYY-MM-DD.
+    Returns None if invalid.
+    """
 
+    if not date_value:
+        return None
+
+    if isinstance(date_value, datetime):
+        return date_value.strftime("%Y-%m-%d")
+
+    date_value = str(date_value).strip()
+
+    formats = [
+        "%Y-%m-%d",
+        "%d-%m-%Y",
+        "%d/%m/%Y",
+        "%Y/%m/%d",
+        "%d %b %Y",
+        "%d %B %Y",
+        "%m/%d/%Y",
+    ]
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_value, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+
+    return None
+    
 def _build_payload(candidate, extra_data=None):
     """
     Build the OnGrid onboard/initiate payload from a JobApplication instance.
@@ -559,8 +593,9 @@ def _build_payload(candidate, extra_data=None):
     if extra.get("gender"):
         payload["gender"] = extra["gender"]
     
-    if extra.get("dob"):
-        payload["dob"] = extra["dob"]
+    raw_dob = extra.get("dob") or getattr(candidate, "dob", None)
+    if raw_dob:
+        payload["dob"] = normalize_date(raw_dob)
 
     if extra.get("fathersName"):
         payload["fathersName"] = extra["fathersName"]
@@ -593,6 +628,9 @@ def initiate_bgv(candidate, extra_data=None):
     print(payload,"payload")
 
     data, status_code, api_success = _ongrid_request("POST", url, payload)
+    print(data,"data")
+    print(status_code,"status_code")
+    print(api_success,"api_success")
 
     if api_success:
         logger.info(
@@ -602,7 +640,7 @@ def initiate_bgv(candidate, extra_data=None):
 
     # ── persist ──────────────────────────────────────────────
     individual_id = None
-    individual = get_individual_status(data.get("individual", "") if api_success else "")
+    individual = data.get("individual", "") if api_success else ""
     print(individual,"individual")
     if individual:
         individual_id = individual.get("id", "")
