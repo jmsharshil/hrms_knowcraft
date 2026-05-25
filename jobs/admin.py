@@ -102,7 +102,7 @@ class JobApplicationAdmin(admin.ModelAdmin):
         'joining_date', 'offer_accepted_date',
         'source', 'submitted_by', 'created_at'
     ]
-    list_filter = ['status', 'source', 'created_at']
+    list_filter = ['status', 'source', 'created_at','bgv_status']
     search_fields = [
         'candidate_name', 'candidate_email', 'candidate_phone',
         'job__job_title', 'notes'
@@ -117,7 +117,7 @@ class JobApplicationAdmin(admin.ModelAdmin):
         }),
         ('Job & Status', {
             'fields': (
-                'job', 'status', 'joining_date', 'offer_accepted_date', 'source', 'submitted_by'
+                'job', 'status', 'joining_date', 'offer_accepted_date', 'source', 'submitted_by', 'bgv_status'
             )
         }),
         ('Compensation', {
