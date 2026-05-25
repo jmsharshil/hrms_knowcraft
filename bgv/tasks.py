@@ -4,8 +4,6 @@
 Periodic background task that checks for experienced candidates
 whose BGV scheduled date has arrived (15 days before joining),
 and initiates their BGV process via OnGrid.
-
-Follows the same pattern as onboarding/utils/joining_check.py.
 """
 
 import logging
@@ -13,6 +11,52 @@ import threading
 from datetime import date
 
 logger = logging.getLogger(__name__)
+
+
+# ─────────────────────────────────────────────────────────────
+# OnGrid → Internal status mapping
+# ─────────────────────────────────────────────────────────────
+
+ONGRID_STATUS_MAPPING = {
+    # Active states
+    "Initiated": "initiated",
+    "Pending": "pending",
+    "InProgress": "in_progress",
+    "UnderReview": "under_review",
+    "InsufficiencyRaised": "insufficiency_raised",
+    "DataInsufficient": "data_insufficient",
+    "AwaitingCandidateInput": "awaiting_candidate_input",
+    "AwaitingEmployerResponse": "awaiting_employer_response",
+    "AwaitingUniversityResponse": "awaiting_university_response",
+    "AwaitingCourtResponse": "awaiting_court_response",
+
+    # Successful / terminal states
+    "Clear": "clear",
+    "Completed": "completed",
+    "Closed": "closed",
+    "Verified": "verified",
+    "UnableToVerify": "unable_to_verify",
+    "Discrepancy": "discrepancy",
+
+    # Failure states
+    "Failed": "failed",
+    "Cancelled": "cancelled",
+    "Rejected": "rejected",
+    "Expired": "expired",
+}
+
+
+def map_ongrid_status(status):
+    """
+    Convert OnGrid status to internal Django status.
+    """
+    if not status:
+        return "in_progress"
+
+    return ONGRID_STATUS_MAPPING.get(
+        str(status).strip(),
+        "in_progress",
+    )
 
 
 def run_bgv_schedule_check():
@@ -67,22 +111,30 @@ def run_bgv_schedule_check():
 
 def run_bgv_status_poll():
     """
-    Find all CandidateBGV records with status in ('initiated', 'in_progress')
-    and poll the OnGrid API for their latest status.
-
-    Only saves when a status change is detected to avoid triggering
-    unnecessary post_save signals (and duplicate HR notifications).
+    Poll latest BGV status from OnGrid and sync with CandidateBGV.
     """
     from django.utils import timezone
     from .models import CandidateBGV
-    from .services import get_verification_report, get_individual_status
+    from .services import (
+        get_verification_report,
+        get_individual_status,
+    )
 
-    print("[BGV POLLER] Starting check for in-progress BGV records...")
+    print("[BGV POLLER] Starting check for active BGV records...")
 
     try:
         active_bgvs = list(
-            CandidateBGV.objects.filter(
-                status__in=["initiated", "in_progress"]
+            CandidateBGV.objects.exclude(
+                status__in=[
+                    "completed",
+                    "clear",
+                    "verified",
+                    "closed",
+                    "failed",
+                    "cancelled",
+                    "rejected",
+                    "expired",
+                ]
             )
             .exclude(ongrid_individual_id="")
             .exclude(ongrid_individual_id__isnull=True)
@@ -94,105 +146,165 @@ def run_bgv_status_poll():
             return
 
         for bgv_record in active_bgvs:
-            print(f"[BGV POLLER] Polling status for {bgv_record.candidate.candidate_name} ({bgv_record.ongrid_individual_id})")
-            
-            report = get_verification_report(bgv_record.ongrid_individual_id)
+
+            print(
+                f"[BGV POLLER] Polling status for "
+                f"{bgv_record.candidate.candidate_name} "
+                f"({bgv_record.ongrid_individual_id})"
+            )
+
+            report = get_verification_report(
+                bgv_record.ongrid_individual_id
+            )
+
             if not report:
+                logger.warning(
+                    "No report received for individual %s",
+                    bgv_record.ongrid_individual_id,
+                )
                 continue
 
             old_status = bgv_record.status
             update_fields = []
 
-            # Always update the callback payload with latest data
+            # Save latest payload
             bgv_record.callback_payload = report
             update_fields.append("callback_payload")
 
-            # Check if verifications are concluded
-            verifications = report.get("verifications", [])
+            # -------------------------------------------------
+            # Extract overall status
+            # -------------------------------------------------
 
-            if not verifications:
-                # Save payload update only, skip status logic
-                bgv_record.save(update_fields=update_fields)
-                continue
+            overall_status = (
+                report.get("status")
+                or report.get("overallStatus")
+                or report.get("verificationStatus")
+            )
 
-            all_completed = True
-            any_insufficient = False
+            # Fallback from verification list
+            if not overall_status:
 
-            for ver in verifications:
-                v_status = ver.get("status", "")
-                if v_status == "DataInsufficient":
-                    any_insufficient = True
-                elif v_status not in ("Clear", "Discrepancy", "Completed", "UnableToVerify"):
-                    all_completed = False
+                verifications = report.get("verifications", [])
 
-            # Determine new status
-            if any_insufficient:
-                new_status = "insufficient"
-            elif all_completed:
-                new_status = "completed"
-            else:
-                new_status = "in_progress"
+                if verifications:
 
-            # Only update status-related fields if status actually changed
+                    statuses = [
+                        v.get("status")
+                        for v in verifications
+                        if v.get("status")
+                    ]
+
+                    if statuses:
+                        overall_status = statuses[0]
+
+            # Map to internal status
+            new_status = map_ongrid_status(overall_status)
+
+            print(
+                f"[BGV POLLER] OnGrid status={overall_status} "
+                f"mapped={new_status}"
+            )
+
+            # -------------------------------------------------
+            # Update status only if changed
+            # -------------------------------------------------
+
             if new_status != old_status:
                 bgv_record.status = new_status
                 update_fields.append("status")
 
-                if new_status == "completed":
+                # Terminal statuses
+                if new_status in [
+                    "completed",
+                    "clear",
+                    "verified",
+                    "closed",
+                ]:
                     bgv_record.completed_at = timezone.now()
                     update_fields.append("completed_at")
 
-                # Try to extract report URL from individual status
+                # Fetch report URL
                 try:
-                    individual_data = get_individual_status(bgv_record.ongrid_individual_id)
+
+                    individual_data = get_individual_status(
+                        bgv_record.ongrid_individual_id
+                    )
+
                     if individual_data:
-                        report_url = individual_data.get("reportUrl") or individual_data.get("report_url")
+
+                        report_url = (
+                            individual_data.get("reportUrl")
+                            or individual_data.get("report_url")
+                        )
+
                         if report_url:
                             bgv_record.report_url = report_url
                             update_fields.append("report_url")
                 except Exception:
                     logger.warning(
-                        "Failed to fetch individual status for report URL (individual=%s)",
+                        "Failed to fetch report URL "
+                        "(individual=%s)",
                         bgv_record.ongrid_individual_id,
                     )
 
-                # Use full save() to trigger post_save signal (for HR notifications)
+                # Full save to trigger signals
                 bgv_record.save()
+
+                logger.info(
+                    "BGV status updated for %s: %s → %s",
+                    bgv_record.candidate.candidate_name,
+                    old_status,
+                    new_status,
+                )
+
             else:
-                # No status change — save payload only without triggering signals
+                # Save only payload changes
                 bgv_record.save(update_fields=update_fields)
 
-        print(f"[BGV POLLER] Polled {len(active_bgvs)} BGV records.")
+        print(
+            f"[BGV POLLER] Polled {len(active_bgvs)} BGV records."
+        )
 
     except Exception as exc:
-        logger.error("[BGV POLLER] Error during BGV poll: %s", exc)
+        logger.exception(
+            "[BGV POLLER] Error during BGV poll: %s",
+            exc,
+        )
 
 
 def run_bgv_schedule_check_and_reschedule():
     """
-    Task that runs the BGV schedule check and reschedules itself
-    to run again in 1 hour.
+    Run scheduler + poller and reschedule after 1 hour.
     """
+
     from onboarding.utils.task_queue import TASK_QUEUE
 
     run_bgv_schedule_check()
     run_bgv_status_poll()
 
-    # Reschedule after 1 hour (3600 seconds)
     timer = threading.Timer(
         3600,
-        lambda: TASK_QUEUE.enqueue(run_bgv_schedule_check_and_reschedule),
+        lambda: TASK_QUEUE.enqueue(
+            run_bgv_schedule_check_and_reschedule
+        ),
     )
+
     timer.daemon = True
     timer.start()
 
 
 def schedule_periodic_bgv_check():
     """
-    Initial entry point — enqueues the first BGV check into the task queue.
-    Called from bgv/apps.py on startup.
+    Initial entry point.
     """
+
     from onboarding.utils.task_queue import TASK_QUEUE
 
-    TASK_QUEUE.enqueue(run_bgv_schedule_check_and_reschedule)
-    print("[BGV SCHEDULER] Periodic BGV schedule & poll check registered.")
+    TASK_QUEUE.enqueue(
+        run_bgv_schedule_check_and_reschedule
+    )
+
+    print(
+        "[BGV SCHEDULER] "
+        "Periodic BGV schedule & poll check registered."
+    )

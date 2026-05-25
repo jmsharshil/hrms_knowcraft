@@ -7,13 +7,34 @@ from django.db import models
 class CandidateBGV(models.Model):
 
     STATUS_CHOICES = [
-        ("pending_schedule", "Pending Schedule"),
-        ("initiated", "Initiated"),
-        ("in_progress", "In Progress"),
-        ("completed", "Completed"),
-        ("insufficient", "Insufficient"),
-        ("failed", "Failed"),
-    ]
+    ("pending_schedule", "Pending Schedule"),
+
+    # Active states
+    ("initiated", "BGV Initiated"),
+    ("pending", "Pending Verification"),
+    ("in_progress", "BGV In Progress"),
+    ("under_review", "Under Review"),
+    ("insufficiency_raised", "Insufficiency Raised"),
+    ("data_insufficient", "Data Insufficient"),
+    ("awaiting_candidate_input", "Awaiting Candidate Input"),
+    ("awaiting_employer_response", "Awaiting Employer Response"),
+    ("awaiting_university_response", "Awaiting University Response"),
+    ("awaiting_court_response", "Awaiting Court Response"),
+
+    # Successful / terminal states
+    ("clear", "BGV Clear"),
+    ("completed", "BGV Completed"),
+    ("closed", "BGV Closed"),
+    ("verified", "Verified"),
+    ("unable_to_verify", "Unable To Verify"),
+    ("discrepancy", "Discrepancy Found"),
+
+    # Failure states
+    ("failed", "BGV Failed"),
+    ("cancelled", "BGV Cancelled"),
+    ("rejected", "BGV Rejected"),
+    ("expired", "BGV Expired"),
+]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 

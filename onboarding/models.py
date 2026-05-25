@@ -268,11 +268,33 @@ class ApprovalNote(models.Model):
 ]
     
     BGV_STATUS_CHOICES = [
-        ("pending", "Pending"),
-        ("bgv_initiated", "BGV Initiated"),
-        ("bgv_in_progress", "BGV In Progress"),
-        ("bgv_completed", "BGV Completed"),
-        ("bgv_insufficient", "BGV Data Insufficient"),
+        ("pending_schedule", "Pending Schedule"),
+
+        # Active states
+        ("initiated", "BGV Initiated"),
+        ("pending", "Pending Verification"),
+        ("in_progress", "BGV In Progress"),
+        ("under_review", "Under Review"),
+        ("insufficiency_raised", "Insufficiency Raised"),
+        ("data_insufficient", "Data Insufficient"),
+        ("awaiting_candidate_input", "Awaiting Candidate Input"),
+        ("awaiting_employer_response", "Awaiting Employer Response"),
+        ("awaiting_university_response", "Awaiting University Response"),
+        ("awaiting_court_response", "Awaiting Court Response"),
+
+        # Successful / terminal states
+        ("clear", "BGV Clear"),
+        ("completed", "BGV Completed"),
+        ("closed", "BGV Closed"),
+        ("verified", "Verified"),
+        ("unable_to_verify", "Unable To Verify"),
+        ("discrepancy", "Discrepancy Found"),
+
+        # Failure states
+        ("failed", "BGV Failed"),
+        ("cancelled", "BGV Cancelled"),
+        ("rejected", "BGV Rejected"),
+        ("expired", "BGV Expired"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -307,7 +329,7 @@ class ApprovalNote(models.Model):
     
     bgv_status = models.CharField(
         max_length=50,
-        default="pending",
+        default="pending_schedule",
         choices=BGV_STATUS_CHOICES
     )
     created_at = models.DateTimeField(default=timezone.now)
