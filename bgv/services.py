@@ -859,8 +859,7 @@ def get_individual_status(individual_id):
     Useful for polling verification progress.
     """
     url = (
-        f"{BASE_URL}/v1/community/"
-        f"{settings.ONGRID_COMMUNITY_ID}/individuals/{individual_id}/verificationstatus"
+        f"{BASE_URL}/v1/individual/{individual_id}/verificationstatus"
     )
 
     data, status_code, success = _ongrid_request("GET", url)
@@ -872,8 +871,7 @@ def get_verification_report(individual_id):
     Fetch the verification report/results for an individual.
     """
     url = (
-        f"{BASE_URL}/v1/community/"
-        f"{settings.ONGRID_COMMUNITY_ID}/individuals/{individual_id}/report"
+        f"{BASE_URL}/v1/individual/{individual_id}/report"
     )
 
     data, status_code, success = _ongrid_request("GET", url)
