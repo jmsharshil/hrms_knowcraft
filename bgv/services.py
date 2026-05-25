@@ -259,6 +259,10 @@ def _build_verifications(candidate, extra_data=None):
             if not extra.get("institute_name"):
                 continue
 
+            level = extra.get("education_level", "GRADUATION").upper()
+            if level not in ["NO_EDUCATION","LESS_THEN_FIFTH_STD","FIFTH_STD","EIGHT_STD","TENTH_STD","TWELFTH_STD","DIPLOMA","GRADUATE","MASTERS","PHD","POST_DOC","POST_GRADUATE_DIPLOMA"]:
+                raise ValueError(f"{level} is not a valid education level")
+
             education_document = {
                "nameAsPerDocument": candidate.candidate_name,
                 "issueDate": extra.get("issue_date", "2020-01-01"),
@@ -352,7 +356,7 @@ def _build_document(file_field, document_type):
         "documentType": document_type,
         "fileDataType": "Url",
         "fileName": file_field.name.split("/")[-1],
-        "fileContent": file_field.url,
+        "fileContent": file_field.url.split("?")[0] if "?" in file_field.url else file_field.url,
     }
 
 def _get_education_documents(candidate):
@@ -582,8 +586,10 @@ def initiate_bgv(candidate, extra_data=None):
     # ── persist ──────────────────────────────────────────────
     individual_id = None
     individual = get_individual_status(data.get("individual", "") if api_success else "")
+    print(individual,"individual")
     if individual:
         individual_id = individual.get("id", "")
+        print(individual_id,"id")
     bgv, created = CandidateBGV.objects.update_or_create(
         candidate=candidate,
         defaults={

@@ -252,11 +252,6 @@ class ApprovalNote(models.Model):
     ("offer_sent", "Offer Drafted to Zoho Sign"),
     ("offer_accepted", "Offer Accepted"),
     ("offer_rejected", "Offer Rejected by Candidate"),
-    # BGV FLOW
-    ("bgv_initiated", "BGV Initiated"),
-    ("bgv_in_progress", "BGV In Progress"),
-    ("bgv_completed", "BGV Completed"),
-    ("bgv_insufficient", "BGV Data Insufficient"),
     # JOINING DOCUMENT FLOW
     ("docs_pending", "Joining Documents Pending"),
     ("docs_uploaded", "Joining Documents Uploaded"),
@@ -271,6 +266,15 @@ class ApprovalNote(models.Model):
     # General Rejection (fallback)
     ("rejected", "Rejected"),
 ]
+    
+    BGV_STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("bgv_initiated", "BGV Initiated"),
+        ("bgv_in_progress", "BGV In Progress"),
+        ("bgv_completed", "BGV Completed"),
+        ("bgv_insufficient", "BGV Data Insufficient"),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     candidate = models.ForeignKey(
@@ -301,6 +305,11 @@ class ApprovalNote(models.Model):
         choices=STATUS_CHOICES
     )
     
+    bgv_status = models.CharField(
+        max_length=50,
+        default="pending",
+        choices=BGV_STATUS_CHOICES
+    )
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now,null=True,blank=True)
     approved_at = models.DateTimeField(default=timezone.now,null=True,blank=True)

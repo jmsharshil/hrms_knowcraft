@@ -503,11 +503,6 @@ class JobApplication(models.Model):
     ("offer_sent", "Offer Drafted to Zoho Sign"),
     ("offer_accepted", "Offer Accepted"),
     ("offer_rejected", "Offer Rejected by Candidate"),
-    # BGV FLOW
-    ("bgv_initiated", "BGV Initiated"),
-    ("bgv_in_progress", "BGV In Progress"),
-    ("bgv_completed", "BGV Completed"),
-    ("bgv_insufficient", "BGV Data Insufficient"),
     # JOINING DOCUMENT FLOW
     ("docs_pending", "Joining Documents Pending"),
     ("docs_uploaded", "Joining Documents Uploaded"),
@@ -544,6 +539,14 @@ class JobApplication(models.Model):
             ("final_round", "Final Round"),
             ("management_client_round", "Management / Client Round")
         ]
+    
+    BGV_STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("bgv_initiated", "BGV Initiated"),
+        ("bgv_in_progress", "BGV In Progress"),
+        ("bgv_completed", "BGV Completed"),
+        ("bgv_insufficient", "BGV Data Insufficient"),
+    ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     job = models.ForeignKey(
@@ -598,6 +601,12 @@ class JobApplication(models.Model):
         max_length=50,
         choices=STATUS_CHOICES,
         default='received'
+    )
+    
+    bgv_status = models.CharField(
+        max_length=50,
+        choices=BGV_STATUS_CHOICES,
+        default='pending'
     )
     
     # Additional Info

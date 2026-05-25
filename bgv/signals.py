@@ -307,7 +307,7 @@ def update_bgv_schedule_on_joining_date_change(sender, instance, created, **kwar
 @receiver(post_save, sender=CandidateBGV)
 def sync_bgv_status_to_application(sender, instance, **kwargs):
     """
-    Sync CandidateBGV status updates back to the JobApplication and ApprovalNote.
+    Sync CandidateBGV status updates back to the JobApplication and ApprovalNote bgv_status field.
     Also sends email + WhatsApp notifications to assigned HRs.
     """
     app = instance.candidate
@@ -323,25 +323,15 @@ def sync_bgv_status_to_application(sender, instance, **kwargs):
     if not new_status:
         return
         
-    # Only sync if the application is currently in the offer/BGV phase.
-    # This prevents overwriting the status if the candidate has already moved to 'docs_pending' or 'joined'.
-    valid_sync_statuses = [
-        "offer_accepted", 
-        "bgv_initiated", 
-        "bgv_in_progress", 
-        "bgv_completed", 
-        "bgv_insufficient"
-    ]
-    
-    if app.status in valid_sync_statuses and app.status != new_status:
-        app.status = new_status
-        app.save(update_fields=['status'])
+    if app.bgv_status != new_status:
+        app.bgv_status = new_status
+        app.save(update_fields=['bgv_status'])
         
         # Also sync to the latest ApprovalNote
         latest_note = ApprovalNote.objects.filter(candidate=app).order_by('-id').first()
-        if latest_note and latest_note.status in valid_sync_statuses and latest_note.status != new_status:
-            latest_note.status = new_status
-            latest_note.save(update_fields=['status'])
+        if latest_note and latest_note.bgv_status != new_status:
+            latest_note.bgv_status = new_status
+            latest_note.save(update_fields=['bgv_status'])
             
         logger.info(
             "Synced BGV status '%s' -> '%s' for application %s",
