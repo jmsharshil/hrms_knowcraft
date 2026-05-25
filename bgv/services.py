@@ -306,6 +306,23 @@ def _build_verifications(candidate, extra_data=None):
                 }
             })
 
+        elif code == "EMPV":
+            verifications.append({
+                "code": code,
+                "key": str(uuid.uuid4()),
+                "data": {
+                "employmentRecord": {
+                    "nameAsPerEmployerRecords": candidate.candidate_name,
+                    "employeeId": str(candidate.id),
+                    "employerName": extra.get("employer_name", ""),
+                    "lastDesignation": extra.get("designation", ""),
+                    "joiningDate": extra.get("joining_date", ""),
+                    "lastWorkingDate": extra.get("last_working_date", ""), 
+                    "documents": _get_employment_documents(candidate),
+                }
+            }
+        })
+
         # ---------------- SIMPLE CHECKS ----------------
         else:
             verifications.append({
@@ -505,6 +522,15 @@ def _build_payload(candidate, extra_data=None):
 
     if extra.get("permanentAddress"):
         payload["permanentAddress"] = extra["permanentAddress"]
+
+    if extra.get("gender"):
+        payload["gender"] = extra["gender"]
+    
+    if extra.get("dob"):
+        payload["dob"] = extra["dob"]
+
+    if extra.get("fathersName"):
+        payload["fathersName"] = extra["fathersName"]
 
     # ✅ FIXED VERIFICATIONS
     payload["verifications"] = _build_verifications(candidate,extra_data)
