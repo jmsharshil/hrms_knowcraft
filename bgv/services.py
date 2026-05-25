@@ -469,32 +469,32 @@ def _build_payload(candidate, extra_data=None):
         payload["otherProfession"] = other_prof
 
     # optional fields
-    kyc = extract_candidate_kyc_details(candidate)
-    print(kyc,"kyc")
+    # kyc = extract_candidate_kyc_details(candidate)
+    # print(kyc,"kyc")
 
-    if kyc.get("father_name"):
-        payload["fathersName"] = kyc["father_name"]
+    # if kyc.get("father_name"):
+    #     payload["fathersName"] = kyc["father_name"]
 
-    GENDER_MAP = {
-        "male":   "M",
-        "female": "F",
-        "transgender": "T",
-        "other": "O",
-    }
+    # GENDER_MAP = {
+    #     "male":   "M",
+    #     "female": "F",
+    #     "transgender": "T",
+    #     "other": "O",
+    # }
 
-    if kyc.get("gender"):
-        payload["gender"] = GENDER_MAP.get(kyc["gender"].lower(), "U")
+    # if kyc.get("gender"):
+    #     payload["gender"] = GENDER_MAP.get(kyc["gender"].lower(), "U")
 
-    if kyc.get("dob"):
-        raw_dob = kyc["dob"]
-        try:
-            from datetime import datetime
-            # Handle dd/MM/yyyy → yyyy-MM-dd
-            payload["dob"] = datetime.strptime(raw_dob, "%d/%m/%Y").strftime("%Y-%m-%d")
-        except ValueError:
-            payload["dob"] = raw_dob
+    # if kyc.get("dob"):
+    #     raw_dob = kyc["dob"]
+    #     try:
+    #         from datetime import datetime
+    #         # Handle dd/MM/yyyy → yyyy-MM-dd
+    #         payload["dob"] = datetime.strptime(raw_dob, "%d/%m/%Y").strftime("%Y-%m-%d")
+    #     except ValueError:
+    #         payload["dob"] = raw_dob
 
-    current_address = kyc.get("address") or extra.get("currentAddress") or candidate.location
+    current_address = extra.get("currentAddress") or candidate.location
     if current_address:
         payload["currentAddress"] = current_address
     
