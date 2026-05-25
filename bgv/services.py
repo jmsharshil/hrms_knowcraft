@@ -581,14 +581,17 @@ def _build_payload(candidate, extra_data=None):
     current_address = extra.get("currentAddress") or candidate.location
     if current_address:
         payload["currentAddress"] = current_address
-    
+
+    permanent_address = extra.get("permanentAddress")
     if extra.get("city"):
         payload["city"] = extra["city"]
+    elif not extra_data.get("city") and permanent_address and permanent_address.get("city"):
+        extra_data["city"] = permanent_address.get("city")
     elif candidate.location:
         payload["city"] = candidate.location
 
-    if extra.get("permanentAddress"):
-        payload["permanentAddress"] = extra["permanentAddress"]
+    if permanent_address:
+        payload["permanentAddress"] = permanent_address
 
     if extra.get("gender"):
         payload["gender"] = extra["gender"]
