@@ -246,7 +246,7 @@ def _build_verifications(candidate, extra_data=None):
             pan_file = getattr(candidate.documents, "pan", None)
             pan_data = extract_pan_smart(pan_file)
             pan_number = pan_data.get("pan_number") if pan_data else None
-            item["data"] = {"panNumber": pan_number}
+            item["data"] = {"documentUID": pan_number}
 
         elif code == "EDUV":
             item["data"] = {
@@ -254,9 +254,14 @@ def _build_verifications(candidate, extra_data=None):
                     "nameAsPerDocument": candidate.candidate_name,
                     "level": extra.get("education_level", ""),
                     "nameOfInstitute": extra.get("institute_name", ""),
+                    "nameOfBoardUniversity": extra.get("name_of_board_university", ""),
                     "yearOfPassing": extra.get("year_of_passing", ""),
                     "degree": extra.get("degree", ""),
                     "fieldOfStudy": extra.get("field_of_study", ""),
+                    "durationInMonths": extra.get("duration_in_months", ""),
+                    "grade": extra.get("grade", ""),
+                    "issueDate": extra.get("issue_date", ""),
+                    "registrationNumber": extra.get("registration_number", ""),
                     "documents": _get_education_documents(candidate),
                 }
             }
@@ -270,6 +275,15 @@ def _build_verifications(candidate, extra_data=None):
                     "lastDesignation": extra.get("designation", ""),
                     "joiningDate": extra.get("joining_date", ""),
                     "lastWorkingDate": extra.get("last_working_date", ""),
+                    "annualCompensation": extra.get("annual_compensation", ""),        
+                    "managerName": extra.get("manager_name", ""),        
+                    "managerEmail": extra.get("manager_email", ""),        
+                    "managerPhone": extra.get("manager_phone", ""),        
+                    "managerPhoneCountryCode": extra.get("manager_phone_country_code", ""),        
+                    "hrName": extra.get("hr_name", ""),        
+                    "hrEmail": "string",        
+                    "hrPhone": "string",        
+                    "hrPhoneCountryCode": "string",  
                     "documents": _get_employment_documents(candidate),
                 }
             }
