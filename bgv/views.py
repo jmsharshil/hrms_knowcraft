@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 from jobs.models import JobApplication
 
 from .models import CandidateBGV
-from .serializers import CandidateBGVSerializer
+from .serializers import CandidateBGVSerializer, CandidateBGVListSerializer
 from .services import (
     initiate_bgv,
     onboard_individual,
@@ -32,7 +32,11 @@ class CandidateBGVViewSet(viewsets.ModelViewSet):
     """
 
     queryset = CandidateBGV.objects.select_related("candidate").all()
-    serializer_class = CandidateBGVSerializer
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return CandidateBGVListSerializer
+        return CandidateBGVSerializer
 
     @action(detail=True, methods=["post"])
     def reinitiate(self, request, pk=None):
