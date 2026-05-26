@@ -471,6 +471,8 @@ class SendApprovalNoteAPIView(APIView):
                 "can_approve": can_approve,
                 "approver_id": str(note.manager.id),
                 "status": note.status,
+                "bgv_status":note.candidate.bgv_status,
+                "bgv_status_display":note.candidate.get_bgv_status_display(),
                 "status_display": note.get_status_display(),
                 "joining_date": note.candidate.joining_date,
                 "created_at": note.created_at,

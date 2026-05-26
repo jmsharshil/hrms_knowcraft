@@ -60,6 +60,55 @@ class CandidateBGV(models.Model):
 
     callback_payload = models.JSONField(default=dict, blank=True)
 
+    # Latest status fetched from OnGrid /verificationstatus endpoint
+    ongrid_status = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Latest status payload fetched from OnGrid ongrid-status endpoint"
+    )
+
+    # Per-verification overall status fields
+    av_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    bav_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    cc_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    ccrv_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    cvv_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    dlv_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    drg_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    eduv_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    efirc_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    ehc_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    empv_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    eref_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    fmc_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    gdc_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    iaf_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    icav_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    ipav_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    ladv_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    lapv_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    lav_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    nsorc_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    ofacc_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    padv_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    panv_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    papv_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    pav_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    pcc_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    ppv_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    prc_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    pvlf_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    smc_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    vidv_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+    xav_status = models.CharField(max_length=50, default="NOT_REQUESTED", blank=True)
+
+    # Raw payload sent to OnGrid on each initiation attempt
+    raw_initiation_payload = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Raw request payload sent to OnGrid during the last initiation attempt"
+    )
+
     initiated_at = models.DateTimeField(auto_now_add=True)
 
     completed_at = models.DateTimeField(null=True, blank=True)

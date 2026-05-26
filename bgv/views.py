@@ -172,6 +172,8 @@ class CandidateBGVViewSet(viewsets.ModelViewSet):
     def ongrid_status(self, request, pk=None):
         """
         Fetch current individual status from OnGrid API (polling).
+        Persists the response into CandidateBGV.ongrid_status and updates
+        report_url / status so the get-by-id endpoint reflects the latest state.
         """
         bgv = self.get_object()
 
@@ -181,7 +183,8 @@ class CandidateBGVViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        data = get_individual_status(bgv.ongrid_individual_id)
+        # Pass bgv so the status payload is saved to the DB record
+        data = get_individual_status(bgv.ongrid_individual_id, bgv_instance=bgv)
         if data is None:
             return Response(
                 {"error": "Failed to fetch status from OnGrid."},

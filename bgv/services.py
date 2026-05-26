@@ -168,6 +168,58 @@ def _resolve_profession_id(designation_name):
     return 69, designation_name
 
 # ── Verification codes to request ────────────────────────────────
+# Human-readable names for each verification code
+VERIFICATION_NAMES = {
+    "PANV":   "PAN Verification",
+    "AV":     "Aadhaar Verification",
+    "CCRV":   "Court & Criminal Record Verification",
+    "PAV":    "Permanent Address Verification",
+    "LAV":    "Current/Local Address Verification",
+    "EDUV":   "Education Verification",
+    "GDC":    "Global Database Check",
+    "EMPV":   "Employment Verification",
+    "DLV":    "Driving Licence Verification",
+    "BAV":    "Bank Account Verification",
+    "CVV":    "CV Verification",
+    "PAPV":   "Passport Verification",
+    "PANV":   "PAN Verification",
+    "PADV":   "PAN Address Verification",
+    "VIDV":   "Voter ID Verification",
+    "IPAV":   "IP Address Verification",
+    "LAPV":   "Latest Address Verification",
+    "LADV":   "Latest Address Document Verification",
+    "PCC":    "Police Clearance Certificate",
+    "PPV":    "Passport Police Verification",
+    "PRC":    "Professional Reference Check",
+    "DRG":    "Drug Test",
+    "FMC":    "Financial & Medical Check",
+    "SMC":    "Social Media Check",
+    "EHC":    "Executive Health Check",
+    "PVLF":   "PF Verification",
+    "NSORC":  "National Sex Offender Registry Check",
+    "OFACC":  "OFAC Check",
+    "IAF":    "Identity & Address Fraud Check",
+    "XAV":    "Extended Address Verification",
+    "EFIRC":  "EPFO/ESIC Fraud & Identity Record Check",
+    "ICAV":   "Income Certificate & Address Verification",
+    "EREF":   "Employee Reference Check",
+    "BGSV":   "Background Score Verification",
+    "CC":     "Credit Check",
+}
+
+
+def get_verification_names(codes):
+    """
+    Given a list of verification codes, return a list of dicts with
+    both code and human-readable name.
+    e.g. [{"code": "PANV", "name": "PAN Verification"}, ...]
+    """
+    return [
+        {"code": c, "name": VERIFICATION_NAMES.get(c, c)}
+        for c in codes
+    ]
+
+
 def get_verification_codes(candidate):
     """
     Returns the list of verification codes based on the candidate's experience.
@@ -619,6 +671,8 @@ def initiate_bgv(candidate, extra_data=None):
     - Collects candidate details and documents
     - Sends them to OnGrid along with candidate details
     - Creates/updates a CandidateBGV record based on the API response
+    - On re-initiation (OnGrid 409 / already-exists), recovers the
+      existing individualId instead of marking the record as failed.
 
     extra_data (dict): Optional additional fields for the API payload
       (fathersName, gender, dob, city, permanentAddress, currentAddress, verifications)
@@ -631,12 +685,12 @@ def initiate_bgv(candidate, extra_data=None):
 
     payload = _build_payload(candidate, extra_data)
 
-    print(payload,"payload")
+    print(payload, "payload")
 
     data, status_code, api_success = _ongrid_request("POST", url, payload)
-    print(data,"data")
-    print(status_code,"status_code")
-    print(api_success,"api_success")
+    print(data, "data")
+    print(status_code, "status_code")
+    print(api_success, "api_success")
 
     if api_success:
         logger.info(
@@ -644,24 +698,62 @@ def initiate_bgv(candidate, extra_data=None):
             candidate.candidate_name, candidate.id
         )
 
-    # ── persist ──────────────────────────────────────────────
+    # ── Detect re-initiation (already-existing individual) ────────
+    # OnGrid returns non-2xx with the existing individualId in the body.
+    # Common shapes:
+    #   { "individualId": 123456, "message": "..." }
+    #   { "individual": { "id": 123456 }, ... }
     individual_id = None
-    individual = data.get("individual", "") if api_success else ""
-    print(individual,"individual")
-    if individual:
-        individual_id = individual.get("id", "")
-        print(individual_id,"id")
+
+    if api_success:
+        individual = data.get("individual", {})
+        if individual:
+            individual_id = individual.get("id")
+        if not individual_id:
+            individual_id = data.get("individualId") or data.get("id")
+    else:
+        # Try to recover existing individualId from error body
+        recovered_id = (
+            data.get("individualId")
+            or data.get("id")
+            or (data.get("individual") or {}).get("id")
+        )
+        if recovered_id:
+            individual_id = recovered_id
+            logger.warning(
+                "OnGrid returned HTTP %s for %s – recovered existing individualId=%s",
+                status_code, candidate.candidate_name, individual_id,
+            )
+
+    # ── Determine BGV status ──────────────────────────────────────
+    if api_success:
+        bgv_status = "in_progress"
+        remarks = ""
+    elif individual_id:
+        # Individual already existed; treat as in_progress
+        bgv_status = "in_progress"
+        remarks = f"Re-initiation: recovered existing OnGrid individualId={individual_id}"
+    else:
+        bgv_status = "failed"
+        remarks = f"API error (HTTP {status_code}): {data}"
+
+    # ── Persist ───────────────────────────────────────────────────
     bgv, created = CandidateBGV.objects.update_or_create(
         candidate=candidate,
         defaults={
             "callback_payload": data,
+            "raw_initiation_payload": payload,
             "ongrid_individual_id": individual_id if individual_id else None,
-            "status": "in_progress" if api_success else "failed",
-            "remarks": "" if api_success else f"API error (HTTP {status_code}): {data}",
+            "status": bgv_status,
+            "remarks": remarks,
             "is_fresher": is_fresher(candidate),
         },
     )
     print(bgv)
+
+    # ── Attach enriched verification names for the response ───────
+    codes = get_verification_codes(candidate)
+    bgv._verification_names = get_verification_names(codes)
 
     return bgv
 
@@ -848,8 +940,9 @@ def trigger_verifications(individual_id, verification_codes=None):
             bgv = CandidateBGV.objects.get(ongrid_individual_id=individual_id)
             bgv.status = "initiated"
             bgv.callback_payload = data
+            bgv.raw_initiation_payload = payload
             bgv.remarks = f"Verifications initiated: {', '.join(codes)}"
-            bgv.save(update_fields=["status", "callback_payload", "remarks"])
+            bgv.save(update_fields=["status", "callback_payload", "raw_initiation_payload", "remarks"])
         except CandidateBGV.DoesNotExist:
             logger.warning(
                 "No BGV record found for individual %s after triggering verifications",
@@ -859,17 +952,125 @@ def trigger_verifications(individual_id, verification_codes=None):
     return data, api_success
 
 
-def get_individual_status(individual_id):
+def get_individual_status(individual_id, bgv_instance=None):
     """
     Fetch the current status/details of an individual from OnGrid.
     Useful for polling verification progress.
+
+    If bgv_instance (CandidateBGV) is provided, the response is persisted
+    into the record (ongrid_status, report_url, status).
     """
     url = (
         f"{BASE_URL}/v1/individual/{individual_id}/verificationstatus"
     )
 
     data, status_code, success = _ongrid_request("GET", url)
+
+    if success and bgv_instance is not None:
+        _persist_ongrid_status(bgv_instance, data)
+
     return data if success else None
+
+
+def _persist_ongrid_status(bgv, status_data):
+    """
+    Save the OnGrid status payload into the CandidateBGV record.
+    Also updates report_url from consolidatedReportUrl if present,
+    and maps overallStatus to a local status value.
+    Saves only if a status field has changed.
+    """
+    OVERALL_STATUS_MAP = {
+        "InProgress":   "in_progress",
+        "Completed":    "completed",
+        "Clear":        "clear",
+        "Failed":       "failed",
+        "Closed":       "closed",
+        "Cancelled":    "cancelled",
+        "Verified":     "verified",
+        "Discrepancy":  "discrepancy",
+    }
+    
+    VERIFICATION_STATUS_FIELDS = {
+        "AV": "av_status",
+        "BAV": "bav_status",
+        "CC": "cc_status",
+        "CCRV": "ccrv_status",
+        "CVV": "cvv_status",
+        "DLV": "dlv_status",
+        "DRG": "drg_status",
+        "EDUV": "eduv_status",
+        "EFIRC": "efirc_status",
+        "EHC": "ehc_status",
+        "EMPV": "empv_status",
+        "ERef": "eref_status",
+        "FMC": "fmc_status",
+        "GDC": "gdc_status",
+        "IAF": "iaf_status",
+        "ICAV": "icav_status",
+        "IPAV": "ipav_status",
+        "LADV": "ladv_status",
+        "LAPV": "lapv_status",
+        "LAV": "lav_status",
+        "NSORC": "nsorc_status",
+        "OFACC": "ofacc_status",
+        "PADV": "padv_status",
+        "PANV": "panv_status",
+        "PAPV": "papv_status",
+        "PAV": "pav_status",
+        "PCC": "pcc_status",
+        "PPV": "ppv_status",
+        "PRC": "prc_status",
+        "PVLF": "pvlf_status",
+        "SMC": "smc_status",
+        "VIDV": "vidv_status",
+        "XAV": "xav_status",
+    }
+
+    update_fields = set()
+    changed = False
+
+    # Check overall status
+    overall = status_data.get("overallStatus")
+    if overall:
+        mapped = OVERALL_STATUS_MAP.get(overall)
+        if mapped and bgv.status != mapped:
+            bgv.status = mapped
+            update_fields.add("status")
+            changed = True
+
+    # Check individual verification statuses
+    for api_code, model_field in VERIFICATION_STATUS_FIELDS.items():
+        status_key = f"overall{api_code}Status"
+        new_val = status_data.get(status_key)
+        if new_val is not None:
+            old_val = getattr(bgv, model_field)
+            if old_val != new_val:
+                setattr(bgv, model_field, new_val)
+                update_fields.add(model_field)
+                changed = True
+
+    # Check report URL
+    report_url = status_data.get("consolidatedReportUrl")
+    if report_url and bgv.report_url != report_url:
+        bgv.report_url = report_url
+        update_fields.add("report_url")
+        changed = True
+        
+    # We always update the ongrid_status JSON if we are saving, to keep the cache fresh.
+    # But we ONLY trigger a save if one of the structured fields changed.
+    if changed:
+        bgv.ongrid_status = status_data
+        update_fields.add("ongrid_status")
+        bgv.save(update_fields=list(update_fields))
+        logger.info(
+            "Persisted OnGrid status for individual %s → overall=%s, update_fields=%s",
+            bgv.ongrid_individual_id, overall, list(update_fields)
+        )
+    else:
+        logger.info(
+            "OnGrid status unchanged for individual %s, skipping save.",
+            bgv.ongrid_individual_id
+        )
 
 
 def get_verification_report(individual_id):
