@@ -91,7 +91,10 @@ class CandidateBGVViewSet(viewsets.ModelViewSet):
                 {"error": "Job application not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
+        
+        if not hasattr(application,"documents"):
+            return Response("No documents found for given application.")
+        
         extra_data = request.data.get("extra_data", {})
         result = initiate_bgv(application, extra_data=extra_data or None)
         serializer = self.get_serializer(result)
