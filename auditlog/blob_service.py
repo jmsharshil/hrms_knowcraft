@@ -2,7 +2,7 @@
 Service for writing audit log files to Azure Blob Storage.
 
 File structure in the container:
-  audit_logs/{company_id}/{user_id}/{YYYY-MM-DD}.log
+  audit_logs/{company_name}/{user_name}/{YYYY-MM-DD}.log
 
 Each file contains plain text log entries in a structured format.
 On re-upload for the same day the file is *overwritten* with the
@@ -72,20 +72,23 @@ def format_log_entries(entries: list) -> str:
 
 # ── Blob path builder ──────────────────────────────────────────────
 
-def _blob_path(company_id, user_id, log_date: date) -> str:
-    """Return the blob path: audit_logs/{company_id}/{user_id}/{date}.log"""
-    return f"audit_logs/{company_id}/{user_id}/{log_date.isoformat()}.log"
+def _blob_path(company_name, user_name, log_date: date) -> str:
+    """Return the blob path: audit_logs/{company_name}/{user_name}/{date}.log"""
+    # Sanitize names to be filesystem-safe (replace spaces and special chars)
+    safe_company = company_name.replace(" ", "_").replace("/", "-").replace("\\", "-")
+    safe_user = user_name.replace(" ", "_").replace("/", "-").replace("\\", "-")
+    return f"audit_logs/{safe_company}/{safe_user}/{log_date.isoformat()}.log"
 
 
 # ── Core upload function ──────────────────────────────────────────
 
-def upload_log_file(company_id, user_id, log_date: date, log_entries: list) -> bool:
+def upload_log_file(company_name, user_name, log_date: date, log_entries: list) -> bool:
     """
     Upload a list of serialised log entry dicts to Azure Blob Storage.
 
     Returns True on success, False on failure.
     """
-    blob_name = _blob_path(company_id, user_id, log_date)
+    blob_name = _blob_path(company_name, user_name, log_date)
 
     try:
         from azure.storage.blob import BlobServiceClient
@@ -134,14 +137,14 @@ def upload_log_file(company_id, user_id, log_date: date, log_entries: list) -> b
 
 # ── Download helper (useful for API endpoints) ─────────────────────
 
-def download_log_file(company_id, user_id, log_date: date) -> str | None:
+def download_log_file(company_name, user_name, log_date: date) -> str | None:
     """
     Download a log file from blob storage.
 
     Returns the log file content as a string, or None if the blob 
     does not exist / on error.
     """
-    blob_name = _blob_path(company_id, user_id, log_date)
+    blob_name = _blob_path(company_name, user_name, log_date)
 
     try:
         from azure.storage.blob import BlobServiceClient

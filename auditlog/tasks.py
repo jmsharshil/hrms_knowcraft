@@ -68,26 +68,26 @@ def flush_logs_to_blob():
             print("[AUDIT FLUSH] No un-flushed logs found.")
             return
 
-        # Group by (company_id, user_id, date)
+        # Group by (company_name, user_name, date)
         groups = defaultdict(list)
         for log_obj in unflushed:
-            company_id = str(log_obj.company_id) if log_obj.company_id else "unknown_company"
-            user_id = str(log_obj.user_id) if log_obj.user_id else "anonymous"
+            company_name = log_obj.company.name if log_obj.company else "Unknown_Company"
+            user_name = log_obj.user.name if log_obj.user else "Anonymous"
             log_date = log_obj.timestamp.date()
-            key = (company_id, user_id, log_date)
+            key = (company_name, user_name, log_date)
             groups[key].append(log_obj)
 
         # Upload each group
         success_ids = []
-        for (company_id, user_id, log_date), logs in groups.items():
+        for (company_name, user_name, log_date), logs in groups.items():
             entries = [_serialise_log(obj) for obj in logs]
-            ok = upload_log_file(company_id, user_id, log_date, entries)
+            ok = upload_log_file(company_name, user_name, log_date, entries)
             if ok:
                 success_ids.extend([obj.id for obj in logs])
             else:
                 logger.warning(
                     "[AUDIT FLUSH] Skipping mark for %d logs in %s/%s/%s due to upload failure",
-                    len(logs), company_id, user_id, log_date,
+                    len(logs), company_name, user_name, log_date,
                 )
 
         # Mark flushed logs

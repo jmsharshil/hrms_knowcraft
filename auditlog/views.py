@@ -104,20 +104,20 @@ class AuditLogByUserView(APIView):
     Download audit logs for a specific user and date from blob storage.
 
     Query params:
-      - user_id: UUID of the user (required)
+      - user_name: Name of the user (required)
       - date: YYYY-MM-DD (required)
-      - company_id: UUID of the company (optional, defaults to requester's company)
+      - company_name: Name of the company (optional, defaults to requester's company)
     """
 
     permission_classes = [IsAuthenticated, IsAdminOrHRManager]
 
     def get(self, request):
-        user_id = request.query_params.get("user_id")
+        user_name = request.query_params.get("user_name")
         date_str = request.query_params.get("date")
 
-        if not user_id or not date_str:
+        if not user_name or not date_str:
             return Response(
-                {"detail": "user_id and date query parameters are required."},
+                {"detail": "user_name and date query parameters are required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -129,11 +129,11 @@ class AuditLogByUserView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        company_id = request.query_params.get("company_id") or str(
-            request.user.company_id
+        company_name = request.query_params.get("company_name") or str(
+            request.user.company.name if request.user.company else "Unknown_Company"
         )
 
-        content = download_log_file(company_id, user_id, log_date)
+        content = download_log_file(company_name, user_name, log_date)
 
         if content is None:
             return Response(
@@ -143,5 +143,5 @@ class AuditLogByUserView(APIView):
 
         # Return as plain text file download
         response = HttpResponse(content, content_type="text/plain")
-        response["Content-Disposition"] = f'attachment; filename="audit_{user_id}_{date_str}.log"'
+        response["Content-Disposition"] = f'attachment; filename="audit_{user_name}_{date_str}.log"'
         return response
