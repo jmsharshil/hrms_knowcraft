@@ -49,7 +49,12 @@ class AuditLog(models.Model):
     query_params = models.TextField(blank=True, default="", help_text="Query string parameters")
     request_body = models.TextField(blank=True, default="", help_text="Sanitized request body (passwords removed)")
     response_summary = models.TextField(blank=True, default="", help_text="Short summary of the response")
-    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    ip_address = models.CharField(
+        max_length=45, 
+        null=True, 
+        blank=True,
+        help_text="Client IP address (IPv4, IPv6, or with port if proxy adds it)"
+    )
     user_agent = models.TextField(blank=True, default="")
 
     # Target object (generic reference)
