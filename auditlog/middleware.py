@@ -157,12 +157,24 @@ class AuditLogMiddleware:
         if request.META.get("QUERY_STRING"):
             query_params = request.META["QUERY_STRING"][:2000]
 
-        # IP address
+        # IP address - strip port if present (e.g., "122.170.55.74:59596" -> "122.170.55.74")
         ip_address = (
             request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
             or request.META.get("HTTP_X_REAL_IP")
             or request.META.get("REMOTE_ADDR")
-        ) or None
+        )
+        
+        # Remove port number if present (PostgreSQL inet type doesn't accept ports)
+        if ip_address and ":" in ip_address:
+            # Handle both IPv4 ("1.2.3.4:1234") and IPv6 ("[::1]:1234") formats
+            if ip_address.startswith("["):
+                # IPv6 format: [::1]:1234
+                ip_address = ip_address.split("]")[0].lstrip("[")
+            else:
+                # IPv4 format: 1.2.3.4:1234
+                ip_address = ip_address.split(":")[0]
+        
+        ip_address = ip_address or None
 
         # User-Agent
         user_agent = request.META.get("HTTP_USER_AGENT", "")[:1000]
