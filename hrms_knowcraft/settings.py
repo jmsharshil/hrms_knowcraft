@@ -28,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-0(s=ka%+mzk+5n3*t-h8l0#6yh7$bnt*y)=a!zy!7_q192j%$t'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net','127.0.0.1','localhost','demp-hrms-hzdme4brg0dgfxa3.centralindia-01.azurewebsites.net','hireproknowcraft-crhacdc8dxd7dfhh.centralindia-01.azurewebsites.net','d7b9-2405-201-2005-1965-9445-471c-b9b-214.ngrok-free.app']
 
@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'booking',
     'dashboard',
     'bgv',
+    'auditlog',
 ]
 
 MIDDLEWARE = [
@@ -67,6 +68,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'auditlog.middleware.AuditLogMiddleware',
 ]
 
 REST_FRAMEWORK = {
@@ -365,3 +367,6 @@ ONGRID_SECRET = os.getenv("ONGRID_SECRET","")
 ONGRID_COMMUNITY_ID = os.getenv("ONGRID_COMMUNITY_ID","")
 
 ONGRID_CONSENT_TEXT = """The Individual does not and will not have any objection to Knowcraft the Individual's personal information and documents, including but not limited to name, gender, date of birth, addresses, mobile number, email, education record, employment record, Aadhaar number, other government issued IDs such as Voter ID, PAN card, driving license etc. (collectively Proprietary Information) with OnGrid (Handy Online Solutions Private Limited) for the purpose of background checks and verification. The individual understands that OnGrid maintains Proprietary Information on its platform in a secure manner, and it will only be accessible to Knowcraft and its associates/partners/affiliates, and will not be shared with any other individual or organization without the Individual's explicit consent."""
+
+# Audit Log Blob Container
+AUDIT_LOG_CONTAINER = os.environ.get("AUDIT_LOG_CONTAINER", "auditlogs")
