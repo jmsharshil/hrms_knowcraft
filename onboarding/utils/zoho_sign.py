@@ -521,34 +521,36 @@ def send_to_zoho_sign(candidate, file_stream, filename,other_signers=[]):
     feedback = aggregate_details_from_feedback(candidate)
     bond_section = ""
     if feedback.get("bond") and str(feedback.get("bond")).lower() not in ['no','na','n/a','-','not applicable']:
-        bond_section = """Bond:
-There will be a twelve-month (12 months) bond, which would be applicable from the Date of Joining."""
-    note_message = f"""
-Hi {candidate.candidate_name},  
-
-We are pleased to offer you the position of {candidate.job.mrf.designation.name} in the {candidate.job.mrf.department.name} team at Knowcraft Analytics Private Limited.
-
-Please find your Offer Letter (PDF) attached. It includes details about your compensation, benefits, and terms of employment.
-
-Kindly share the signed Offer Letter along with the last page mentioning the compensation package by 48 Hours. After this date, the offer will be automatically revoked.
-
-General Policies:
-- 24 earned leaves per year
-- 10–11 national holidays
-- Background verification will be conducted by a third party as per company policy
-
-{bond_section}
-
-Work Mode: {feedback.get("work_mode") or "Work From Office"}
-Date of Joining: {candidate.joining_date.strftime('%d-%m-%Y') if candidate.joining_date else ''} (Reporting time: 10:30 AM)
-Office Address: {feedback.get('preferred_location') or candidate.job.mrf.location}
-
-We look forward to welcoming you to the Knowcraft team.
-Please let us know if you have any questions.
-
-Warm Regards,
-Team – HR
-Knowcraft Analytics Private Limited."""
+        bond_section = "\nBond:\nThere will be a twelve-month (12 months) bond, which would be applicable from the Date of Joining."
+    
+    # Format notes with proper line breaks for Zoho Sign
+    # Zoho Sign preserves \n\n as paragraph breaks in plain text
+    note_message = (
+        f"Hi {candidate.candidate_name},\n"
+        f"\n"
+        f"We are pleased to offer you the position of {candidate.job.mrf.designation.name} in the {candidate.job.mrf.department.name} team at Knowcraft Analytics Private Limited.\n"
+        f"\n"
+        f"Please find your Offer Letter (PDF) attached. It includes details about your compensation, benefits, and terms of employment.\n"
+        f"\n"
+        f"Kindly share the signed Offer Letter along with the last page mentioning the compensation package by 48 Hours. After this date, the offer will be automatically revoked.\n"
+        f"\n"
+        f"General Policies:\n"
+        f"• 24 earned leaves per year\n"
+        f"• 10–11 national holidays\n"
+        f"• Background verification will be conducted by a third party as per company policy\n"
+        f"{bond_section}\n"
+        f"\n"
+        f"Work Mode: {feedback.get('work_mode') or 'Work From Office'}\n"
+        f"Date of Joining: {candidate.joining_date.strftime('%d-%m-%Y') if candidate.joining_date else ''} (Reporting time: 10:30 AM)\n"
+        f"Office Address: {feedback.get('preferred_location') or candidate.job.mrf.location}\n"
+        f"\n"
+        f"We look forward to welcoming you to the Knowcraft team.\n"
+        f"Please let us know if you have any questions.\n"
+        f"\n"
+        f"Warm Regards,\n"
+        f"Team – HR\n"
+        f"Knowcraft Analytics Private Limited."
+    )
 
     payload = {
         "data": json.dumps({
