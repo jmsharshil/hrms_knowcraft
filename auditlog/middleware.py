@@ -199,7 +199,7 @@ class AuditLogMiddleware:
         from .models import AuditLog
 
         try:
-            AuditLog.objects.create(
+            log_entry = AuditLog.objects.create(
                 user=user,
                 company=company,
                 action=action,
@@ -216,6 +216,52 @@ class AuditLogMiddleware:
                 target_id="",
                 timestamp=timezone.now(),
             )
+            
+            # Also upload to blob storage immediately as fallback
+            # This ensures logs are saved even if background task doesn't run
+            try:
+                from .blob_service import upload_log_file
+                from datetime import date as date_type
+                
+                company_name = company.name if company else "Unknown_Company"
+                user_name = user.name if user else "Anonymous"
+                log_date = timezone.now().date()
+                
+                # Serialize the log entry
+                log_dict = {
+                    "id": str(log_entry.id),
+                    "user_id": str(log_entry.user_id) if log_entry.user_id else None,
+                    "user_email": log_entry.user.email if log_entry.user else None,
+                    "user_name": log_entry.user.name if log_entry.user else None,
+                    "user_role": log_entry.user.role if log_entry.user else None,
+                    "company_id": str(log_entry.company_id) if log_entry.company_id else None,
+                    "action": log_entry.action,
+                    "method": log_entry.method,
+                    "path": log_entry.path,
+                    "endpoint_name": log_entry.endpoint_name,
+                    "status_code": log_entry.status_code,
+                    "query_params": log_entry.query_params,
+                    "request_body": log_entry.request_body,
+                    "response_summary": log_entry.response_summary,
+                    "ip_address": log_entry.ip_address,
+                    "user_agent": log_entry.user_agent,
+                    "target_model": log_entry.target_model,
+                    "target_id": log_entry.target_id,
+                    "timestamp": log_entry.timestamp.strftime("%Y-%m-%d %H:%M:%S") if log_entry.timestamp else "",
+                }
+                
+                # Upload immediately
+                upload_log_file(company_name, user_name, log_date, [log_dict])
+                
+                # Mark as flushed since we already uploaded
+                log_entry.flushed_to_blob = True
+                log_entry.save(update_fields=['flushed_to_blob'])
+                
+            except Exception as blob_err:
+                # Don't fail the request if blob upload fails
+                # Background task will handle it later
+                logger.debug(f"Immediate blob upload failed (will retry later): {str(blob_err)}")
+                
         except Exception:
             # Must never break the actual request/response cycle
             logger.exception("Failed to create AuditLog entry for %s %s", method, path)
