@@ -1686,7 +1686,8 @@ class ManageBookingView(APIView):
             f"?candidate_id={candidate.id}&interviewer_id={interviewer.id}"
         )
         
-        candidate.inperson_link = None
+        # candidate.inperson_link = None
+        candidate.feedback_link = None
         candidate.interview_link = None
         candidate.interview_scheduled_at = None
         candidate.interview_end_at = None

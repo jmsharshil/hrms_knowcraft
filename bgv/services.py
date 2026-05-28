@@ -767,7 +767,7 @@ def send_notification_for_bgv(candidate):
     
     FRONTEND_URL = getattr(settings, "FRONTEND_URL", "")
     # Link for candidate to fill BGV details
-    form_link = f"{FRONTEND_URL}/candidate/bgv/{candidate.id}" 
+    form_link = f"{FRONTEND_URL}/bgv-form/{candidate.id}" 
 
     email_subject = "Background Verification - Action Required"
     
