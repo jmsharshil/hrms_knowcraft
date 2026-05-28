@@ -758,54 +758,119 @@ def initiate_bgv(candidate, extra_data=None):
     return bgv
 
 
-def send_bgv_reminder_to_hr(candidate):
+def send_notification_for_bgv(candidate):
     """
-    Instead of auto-initiating BGV, send a reminder to the assigned HR
-    to fill the details and initiate the BGV process manually from the UI.
+    Send BGV initiation link directly to the candidate to fill their details
+    and initiate the BGV process.
     """
     from onboarding.utils.sender import send_email, send_text
     
     FRONTEND_URL = getattr(settings, "FRONTEND_URL", "")
-    # Placeholder link - change according to actual frontend route
+    # Link for candidate to fill BGV details
     form_link = f"{FRONTEND_URL}/candidate/bgv/{candidate.id}" 
 
-    email_subject = f"Reminder: Initiate Background Verification for {candidate.candidate_name}"
+    email_subject = "Background Verification - Action Required"
+    
+    # Plain text version
     email_text = (
-        f"Dear HR,\n\n"
-        f"Please fill out the required details to initiate the Background Verification (BGV) process for {candidate.candidate_name}.\n"
+        f"Dear {candidate.candidate_name},\n\n"
+        f"Congratulations on your offer! Please fill out the required details to initiate your Background Verification (BGV) process.\n\n"
         f"You can access the form here: {form_link}\n\n"
-        f"Thank you,\nSystem"
+        f"Please complete this at your earliest convenience to ensure a smooth onboarding process.\n\n"
+        f"Thank you,\nHR Team\nKnowcraft Analytics Private Limited."
     )
     
+    # HTML template version
+    html_template = f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Logo -->
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <!-- Separator -->
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Background Verification Required</h2>
+                                
+                                <p style="margin:0 0 16px 0;">Dear <strong>{candidate.candidate_name}</strong>,</p>
+                                
+                                <p style="margin:0 0 20px 0;">
+                                    Congratulations on your offer! We're excited to have you join our team.
+                                </p>
+                                
+                                <p style="margin:0 0 20px 0;">
+                                    As part of the onboarding process, we need to complete your <strong>Background Verification (BGV)</strong>. 
+                                    Please fill out the required details by clicking the button below:
+                                </p>
+                                
+                                <!-- Action Button -->
+                                <p style="margin:32px 0 30px 0;text-align:center;">
+                                    <a href="{form_link}" 
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;display:inline-block;">
+                                        Complete BGV Form
+                                    </a>
+                                </p>
+                                
+                                <p style="margin:0 0 20px 0;">
+                                    Please complete this at your earliest convenience to ensure a smooth onboarding process.
+                                </p>
+                                
+                                <p style="margin:20px 0 6px 0;color:#555555;">Thank you,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">HR Team</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+    
     sms_text = (
-        f"Dear HR, please fill out the required details to initiate the "
-        f"Background Verification (BGV) process for {candidate.candidate_name}. Link: {form_link}"
+        f"Dear {candidate.candidate_name}, please fill out the required details to initiate your "
+        f"Background Verification (BGV) process. Link: {form_link}"
     )
 
-    hr_users = []
-    if getattr(candidate.job, "assigned_to_internal_hr", None):
-        hr_users.append(candidate.job.assigned_to_internal_hr)
-    if hasattr(candidate.job, "assigned_internal_hrs"):
-        for hr in candidate.job.assigned_internal_hrs.all():
-            if hr not in hr_users:
-                hr_users.append(hr)
-
-    for hr in hr_users:
-        try:
-            if hr.email:
-                send_email(to=hr.email, subject=email_subject, text=email_text)
-            if getattr(hr, "phone", None):
-                send_text(to=str(hr.phone), text=sms_text)
-            logger.info("BGV reminder sent to HR %s for candidate %s", hr.email, candidate.candidate_name)
-        except Exception as e:
-            logger.error("Failed to send BGV reminder to HR %s: %s", getattr(hr, "email", "unknown"), e)
+    # Send directly to candidate
+    try:
+        if candidate.candidate_email:
+            send_email(
+                to=candidate.candidate_email, 
+                subject=email_subject, 
+                text=email_text,
+                template=html_template
+            )
+            logger.info("BGV initiation link sent to candidate %s (%s)", candidate.candidate_name, candidate.candidate_email)
+        
+        if candidate.candidate_phone:
+            send_text(to=str(candidate.candidate_phone), text=sms_text)
+            logger.info("BGV initiation SMS sent to candidate %s (%s)", candidate.candidate_name, candidate.candidate_phone)
+    except Exception as e:
+        logger.error("Failed to send BGV notification to candidate %s: %s", candidate.candidate_name, e)
 
     # ── persist ──────────────────────────────────────────────
     bgv, created = CandidateBGV.objects.update_or_create(
         candidate=candidate,
         defaults={
             "status": "pending_data",
-            "remarks": "Reminder sent to HR to fill BGV details",
+            "remarks": "BGV initiation link sent to candidate",
             "is_fresher": is_fresher(candidate),
         },
     )

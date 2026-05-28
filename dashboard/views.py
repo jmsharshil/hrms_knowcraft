@@ -1954,7 +1954,7 @@ class BaseAnalyticsView(APIView):
             section5['fastest_stage'] = {'stage_name': 'N/A', 'avg_days': 0.0}
         return section5
 
-    def calc_approval_note_analytics(self, job_qs, date_range, target_user=None):
+    def calc_approval_note_analytics(self, job_qs, date_range, target_user=None, user=None, user_role=None):
         section6 = {}
         date_from, date_to = date_range
         from datetime import datetime, time
@@ -1963,6 +1963,10 @@ class BaseAnalyticsView(APIView):
         base_q = Q(candidate__job__in=job_qs)
         if target_user:
             base_q &= (Q(manager=target_user) | Q(created_by=target_user))
+        
+        # For HR role (not hr_manager or admin), only show notes sent by the HR user themselves
+        if user_role == 'hr' and user and not target_user:
+            base_q &= Q(created_by=user)
             
         def make_date_q(field_name):
             q = Q()
@@ -2034,7 +2038,7 @@ class BaseAnalyticsView(APIView):
         section6['approval_notes_by_approver'] = by_approver
         return section6
 
-    def calc_document_offer_process_timeline(self, broad_job_qs, date_range=None, company=None):
+    def calc_document_offer_process_timeline(self, broad_job_qs, date_range=None, company=None, user=None, user_role=None):
         from onboarding.models import JobApplicationDocument, ApprovalNote, OfferDocument
         from collections import defaultdict
         from datetime import datetime, time
@@ -2055,22 +2059,29 @@ class BaseAnalyticsView(APIView):
 
         date_q = make_date_q('updated_at')
         
+        # For HR role, filter jobs to only those assigned to the HR user
+        filtered_job_qs = broad_job_qs
+        if user_role == 'hr' and user:
+            filtered_job_qs = broad_job_qs.filter(
+                Q(assigned_to_internal_hr=user) | Q(assigned_internal_hrs=user) | Q(posted_by=user) | Q(closed_by=user)
+            ).distinct()
+        
         # Get application IDs that had ANY activity in these documents in the date range
         app_ids = set()
         
         if date_from or date_to:
-            offer_apps = OfferDocument.objects.filter(application__job__in=broad_job_qs).filter(date_q).values_list('application_id', flat=True)
-            jad_apps = JobApplicationDocument.objects.filter(job_application__job__in=broad_job_qs).filter(
+            offer_apps = OfferDocument.objects.filter(application__job__in=filtered_job_qs).filter(date_q).values_list('application_id', flat=True)
+            jad_apps = JobApplicationDocument.objects.filter(job_application__job__in=filtered_job_qs).filter(
                 date_q | make_date_q('annexure_uploaded_at') | make_date_q('annexure_approved_at')
             ).values_list('job_application_id', flat=True)
-            note_apps = ApprovalNote.objects.filter(candidate__job__in=broad_job_qs).filter(date_q).values_list('candidate_id', flat=True)
+            note_apps = ApprovalNote.objects.filter(candidate__job__in=filtered_job_qs).filter(date_q).values_list('candidate_id', flat=True)
             
             app_ids.update(offer_apps)
             app_ids.update(jad_apps)
             app_ids.update(note_apps)
         else:
-            # No date filter, get all apps from broad_job_qs
-            app_ids = set(JobApplication.objects.filter(job__in=broad_job_qs).values_list('id', flat=True)[:5000])
+            # No date filter, get all apps from filtered_job_qs
+            app_ids = set(JobApplication.objects.filter(job__in=filtered_job_qs).values_list('id', flat=True)[:5000])
         
         app_ids = list(app_ids)[:5000] # safety limit
         
@@ -2321,10 +2332,10 @@ class BaseAnalyticsView(APIView):
         if 'interview_round_time_analytics' in requested_sections:
             data['interview_round_time_analytics'] = self.calc_interview_round_time_analytics(app_qs, (date_from, date_to), company, interviewer_app_ids, broad_job_qs)
         if 'approval_note_analytics' in requested_sections:
-            data['approval_note_analytics'] = self.calc_approval_note_analytics(broad_job_qs, (date_from, date_to), target_user)
+            data['approval_note_analytics'] = self.calc_approval_note_analytics(broad_job_qs, (date_from, date_to), target_user, request.user, request.user.role)
         if 'document_offer_process_timeline' in requested_sections:
             # Pass company to filter OfferDocuments correctly
-            data['document_offer_process_timeline'] = self.calc_document_offer_process_timeline(broad_job_qs, (date_from, date_to), company)
+            data['document_offer_process_timeline'] = self.calc_document_offer_process_timeline(broad_job_qs, (date_from, date_to), company, request.user, request.user.role)
         if 'overall_summary_kpis' in requested_sections:
             data['overall_summary_kpis'] = self.calc_overall_summary_kpis(mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, company, (date_from, date_to))
 
@@ -2356,7 +2367,7 @@ class HRAnalyticsAPIView(BaseAnalyticsView):
         return mrf_q, job_q, app_q
 
     def get_sections(self):
-        return ['cv_resume_source_analytics', 'candidate_pipeline_funnel', 'interview_round_time_analytics', 'overall_summary_kpis','job_assignment_analytics','approval_note_analytics']
+        return ['cv_resume_source_analytics', 'candidate_pipeline_funnel', 'interview_round_time_analytics', 'overall_summary_kpis','job_assignment_analytics','approval_note_analytics','document_offer_process_timeline']
 
 class DeptHeadAnalyticsAPIView(BaseAnalyticsView):
     """Dept Head Focus: MRFs, Jobs, Pipeline, KPIs."""
