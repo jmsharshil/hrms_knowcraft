@@ -166,8 +166,8 @@ class SalaryComponentAdmin(admin.ModelAdmin):
 
 admin.site.register(ApprovalNote, ApprovalNoteAdmin)
 admin.site.register(JobApplicationDocument, JobApplicationDocumentAdmin)
-admin.site.register(SalaryAnnexure, SalaryAnnexureAdmin)
-admin.site.register(SalaryComponent, SalaryComponentAdmin)
-admin.site.register(SalaryAnnexureHistory, SalaryAnnexureHistoryAdmin)
+# admin.site.register(SalaryAnnexure, SalaryAnnexureAdmin)
+# admin.site.register(SalaryComponent, SalaryComponentAdmin)
+# admin.site.register(SalaryAnnexureHistory, SalaryAnnexureHistoryAdmin)
 # admin.site.register(DocuSignOffer)
 admin.site.register(OfferDocument, OfferDocumentAdmin)
