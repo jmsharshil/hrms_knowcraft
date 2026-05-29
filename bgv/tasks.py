@@ -321,7 +321,7 @@ def schedule_periodic_bgv_status_poll():
         run_bgv_status_poll()
 
         timer = threading.Timer(
-            360,
+            60,
             lambda: TASK_QUEUE.enqueue(
                 _poll_and_reschedule
             ),
