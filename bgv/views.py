@@ -103,7 +103,7 @@ class CandidateBGVViewSet(viewsets.ModelViewSet):
 
         http_status = (
             status.HTTP_200_OK
-            if result.status == "initiated"
+            if result.status in ["initiated","in_progress","pending"]
             else status.HTTP_502_BAD_GATEWAY
         )
         return Response(serializer.data, status=http_status)
