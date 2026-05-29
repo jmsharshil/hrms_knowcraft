@@ -223,8 +223,8 @@ class CandidateBGVViewSet(viewsets.ModelViewSet):
         return Response(data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"], url_path="send-for-bgv")
-    def send_for_bgv(self, request, pk=None):
-        candidate = JobApplication.objects.get(id=pk)
+    def send_for_bgv(self, request):
+        candidate = JobApplication.objects.get(id=request.data.get("application_id"))
         if candidate:
             from utils import send_notification_for_bgv
             send_notification_for_bgv(candidate)
