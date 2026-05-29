@@ -435,15 +435,17 @@ class SendApprovalNoteAPIView(APIView):
             approval_notes = ApprovalNote.objects.filter(manager=user)
 
         # Apply privacy filter
-        approval_notes = approval_notes.filter(
-            Q(candidate__job__is_private=False) |
-            Q(candidate__job__is_private=True, candidate__job__posted_by=user) |
-            Q(candidate__job__is_private=True, candidate__job__selected_viewers=user) |
-            Q(candidate__job__is_private=True, candidate__job__assigned_to_consultancy=user) |
-            Q(candidate__job__is_private=True, candidate__job__assigned_to_internal_hr=user) |
-            Q(candidate__job__is_private=True, candidate__job__assigned_internal_hrs=user) |
-            Q(candidate__job__is_private=True, candidate__job__assigned_consultancies=user)
-        )
+        # Admins and HR managers can see ALL records (including private ones)
+        if user.role not in ['admin', 'hr_manager']:
+            approval_notes = approval_notes.filter(
+                Q(candidate__job__is_private=False) |
+                Q(candidate__job__is_private=True, candidate__job__posted_by=user) |
+                Q(candidate__job__is_private=True, candidate__job__selected_viewers=user) |
+                Q(candidate__job__is_private=True, candidate__job__assigned_to_consultancy=user) |
+                Q(candidate__job__is_private=True, candidate__job__assigned_to_internal_hr=user) |
+                Q(candidate__job__is_private=True, candidate__job__assigned_internal_hrs=user) |
+                Q(candidate__job__is_private=True, candidate__job__assigned_consultancies=user)
+            )
 
 
         candidate_id = request.query_params.get("candidate_id")
@@ -964,15 +966,17 @@ class SalaryAnnexureViewSet(ModelViewSet):
         qs = super().get_queryset()
 
         # Apply privacy filter
-        qs = qs.filter(
-            Q(job_application__job__is_private=False) |
-            Q(job_application__job__is_private=True, job_application__job__posted_by=user) |
-            Q(job_application__job__is_private=True, job_application__job__selected_viewers=user) |
-            Q(job_application__job__is_private=True, job_application__job__assigned_to_consultancy=user) |
-            Q(job_application__job__is_private=True, job_application__job__assigned_to_internal_hr=user) |
-            Q(job_application__job__is_private=True, job_application__job__assigned_internal_hrs=user) |
-            Q(job_application__job__is_private=True, job_application__job__assigned_consultancies=user)
-        )
+        # Admins and HR managers can see ALL records (including private ones)
+        if user.role not in ['admin', 'hr_manager']:
+            qs = qs.filter(
+                Q(job_application__job__is_private=False) |
+                Q(job_application__job__is_private=True, job_application__job__posted_by=user) |
+                Q(job_application__job__is_private=True, job_application__job__selected_viewers=user) |
+                Q(job_application__job__is_private=True, job_application__job__assigned_to_consultancy=user) |
+                Q(job_application__job__is_private=True, job_application__job__assigned_to_internal_hr=user) |
+                Q(job_application__job__is_private=True, job_application__job__assigned_internal_hrs=user) |
+                Q(job_application__job__is_private=True, job_application__job__assigned_consultancies=user)
+            )
 
         candidate_id = self.request.query_params.get("candidate_id")
 
@@ -1237,15 +1241,17 @@ class SalaryAnnexureHistoryViewSet(ReadOnlyModelViewSet):
         )
 
         # Apply privacy filter
-        qs = qs.filter(
-            Q(annexure__job_application__job__is_private=False) |
-            Q(annexure__job_application__job__is_private=True, annexure__job_application__job__posted_by=user) |
-            Q(annexure__job_application__job__is_private=True, annexure__job_application__job__selected_viewers=user) |
-            Q(annexure__job_application__job__is_private=True, annexure__job_application__job__assigned_to_consultancy=user) |
-            Q(annexure__job_application__job__is_private=True, annexure__job_application__job__assigned_to_internal_hr=user) |
-            Q(annexure__job_application__job__is_private=True, annexure__job_application__job__assigned_internal_hrs=user) |
-            Q(annexure__job_application__job__is_private=True, annexure__job_application__job__assigned_consultancies=user)
-        )
+        # Admins and HR managers can see ALL records (including private ones)
+        if user.role not in ['admin', 'hr_manager']:
+            qs = qs.filter(
+                Q(annexure__job_application__job__is_private=False) |
+                Q(annexure__job_application__job__is_private=True, annexure__job_application__job__posted_by=user) |
+                Q(annexure__job_application__job__is_private=True, annexure__job_application__job__selected_viewers=user) |
+                Q(annexure__job_application__job__is_private=True, annexure__job_application__job__assigned_to_consultancy=user) |
+                Q(annexure__job_application__job__is_private=True, annexure__job_application__job__assigned_to_internal_hr=user) |
+                Q(annexure__job_application__job__is_private=True, annexure__job_application__job__assigned_internal_hrs=user) |
+                Q(annexure__job_application__job__is_private=True, annexure__job_application__job__assigned_consultancies=user)
+            )
 
         annexure_id = self.request.query_params.get("annexure_id")
         job_application_id = self.request.query_params.get("job_application_id")

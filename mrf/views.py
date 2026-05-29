@@ -331,13 +331,14 @@ class MRFViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(status='approved')
         
         # Exclude private MRFs from unauthorized users
-        
-        queryset = queryset.filter(
-            Q(is_private=False) |
-            Q(is_private=True, requested_by=user) |
-            Q(is_private=True, selected_viewers=user) |
-            (Q(is_private=True, private_approval_levels__approver=user) & ~Q(status='draft'))
-        )
+        # Admins and HR managers can see ALL MRFs (including private ones)
+        if user.role not in ['admin', 'hr_manager']:
+            queryset = queryset.filter(
+                Q(is_private=False) |
+                Q(is_private=True, requested_by=user) |
+                Q(is_private=True, selected_viewers=user) |
+                (Q(is_private=True, private_approval_levels__approver=user) & ~Q(status='draft'))
+            )
         
         # Apply filters from query params
         status_filter = self.request.query_params.get('status')
