@@ -9,6 +9,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import permissions
 
 from jobs.models import JobApplication
 
@@ -32,6 +33,7 @@ class CandidateBGVViewSet(viewsets.ModelViewSet):
     """
 
     queryset = CandidateBGV.objects.select_related("candidate").all()
+    permission_classes = [permissions.AllowAny]
 
     def get_serializer_class(self):
         if self.action == 'list':
