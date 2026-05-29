@@ -845,7 +845,7 @@ def send_notification_for_bgv(candidate):
     
     sms_text = (
         f"Dear {candidate.candidate_name}, please fill out the required details to initiate your "
-        f"Background Verification (BGV) process. Link: {form_link}"
+        f"Background Verification (BGV) process.\n Link: {form_link}"
     )
 
     # Send directly to candidate
