@@ -6,4 +6,7 @@ class MrfConfig(AppConfig):
     name = 'mrf'
 
     def ready(self):
+        import sys
+        if 'test' in sys.argv:
+            return
         import mrf.signals

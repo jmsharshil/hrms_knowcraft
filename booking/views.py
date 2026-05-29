@@ -297,7 +297,7 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
     </html>""",
         to=candidate.candidate_email
     )
-    send_text(to=candidate.candidate_phone,text=f"""Dear {candidate.candidate_name},\nWe are pleased to inform you have been shortlisted for {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled at {start_str}.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
+        send_text(to=candidate.candidate_phone,text=f"""Dear {candidate.candidate_name},\nWe are pleased to inform you have been shortlisted for {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled at {start_str}.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
 \nWe look forward to speaking with you.
 \nPlease feel free to reach out if you have any questions or require further assistance.
 \nWarm regards,
@@ -1686,7 +1686,8 @@ class ManageBookingView(APIView):
             f"?candidate_id={candidate.id}&interviewer_id={interviewer.id}"
         )
         
-        candidate.inperson_link = None
+        # candidate.inperson_link = None
+        candidate.feedback_link = None
         candidate.interview_link = None
         candidate.interview_scheduled_at = None
         candidate.interview_end_at = None

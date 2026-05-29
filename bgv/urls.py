@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 
 from django.urls import path, include
 
-from .views import CandidateBGVViewSet,OnGridWebhookAPIView
+from .views import CandidateBGVViewSet
 
 
 router = DefaultRouter()
@@ -16,12 +16,5 @@ router.register(
 )
 
 urlpatterns = [
-
     path("", include(router.urls)),
-
-    path(
-        "ongrid/webhook/",
-        OnGridWebhookAPIView.as_view(),
-        name="ongrid-webhook"
-    ),
 ]

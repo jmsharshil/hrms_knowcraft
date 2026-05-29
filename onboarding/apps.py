@@ -13,6 +13,11 @@ class OnboardingConfig(AppConfig):
         from .utils.task_queue import TASK_QUEUE
         import os
 
+        # Prevent schedulers during tests
+        import sys
+        if 'test' in sys.argv:
+            return
+
         # Only start in the main process (avoids double execution in dev server)
         if os.environ.get('RUN_MAIN') == 'true' or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
             TASK_QUEUE.enqueue(run_joining_date_check_and_reschedule)
