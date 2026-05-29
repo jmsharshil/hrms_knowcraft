@@ -222,3 +222,12 @@ class CandidateBGVViewSet(viewsets.ModelViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=["get"], url_path="send-for-bgv")
+    def send_for_bgv(self, request, pk=None):
+        candidate = JobApplication.objects.get(id=pk)
+        if candidate:
+            from utils import send_notification_for_bgv
+            send_notification_for_bgv(candidate)
+            return Response({"message": "Notification sent successfully."}, status=status.HTTP_200_OK)
+        else:
+            return Response({"error": "Candidate not found."}, status=status.HTTP_404_NOT_FOUND)
