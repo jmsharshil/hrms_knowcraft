@@ -226,7 +226,7 @@ class CandidateBGVViewSet(viewsets.ModelViewSet):
     def send_for_bgv(self, request, pk=None):
         candidate = JobApplication.objects.get(id=pk)
         if candidate:
-            from utils import send_notification_for_bgv
+            from .services import send_notification_for_bgv
             send_notification_for_bgv(candidate)
             return Response({"message": "Notification sent successfully."}, status=status.HTTP_200_OK)
         else:
