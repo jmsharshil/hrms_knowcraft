@@ -843,10 +843,10 @@ def send_notification_for_bgv(candidate):
     </html>
     """
     
-    sms_text = (
-        f"Dear {candidate.candidate_name}, please fill out the required details to initiate your "
-        f"Background Verification (BGV) process.\n Link: {form_link}"
-    )
+    # sms_text = (
+    #     f"Dear {candidate.candidate_name}, please fill out the required details to initiate your "
+    #     f"Background Verification (BGV) process.\n Link: {form_link}"
+    # )
 
     # Send directly to candidate
     try:
@@ -860,7 +860,7 @@ def send_notification_for_bgv(candidate):
             logger.info("BGV initiation link sent to candidate %s (%s)", candidate.candidate_name, candidate.candidate_email)
         
         if candidate.candidate_phone:
-            send_text(to=str(candidate.candidate_phone), text=sms_text)
+            send_text(to=str(candidate.candidate_phone), text=email_text)
             logger.info("BGV initiation SMS sent to candidate %s (%s)", candidate.candidate_name, candidate.candidate_phone)
     except Exception as e:
         logger.error("Failed to send BGV notification to candidate %s: %s", candidate.candidate_name, e)
