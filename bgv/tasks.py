@@ -309,28 +309,41 @@ def schedule_periodic_bgv_check():
         "Periodic BGV schedule & poll check registered."
     )
 
-def schedule_periodic_bgv_status_poll():
+def run_bgv_status_poll_and_reschedule():
     """
-    Run only BGV status poll periodically every 1 hour.
+    Run the BGV status poll and reschedule after 1 hour.
+    The reschedule always happens, even if the poll itself fails,
+    so the polling chain never silently dies.
     """
 
     from onboarding.utils.task_queue import TASK_QUEUE
 
-    def _poll_and_reschedule():
-
+    try:
         run_bgv_status_poll()
-
-        timer = threading.Timer(
-            60,
-            lambda: TASK_QUEUE.enqueue(
-                _poll_and_reschedule
-            ),
+    except Exception as exc:
+        logger.exception(
+            "[BGV POLLER] Error during BGV status poll: %s", exc
         )
 
-        timer.daemon = True
-        timer.start()
+    # Always reschedule, regardless of success/failure
+    timer = threading.Timer(
+        3600,
+        lambda: TASK_QUEUE.enqueue(
+            run_bgv_status_poll_and_reschedule
+        ),
+    )
+    timer.daemon = True
+    timer.start()
 
-    TASK_QUEUE.enqueue(_poll_and_reschedule)
+
+def schedule_periodic_bgv_status_poll():
+    """
+    Initial entry point: enqueue the first poll-and-reschedule cycle.
+    """
+
+    from onboarding.utils.task_queue import TASK_QUEUE
+
+    TASK_QUEUE.enqueue(run_bgv_status_poll_and_reschedule)
 
     print(
         "[BGV POLLER] "
