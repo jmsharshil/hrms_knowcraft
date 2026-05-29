@@ -17,5 +17,6 @@ class BgvConfig(AppConfig):
         import os
         if os.environ.get('RUN_MAIN') == 'true' or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
             # Start the periodic BGV schedule checker (for experienced candidates)
-            from .tasks import schedule_periodic_bgv_check
+            from .tasks import schedule_periodic_bgv_check,schedule_periodic_bgv_status_poll
             # schedule_periodic_bgv_check()
+            schedule_periodic_bgv_status_poll()

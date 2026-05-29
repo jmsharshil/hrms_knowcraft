@@ -308,3 +308,31 @@ def schedule_periodic_bgv_check():
         "[BGV SCHEDULER] "
         "Periodic BGV schedule & poll check registered."
     )
+
+def schedule_periodic_bgv_status_poll():
+    """
+    Run only BGV status poll periodically every 1 hour.
+    """
+
+    from onboarding.utils.task_queue import TASK_QUEUE
+
+    def _poll_and_reschedule():
+
+        run_bgv_status_poll()
+
+        timer = threading.Timer(
+            3600,
+            lambda: TASK_QUEUE.enqueue(
+                _poll_and_reschedule
+            ),
+        )
+
+        timer.daemon = True
+        timer.start()
+
+    TASK_QUEUE.enqueue(_poll_and_reschedule)
+
+    print(
+        "[BGV POLLER] "
+        "Periodic BGV status poll registered."
+    )
