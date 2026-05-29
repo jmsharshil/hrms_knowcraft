@@ -222,7 +222,7 @@ class CandidateBGVViewSet(viewsets.ModelViewSet):
 
         return Response(data, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=["get"], url_path="send-for-bgv")
+    @action(detail=True, methods=["post"], url_path="send-for-bgv")
     def send_for_bgv(self, request, pk=None):
         candidate = JobApplication.objects.get(id=pk)
         if candidate:
