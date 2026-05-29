@@ -120,7 +120,8 @@ def run_bgv_status_poll():
         get_individual_status,
     )
 
-    print("[BGV POLLER] Starting check for active BGV records...")
+    print("[BGV POLLER] ====== Starting BGV status poll ======")
+    print(f"[BGV POLLER] Current time: {timezone.now()}")
 
     try:
         active_bgvs = list(
@@ -141,28 +142,36 @@ def run_bgv_status_poll():
             .select_related("candidate")
         )
 
+        print(f"[BGV POLLER] Found {len(active_bgvs)} active BGV records to poll.")
+
         if not active_bgvs:
-            print("[BGV POLLER] No active BGV records to poll.")
+            print("[BGV POLLER] No active BGV records to poll. Exiting.")
             return
 
-        for bgv_record in active_bgvs:
+        for i, bgv_record in enumerate(active_bgvs, 1):
+            candidate_name = bgv_record.candidate.candidate_name
+            individual_id = bgv_record.ongrid_individual_id
 
             print(
-                f"[BGV POLLER] Polling status for "
-                f"{bgv_record.candidate.candidate_name} "
-                f"({bgv_record.ongrid_individual_id})"
+                f"\n[BGV POLLER] --- [{i}/{len(active_bgvs)}] "
+                f"Candidate: {candidate_name}, "
+                f"IndividualID: {individual_id}, "
+                f"Current Status: {bgv_record.status} ---"
             )
 
-            report = get_verification_report(
-                bgv_record.ongrid_individual_id
-            )
+            # Step 1: Fetch verification report
+            print(f"[BGV POLLER] Fetching verification report for {individual_id}...")
+            report = get_verification_report(individual_id)
 
             if not report:
+                print(f"[BGV POLLER] ❌ No report received for {individual_id}. Skipping.")
                 logger.warning(
                     "No report received for individual %s",
-                    bgv_record.ongrid_individual_id,
+                    individual_id,
                 )
                 continue
+
+            print(f"[BGV POLLER] ✅ Report received. Keys: {list(report.keys())}")
 
             old_status = bgv_record.status
             update_fields = []
@@ -174,25 +183,31 @@ def run_bgv_status_poll():
             # -------------------------------------------------
             # Extract overall status
             # -------------------------------------------------
-
             overall_status = (
                 report.get("status")
                 or report.get("overallStatus")
                 or report.get("verificationStatus")
             )
 
+            print(
+                f"[BGV POLLER] Raw status fields — "
+                f"status={report.get('status')}, "
+                f"overallStatus={report.get('overallStatus')}, "
+                f"verificationStatus={report.get('verificationStatus')}"
+            )
+
             # Fallback from verification list
             if not overall_status:
-
                 verifications = report.get("verifications", [])
+                print(f"[BGV POLLER] No direct status. Checking verifications list ({len(verifications)} items)...")
 
                 if verifications:
-
                     statuses = [
                         v.get("status")
                         for v in verifications
                         if v.get("status")
                     ]
+                    print(f"[BGV POLLER] Verification statuses found: {statuses}")
 
                     if statuses:
                         overall_status = statuses[0]
@@ -201,14 +216,46 @@ def run_bgv_status_poll():
             new_status = map_ongrid_status(overall_status)
 
             print(
-                f"[BGV POLLER] OnGrid status={overall_status} "
-                f"mapped={new_status}"
+                f"[BGV POLLER] OnGrid overall_status={overall_status} → "
+                f"mapped={new_status} (old={old_status})"
             )
+
+            # -------------------------------------------------
+            # Step 2: Fetch verification status (per-check statuses + report URL)
+            # -------------------------------------------------
+            print(f"[BGV POLLER] Fetching individual verification status for {individual_id}...")
+            try:
+                individual_data = get_individual_status(
+                    individual_id,
+                    bgv_instance=bgv_record,  # This triggers _persist_ongrid_status
+                )
+                if individual_data:
+                    print(f"[BGV POLLER] ✅ Individual status received. Keys: {list(individual_data.keys())}")
+
+                    report_url = (
+                        individual_data.get("consolidatedReportUrl")
+                        or individual_data.get("reportUrl")
+                        or individual_data.get("report_url")
+                    )
+                    if report_url:
+                        print(f"[BGV POLLER] 📄 Report URL found: {report_url}")
+                        bgv_record.report_url = report_url
+                        if "report_url" not in update_fields:
+                            update_fields.append("report_url")
+                    else:
+                        print("[BGV POLLER] No report URL in individual status response.")
+                else:
+                    print(f"[BGV POLLER] ❌ No individual status data received for {individual_id}.")
+            except Exception as exc:
+                print(f"[BGV POLLER] ⚠️ Failed to fetch individual status: {exc}")
+                logger.warning(
+                    "Failed to fetch individual status (individual=%s): %s",
+                    individual_id, exc,
+                )
 
             # -------------------------------------------------
             # Update status only if changed
             # -------------------------------------------------
-
             if new_status != old_status:
                 bgv_record.status = new_status
                 update_fields.append("status")
@@ -222,37 +269,17 @@ def run_bgv_status_poll():
                 ]:
                     bgv_record.completed_at = timezone.now()
                     update_fields.append("completed_at")
-
-                # Fetch report URL
-                try:
-
-                    individual_data = get_individual_status(
-                        bgv_record.ongrid_individual_id
-                    )
-
-                    if individual_data:
-
-                        report_url = (
-                            individual_data.get("reportUrl")
-                            or individual_data.get("report_url")
-                        )
-
-                        if report_url:
-                            bgv_record.report_url = report_url
-                            update_fields.append("report_url")
-                except Exception:
-                    logger.warning(
-                        "Failed to fetch report URL "
-                        "(individual=%s)",
-                        bgv_record.ongrid_individual_id,
-                    )
+                    print(f"[BGV POLLER] 🏁 Terminal status reached: {new_status}")
 
                 # Full save to trigger signals
                 bgv_record.save()
+                print(
+                    f"[BGV POLLER] ✅ Status UPDATED: {old_status} → {new_status}"
+                )
 
                 logger.info(
                     "BGV status updated for %s: %s → %s",
-                    bgv_record.candidate.candidate_name,
+                    candidate_name,
                     old_status,
                     new_status,
                 )
@@ -260,16 +287,22 @@ def run_bgv_status_poll():
             else:
                 # Save only payload changes
                 bgv_record.save(update_fields=update_fields)
+                print(
+                    f"[BGV POLLER] Status unchanged ({old_status}). "
+                    f"Saved payload updates: {update_fields}"
+                )
 
         print(
-            f"[BGV POLLER] Polled {len(active_bgvs)} BGV records."
+            f"\n[BGV POLLER] ====== Poll complete. Processed {len(active_bgvs)} records. ======"
         )
 
     except Exception as exc:
+        print(f"[BGV POLLER] ❌❌❌ EXCEPTION during BGV poll: {exc}")
         logger.exception(
             "[BGV POLLER] Error during BGV poll: %s",
             exc,
         )
+
 
 
 def run_bgv_schedule_check_and_reschedule():
@@ -318,14 +351,19 @@ def run_bgv_status_poll_and_reschedule():
 
     from onboarding.utils.task_queue import TASK_QUEUE
 
+    print("[BGV POLLER] run_bgv_status_poll_and_reschedule() invoked.")
+
     try:
         run_bgv_status_poll()
+        print("[BGV POLLER] run_bgv_status_poll() completed successfully.")
     except Exception as exc:
+        print(f"[BGV POLLER] ❌ run_bgv_status_poll() raised exception: {exc}")
         logger.exception(
             "[BGV POLLER] Error during BGV status poll: %s", exc
         )
 
     # Always reschedule, regardless of success/failure
+    print("[BGV POLLER] Scheduling next poll in 3600 seconds (1 hour)...")
     timer = threading.Timer(
         3600,
         lambda: TASK_QUEUE.enqueue(
@@ -334,6 +372,7 @@ def run_bgv_status_poll_and_reschedule():
     )
     timer.daemon = True
     timer.start()
+    print("[BGV POLLER] Next poll timer started.")
 
 
 def schedule_periodic_bgv_status_poll():
@@ -343,9 +382,10 @@ def schedule_periodic_bgv_status_poll():
 
     from onboarding.utils.task_queue import TASK_QUEUE
 
+    print("[BGV POLLER] schedule_periodic_bgv_status_poll() called. Enqueuing first poll...")
     TASK_QUEUE.enqueue(run_bgv_status_poll_and_reschedule)
 
     print(
         "[BGV POLLER] "
-        "Periodic BGV status poll registered."
+        "Periodic BGV status poll registered. First poll enqueued to TASK_QUEUE."
     )
