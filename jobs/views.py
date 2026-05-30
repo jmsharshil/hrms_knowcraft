@@ -152,9 +152,10 @@ class JobViewSet(viewsets.ModelViewSet):
         ).order_by('status_priority', '-created_at')
 
         # Exclude private jobs from unauthorized users
+        # Admins and HR managers can see ALL jobs (including private ones)
         if not user.is_authenticated:
             queryset = queryset.filter(is_private=False)
-        else:
+        elif user.role not in ['admin', 'hr_manager']:
             queryset = queryset.filter(
                 Q(is_private=False) |
                 Q(is_private=True, posted_by=user) |
@@ -1052,15 +1053,17 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
             queryset = queryset.none()
 
         # Exclude private applications from unauthorized users
-        queryset = queryset.filter(
-            Q(job__is_private=False) |
-            Q(job__is_private=True, job__posted_by=user) |
-            Q(job__is_private=True, job__selected_viewers=user) |
-            Q(job__is_private=True, job__assigned_to_consultancy=user) |
-            Q(job__is_private=True, job__assigned_to_internal_hr=user) |
-            Q(job__is_private=True, job__assigned_internal_hrs=user) |
-            Q(job__is_private=True, job__assigned_consultancies=user)
-        )
+        # Admins and HR managers can see ALL applications (including private ones)
+        if user.role not in ['admin', 'hr_manager']:
+            queryset = queryset.filter(
+                Q(job__is_private=False) |
+                Q(job__is_private=True, job__posted_by=user) |
+                Q(job__is_private=True, job__selected_viewers=user) |
+                Q(job__is_private=True, job__assigned_to_consultancy=user) |
+                Q(job__is_private=True, job__assigned_to_internal_hr=user) |
+                Q(job__is_private=True, job__assigned_internal_hrs=user) |
+                Q(job__is_private=True, job__assigned_consultancies=user)
+            )
         # Apply filters
         job_filter = self.request.query_params.get('job')
         if job_filter and is_valid_uuid(job_filter):
@@ -1458,15 +1461,17 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
                 queryset = queryset.none()
             
             # Exclude private jobs from unauthorized users
-            queryset = queryset.filter(
-                Q(is_private=False) |
-                Q(is_private=True, posted_by=user) |
-                Q(is_private=True, selected_viewers=user) |
-                Q(is_private=True, assigned_to_consultancy=user) |
-                Q(is_private=True, assigned_to_internal_hr=user) |
-                Q(is_private=True, assigned_internal_hrs=user) |
-                Q(is_private=True, assigned_consultancies=user)
-            )
+            # Admins and HR managers can see ALL jobs (including private ones)
+            if user.role not in ['admin', 'hr_manager']:
+                queryset = queryset.filter(
+                    Q(is_private=False) |
+                    Q(is_private=True, posted_by=user) |
+                    Q(is_private=True, selected_viewers=user) |
+                    Q(is_private=True, assigned_to_consultancy=user) |
+                    Q(is_private=True, assigned_to_internal_hr=user) |
+                    Q(is_private=True, assigned_internal_hrs=user) |
+                    Q(is_private=True, assigned_consultancies=user)
+                )
 
             if hasattr(user, 'company'):
                 queryset = queryset.filter(company=user.company)

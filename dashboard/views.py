@@ -122,9 +122,10 @@ class DashboardAPIView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # ── base querysets scoped to company (Excluding Private Records from General Reports) ──
-        jobs_qs = Job.objects.filter(company=user.company, is_private=False)
-        apps_qs = JobApplication.objects.filter(job__company=user.company, job__is_private=False)
+        # ── base querysets scoped to company ──
+        # Admin and HR managers can see all records (including private ones)
+        jobs_qs = Job.objects.filter(company=user.company)
+        apps_qs = JobApplication.objects.filter(job__company=user.company)
 
         # ── optional filters ──
         user_id = request.query_params.get('user_id')
@@ -368,7 +369,8 @@ class BaseAnalyticsView(APIView):
                 return None, "Invalid user_id"
 
         # 3. MRF queryset (Filtered by Period Activity)
-        mrf_base_filter = Q(company=company, is_private=False) & role_mrf_q
+        # Admins and HR managers see all records including private ones
+        mrf_base_filter = Q(company=company) & role_mrf_q
         if department_id:
             mrf_base_filter &= Q(department_id=department_id)
         if designation_id:
@@ -380,7 +382,8 @@ class BaseAnalyticsView(APIView):
 
         # 4. Job queryset
         # Base filter includes company, role, dept, desig, and user but NO date
-        job_base_filter = Q(company=company, is_private=False) & role_job_q
+        # Admins and HR managers see all records including private ones
+        job_base_filter = Q(company=company) & role_job_q
         if job_id:
             job_base_filter &= Q(id=job_id)
         if department_id:
