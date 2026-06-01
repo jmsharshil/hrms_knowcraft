@@ -163,62 +163,61 @@ def run_bgv_status_poll():
             print(f"[BGV POLLER] Fetching verification report for {individual_id}...")
             report = get_verification_report(individual_id)
 
+            old_status = bgv_record.status
+            update_fields = []
+            overall_status = None
+
             if not report:
-                print(f"[BGV POLLER] ❌ No report received for {individual_id}. Skipping.")
+                print(f"[BGV POLLER] ❌ No report received for {individual_id}.")
                 logger.warning(
                     "No report received for individual %s",
                     individual_id,
                 )
-                continue
+            else:
+                print(f"[BGV POLLER] ✅ Report received. Keys: {list(report.keys())}")
 
-            print(f"[BGV POLLER] ✅ Report received. Keys: {list(report.keys())}")
+                # Save latest payload
+                bgv_record.callback_payload = report
+                update_fields.append("callback_payload")
 
-            old_status = bgv_record.status
-            update_fields = []
+                # Check if report has a servingUrl
+                report_url = report.get("servingUrl") or report.get("reportUrl") or report.get("consolidatedReportUrl")
+                if report_url and bgv_record.report_url != report_url:
+                    bgv_record.report_url = report_url
+                    if "report_url" not in update_fields:
+                        update_fields.append("report_url")
 
-            # Save latest payload
-            bgv_record.callback_payload = report
-            update_fields.append("callback_payload")
+                # -------------------------------------------------
+                # Extract overall status
+                # -------------------------------------------------
+                overall_status = (
+                    report.get("status")
+                    or report.get("overallStatus")
+                    or report.get("verificationStatus")
+                )
 
-            # -------------------------------------------------
-            # Extract overall status
-            # -------------------------------------------------
-            overall_status = (
-                report.get("status")
-                or report.get("overallStatus")
-                or report.get("verificationStatus")
-            )
+                print(
+                    f"[BGV POLLER] Raw status fields — "
+                    f"status={report.get('status')}, "
+                    f"overallStatus={report.get('overallStatus')}, "
+                    f"verificationStatus={report.get('verificationStatus')}"
+                )
 
-            print(
-                f"[BGV POLLER] Raw status fields — "
-                f"status={report.get('status')}, "
-                f"overallStatus={report.get('overallStatus')}, "
-                f"verificationStatus={report.get('verificationStatus')}"
-            )
+                # Fallback from verification list
+                if not overall_status:
+                    verifications = report.get("verifications", [])
+                    print(f"[BGV POLLER] No direct status. Checking verifications list ({len(verifications)} items)...")
 
-            # Fallback from verification list
-            if not overall_status:
-                verifications = report.get("verifications", [])
-                print(f"[BGV POLLER] No direct status. Checking verifications list ({len(verifications)} items)...")
+                    if verifications:
+                        statuses = [
+                            v.get("status")
+                            for v in verifications
+                            if v.get("status")
+                        ]
+                        print(f"[BGV POLLER] Verification statuses found: {statuses}")
 
-                if verifications:
-                    statuses = [
-                        v.get("status")
-                        for v in verifications
-                        if v.get("status")
-                    ]
-                    print(f"[BGV POLLER] Verification statuses found: {statuses}")
-
-                    if statuses:
-                        overall_status = statuses[0]
-
-            # Map to internal status
-            new_status = map_ongrid_status(overall_status)
-
-            print(
-                f"[BGV POLLER] OnGrid overall_status={overall_status} → "
-                f"mapped={new_status} (old={old_status})"
-            )
+                        if statuses:
+                            overall_status = statuses[0]
 
             # -------------------------------------------------
             # Step 2: Fetch verification status (per-check statuses + report URL)
@@ -253,40 +252,52 @@ def run_bgv_status_poll():
                     individual_id, exc,
                 )
 
+            # Map to internal status if overall_status is present in report
+            if overall_status:
+                mapped_report_status = map_ongrid_status(overall_status)
+                if mapped_report_status != bgv_record.status:
+                    bgv_record.status = mapped_report_status
+                    if "status" not in update_fields:
+                        update_fields.append("status")
+
+            final_status = bgv_record.status
+
             # -------------------------------------------------
             # Update status only if changed
             # -------------------------------------------------
-            if new_status != old_status:
-                bgv_record.status = new_status
-                update_fields.append("status")
+            if final_status != old_status:
+                if "status" not in update_fields:
+                    update_fields.append("status")
 
                 # Terminal statuses
-                if new_status in [
+                if final_status in [
                     "completed",
                     "clear",
                     "verified",
                     "closed",
                 ]:
                     bgv_record.completed_at = timezone.now()
-                    update_fields.append("completed_at")
-                    print(f"[BGV POLLER] 🏁 Terminal status reached: {new_status}")
+                    if "completed_at" not in update_fields:
+                        update_fields.append("completed_at")
+                    print(f"[BGV POLLER] 🏁 Terminal status reached: {final_status}")
 
                 # Full save to trigger signals
                 bgv_record.save()
                 print(
-                    f"[BGV POLLER] ✅ Status UPDATED: {old_status} → {new_status}"
+                    f"[BGV POLLER] ✅ Status UPDATED: {old_status} → {final_status}"
                 )
 
                 logger.info(
                     "BGV status updated for %s: %s → %s",
                     candidate_name,
                     old_status,
-                    new_status,
+                    final_status,
                 )
 
             else:
                 # Save only payload changes
-                bgv_record.save(update_fields=update_fields)
+                if update_fields:
+                    bgv_record.save(update_fields=update_fields)
                 print(
                     f"[BGV POLLER] Status unchanged ({old_status}). "
                     f"Saved payload updates: {update_fields}"
@@ -302,7 +313,6 @@ def run_bgv_status_poll():
             "[BGV POLLER] Error during BGV poll: %s",
             exc,
         )
-
 
 
 def run_bgv_schedule_check_and_reschedule():
