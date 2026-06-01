@@ -180,6 +180,13 @@ def run_bgv_status_poll():
                 bgv_record.callback_payload = report
                 update_fields.append("callback_payload")
 
+                # Check if report has a servingUrl
+                report_url = report.get("servingUrl") or report.get("reportUrl") or report.get("consolidatedReportUrl")
+                if report_url and bgv_record.report_url != report_url:
+                    bgv_record.report_url = report_url
+                    if "report_url" not in update_fields:
+                        update_fields.append("report_url")
+
                 # -------------------------------------------------
                 # Extract overall status
                 # -------------------------------------------------
