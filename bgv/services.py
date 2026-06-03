@@ -292,16 +292,16 @@ def _build_verifications(candidate, extra_data=None):
         # ---------------- PANV ----------------
         if code == "PANV":
             pan_file = getattr(candidate.documents, "pan", None)
-            pan_data = extract_pan_smart(pan_file)
+            # pan_data = extract_pan_smart(pan_file)
 
-            if not pan_data or not pan_data.get("pan_number"):
-                continue
+            # if not pan_data or not pan_data.get("pan_number"):
+            #     continue
 
             verifications.append({
                 "code": code,
                 "key": str(uuid.uuid4()),
                 "data": {
-                    "documentUID": pan_data["pan_number"]
+                    "documentUID": extra.get("pan_number")
                 }
             })
 
