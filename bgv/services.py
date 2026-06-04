@@ -687,6 +687,13 @@ def initiate_bgv(candidate, extra_data=None):
 
     print(payload, "payload")
 
+    existing_bgv = CandidateBGV.objects.filter(candidate=candidate).first()
+    existing_ongrid_id = None
+    existing_status = None
+    if existing_bgv:
+        existing_ongrid_id = existing_bgv.ongrid_individual_id
+        existing_status = existing_bgv.status
+
     data, status_code, api_success = _ongrid_request("POST", url, payload)
     print(data, "data")
     print(status_code, "status_code")
@@ -725,14 +732,24 @@ def initiate_bgv(candidate, extra_data=None):
                 status_code, candidate.candidate_name, individual_id,
             )
 
+    # If the API failed but we already have an existing OnGrid ID, preserve it.
+    if not individual_id and existing_ongrid_id:
+        individual_id = existing_ongrid_id
+
     # ── Determine BGV status ──────────────────────────────────────
     if api_success:
         bgv_status = "in_progress"
         remarks = ""
-    elif individual_id:
+    elif individual_id and individual_id != existing_ongrid_id:
         # Individual already existed; treat as in_progress
         bgv_status = "in_progress"
         remarks = f"Re-initiation: recovered existing OnGrid individualId={individual_id}"
+    elif existing_ongrid_id:
+        bgv_status = existing_status or "in_progress"
+        remarks = (
+            f"API error (HTTP {status_code}): {data}. "
+            f"Preserving existing OnGrid individualId={existing_ongrid_id}."
+        )
     else:
         bgv_status = "failed"
         remarks = f"API error (HTTP {status_code}): {data}"
