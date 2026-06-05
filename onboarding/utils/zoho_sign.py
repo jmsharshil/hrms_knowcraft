@@ -801,3 +801,39 @@ Please let us know if you have any questions.
 Warm Regards,
 Team – HR
 Knowcraft Analytics Private Limited""")
+
+def recall_zoho_offer(offer_document):
+    """
+    Recalls an offer document from Zoho Sign using its request_id.
+    """
+    try:
+        raw_response = offer_document.raw_response
+        if not raw_response or "requests" not in raw_response:
+            print("Cannot recall Zoho offer: No raw_response with request_id found.")
+            return False
+
+        request_id = raw_response["requests"].get("request_id")
+        if not request_id:
+            print("Cannot recall Zoho offer: request_id missing.")
+            return False
+
+        access_token = get_access_token()
+        url = f"https://sign.zoho.in/api/v1/requests/{request_id}/recall"
+        
+        headers = {
+            "Authorization": f"Zoho-oauthtoken {access_token}"
+        }
+
+        resp = requests.post(url, headers=headers)
+        
+        # If successfully recalled, it typically returns 200 OK
+        if resp.status_code == 200:
+            print(f"Successfully recalled Zoho document {request_id}")
+            return True
+        else:
+            print(f"Failed to recall Zoho document {request_id}: {resp.text}")
+            return False
+            
+    except Exception as e:
+        print(f"Exception during Zoho recall: {e}")
+        return False

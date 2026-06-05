@@ -1364,6 +1364,52 @@ Thank you.
             status=status.HTTP_200_OK
         )
 
+from .models import OfferDocument
+from .utils.zoho_sign import recall_zoho_offer
+
+class RevertOfferAPIView(APIView):
+    """
+    Recalls an active offer from Zoho Sign, deletes the OfferDocument,
+    clears the offer letter file, and reverts the application status
+    to 'offer_pending' so HR can update and resend.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, id):
+        job_application = get_object_or_404(JobApplication, id=id)
+
+        # 1. Recall from Zoho Sign if exists
+        offer = OfferDocument.objects.filter(application=job_application).first()
+        if offer:
+            if job_application.status in ['offer_pending','offer_accepted','offer_rejected','offer_sent','joining_pending']:
+                recall_zoho_offer(offer)
+            # 2. Delete OfferDocument so the system knows no offer is active
+            offer.delete()
+
+        # 3. Clear the created offer letter file from documents
+        if hasattr(job_application, 'documents'):
+            docs = job_application.documents
+            if docs.created_offer_letter:
+                # Optionally delete the physical file
+                # docs.created_offer_letter.delete(save=False)
+                docs.created_offer_letter = None
+                docs.save()
+
+        # 4. Revert status back to offer_pending
+        job_application.status = "offer_pending"
+        job_application.save(update_fields=["status"])
+        
+        if hasattr(job_application, 'approval_note'):
+            note = job_application.approval_note
+            note.status = "offer_pending"
+            note.save(update_fields=["status"])
+
+        return Response(
+            {"message": "Offer successfully reverted to pending stage."},
+            status=status.HTTP_200_OK
+        )
+
+
 class SendForSalaryAnnexureEmailAPI(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
