@@ -137,8 +137,7 @@
 from django.db.models.signals import post_save,pre_save
 from django.dispatch import receiver
 from .models import MRF
-from onboarding.utils.task_queue import TASK_QUEUE
-from onboarding.utils.mrf_send_reminder import mrf_approval_reminder_task
+from scheduler.services import TaskScheduler
 from django.utils import timezone
 
 @receiver(post_save, sender=MRF)
@@ -146,7 +145,13 @@ def schedule_mrf_reminder(sender, instance, created, **kwargs):
     # Only enqueue if new MRF and NOT private
     if created and not instance.is_private:
         print("reminder started!")
-        TASK_QUEUE.enqueue(mrf_approval_reminder_task, instance.id)
+        TaskScheduler.schedule(
+            task_type="mrf_approval_reminder",
+            task_kwargs={"mrf_id": str(instance.id)},
+            delay_seconds=7200,  # Starts in 2 hours, or immediately if we want? Original logic enqueued immediately but reminder interval was 7200. Actually original logic enqueued immediately. So delay_seconds=0
+            is_recurring=True,
+            interval_seconds=7200,
+        )
 
 @receiver(pre_save, sender=MRF)
 def store_previous_status(sender, instance, **kwargs):

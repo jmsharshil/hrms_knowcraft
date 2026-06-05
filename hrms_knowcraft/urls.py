@@ -33,6 +33,7 @@ urlpatterns = [
     path('api/dashboard/', include('dashboard.urls')),
     path('api/bgv/', include('bgv.urls')),
     path('api/audit-logs/', include('auditlog.urls')),
+    path('api/scheduler/', include('scheduler.urls')),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

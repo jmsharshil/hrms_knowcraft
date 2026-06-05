@@ -1,12 +1,11 @@
 from .sender import send_email,send_text
-from .task_queue import TASK_QUEUE
 from booking.models import Booking
 from slots.models import InterviewFeedback
 from django.utils import timezone
 import logging
 
 logger = logging.getLogger(__name__)
-REMINDER_INTERVAL = 7200  # 120 minutes
+# REMINDER_INTERVAL = 7200  # 120 minutes
 
 def send_feedback_reminder_email(interviewer_email, interviewer_name, interviewer_phone, candidate_name, round_name,link,position):
     subject = f"Gentle Reminder: Interview Feedback Form Pending ({round_name})"
@@ -87,15 +86,18 @@ def interview_feedback_reminder_task(booking_id):
         logger.warning(f"Booking {booking_id} does not exist. Skipping reminder.")
         return
 
-    # Only send reminder if interview is over
+    # If interview is not over yet, just return — the recurring scheduler
+    # will call us again at the next interval.
     if booking.end > timezone.now():
-        delay = (booking.end - timezone.now()).total_seconds()
-        logger.info(f"Interview not over yet. Will retry after {delay} seconds.")
+        # delay = (booking.end - timezone.now()).total_seconds()
+        # logger.info(f"Interview not over yet. Will retry after {delay} seconds.")
 
-        import threading
-        threading.Timer(delay, lambda: TASK_QUEUE.enqueue(
-            interview_feedback_reminder_task, booking_id
-        )).start()
+        # import threading
+        # threading.Timer(delay, lambda: TASK_QUEUE.enqueue(
+        #     interview_feedback_reminder_task, booking_id
+        # )).start()
+
+        logger.info(f"Interview not over yet for Booking {booking_id}. Will retry on next cycle.")
         return
 
     # Determine interview round from booking status (adjust according to your logic)
@@ -116,6 +118,12 @@ def interview_feedback_reminder_task(booking_id):
 
     if feedback_exists or round_name == 'Interview':
         logger.info(f"Feedback already submitted for Booking {booking.id}. No reminder sent.")
+        # Cancel further recurring reminders for this booking
+        from scheduler.services import TaskScheduler
+        TaskScheduler.cancel(
+            "interview_feedback_reminder",
+            task_kwargs_filter={"booking_id": str(booking_id)},
+        )
         return
 
     # Send reminder email
@@ -130,9 +138,11 @@ def interview_feedback_reminder_task(booking_id):
     )
     logger.info(f"Reminder email sent for Booking {booking.id} to {booking.interviewer.email}")
 
-    # Re-enqueue task to run again after 5 minutes
-    def requeue():
-        TASK_QUEUE.enqueue(interview_feedback_reminder_task, booking_id)
+    # # Re-enqueue task to run again after 5 minutes
+    # def requeue():
+    #     TASK_QUEUE.enqueue(interview_feedback_reminder_task, booking_id)
 
-    import threading
-    threading.Timer(REMINDER_INTERVAL, requeue).start()
+    # import threading
+    # threading.Timer(REMINDER_INTERVAL, requeue).start()
+    # NOTE: No more threading.Timer re-enqueue here.
+    # The TaskScheduler handles recurring re-execution automatically.

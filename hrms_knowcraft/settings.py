@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'dashboard',
     'bgv',
     'auditlog',
+    'scheduler',
 ]
 
 MIDDLEWARE = [

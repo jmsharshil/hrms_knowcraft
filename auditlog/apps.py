@@ -29,8 +29,7 @@ class AuditlogConfig(AppConfig):
             os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or  # Werkzeug dev server
             not os.environ.get('GUNICORN_CMD_ARGS')  # Not Gunicorn worker
         )
-        
+
         if is_main_process:
-            from .tasks import schedule_periodic_flush
-            schedule_periodic_flush()
-            print("[AUDIT LOG] Periodic flush task started successfully")
+            # from .tasks import schedule_periodic_flush
+            # schedule_periodic_flush()

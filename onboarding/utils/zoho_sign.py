@@ -527,6 +527,7 @@ def send_to_zoho_sign(candidate, file_stream, filename,other_signers=[]):
 There will be a twelve-month (12 months) bond, which would be applicable from the Date of Joining.
 """
     
+    bond_section_html = bond_section.replace('\n', '<br>')
     note_message = f"""
 Hi {candidate.candidate_name},<br>
 
@@ -543,7 +544,7 @@ After this date, the offer will be automatically revoked.<br>
 • 24 earned leaves per year<br>
 • 10–11 national holidays<br>
 • Background verification will be conducted by a third party as per company policy<br>
-{bond_section.replace("\n", "<br>")}<br>
+{bond_section_html}<br>
 
 <b>Work Mode:</b> {feedback.get('work_mode') or 'Work From Office'}<br>
 <b>Date of Joining:</b> {candidate.joining_date.strftime('%d-%m-%Y') if candidate.joining_date else ''} 

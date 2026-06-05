@@ -5,7 +5,7 @@ from datetime import date
 
 from jobs.models import Job, JobApplication
 from bgv.models import CandidateBGV
-from bgv.services import is_fresher
+from bgv.services import initiate_bgv, is_fresher
 from bgv.signals import (
     trigger_bgv_on_offer_accepted,
     update_bgv_schedule_on_joining_date_change,
@@ -124,6 +124,24 @@ class BGVTests(TestCase):
         bgv.refresh_from_db()
         expected_date = new_joining_date - timezone.timedelta(days=15)
         self.assertEqual(bgv.bgv_scheduled_date, expected_date)
+
+    @patch("bgv.services._ongrid_request")
+    def test_initiate_bgv_preserves_existing_individual_id_on_api_error(self, mock_request):
+        """Failed initiate_bgv should not clear an existing OnGrid ID."""
+        CandidateBGV.objects.create(
+            candidate=self.application,
+            status="in_progress",
+            ongrid_individual_id="ind_12345"
+        )
+        mock_request.return_value = ({"message": "Service unavailable"}, 500, False)
+
+        result = initiate_bgv(self.application)
+
+        bgv = CandidateBGV.objects.get(candidate=self.application)
+        self.assertEqual(result.ongrid_individual_id, "ind_12345")
+        self.assertEqual(bgv.ongrid_individual_id, "ind_12345")
+        self.assertEqual(bgv.status, "in_progress")
+        self.assertIn("Preserving existing OnGrid individualId", bgv.remarks)
 
     def test_update_bgv_schedule_when_no_bgv(self):
         """Test that nothing happens when no pending BGV exists."""
