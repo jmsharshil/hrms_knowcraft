@@ -74,16 +74,21 @@ class TaskScheduler:
 
         task_kwargs = task_kwargs or {}
 
-        # ── Singleton guard for recurring system tasks ───────────
-        if is_recurring and not task_kwargs:
-            existing = ScheduledTask.objects.filter(
+        # ── Singleton guard for recurring tasks ───────────
+        if is_recurring:
+            existing_qs = ScheduledTask.objects.filter(
                 task_type=task_type,
                 status__in=["pending", "running"],
-            ).exists()
-            if existing:
+            )
+            if task_kwargs:
+                existing_qs = existing_qs.filter(task_kwargs=task_kwargs)
+            else:
+                existing_qs = existing_qs.filter(task_kwargs__in=[{}, None])
+
+            if existing_qs.exists():
                 logger.info(
-                    "[SCHEDULER] Recurring task '%s' already pending/running — skipped.",
-                    task_type,
+                    "[SCHEDULER] Recurring task '%s' with kwargs %s already pending/running — skipped.",
+                    task_type, task_kwargs
                 )
                 return None
 

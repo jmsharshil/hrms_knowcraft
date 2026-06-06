@@ -12,11 +12,28 @@ def schedule_feedback_reminder(sender, instance, created, **kwargs):
 
     delay = (instance.end - timezone.now()).total_seconds()
 
+    # # If already past (edge case)
+    # if delay <= 0:
+    #     TASK_QUEUE.enqueue(interview_feedback_reminder_task, instance.id)
+    #     return
+
+    # import threading
+
+    # threading.Timer(delay, lambda: TASK_QUEUE.enqueue(
+    #     interview_feedback_reminder_task, instance.id
+    # )).start()
+
     # Ensure non-negative delay
     if delay < 0:
         delay = 0
 
     from scheduler.services import TaskScheduler
+
+    # Cancel existing pending tasks for this booking so we don't get duplicates if rescheduled
+    TaskScheduler.cancel(
+        task_type="interview_feedback_reminder",
+        task_kwargs_filter={"booking_id": str(instance.id)}
+    )
 
     TaskScheduler.schedule(
         task_type="interview_feedback_reminder",
