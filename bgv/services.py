@@ -181,8 +181,7 @@ VERIFICATION_NAMES = {
     "DLV":    "Driving Licence Verification",
     "BAV":    "Bank Account Verification",
     "CVV":    "CV Verification",
-    "PAPV":   "Passport Verification",
-    "PANV":   "PAN Verification",
+    "PAPV":   "Permanent Address Postal Verification",
     "PADV":   "PAN Address Verification",
     "VIDV":   "Voter ID Verification",
     "IPAV":   "IP Address Verification",
@@ -224,9 +223,10 @@ def get_verification_codes(candidate):
     """
     Returns the list of verification codes based on the candidate's experience.
     """
-    codes = ["PANV", "CCRV", "PAV", "LAV", "EDUV", "GDC"]
+    # codes = ["PANV", "CCRV", "PAV", "LAV", "EDUV", "GDC"]
+    codes = ["PANV", "CCRV", "PAV", "PAPV", "2EDUV", "GPD"]
     if not is_fresher(candidate):
-        codes.append("EMPV")
+        codes.append("2EMPV")
     return codes
 
 
@@ -306,7 +306,7 @@ def _build_verifications(candidate, extra_data=None):
             })
 
         # ---------------- EDUV ----------------
-        elif code == "EDUV":
+        elif code == "2EDUV":
             if not extra.get("institute_name"):
                 continue
 
@@ -354,7 +354,7 @@ def _build_verifications(candidate, extra_data=None):
             })
 
         # ---------------- PAV ----------------
-        elif code == "PAV":
+        elif code == "PAV" or code == "PAPV":
             perm = extra.get("permanentAddress") or {}
 
             if not perm.get("line1"):
@@ -386,7 +386,7 @@ def _build_verifications(candidate, extra_data=None):
                 }
             })
 
-        elif code == "EMPV":
+        elif code == "2EMPV":
             emp_record = {
                 "nameAsPerEmployerRecords": candidate.candidate_name,
                 "employeeId": str(candidate.id),
