@@ -149,13 +149,27 @@ def schedule_mrf_reminder(sender, instance, created, **kwargs):
             task_type="mrf_approval_reminder",
             task_kwargs_filter={"mrf_id": str(instance.id)}
         )
+        # delay_seconds=0: fire the first reminder immediately, then recur every 2 hours
         TaskScheduler.schedule(
             task_type="mrf_approval_reminder",
             task_kwargs={"mrf_id": str(instance.id)},
-            delay_seconds=7200,  # Starts in 2 hours, or immediately if we want? Original logic enqueued immediately but reminder interval was 7200. Actually original logic enqueued immediately. So delay_seconds=0
+            delay_seconds=0,
             is_recurring=True,
             interval_seconds=7200,
         )
+
+@receiver(post_save, sender=MRF)
+def cancel_mrf_reminder_on_submit(sender, instance, created, **kwargs):
+    """Cancel the draft reminder as soon as MRF leaves draft status."""""
+    if created:
+        return
+    if instance.status != "draft":
+        cancelled = TaskScheduler.cancel(
+            task_type="mrf_approval_reminder",
+            task_kwargs_filter={"mrf_id": str(instance.id)}
+        )
+        if cancelled:
+            print(f"[MRF SIGNAL] Cancelled approval reminder for MRF {instance.id} (status={instance.status})")
 
 @receiver(pre_save, sender=MRF)
 def store_previous_status(sender, instance, **kwargs):
