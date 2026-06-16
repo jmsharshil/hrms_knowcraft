@@ -1108,7 +1108,9 @@ def _persist_ongrid_status(bgv, status_data):
         "Cancelled":    "cancelled",
         "Verified":     "verified",
         "Discrepancy":  "discrepancy",
-        "Success":      "completed"
+        "Success":      "completed",
+        "SuccessWithException":"discrepancy",
+        "OnHold":       "on_hold"
     }
     
     VERIFICATION_STATUS_FIELDS = {

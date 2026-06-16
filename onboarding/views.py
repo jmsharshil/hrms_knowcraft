@@ -261,7 +261,7 @@ class UploadJobApplicationDocumentAPI(APIView):
             approved_field = f"{field}_approved"
             if hasattr(docs, field):
                 # Skip file if it's already approved
-                if hasattr(docs, approved_field) and getattr(docs, approved_field):
+                if hasattr(docs, approved_field) and getattr(docs, approved_field) and field != "salary_annexure":
                     continue
                 setattr(docs, field, request.FILES[field])
                 updated = True
