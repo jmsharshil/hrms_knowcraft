@@ -294,7 +294,8 @@ if USE_AZURE_MEDIA:
         "AZURE_CUSTOM_DOMAIN",
         f"{AZURE_ACCOUNT_NAME}.blob.core.windows.net",
     )
-    AZURE_URL_EXPIRATION_SECS = int(os.environ.get("AZURE_URL_EXPIRATION_SECS", 3600))
+    # AZURE_URL_EXPIRATION_SECS = int(os.environ.get("AZURE_URL_EXPIRATION_SECS", 3600))
+    AZURE_URL_EXPIRATION_SECS = None
     AZURE_OVERWRITE_FILES = False
 
     # ✅ New-style Django 4.2/5.x storage config
