@@ -1,6 +1,6 @@
 import django_filters
 from django.db.models import Q
-from .models import JobApplication,Application
+from .models import JobApplication,Application,ReferralApplication
 from django.db.models.functions import Cast
 from django.db.models import FloatField
 
@@ -323,3 +323,34 @@ class ApplicationFilter(django_filters.FilterSet):
             return queryset.none()
 
         return queryset.filter(job_id__in=valid_ids)
+
+
+class ReferralApplicationFilter(django_filters.FilterSet):
+    # Basic filters for referral fields
+    referral_name = django_filters.CharFilter(field_name='referral_name', lookup_expr='icontains')
+    referral_email = django_filters.CharFilter(field_name='referral_email', lookup_expr='icontains')
+    referral_phone = django_filters.CharFilter(field_name='referral_phone', lookup_expr='icontains')
+    position_title = django_filters.CharFilter(field_name='position_title', lookup_expr='icontains')
+    # Date filters
+    created_from = django_filters.DateFilter(field_name='created_at', lookup_expr='date__gte')
+    created_to = django_filters.DateFilter(field_name='created_at', lookup_expr='date__lte')
+    # Search filter using method
+    search = django_filters.CharFilter(method='filter_search')
+
+    class Meta:
+        model = ReferralApplication
+        fields = []
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = getattr(self, 'request', None)
+        if request and hasattr(request.user, 'company'):
+            self.queryset = self.queryset.filter(company=request.user.company)
+
+    def filter_search(self, queryset, name, value):
+        return queryset.filter(
+            Q(referral_name__icontains=value) |
+            Q(referral_email__icontains=value) |
+            Q(referral_phone__icontains=value) |
+            Q(position_title__icontains=value)
+        )

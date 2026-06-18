@@ -29,10 +29,10 @@ from .permissions import (
 from accounts.models import User
 from rest_framework.parsers import MultiPartParser, FormParser
 from django_filters.rest_framework import DjangoFilterBackend
-from .filters import JobApplicationFilter,ApplicationFilter
-from .utils import send_job_assignment_email,send_job_unassignment_email
+from rest_framework import filters
+from .filters import JobApplicationFilter, ApplicationFilter, ReferralApplicationFilter
+from .utils import send_job_assignment_email, send_job_unassignment_email
 from mrf.utils import is_valid_uuid
-from django_filters.rest_framework import DjangoFilterBackend
 
 class JobViewSet(viewsets.ModelViewSet):
     """ViewSet for managing Jobs"""
@@ -1203,6 +1203,9 @@ class ReferralApplicationViewSet(viewsets.ModelViewSet):
     
     queryset = ReferralApplication.objects.all()
     parser_classes = (MultiPartParser, FormParser)
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_class = ReferralApplicationFilter
+    search_fields = ['referral_name', 'referral_email', 'referral_phone', 'position_title']
 
     def get_permissions(self):
         return [AllowAny()]
