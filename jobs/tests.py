@@ -68,11 +68,12 @@ class ReferralFilterTest(TestCase):
         self.assertTrue(f.qs.first().is_touched)
 
     def test_referral_search_filter(self):
-        """Test the search method filter (matches on name/email/notes/position via Q filter)"""
+        """Test the search method filter (now matches name/email/phone/emp_code/position/notes/dept/designation via Q). Tests notes-based search for 'referral job applications'."""
         qs = ReferralApplication.objects.all()
-        f = ReferralApplicationFilter({'search': 'carol'}, queryset=qs)
+        f = ReferralApplicationFilter({'search': 'sales'}, queryset=qs)
         self.assertEqual(f.qs.count(), 1)
         self.assertEqual(f.qs.first().referral_name, "Carol Davis")
+        self.assertIn("Sales", f.qs.first().notes)
 
     def test_referral_date_filter(self):
         """Test created_from/created_to filters"""

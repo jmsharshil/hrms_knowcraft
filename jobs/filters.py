@@ -18,6 +18,19 @@ class JobApplicationFilter(django_filters.FilterSet):
     submitted_by = django_filters.UUIDFilter(field_name='submitted_by_id')
 
     # =============================
+    # REFERRAL FILTERS (for referral job applications)
+    # =============================
+    referral_name = django_filters.CharFilter(
+        field_name='referral_name', lookup_expr='icontains'
+    )
+    referral_email = django_filters.CharFilter(
+        field_name='referral_email', lookup_expr='icontains'
+    )
+    referral_emp_code = django_filters.CharFilter(
+        field_name='referral_emp_code', lookup_expr='icontains'
+    )
+
+    # =============================
     # PLATFORM FILTER (IMPORTANT)
     # =============================
     platform = django_filters.CharFilter(
@@ -130,11 +143,16 @@ class JobApplicationFilter(django_filters.FilterSet):
             self.queryset = self.queryset.filter(job__company=request.user.company)
 
     def filter_search(self, queryset, name, value):
+        """Search candidate details, job title, and referral fields (for referral job applications)."""
         return queryset.filter(
             Q(candidate_name__icontains=value) |
             Q(candidate_email__icontains=value) |
             Q(candidate_phone__icontains=value) |
-            Q(job__job_title__icontains=value)
+            Q(job__job_title__icontains=value) |
+            Q(referral_name__icontains=value) |
+            Q(referral_email__icontains=value) |
+            Q(referral_phone__icontains=value) |
+            Q(referral_emp_code__icontains=value)
         )
 
     def filter_job(self, queryset, name, value):
@@ -350,9 +368,14 @@ class ReferralApplicationFilter(django_filters.FilterSet):
             pass  # No company filtering for referrals currently (no FK)
 
     def filter_search(self, queryset, name, value):
+        """Search across referral fields, position, and notes."""
         return queryset.filter(
             Q(referral_name__icontains=value) |
             Q(referral_email__icontains=value) |
             Q(referral_phone__icontains=value) |
-            Q(position_title__icontains=value)
+            Q(referral_emp_code__icontains=value) |
+            Q(referral_designation__icontains=value) |
+            Q(referral_department__icontains=value) |
+            Q(position_title__icontains=value) |
+            Q(notes__icontains=value)
         )
