@@ -1203,9 +1203,8 @@ class ReferralApplicationViewSet(viewsets.ModelViewSet):
     
     queryset = ReferralApplication.objects.all()
     parser_classes = (MultiPartParser, FormParser)
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend]
     filterset_class = ReferralApplicationFilter
-    search_fields = ['referral_name', 'referral_email', 'referral_phone', 'position_title']
 
     def get_permissions(self):
         return [AllowAny()]
