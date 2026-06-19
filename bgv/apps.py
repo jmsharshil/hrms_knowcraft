@@ -43,10 +43,5 @@ class BgvConfig(AppConfig):
 
         if is_main_process:
             BgvConfig._poller_started = True
-            # Start the periodic BGV schedule checker (for experienced candidates)
-            from .tasks import schedule_periodic_bgv_check, schedule_periodic_bgv_status_poll
-            # schedule_periodic_bgv_check()
-            schedule_periodic_bgv_status_poll()
-            print("[BGV APP] schedule_periodic_bgv_status_poll() called successfully.")
         else:
-            print("[BGV APP] Not main process, skipping scheduler start.")
+            print("[BGV APP] Not main process, skipping BGV initialization.")

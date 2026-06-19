@@ -12,6 +12,7 @@ class CandidateBGV(models.Model):
     # Active states
     ("initiated", "BGV Initiated"),
     ("pending", "Pending Verification"),
+    ("on_hold", "On Hold"),
     ("in_progress", "BGV In Progress"),
     ("under_review", "Under Review"),
     ("insufficiency_raised", "Insufficiency Raised"),

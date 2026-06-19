@@ -446,73 +446,154 @@ Team HR
 """
 }
 
-import threading
+# import threading  # No longer needed — replaced by TaskScheduler
 import time
 from .models import MRF
 from accounts.models import User
 from onboarding.utils.sender import send_email,send_text
+from scheduler.services import TaskScheduler
+
+def mrf_pending_approval_reminder_task(mrf_id):
+    """
+    Handler executed by TaskScheduler after 48 hours.
+    Checks if the MRF is still pending approval and sends a reminder
+    email to the next approver.
+    """
+    try:
+        mrf = MRF.objects.get(id=mrf_id)
+        if mrf.is_private:
+            return
+
+        if mrf.status in ["approved", "rejected"]:
+            return
+        if not mrf.status.startswith("pending"):
+            return
+
+        # Only send reminder if still pending
+        next_level = mrf.current_approval_level + 1
+
+        workflow = mrf.workflow_template.levels.filter(
+            level=next_level,
+            is_active=True
+        ).select_related('approver').first()
+
+        if not workflow or not workflow.approver:
+            return
+
+        approver = workflow.approver
+
+        if not approver.is_active or approver.company_id != mrf.company_id:
+            return
+
+        if approver:
+            template = email_templates["mrf_reminder"].format(
+                manager_name=approver.name,
+                position=mrf.designation.name,
+                requisition_date=mrf.created_at.strftime("%B %d, %Y")
+            )
+
+            text = alt_text["mrf_reminder"].format(
+                manager_name=approver.name,
+                position=mrf.designation.name,
+                requisition_date=mrf.created_at.strftime("%B %d, %Y")
+            )
+
+            send_email(
+                to=approver.email,
+                subject=f"Reminder – Requisition Pending Review",
+                template=template,
+                text=text
+            )
+            if approver.phone:
+                send_text(to=approver.phone,text=text)
+            print(f"Reminder email sent for MRF {mrf_id}")
+
+    except Exception as e:
+        print(f"Reminder scheduler error: {e}")
+
+
 def schedule_mrf_reminder(mrf_id):
-    """Runs a reminder check after 48 hours in a background thread."""
+    """Schedule a reminder check after 48 hours using TaskScheduler."""
+    # Using TaskScheduler to schedule the reminder task instead of a background thread.
+    # The task type "mrf_pending_approval_reminder" is registered in scheduler/apps.py
+    # and points to mrf_pending_approval_reminder_task above.
+    TaskScheduler.schedule(
+        task_type="mrf_pending_approval_reminder",
+        task_kwargs={"mrf_id": str(mrf_id)},
+        delay_seconds=48 * 60 * 60,
+        is_recurring=False,
+    )
 
-    def task():
-        time.sleep(48 * 60 * 60)  # 48 hours
 
-        try:
-            mrf = MRF.objects.get(id=mrf_id)
-            if mrf.is_private:
-                return
-
-            if mrf.status in ["approved", "rejected"]:
-                return
-            
-            if not mrf.status.startswith("pending"):
-                return
-            
-            # Only send reminder if still pending
-            if mrf.status not in ["approved", "rejected"]:
-                # manager = User.objects.filter(role="hr_manager").first()
-                next_level = mrf.current_approval_level + 1
-
-                workflow = mrf.workflow_template.levels.filter(
-                    level=next_level,
-                    is_active=True
-                ).select_related('approver').first()
-
-                if not workflow or not workflow.approver:
-                    return
-
-                approver = workflow.approver
-
-                if not approver.is_active or approver.company_id != mrf.company_id:
-                    return
-
-                if approver:
-                    template = email_templates["mrf_reminder"].format(
-                        manager_name=approver.name,
-                        position=mrf.designation.name,
-                        requisition_date=mrf.created_at.strftime("%B %d, %Y")
-                    )
-
-                    text = alt_text["mrf_reminder"].format(
-                        manager_name=approver.name,
-                        position=mrf.designation.name,
-                        requisition_date=mrf.created_at.strftime("%B %d, %Y")
-                    )
-
-                    send_email(
-                        to=approver.email,
-                        subject=f"Reminder – Requisition Pending Review",
-                        template=template,
-                        text=text
-                    )
-                    if approver.phone:
-                        send_text(to=approver.phone,text=text)
-                    print(f"Reminder email sent for MRF {mrf_id}")
-
-        except Exception as e:
-            print(f"Reminder scheduler error: {e}")
-
-    threading.Thread(target=task, daemon=True).start()
+# --------------------------------------------------------------------------
+# Old thread-based schedule_mrf_reminder (commented out for reference).
+# Replaced by TaskScheduler which persists the task in the database
+# and survives server restarts.
+# --------------------------------------------------------------------------
+# import threading
+# def schedule_mrf_reminder(mrf_id):
+#     """Runs a reminder check after 48 hours in a background thread."""
+#
+#     def task():
+#         time.sleep(48 * 60 * 60)  # 48 hours
+#
+#         try:
+#             mrf = MRF.objects.get(id=mrf_id)
+#             if mrf.is_private:
+#                 return
+#
+#             if mrf.status in ["approved", "rejected"]:
+#                 return
+#
+#             if not mrf.status.startswith("pending"):
+#                 return
+#
+#             # Only send reminder if still pending
+#             if mrf.status not in ["approved", "rejected"]:
+#                 # manager = User.objects.filter(role="hr_manager").first()
+#                 next_level = mrf.current_approval_level + 1
+#
+#                 workflow = mrf.workflow_template.levels.filter(
+#                     level=next_level,
+#                     is_active=True
+#                 ).select_related('approver').first()
+#
+#                 if not workflow or not workflow.approver:
+#                     return
+#
+#                 approver = workflow.approver
+#
+#                 if not approver.is_active or approver.company_id != mrf.company_id:
+#                     return
+#
+#                 if approver:
+#                     template = email_templates["mrf_reminder"].format(
+#                         manager_name=approver.name,
+#                         position=mrf.designation.name,
+#                         requisition_date=mrf.created_at.strftime("%B %d, %Y")
+#                     )
+#
+#                     text = alt_text["mrf_reminder"].format(
+#                         manager_name=approver.name,
+#                         position=mrf.designation.name,
+#                         requisition_date=mrf.created_at.strftime("%B %d, %Y")
+#                     )
+#
+#                     send_email(
+#                         to=approver.email,
+#                         subject=f"Reminder – Requisition Pending Review",
+#                         template=template,
+#                         text=text
+#                     )
+#                     if approver.phone:
+#                         send_text(to=approver.phone,text=text)
+#                     print(f"Reminder email sent for MRF {mrf_id}")
+#
+#         except Exception as e:
+#             print(f"Reminder scheduler error: {e}")
+#
+#     threading.Thread(target=task, daemon=True).start()
+# --------------------------------------------------------------------------
 
 from datetime import timedelta
 from django.utils import timezone

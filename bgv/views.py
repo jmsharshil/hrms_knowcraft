@@ -61,6 +61,7 @@ class CandidateBGVViewSet(viewsets.ModelViewSet):
         POST {
             "application_id": "<uuid>",
             "extra_data": {                       # optional
+                "pan_number": "ABCDE1234F",
                 "fathersName": "...",
                 "gender": "M",                    # M, F, T, O, U
                 "dob": "DD/MM/YYYY",
@@ -75,7 +76,35 @@ class CandidateBGVViewSet(viewsets.ModelViewSet):
                     "fullAddress": "..."
                 },
                 "currentAddress": "full address string",
-                "verifications": [{"code": "CCRV"}, {"code": "PANV"}]
+
+                # --- Education (up to 2 most-recent records) ---
+                "education_records": [
+                    {
+                        "institute_name": "ABC University",
+                        "level": "GRADUATE",          # TENTH_STD | TWELFTH_STD | DIPLOMA | GRADUATE | MASTERS | PHD …
+                        "degree": "B.Tech",
+                        "field_of_study": "Computer Science",
+                        "year_of_passing": "2020",
+                        "name_of_board_university": "...",
+                        "registration_number": "...",
+                        "grade": "A",
+                        "duration_in_months": 48,
+                        "issue_date": "DD/MM/YYYY"
+                    },
+                    { ... }   # second education record (optional)
+                ],
+
+                # --- Employment (up to 2 most-recent records, experienced only) ---
+                "employment_records": [
+                    {
+                        "employer_name": "XYZ Corp",
+                        "designation": "Software Engineer",
+                        "joining_date": "DD/MM/YYYY",
+                        "last_working_date": "DD/MM/YYYY",
+                        "issue_date": "DD/MM/YYYY"
+                    },
+                    { ... }   # second employment record (optional)
+                ]
             }
         }
         """

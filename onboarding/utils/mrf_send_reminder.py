@@ -1,5 +1,4 @@
 from .sender import send_email,send_text
-from .task_queue import TASK_QUEUE
 from mrf.models import MRF
 from django.utils import timezone
 import logging
@@ -7,7 +6,7 @@ from django.conf import settings
 
 FRONTEND_URL = getattr(settings,"FRONTEND_URL")
 logger = logging.getLogger(__name__)
-REMINDER_INTERVAL = 7200  # 120 minutes
+# REMINDER_INTERVAL = 7200  # 120 minutes
 
 def send_mrf_reminder_email(creator_email, creator_name, creator_phone, mrf_name, designation):
 
@@ -95,7 +94,12 @@ def mrf_approval_reminder_task(mrf_id):
 
     # Check if MRF already sent for approval
     if mrf.status != "draft":   # adjust based on your status logic
-        logger.info(f"MRF {mrf_id} already submitted for approval.")
+        logger.info(f"MRF {mrf_id} already submitted for approval. Cancelling reminder.")
+        from scheduler.services import TaskScheduler
+        TaskScheduler.cancel(
+            "mrf_approval_reminder",
+            task_kwargs_filter={"mrf_id": str(mrf_id)},
+        )
         return
 
     creator = mrf.requested_by
@@ -110,9 +114,9 @@ def mrf_approval_reminder_task(mrf_id):
 
     logger.info(f"Reminder sent to MRF creator for MRF {mrf_id}")
 
-    # Re-enqueue reminder
-    def requeue():
-        TASK_QUEUE.enqueue(mrf_approval_reminder_task, mrf_id)
+    # # Re-enqueue reminder
+    # def requeue():
+    #     TASK_QUEUE.enqueue(mrf_approval_reminder_task, mrf_id)
 
-    import threading
-    threading.Timer(REMINDER_INTERVAL, requeue).start()
+    # import threading
+    # threading.Timer(REMINDER_INTERVAL, requeue).start()

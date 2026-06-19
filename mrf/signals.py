@@ -137,16 +137,39 @@
 from django.db.models.signals import post_save,pre_save
 from django.dispatch import receiver
 from .models import MRF
-from onboarding.utils.task_queue import TASK_QUEUE
-from onboarding.utils.mrf_send_reminder import mrf_approval_reminder_task
+from scheduler.services import TaskScheduler
 from django.utils import timezone
 
 @receiver(post_save, sender=MRF)
 def schedule_mrf_reminder(sender, instance, created, **kwargs):
-    # Only enqueue if new MRF and NOT private
     if created and not instance.is_private:
         print("reminder started!")
-        TASK_QUEUE.enqueue(mrf_approval_reminder_task, instance.id)
+        # Cancel any existing reminders to prevent duplicates
+        TaskScheduler.cancel(
+            task_type="mrf_approval_reminder",
+            task_kwargs_filter={"mrf_id": str(instance.id)}
+        )
+        # delay_seconds=0: fire the first reminder immediately, then recur every 2 hours
+        TaskScheduler.schedule(
+            task_type="mrf_approval_reminder",
+            task_kwargs={"mrf_id": str(instance.id)},
+            delay_seconds=0,
+            is_recurring=True,
+            interval_seconds=7200,
+        )
+
+@receiver(post_save, sender=MRF)
+def cancel_mrf_reminder_on_submit(sender, instance, created, **kwargs):
+    """Cancel the draft reminder as soon as MRF leaves draft status."""""
+    if created:
+        return
+    if instance.status != "draft":
+        cancelled = TaskScheduler.cancel(
+            task_type="mrf_approval_reminder",
+            task_kwargs_filter={"mrf_id": str(instance.id)}
+        )
+        if cancelled:
+            print(f"[MRF SIGNAL] Cancelled approval reminder for MRF {instance.id} (status={instance.status})")
 
 @receiver(pre_save, sender=MRF)
 def store_previous_status(sender, instance, **kwargs):

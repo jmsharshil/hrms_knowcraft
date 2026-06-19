@@ -527,6 +527,7 @@ def send_to_zoho_sign(candidate, file_stream, filename,other_signers=[]):
 There will be a twelve-month (12 months) bond, which would be applicable from the Date of Joining.
 """
     
+    bond_section_html = bond_section.replace('\n', '<br>')
     note_message = f"""
 Hi {candidate.candidate_name},<br>
 
@@ -543,7 +544,7 @@ After this date, the offer will be automatically revoked.<br>
 • 24 earned leaves per year<br>
 • 10–11 national holidays<br>
 • Background verification will be conducted by a third party as per company policy<br>
-{bond_section.replace("\n", "<br>")}<br>
+{bond_section_html}<br>
 
 <b>Work Mode:</b> {feedback.get('work_mode') or 'Work From Office'}<br>
 <b>Date of Joining:</b> {candidate.joining_date.strftime('%d-%m-%Y') if candidate.joining_date else ''} 
@@ -800,3 +801,39 @@ Please let us know if you have any questions.
 Warm Regards,
 Team – HR
 Knowcraft Analytics Private Limited""")
+
+def recall_zoho_offer(offer_document):
+    """
+    Recalls an offer document from Zoho Sign using its request_id.
+    """
+    try:
+        raw_response = offer_document.raw_response
+        if not raw_response or "requests" not in raw_response:
+            print("Cannot recall Zoho offer: No raw_response with request_id found.")
+            return False
+
+        request_id = raw_response["requests"].get("request_id")
+        if not request_id:
+            print("Cannot recall Zoho offer: request_id missing.")
+            return False
+
+        access_token = get_access_token()
+        url = f"https://sign.zoho.in/api/v1/requests/{request_id}/recall"
+        
+        headers = {
+            "Authorization": f"Zoho-oauthtoken {access_token}"
+        }
+
+        resp = requests.post(url, headers=headers)
+        
+        # If successfully recalled, it typically returns 200 OK
+        if resp.status_code == 200:
+            print(f"Successfully recalled Zoho document {request_id}")
+            return True
+        else:
+            print(f"Failed to recall Zoho document {request_id}: {resp.text}")
+            return False
+            
+    except Exception as e:
+        print(f"Exception during Zoho recall: {e}")
+        return False

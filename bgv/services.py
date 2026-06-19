@@ -181,8 +181,7 @@ VERIFICATION_NAMES = {
     "DLV":    "Driving Licence Verification",
     "BAV":    "Bank Account Verification",
     "CVV":    "CV Verification",
-    "PAPV":   "Passport Verification",
-    "PANV":   "PAN Verification",
+    "PAPV":   "Permanent Address Postal Verification",
     "PADV":   "PAN Address Verification",
     "VIDV":   "Voter ID Verification",
     "IPAV":   "IP Address Verification",
@@ -224,7 +223,8 @@ def get_verification_codes(candidate):
     """
     Returns the list of verification codes based on the candidate's experience.
     """
-    codes = ["PANV", "CCRV", "PAV", "LAV", "EDUV", "GDC"]
+    # codes = ["PANV", "CCRV", "PAV", "LAV", "EDUV", "GDC"]
+    codes = ["PANV", "CCRV", "PAV", "PAPV", "EDUV", "GDC"]
     if not is_fresher(candidate):
         codes.append("EMPV")
     return codes
@@ -284,6 +284,18 @@ def _ongrid_request(method, url, json_payload=None, timeout=60):
         return {"error": str(exc)}, 0, False
 
 def _build_verifications(candidate, extra_data=None):
+    """
+    Build the verifications list for the OnGrid payload.
+
+    For EDUV and EMPV, multiple records are supported via:
+      extra_data["education_records"]  – list of up to 2 education dicts
+      extra_data["employment_records"] – list of up to 2 employment dicts
+
+    Each item in those lists is a dict with the same keys that used to be
+    passed flat in extra_data (e.g. institute_name, level, employer_name …).
+    If those list keys are absent the function falls back to reading the old
+    flat keys for backward-compatibility (single record behaviour).
+    """
     extra = extra_data or {}
     verifications = []
 
@@ -291,70 +303,85 @@ def _build_verifications(candidate, extra_data=None):
 
         # ---------------- PANV ----------------
         if code == "PANV":
-            pan_file = getattr(candidate.documents, "pan", None)
-            pan_data = extract_pan_smart(pan_file)
-
-            if not pan_data or not pan_data.get("pan_number"):
-                continue
-
             verifications.append({
                 "code": code,
                 "key": str(uuid.uuid4()),
                 "data": {
-                    "documentUID": pan_data["pan_number"]
+                    "documentUID": extra.get("pan_number")
                 }
             })
 
         # ---------------- EDUV ----------------
         elif code == "EDUV":
-            if not extra.get("institute_name"):
-                continue
+            VALID_LEVELS = [
+                "NO_EDUCATION", "LESS_THEN_FIFTH_STD", "FIFTH_STD",
+                "EIGHT_STD", "TENTH_STD", "TWELFTH_STD", "DIPLOMA",
+                "GRADUATE", "MASTERS", "PHD", "POST_DOC",
+                "POST_GRADUATE_DIPLOMA",
+            ]
 
-            level = extra.get("level", extra.get("education_level", "GRADUATE")).upper()
-            if level not in ["NO_EDUCATION","LESS_THEN_FIFTH_STD","FIFTH_STD","EIGHT_STD","TENTH_STD","TWELFTH_STD","DIPLOMA","GRADUATE","MASTERS","PHD","POST_DOC","POST_GRADUATE_DIPLOMA"]:
-                logger.error(f"Invalid education level: {level}")
-                continue
+            # Prefer the new list key; fall back to the old flat-dict keys
+            edu_records = extra.get("education_records")
+            if not edu_records:
+                # backward-compat: wrap the flat keys into a single-item list
+                if extra.get("institute_name"):
+                    edu_records = [extra]
+                else:
+                    edu_records = []
 
-            education_document = {
-                "nameAsPerDocument": candidate.candidate_name,
-                "level": level,
-                "nameOfInstitute": extra.get("institute_name", ""),
-                "documents": _get_education_documents(candidate),
-            }
+            # Limit to the last 2 records
+            for rec in edu_records[-2:]:
+                institute_name = rec.get("institute_name", "")
+                if not institute_name:
+                    continue
 
-            if extra.get("name_of_board_university"):
-                education_document["nameOfBoardUniversity"] = extra.get("name_of_board_university")
+                level = rec.get("level", rec.get("education_level", "GRADUATE"))
+                if isinstance(level, str):
+                    level = level.upper()
+                if level not in VALID_LEVELS:
+                    logger.error("Invalid education level: %s – skipping record", level)
+                    continue
 
-            yop = extra.get("year_of_passing")
-            if yop:
-                education_document["yearOfPassing"] = str(yop)[:4]
-
-            if extra.get("issue_date"):
-                education_document["issueDate"] = normalize_date(extra.get("issue_date"))
-            if extra.get("registration_number"):
-                education_document["registrationNumber"] = extra.get("registration_number")
-            if extra.get("degree"):
-                education_document["degree"] = extra.get("degree")
-            if extra.get("field_of_study"):
-                education_document["fieldOfStudy"] = extra.get("field_of_study")
-            if extra.get("duration_in_months"):
-                try:
-                    education_document["durationInMonths"] = int(extra.get("duration_in_months"))
-                except ValueError:
-                    pass
-            if extra.get("grade"):
-                education_document["grade"] = extra.get("grade")
-
-            verifications.append({
-                "code": code,
-                "key": str(uuid.uuid4()),
-                "data": {
-                    "educationDocument": education_document
+                education_document = {
+                    "nameAsPerDocument": candidate.candidate_name,
+                    "level": level,
+                    "nameOfInstitute": institute_name,
+                    "documents": _get_education_documents(candidate),
                 }
-            })
 
-        # ---------------- PAV ----------------
-        elif code == "PAV":
+                if rec.get("name_of_board_university"):
+                    education_document["nameOfBoardUniversity"] = rec["name_of_board_university"]
+
+                yop = rec.get("year_of_passing")
+                if yop:
+                    education_document["yearOfPassing"] = str(yop)[:4]
+
+                if rec.get("issue_date"):
+                    education_document["issueDate"] = normalize_date(rec["issue_date"])
+                if rec.get("registration_number"):
+                    education_document["registrationNumber"] = rec["registration_number"]
+                if rec.get("degree"):
+                    education_document["degree"] = rec["degree"]
+                if rec.get("field_of_study"):
+                    education_document["fieldOfStudy"] = rec["field_of_study"]
+                if rec.get("duration_in_months"):
+                    try:
+                        education_document["durationInMonths"] = int(rec["duration_in_months"])
+                    except (ValueError, TypeError):
+                        pass
+                if rec.get("grade"):
+                    education_document["grade"] = rec["grade"]
+
+                verifications.append({
+                    "code": code,
+                    "key": str(uuid.uuid4()),
+                    "data": {
+                        "educationDocument": education_document
+                    }
+                })
+
+        # ---------------- PAV / PAPV ----------------
+        elif code == "PAV" or code == "PAPV":
             perm = extra.get("permanentAddress") or {}
 
             if not perm.get("line1"):
@@ -386,29 +413,40 @@ def _build_verifications(candidate, extra_data=None):
                 }
             })
 
+        # ---------------- EMPV ----------------
         elif code == "EMPV":
-            emp_record = {
-                "nameAsPerEmployerRecords": candidate.candidate_name,
-                "employeeId": str(candidate.id),
-                "employerName": extra.get("employer_name", ""),
-                "lastDesignation": extra.get("designation", ""),
-                "documents": _get_employment_documents(candidate),
-            }
-            if extra.get("joining_date"):
-                emp_record["joiningDate"] = normalize_date(extra.get("joining_date"))
+            # Prefer the new list key; fall back to the old flat-dict keys
+            emp_records = extra.get("employment_records")
+            if not emp_records:
+                # backward-compat: wrap the flat keys into a single-item list
+                if extra.get("employer_name"):
+                    emp_records = [extra]
+                else:
+                    emp_records = []
 
-            if extra.get("last_working_date"):
-                emp_record["lastWorkingDate"] = normalize_date(extra.get("last_working_date"))
-
-            if extra.get("issue_date"):
-                education_document["issueDate"] = normalize_date(extra.get("issue_date"))
-            verifications.append({
-                "code": code,
-                "key": str(uuid.uuid4()),
-                "data": {
-                    "employmentRecord": emp_record
+            # Limit to the last 2 records
+            for rec in emp_records[-2:]:
+                emp_record = {
+                    "nameAsPerEmployerRecords": candidate.candidate_name,
+                    "employeeId": str(candidate.id),
+                    "employerName": rec.get("employer_name", ""),
+                    "lastDesignation": rec.get("designation", ""),
+                    "documents": _get_employment_documents(candidate),
                 }
-            })
+                if rec.get("joining_date"):
+                    emp_record["joiningDate"] = normalize_date(rec["joining_date"])
+                if rec.get("last_working_date"):
+                    emp_record["lastWorkingDate"] = normalize_date(rec["last_working_date"])
+                if rec.get("issue_date"):
+                    emp_record["issueDate"] = normalize_date(rec["issue_date"])
+
+                verifications.append({
+                    "code": code,
+                    "key": str(uuid.uuid4()),
+                    "data": {
+                        "employmentRecord": emp_record
+                    }
+                })
 
         # ---------------- SIMPLE CHECKS ----------------
         else:
@@ -687,6 +725,13 @@ def initiate_bgv(candidate, extra_data=None):
 
     print(payload, "payload")
 
+    existing_bgv = CandidateBGV.objects.filter(candidate=candidate).first()
+    existing_ongrid_id = None
+    existing_status = None
+    if existing_bgv:
+        existing_ongrid_id = existing_bgv.ongrid_individual_id
+        existing_status = existing_bgv.status
+
     data, status_code, api_success = _ongrid_request("POST", url, payload)
     print(data, "data")
     print(status_code, "status_code")
@@ -725,14 +770,24 @@ def initiate_bgv(candidate, extra_data=None):
                 status_code, candidate.candidate_name, individual_id,
             )
 
+    # If the API failed but we already have an existing OnGrid ID, preserve it.
+    if not individual_id and existing_ongrid_id:
+        individual_id = existing_ongrid_id
+
     # ── Determine BGV status ──────────────────────────────────────
     if api_success:
         bgv_status = "in_progress"
         remarks = ""
-    elif individual_id:
+    elif individual_id and individual_id != existing_ongrid_id:
         # Individual already existed; treat as in_progress
         bgv_status = "in_progress"
         remarks = f"Re-initiation: recovered existing OnGrid individualId={individual_id}"
+    elif existing_ongrid_id:
+        bgv_status = existing_status or "in_progress"
+        remarks = (
+            f"API error (HTTP {status_code}): {data}. "
+            f"Preserving existing OnGrid individualId={existing_ongrid_id}."
+        )
     else:
         bgv_status = "failed"
         remarks = f"API error (HTTP {status_code}): {data}"
@@ -1053,6 +1108,9 @@ def _persist_ongrid_status(bgv, status_data):
         "Cancelled":    "cancelled",
         "Verified":     "verified",
         "Discrepancy":  "discrepancy",
+        "Success":      "completed",
+        "SuccessWithException":"discrepancy",
+        "OnHold":       "on_hold"
     }
     
     VERIFICATION_STATUS_FIELDS = {
