@@ -326,11 +326,13 @@ class ApplicationFilter(django_filters.FilterSet):
 
 
 class ReferralApplicationFilter(django_filters.FilterSet):
-    # Basic filters for referral fields
+    # BASIC REFERRAL FILTERS
     referral_name = django_filters.CharFilter(field_name='referral_name', lookup_expr='icontains')
     referral_email = django_filters.CharFilter(field_name='referral_email', lookup_expr='icontains')
     referral_phone = django_filters.CharFilter(field_name='referral_phone', lookup_expr='icontains')
+    referral_emp_code = django_filters.CharFilter(field_name='referral_emp_code', lookup_expr='icontains')
     position_title = django_filters.CharFilter(field_name='position_title', lookup_expr='icontains')
+    is_touched = django_filters.BooleanFilter(field_name='is_touched')
     # Date filters
     created_from = django_filters.DateFilter(field_name='created_at', lookup_expr='date__gte')
     created_to = django_filters.DateFilter(field_name='created_at', lookup_expr='date__lte')
@@ -345,7 +347,7 @@ class ReferralApplicationFilter(django_filters.FilterSet):
         super().__init__(*args, **kwargs)
         request = getattr(self, 'request', None)
         if request and hasattr(request.user, 'company'):
-            self.queryset = self.queryset.filter(company=request.user.company)
+            pass  # No company filtering for referrals currently
 
     def filter_search(self, queryset, name, value):
         return queryset.filter(

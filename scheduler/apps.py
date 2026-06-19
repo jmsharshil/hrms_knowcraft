@@ -80,11 +80,18 @@ class SchedulerConfig(AppConfig):
             lambda booking_id: interview_feedback_reminder_task(booking_id),
         )
 
-        # MRF approval reminder
+        # MRF approval reminder (submit reminder — fires while MRF is in draft)
         from onboarding.utils.mrf_send_reminder import mrf_approval_reminder_task
         TaskScheduler.register(
             "mrf_approval_reminder",
             lambda mrf_id: mrf_approval_reminder_task(mrf_id),
+        )
+
+        # MRF pending approval reminder (fires 48h after submit/approval to remind the next approver)
+        from mrf.utils import mrf_pending_approval_reminder_task
+        TaskScheduler.register(
+            "mrf_pending_approval_reminder",
+            lambda mrf_id: mrf_pending_approval_reminder_task(mrf_id),
         )
 
         # BGV status poll
