@@ -909,6 +909,8 @@ class ReferralApplicationSerializer(serializers.ModelSerializer):
     
     resume_url = serializers.SerializerMethodField()
     file_size_mb = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    status_display = serializers.SerializerMethodField()
     
     class Meta:
         model = ReferralApplication
@@ -916,7 +918,7 @@ class ReferralApplicationSerializer(serializers.ModelSerializer):
             'id', 'resume', 'resume_url','original_filename', 'file_size','referral_phone',
             'file_size_mb',"referral_name","referral_email","referral_emp_code","position_title",
             "referral_designation","referral_department",'notes','created_at', 'updated_at',
-            'is_touched', 'touched_at'
+            'is_touched', 'touched_at', 'status', 'status_display'
         ]
     
     def get_resume_url(self, obj):
@@ -931,6 +933,32 @@ class ReferralApplicationSerializer(serializers.ModelSerializer):
         if obj.file_size:
             return round(obj.file_size / (1024 * 1024), 2)
         return 0
+    
+    def get_status(self, obj):
+        """Get status from the respective JobApplication using original_filename and referral_email"""
+        try:
+            job_application = JobApplication.objects.filter(
+                original_filename=obj.original_filename,
+                referral_email=obj.referral_email
+            ).order_by('-created_at').first()
+            if job_application:
+                return job_application.status
+            return None
+        except Exception:
+            return None
+    
+    def get_status_display(self, obj):
+        """Get human readable status from the respective JobApplication"""
+        try:
+            job_application = JobApplication.objects.filter(
+                original_filename=obj.original_filename,
+                referral_email=obj.referral_email
+            ).order_by('-created_at').first()
+            if job_application:
+                return job_application.get_status_display()
+            return None
+        except Exception:
+            return None
     
 class ReferralToJobApplicationCreateSerializer(serializers.Serializer):
     """Serializer to create a JobApplication from an existing ReferralApplication"""
