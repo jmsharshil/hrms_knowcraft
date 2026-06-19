@@ -125,7 +125,7 @@ class JobApplicationFilter(django_filters.FilterSet):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         request = getattr(self, 'request', None)
-        if request and hasattr(request.user, 'company'):
+        if request and hasattr(request, 'user') and hasattr(request.user, 'company'):
             # Filter the base queryset to only include this company
             self.queryset = self.queryset.filter(job__company=request.user.company)
 
@@ -283,7 +283,7 @@ class ApplicationFilter(django_filters.FilterSet):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         request = getattr(self, 'request', None)
-        if request and hasattr(request.user, 'company'):
+        if request and hasattr(request, 'user') and hasattr(request.user, 'company'):
             # Filter the base queryset to only include this company
             self.queryset = self.queryset.filter(job__company=request.user.company)
 
@@ -346,8 +346,8 @@ class ReferralApplicationFilter(django_filters.FilterSet):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         request = getattr(self, 'request', None)
-        if request and hasattr(request.user, 'company'):
-            pass  # No company filtering for referrals currently
+        if request and hasattr(request, 'user') and hasattr(request.user, 'company'):
+            pass  # No company filtering for referrals currently (no FK)
 
     def filter_search(self, queryset, name, value):
         return queryset.filter(
