@@ -146,13 +146,24 @@ if DEBUG:
     #     }
     # }
     
+#     DATABASES = {
+#     'default': dj_database_url.parse(
+#         os.getenv("DATABASE_URL"),
+#         conn_max_age=600,
+#         ssl_require=True
+#     )
+# }
+    CONNECTION_STRING = os.environ['STAGING_DB_CON_STRING']
+    conn_str_params = {pair.split('=')[0]: pair.split('=')[1] for pair in CONNECTION_STRING.split(' ')}
     DATABASES = {
-    'default': dj_database_url.parse(
-        os.getenv("DATABASE_URL"),
-        conn_max_age=600,
-        ssl_require=True
-    )
-}
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': conn_str_params['dbname'],
+            'HOST': conn_str_params['host'],
+            'USER': conn_str_params['user'],
+            'PASSWORD': conn_str_params['password'],
+        }
+    }
     
 else:
     CONNECTION_STRING = os.environ['AZURE_POSTGRESQL_CONNECTIONSTRING']
@@ -368,7 +379,7 @@ ONGRID_CLIENT_ID = os.getenv("ONGRID_CLIENT_ID","")
 ONGRID_SECRET = os.getenv("ONGRID_SECRET","")
 ONGRID_COMMUNITY_ID = os.getenv("ONGRID_COMMUNITY_ID","")
 
-ONGRID_CONSENT_TEXT = """The Individual does not and will not have any objection to Knowcraft the Individual's personal information and documents, including but not limited to name, gender, date of birth, addresses, mobile number, email, education record, employment record, Aadhaar number, other government issued IDs such as Voter ID, PAN card, driving license etc. (collectively Proprietary Information) with OnGrid (Handy Online Solutions Private Limited) for the purpose of background checks and verification. The individual understands that OnGrid maintains Proprietary Information on its platform in a secure manner, and it will only be accessible to Knowcraft and its associates/partners/affiliates, and will not be shared with any other individual or organization without the Individual's explicit consent."""
+ONGRID_CONSENT_TEXT = """The Individual does not and will not have any objection to Knowcraft Analytics sharing the Individual's personal information and documents, including but not limited to name, gender, date of birth, addresses, mobile number, email, education record, employment record, Aadhaar number, other government issued IDs such as Voter ID, PAN card, driving license etc. (collectively Proprietary Information) with OnGrid (Handy Online Solutions Private Limited) for the purpose of background checks and verification. The individual understands that OnGrid maintains Proprietary Information on its platform in a secure manner, and it will only be accessible to Knowcraft Analytics and its associates/partners/affiliates, and will not be shared with any other individual or organization without the Individual's explicit consent."""
 
 # Audit Log Blob Container
 AUDIT_LOG_CONTAINER = os.environ.get("AUDIT_LOG_CONTAINER", "auditlogs")

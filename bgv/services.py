@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 
 BASE_URL = "https://api-staging.ongrid.in/app"
 
+if not settings.DEBUG:
+    BASE_URL = "https://api.ongrid.in/app"
+
 # ── OnGrid Profession Master (actual list from OnGrid) ────────────
 ONGRID_PROFESSIONS = {
     1:   "Security Guard",

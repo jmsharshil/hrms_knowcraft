@@ -935,28 +935,106 @@ class ReferralApplicationSerializer(serializers.ModelSerializer):
         return 0
     
     def get_status(self, obj):
-        """Get status from the respective JobApplication using original_filename and referral_email"""
+        """Get the HIGHEST status from matching JobApplication(s) using original_filename and referral_email"""
         try:
-            job_application = JobApplication.objects.filter(
+            matching_apps = JobApplication.objects.filter(
                 original_filename=obj.original_filename,
                 referral_email=obj.referral_email
-            ).order_by('-created_at').first()
-            if job_application:
-                return job_application.status
-            return None
+            )
+            if not matching_apps.exists():
+                return None
+
+            # Define status hierarchy (higher number = more advanced stage)
+            STATUS_RANK = {
+                'received': 10,
+                'duplicate_rejected': 15,
+                'shortlisted': 20,
+                'interview_pending_1': 25,
+                'interview_done_1': 30,
+                'interview_rejected_1': 35,
+                'interview_next_2': 35,
+                'interview_pending_2': 40,
+                'interview_done_2': 45,
+                'interview_rejected_2': 50,
+                'interview_next_3': 50,
+                'interview_pending_3': 55,
+                'interview_done_3': 60,
+                'interview_rejected_3': 65,
+                'interview_next_final': 65,
+                'interview_pending_final': 70,
+                'interview_done_final': 75,
+                'interview_rejected_final': 80,
+                'interview_next_management_client': 80,
+                'interview_pending_management_client': 85,
+                'interview_done_management_client': 90,
+                'interview_rejected_management_client': 92,
+                'consolidated_result_review': 92,
+                'selected': 95,
+                'approval_pending': 96,
+                'approved': 97,
+                'approval_rejected': 97,
+                'salary_annexure_prep': 98,
+                'salary_annexure_review': 99,
+                'approved_annexure': 100,
+                'rejected_annexure': 100,
+                'offer_pending': 101,
+                'offer_sent': 102,
+                'offer_accepted': 103,
+                'offer_rejected': 103,
+                'docs_pending': 104,
+                'docs_uploaded': 105,
+                'review_docs': 106,
+                'docs_approved': 107,
+                'docs_incomplete': 55,
+                'docs_unclear': 55,
+                'joining_pending': 110,
+                'joining_poned': 108,
+                'joined': 120,
+                'rejected': 20,
+            }
+
+            # Get the application with the highest rank
+            highest_app = max(
+                matching_apps,
+                key=lambda app: STATUS_RANK.get(app.status, 0)
+            )
+            return highest_app.status
         except Exception:
             return None
-    
+
     def get_status_display(self, obj):
-        """Get human readable status from the respective JobApplication"""
+        """Get human readable highest status from the respective JobApplication"""
         try:
-            job_application = JobApplication.objects.filter(
+            matching_apps = JobApplication.objects.filter(
                 original_filename=obj.original_filename,
                 referral_email=obj.referral_email
-            ).order_by('-created_at').first()
-            if job_application:
-                return job_application.get_status_display()
-            return None
+            )
+            if not matching_apps.exists():
+                return None
+
+            STATUS_RANK = {
+                'received': 10, 'duplicate_rejected': 15, 'shortlisted': 20,
+                'interview_pending_1': 25, 'interview_done_1': 30, 'interview_rejected_1': 35,
+                'interview_next_2': 35, 'interview_pending_2': 40, 'interview_done_2': 45,
+                'interview_rejected_2': 50, 'interview_next_3': 50, 'interview_pending_3': 55,
+                'interview_done_3': 60, 'interview_rejected_3': 65, 'interview_next_final': 65,
+                'interview_pending_final': 70, 'interview_done_final': 75, 'interview_rejected_final': 80,
+                'interview_next_management_client': 80, 'interview_pending_management_client': 85,
+                'interview_done_management_client': 90, 'interview_rejected_management_client': 92,
+                'consolidated_result_review': 92, 'selected': 95, 'approval_pending': 96,
+                'approved': 97, 'approval_rejected': 97, 'salary_annexure_prep': 98,
+                'salary_annexure_review': 99, 'approved_annexure': 100, 'rejected_annexure': 100,
+                'offer_pending': 101, 'offer_sent': 102, 'offer_accepted': 103, 'offer_rejected': 103,
+                'docs_pending': 104, 'docs_uploaded': 105, 'review_docs': 106, 'docs_approved': 107,
+                'docs_incomplete': 55, 'docs_unclear': 55, 'joining_pending': 110,
+                'joining_poned': 108, 'joined': 120, 'rejected': 20,
+            }
+
+            highest_app = max(
+                matching_apps,
+                key=lambda app: STATUS_RANK.get(app.status, 0)
+            )
+            return highest_app.get_status_display()
         except Exception:
             return None
     
