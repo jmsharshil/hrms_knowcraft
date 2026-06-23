@@ -816,7 +816,7 @@ def initiate_bgv(candidate, extra_data=None):
     return bgv
 
 
-def send_notification_for_bgv(candidate):
+def send_notification_for_bgv(candidate, is_reminder=False):
     """
     Send BGV initiation link directly to the candidate to fill their details
     and initiate the BGV process.
@@ -827,7 +827,7 @@ def send_notification_for_bgv(candidate):
     # Link for candidate to fill BGV details
     form_link = f"{FRONTEND_URL}/bgv-form/{candidate.id}" 
 
-    email_subject = "Background Verification - Action Required"
+    email_subject = "Reminder: Background Verification - Action Required" if is_reminder else "Background Verification - Action Required"
     
     # Plain text version
     email_text = (
@@ -857,7 +857,7 @@ def send_notification_for_bgv(candidate):
                         <!-- Content -->
                         <tr>
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.6;">
-                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Background Verification Required</h2>
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">{"Reminder: " if is_reminder else ""}Background Verification Required</h2>
                                 
                                 <p style="margin:0 0 16px 0;">Dear <strong>{candidate.candidate_name}</strong>,</p>
                                 
@@ -932,6 +932,17 @@ def send_notification_for_bgv(candidate):
             "is_fresher": is_fresher(candidate),
         },
     )
+
+    if not is_reminder:
+        from scheduler.services import TaskScheduler
+        TaskScheduler.schedule(
+            task_type="bgv_form_reminder",
+            task_kwargs={"bgv_id": str(bgv.id)},
+            delay_seconds=14400, # 4 hours
+            is_recurring=True,
+            interval_seconds=14400,
+        )
+
     return bgv
 
 

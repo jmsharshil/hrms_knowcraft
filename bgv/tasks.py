@@ -17,6 +17,44 @@ logger = logging.getLogger(__name__)
 # OnGrid → Internal status mapping
 # ─────────────────────────────────────────────────────────────
 
+def bgv_form_reminder_task(bgv_id):
+    """
+    Handler executed by TaskScheduler every 4 hours.
+    Checks if the BGV status is still 'pending_data' (meaning the candidate 
+    hasn't submitted the form). If so, it sends a reminder.
+    Otherwise, it cancels the recurring task.
+    """
+    from .models import CandidateBGV
+    from .services import send_notification_for_bgv
+    from scheduler.services import TaskScheduler
+    
+    try:
+        bgv = CandidateBGV.objects.get(id=bgv_id)
+        if bgv.status == "pending_data":
+            # Send the reminder
+            send_notification_for_bgv(bgv.candidate, is_reminder=True)
+            logger.info("BGV form reminder sent for candidate %s", bgv.candidate.candidate_name)
+        else:
+            # Form is filled, verifications initiated (or another terminal state)
+            # Cancel the recurring reminder task
+            TaskScheduler.cancel(
+                task_type="bgv_form_reminder",
+                task_kwargs_filter={"bgv_id": str(bgv_id)}
+            )
+            logger.info("BGV form reminder cancelled for candidate %s (status=%s)", bgv.candidate.candidate_name, bgv.status)
+    except CandidateBGV.DoesNotExist:
+        # Cancel if record is deleted
+        TaskScheduler.cancel(
+            task_type="bgv_form_reminder",
+            task_kwargs_filter={"bgv_id": str(bgv_id)}
+        )
+        logger.warning("BGV record %s not found. Reminder task cancelled.", bgv_id)
+
+
+# ─────────────────────────────────────────────────────────────
+# OnGrid → Internal status mapping
+# ─────────────────────────────────────────────────────────────
+
 ONGRID_STATUS_MAPPING = {
     # Active states
     "Initiated": "initiated",

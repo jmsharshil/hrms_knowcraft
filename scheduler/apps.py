@@ -53,11 +53,15 @@ class SchedulerConfig(AppConfig):
             from .services import TaskScheduler
 
             print("[SCHEDULER APP] Running startup reconciliation...")
+
+            # ── Ensure recurring system tasks exist FIRST ────────
+            # Must run before reconcile() so the singleton guard blocks
+            # duplicate creation when reconcile() completes an existing task.
+            self._ensure_recurring_tasks()
+
+            # ── Reconcile missed/stuck tasks from DB ─────────────
             TaskScheduler.reconcile()
             TaskScheduler.reschedule_future_pending()
-
-            # ── Ensure recurring system tasks exist ──────────────
-            self._ensure_recurring_tasks()
 
             # ── Start periodic reconciliation (every 30 minutes) ─
             self._start_periodic_reconciliation()
@@ -101,6 +105,13 @@ class SchedulerConfig(AppConfig):
         # BGV schedule check
         from bgv.tasks import run_bgv_schedule_check
         TaskScheduler.register("bgv_schedule_check", lambda: run_bgv_schedule_check())
+
+        # BGV form reminder
+        from bgv.tasks import bgv_form_reminder_task
+        TaskScheduler.register(
+            "bgv_form_reminder",
+            lambda bgv_id: bgv_form_reminder_task(bgv_id)
+        )
 
         # Audit log flush
         from auditlog.tasks import flush_logs_to_blob

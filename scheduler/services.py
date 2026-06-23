@@ -44,6 +44,11 @@ class TaskScheduler:
     # task_type → callable
     _registry: dict = {}
 
+    # task IDs that have been armed in-memory in this process lifetime.
+    # Used to prevent reconcile/reschedule_future_pending from double-arming
+    # tasks that schedule() already armed.
+    _armed_task_ids: set = set()
+
     # ── Registration ─────────────────────────────────────────────
 
     @classmethod
@@ -282,6 +287,9 @@ class TaskScheduler:
         )
 
         for task_id in all_ids:
+            if task_id in cls._armed_task_ids:
+                logger.info("[SCHEDULER] Reconcile: task %s already armed — skipped.", task_id)
+                continue
             cls._schedule_in_memory(task_id, delay_seconds=0)
 
     # ── Future pending tasks ─────────────────────────────────────
@@ -311,6 +319,9 @@ class TaskScheduler:
             f"[SCHEDULER] Re-arming {len(future_tasks)} future pending task(s)."
         )
         for task_id, scheduled_at in future_tasks:
+            if task_id in cls._armed_task_ids:
+                logger.info("[SCHEDULER] Future re-arm: task %s already armed — skipped.", task_id)
+                continue
             delay = max((scheduled_at - now).total_seconds(), 0)
             cls._schedule_in_memory(task_id, delay)
 
@@ -324,7 +335,12 @@ class TaskScheduler:
         """
         from onboarding.utils.task_queue import TASK_QUEUE
 
+        # Track that we've armed this task in this process lifetime
+        cls._armed_task_ids.add(task_id)
+
         def _enqueue():
+            # Remove from armed set so it can be re-armed after execution
+            cls._armed_task_ids.discard(task_id)
             TASK_QUEUE.enqueue(cls._execute, task_id)
 
         if delay_seconds <= 0:
