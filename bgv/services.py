@@ -816,7 +816,7 @@ def initiate_bgv(candidate, extra_data=None):
     return bgv
 
 
-def send_notification_for_bgv(candidate):
+def send_notification_for_bgv(candidate, is_reminder=False):
     """
     Send BGV initiation link directly to the candidate to fill their details
     and initiate the BGV process.
@@ -827,14 +827,18 @@ def send_notification_for_bgv(candidate):
     # Link for candidate to fill BGV details
     form_link = f"{FRONTEND_URL}/bgv-form/{candidate.id}" 
 
-    email_subject = "Background Verification - Action Required"
+    email_subject = "Reminder: Background Verification - Action Required" if is_reminder else "Background Verification - Action Required"
     
     # Plain text version
     email_text = (
         f"Dear {candidate.candidate_name},\n\n"
-        f"Congratulations on your offer! Please fill out the required details to initiate your Background Verification (BGV) process.\n\n"
-        f"You can access the form here: {form_link}\n\n"
-        f"Please complete this at your earliest convenience to ensure a smooth onboarding process.\n\n"
+        f"Welcome to the Knowcraft family!\n\n"
+        f"As part of our onboarding process, we have initiated your Background Verification (BGV) through ONGRID.\n\n"
+        f"• BGV completion is an important step in the onboarding process.\n"
+        f"• Delays may impact your joining formalities.\n"
+        f"• Please note that while uploading documents for education verification, if you are currently pursuing a master’s degree and your final marksheet is not yet available, you may submit details of your second-highest completed qualification.\n\n"
+        f"Please fill out the required details by clicking the link below:\n{form_link}\n\n"
+        f"In case of any issues feel free to reach out.\n\n"
         f"Thank you,\nHR Team\nKnowcraft Analytics Private Limited."
     )
     
@@ -857,16 +861,25 @@ def send_notification_for_bgv(candidate):
                         <!-- Content -->
                         <tr>
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.6;">
-                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Background Verification Required</h2>
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">{"Reminder: " if is_reminder else ""}Background Verification Required</h2>
                                 
                                 <p style="margin:0 0 16px 0;">Dear <strong>{candidate.candidate_name}</strong>,</p>
                                 
                                 <p style="margin:0 0 20px 0;">
-                                    Congratulations on your offer! We're excited to have you join our team.
+                                    Welcome to the Knowcraft family!
                                 </p>
                                 
                                 <p style="margin:0 0 20px 0;">
-                                    As part of the onboarding process, we need to complete your <strong>Background Verification (BGV)</strong>. 
+                                    As part of our onboarding process, we have initiated your Background Verification (BGV) through ONGRID.
+                                </p>
+                                
+                                <ul style="margin:0 0 20px 0; padding-left: 20px;">
+                                    <li style="margin-bottom: 8px;">BGV completion is an important step in the onboarding process.</li>
+                                    <li style="margin-bottom: 8px;">Delays may impact your joining formalities.</li>
+                                    <li style="margin-bottom: 8px;">Please note that while uploading documents for education verification, if you are currently pursuing a master’s degree and your final marksheet is not yet available, you may submit details of your second-highest completed qualification.</li>
+                                </ul>
+
+                                <p style="margin:0 0 20px 0;">
                                     Please fill out the required details by clicking the button below:
                                 </p>
                                 
@@ -877,9 +890,9 @@ def send_notification_for_bgv(candidate):
                                         Complete BGV Form
                                     </a>
                                 </p>
-                                
+
                                 <p style="margin:0 0 20px 0;">
-                                    Please complete this at your earliest convenience to ensure a smooth onboarding process.
+                                    In case of any issues feel free to reach out.
                                 </p>
                                 
                                 <p style="margin:20px 0 6px 0;color:#555555;">Thank you,</p>
@@ -932,6 +945,17 @@ def send_notification_for_bgv(candidate):
             "is_fresher": is_fresher(candidate),
         },
     )
+
+    if not is_reminder:
+        from scheduler.services import TaskScheduler
+        TaskScheduler.schedule(
+            task_type="bgv_form_reminder",
+            task_kwargs={"bgv_id": str(bgv.id)},
+            delay_seconds=14400, # 4 hours
+            is_recurring=True,
+            interval_seconds=14400,
+        )
+
     return bgv
 
 
