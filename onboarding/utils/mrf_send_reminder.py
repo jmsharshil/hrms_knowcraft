@@ -89,18 +89,21 @@ def mrf_approval_reminder_task(mrf_id):
     try:
         mrf = MRF.objects.select_related("requested_by", "designation").get(id=mrf_id)
     except MRF.DoesNotExist:
-        logger.warning(f"MRF {mrf_id} does not exist.")
-        return
+        logger.warning(f"MRF {mrf_id} does not exist. Cancelling recurring task.")
+        return False
+    except Exception as e:
+        logger.error(f"Error in mrf_approval_reminder_task for {mrf_id}: {e}")
+        return False
 
-    # Check if MRF already sent for approval
-    if mrf.status != "draft":   # adjust based on your status logic
-        logger.info(f"MRF {mrf_id} already submitted for approval. Cancelling reminder.")
+    # Check if MRF already sent for approval (or status advanced). Cancel recurring task.
+    if mrf.status != "draft":
+        logger.info(f"MRF {mrf_id} status={mrf.status} — cancelling recurring reminder.")
         from scheduler.services import TaskScheduler
         TaskScheduler.cancel(
             "mrf_approval_reminder",
             task_kwargs_filter={"mrf_id": str(mrf_id)},
         )
-        return
+        return False  # stop recurring
 
     creator = mrf.requested_by
 
@@ -113,10 +116,4 @@ def mrf_approval_reminder_task(mrf_id):
     )
 
     logger.info(f"Reminder sent to MRF creator for MRF {mrf_id}")
-
-    # # Re-enqueue reminder
-    # def requeue():
-    #     TASK_QUEUE.enqueue(mrf_approval_reminder_task, mrf_id)
-
-    # import threading
-    # threading.Timer(REMINDER_INTERVAL, requeue).start()
+    return True  # continue recurring

@@ -127,6 +127,9 @@ class TaskScheduler:
 
         If *task_kwargs_filter* is supplied, only tasks whose ``task_kwargs``
         is a superset of the filter dict are cancelled.
+
+        Also removes matching IDs from _armed_task_ids so in-memory timers
+        for cancelled tasks are ignored on fire (more foolproof against races).
         """
         from .models import ScheduledTask
 
@@ -139,8 +142,13 @@ class TaskScheduler:
             # JSONField containment lookup
             qs = qs.filter(task_kwargs__contains=task_kwargs_filter)
 
+        # Fetch IDs before update so we can clean armed set
+        task_ids = list(qs.values_list("id", flat=True))
+
         count = qs.update(status="cancelled", updated_at=timezone.now())
         if count:
+            for tid in task_ids:
+                cls._armed_task_ids.discard(tid)
             print(f"[SCHEDULER] Cancelled {count} pending '{task_type}' task(s).")
         return count
 
@@ -187,61 +195,66 @@ class TaskScheduler:
         # Execute OUTSIDE the transaction so we don't hold the lock for the entire duration
         # of the task (which could be a long-running API call)
 
-        try:
-            print(f"[SCHEDULER] Executing task {task_id} ({task.task_type})...")
-            fn(**task.task_kwargs)
+            try:
+                print(f"[SCHEDULER] Executing task {task_id} ({task.task_type})...")
+                result = fn(**task.task_kwargs)
 
-            # ── Success ──────────────────────────────────────────
-            task.status = "completed"
-            task.completed_at = timezone.now()
-            task.save(update_fields=["status", "completed_at", "updated_at"])
-            print(f"[SCHEDULER] Task {task_id} completed successfully.")
+                # ── Success ──────────────────────────────────────────
+                task.status = "completed"
+                task.completed_at = timezone.now()
+                task.save(update_fields=["status", "completed_at", "updated_at"])
+                print(f"[SCHEDULER] Task {task_id} completed successfully.")
 
-        except Exception as exc:
-            logger.exception(
-                "[SCHEDULER] Task %s (%s) failed: %s",
-                task_id, task.task_type, exc,
-            )
-            task.retry_count += 1
+                # Recurring only on success and if the task function did not return False
+                # (used by conditional tasks like feedback reminders to stop after completion)
+                if (
+                    task.is_recurring
+                    and task.interval_seconds
+                    and result is not False
+                ):
+                    print(
+                        f"[SCHEDULER] Recurring task '{task.task_type}' — "
+                        f"scheduling next run in {task.interval_seconds}s"
+                    )
+                    cls.schedule(
+                        task_type=task.task_type,
+                        task_kwargs=task.task_kwargs if task.task_kwargs else None,
+                        delay_seconds=task.interval_seconds,
+                        is_recurring=True,
+                        interval_seconds=task.interval_seconds,
+                        max_retries=task.max_retries,
+                    )
 
-            if task.retry_count < task.max_retries:
-                # ── Retry with exponential backoff ───────────────
-                backoff = 2 ** task.retry_count
-                task.status = "pending"
-                task.scheduled_at = timezone.now() + timedelta(seconds=backoff)
-                task.error_message = str(exc)
-                task.save(update_fields=[
-                    "status", "retry_count", "scheduled_at",
-                    "error_message", "updated_at",
-                ])
-                print(
-                    f"[SCHEDULER] Task {task_id} will retry "
-                    f"({task.retry_count}/{task.max_retries}) in {backoff}s"
+            except Exception as exc:
+                logger.exception(
+                    "[SCHEDULER] Task %s (%s) failed: %s",
+                    task_id, task.task_type, exc,
                 )
-                cls._schedule_in_memory(task_id, backoff)
-                return  # Don't reschedule recurring yet
-            else:
-                task.status = "failed"
-                task.error_message = str(exc)
-                task.save(update_fields=[
-                    "status", "retry_count", "error_message", "updated_at",
-                ])
-                print(f"[SCHEDULER] Task {task_id} failed permanently after {task.max_retries} retries.")
+                task.retry_count += 1
 
-        # ── Recurring: schedule the next iteration ───────────────
-        if task.is_recurring and task.interval_seconds:
-            print(
-                f"[SCHEDULER] Recurring task '{task.task_type}' — "
-                f"scheduling next run in {task.interval_seconds}s"
-            )
-            cls.schedule(
-                task_type=task.task_type,
-                task_kwargs=task.task_kwargs if task.task_kwargs else None,
-                delay_seconds=task.interval_seconds,
-                is_recurring=True,
-                interval_seconds=task.interval_seconds,
-                max_retries=task.max_retries,
-            )
+                if task.retry_count < task.max_retries:
+                    # ── Retry with exponential backoff ───────────────
+                    backoff = 2 ** task.retry_count
+                    task.status = "pending"
+                    task.scheduled_at = timezone.now() + timedelta(seconds=backoff)
+                    task.error_message = str(exc)
+                    task.save(update_fields=[
+                        "status", "retry_count", "scheduled_at",
+                        "error_message", "updated_at",
+                    ])
+                    print(
+                        f"[SCHEDULER] Task {task_id} will retry "
+                        f"({task.retry_count}/{task.max_retries}) in {backoff}s"
+                    )
+                    cls._schedule_in_memory(task_id, backoff)
+                    return  # Don't reschedule recurring yet
+                else:
+                    task.status = "failed"
+                    task.error_message = str(exc)
+                    task.save(update_fields=[
+                        "status", "retry_count", "error_message", "updated_at",
+                    ])
+                    print(f"[SCHEDULER] Task {task_id} failed permanently after {task.max_retries} retries.")
 
     # ── Reconciliation ───────────────────────────────────────────
 

@@ -2,10 +2,34 @@ from .sender import send_email,send_text
 from booking.models import Booking
 from slots.models import InterviewFeedback
 from django.utils import timezone
+from django.conf import settings
 import logging
 
 logger = logging.getLogger(__name__)
 # REMINDER_INTERVAL = 7200  # 120 minutes
+
+
+def get_feedback_link(candidate, round_name: str) -> str:
+    """Return the correct feedback form URL for the given round.
+    Uses round-specific endpoints so that reminders for earlier rounds
+    do not incorrectly pick up the final-round link stored on the candidate.
+    """
+    FRONTEND_URL = getattr(settings, "FRONTEND_URL", "https://hirepro.knowcraftanalytics.com")
+    mapping = {
+        "hr_round": ("hr-feedback-form", "hr_round"),
+        "technical_round": ("technical-feedback-form-one", "technical_round"),
+        "case_study_round": ("technical-feedback-form-two", "case_study_round"),
+        "final_round": ("final-feedback-form", "final_round"),
+        "management_client_round": ("management-feedback-form", "management_client_round"),
+    }
+    if round_name in mapping:
+        endpoint, rparam = mapping[round_name]
+        return (
+            f"{FRONTEND_URL}/api/slots/{endpoint}/"
+            f"?interview_round={rparam}&job_application={candidate.id}"
+        )
+    # fallback
+    return getattr(candidate, "feedback_link", "") or f"{FRONTEND_URL}/candidate/feedback/{candidate.id}"
 
 def send_feedback_reminder_email(interviewer_email, interviewer_name, interviewer_phone, candidate_name, round_name,link,position):
     subject = f"Gentle Reminder: Interview Feedback Form Pending ({round_name})"
@@ -79,64 +103,99 @@ HR Team
         send_text(to=interviewer_phone,text=text)
     print("Reminder for feedback sent!")
 
-def interview_feedback_reminder_task(booking_id):
+def interview_feedback_reminder_task(booking_id, round_name=None):
     try:
-        booking = Booking.objects.select_related("candidate", "interviewer").get(id=booking_id)
+        booking = Booking.objects.select_related(
+            "candidate", "interviewer", "candidate__job", "candidate__job__mrf"
+        ).get(id=booking_id)
     except Booking.DoesNotExist:
         logger.warning(f"Booking {booking_id} does not exist. Skipping reminder.")
-        return
+        return False
 
     # If interview is not over yet, just return — the recurring scheduler
     # will call us again at the next interval.
     if booking.end > timezone.now():
-        # delay = (booking.end - timezone.now()).total_seconds()
-        # logger.info(f"Interview not over yet. Will retry after {delay} seconds.")
-
-        # import threading
-        # threading.Timer(delay, lambda: TASK_QUEUE.enqueue(
-        #     interview_feedback_reminder_task, booking_id
-        # )).start()
-
         logger.info(f"Interview not over yet for Booking {booking_id}. Will retry on next cycle.")
-        return
+        return True  # keep the recurring chain alive
 
-    # Determine interview round from booking status (adjust according to your logic)
+    # Expanded mapping covers pending, done, rejected, and transition states.
+    # This ensures the correct round is used even if the candidate status has
+    # advanced by the time a recurring reminder fires.
     status_to_round = {
+        "shortlisted": "hr_round",
         "interview_pending_1": "hr_round",
+        "interview_done_1": "hr_round",
+        "interview_rejected_1": "hr_round",
+        "interview_next_2": "technical_round",
         "interview_pending_2": "technical_round",
-        "interview_pending_3": "cas_study_round",
+        "interview_done_2": "technical_round",
+        "interview_rejected_2": "technical_round",
+        "interview_next_3": "case_study_round",
+        "interview_pending_3": "case_study_round",
+        "interview_done_3": "case_study_round",
+        "interview_rejected_3": "case_study_round",
+        "interview_next_final": "final_round",
         "interview_pending_final": "final_round",
+        "interview_done_final": "final_round",
+        "interview_rejected_final": "final_round",
+        "interview_next_management_client": "management_client_round",
         "interview_pending_management_client": "management_client_round",
+        "interview_done_management_client": "management_client_round",
+        "interview_rejected_management_client": "management_client_round",
     }
-    round_name = status_to_round.get(booking.candidate.status, "Interview")
-    # Check if feedback exists for this candidate, interviewer, date
+    computed_round = status_to_round.get(
+        booking.candidate.status,
+        getattr(booking.candidate, "round_name", None)
+    )
+    round_name = round_name or computed_round or "final_round"
+
+    # Use interview_round for lookup — matches exactly what the feedback form
+    # and serializer use. This fixes the "feedback_exists never true" bug
+    # caused by interviewer_name / date mismatches (e.g. HR round name).
     feedback_exists = InterviewFeedback.objects.filter(
         job_application=booking.candidate,
-        interviewer_name=booking.interviewer.name,
-        interview_date=booking.start.date()
+        interview_round=round_name,
     ).exists()
 
-    if feedback_exists or round_name == 'Interview':
-        logger.info(f"Feedback already submitted for Booking {booking.id}. No reminder sent.")
-        # Cancel further recurring reminders for this booking
+    if feedback_exists:
+        logger.info(
+            f"Feedback already submitted for Booking {booking.id} "
+            f"(round={round_name}). Cancelling further reminders."
+        )
         from scheduler.services import TaskScheduler
         TaskScheduler.cancel(
             "interview_feedback_reminder",
             task_kwargs_filter={"booking_id": str(booking_id)},
         )
-        return
+        return False  # tell scheduler not to create the next recurring task
 
-    # Send reminder email
+    # Build link based on *this* round (not the possibly-updated
+    # candidate.feedback_link which reflects the latest round).
+    link = get_feedback_link(booking.candidate, round_name)
+
+    # Send reminder
     send_feedback_reminder_email(
         interviewer_email=booking.interviewer.email,
         interviewer_name=booking.interviewer.name,
-        interviewer_phone=booking.interviewer.phone,
+        interviewer_phone=getattr(booking.interviewer, "phone", None),
         candidate_name=booking.candidate.candidate_name,
         round_name=round_name,
-        link= booking.candidate.feedback_link,
-        position = booking.candidate.job.mrf.designation.name
+        link=link,
+        position=(
+            booking.candidate.job.mrf.designation.name
+            if booking.candidate.job and booking.candidate.job.mrf and booking.candidate.job.mrf.designation
+            else "the position"
+        ),
     )
-    logger.info(f"Reminder email sent for Booking {booking.id} to {booking.interviewer.email}")
+    logger.info(
+        f"Reminder email sent for Booking {booking.id} (round={round_name}) "
+        f"to {booking.interviewer.email}"
+    )
+
+    return True  # continue the recurring reminder chain
+    # NOTE: Scheduler._execute now checks the return value and stops rescheduling
+    # when False is returned. Combined with the per-round check this fully resolves
+    # "reminders continue after feedback submitted" and the wrong-round/wrong-link bugs.
 
     # # Re-enqueue task to run again after 5 minutes
     # def requeue():
