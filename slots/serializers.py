@@ -93,6 +93,22 @@ class InterviewFeedbackCreateSerializer(serializers.ModelSerializer):
             )
         return attrs
 
+    def create(self, validated_data):
+        instance = super().create(validated_data)
+        
+        # Cancel any pending reminders for this candidate
+        from scheduler.services import TaskScheduler
+        from booking.models import Booking
+        
+        bookings = Booking.objects.filter(candidate=instance.job_application)
+        for booking in bookings:
+            TaskScheduler.cancel(
+                "interview_feedback_reminder",
+                task_kwargs_filter={"booking_id": str(booking.id)}
+            )
+            
+        return instance
+
 class InterviewFeedbackListSerializer(serializers.ModelSerializer):
     job_application_id = serializers.UUIDField(
         source="job_application.id", read_only=True

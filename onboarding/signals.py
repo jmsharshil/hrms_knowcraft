@@ -309,9 +309,38 @@ def schedule_feedback_reminder_on_booking(sender, instance, created, **kwargs):
         0, int((instance.end - timezone.now()).total_seconds())
     )
 
+    status_to_round = {
+        "shortlisted": "hr_round",
+        "interview_pending_1": "hr_round",
+        "interview_done_1": "hr_round",
+        "interview_rejected_1": "hr_round",
+        "interview_next_2": "technical_round",
+        "interview_pending_2": "technical_round",
+        "interview_done_2": "technical_round",
+        "interview_rejected_2": "technical_round",
+        "interview_next_3": "case_study_round",
+        "interview_pending_3": "case_study_round",
+        "interview_done_3": "case_study_round",
+        "interview_rejected_3": "case_study_round",
+        "interview_next_final": "final_round",
+        "interview_pending_final": "final_round",
+        "interview_done_final": "final_round",
+        "interview_rejected_final": "final_round",
+        "interview_next_management_client": "management_client_round",
+        "interview_pending_management_client": "management_client_round",
+        "interview_done_management_client": "management_client_round",
+        "interview_rejected_management_client": "management_client_round",
+    }
+
+    computed_round = status_to_round.get(
+        instance.candidate.status,
+        getattr(instance.candidate, "round_name", None)
+    )
+    round_name = computed_round or "final_round"
+
     TaskScheduler.schedule(
         task_type="interview_feedback_reminder",
-        task_kwargs={"booking_id": str(instance.id)},
+        task_kwargs={"booking_id": str(instance.id), "round_name": round_name},
         delay_seconds=delay_seconds,
         is_recurring=True,
         interval_seconds=7200,  # 2h
@@ -319,5 +348,5 @@ def schedule_feedback_reminder_on_booking(sender, instance, created, **kwargs):
 
     print(
         f"[SCHEDULER] Scheduled recurring interview_feedback_reminder for "
-        f"Booking {instance.id} (delay={delay_seconds}s)"
+        f"Booking {instance.id} (round={round_name}, delay={delay_seconds}s)"
     )
