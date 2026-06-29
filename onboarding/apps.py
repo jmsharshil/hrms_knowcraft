@@ -2,20 +2,13 @@ from django.apps import AppConfig
 
 
 class OnboardingConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'onboarding'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "onboarding"
 
     def ready(self):
+        """Signals only — TaskScheduler is initialized in scheduler/apps.py
+        (registers interview_feedback_reminder + all other tasks, ensures
+        recurring system tasks, runs reconcile/reschedule in main process
+        after full Django startup, with test/main-process guards).
+        """
         import onboarding.signals
-        
-        # Start the background thread for periodic joining date checks
-        import os
-
-        # Prevent schedulers during tests
-        import sys
-        if 'test' in sys.argv:
-            return
-
-        # Only start in the main process (avoids double execution in dev server)
-        # if os.environ.get('RUN_MAIN') == 'true' or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
-        #     TASK_QUEUE.enqueue(run_joining_date_check_and_reschedule)

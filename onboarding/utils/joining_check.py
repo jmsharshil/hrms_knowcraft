@@ -9,6 +9,9 @@ def run_joining_date_check():
     """
     Check for candidates in 'joining_pending' whose joining date is today or in the past,
     and transition them to 'joined'.
+
+    Called periodically by the persistent TaskScheduler (recurring every 3600s).
+    Returns True to keep the recurring task alive.
     """
     from jobs.models import JobApplication
     from onboarding.utils.engine import automation_engine
@@ -22,46 +25,51 @@ def run_joining_date_check():
         
         if not apps_to_update:
             print("[JOINING CHECK] No candidates found for transition.")
-            return
+            return True
 
         for app in apps_to_update:
             print(f"[JOINING CHECK] Auto-transitioning {app.candidate_name} (ID: {app.id}) to joined")
-            # automation_engine will handle status change and Job/MRF updates
-            ok,reason = automation_engine(app, 'joining_pending', 'joined')
+            # automation_engine will handle status change, notifications, Job/MRF sync
+            ok, reason = automation_engine(app, 'joining_pending', 'joined')
+            if not ok:
+                logger.warning(f"Transition failed for {app.id}: {reason}")
         print(f"[JOINING CHECK] Successfully processed {len(apps_to_update)} candidates.")
+        return True
     except Exception as e:
         logger.error(f"[JOINING CHECK] Error during background joining check: {e}")
 
-def schedule_periodic_joining_check():
-    """
-    Schedules the check to run periodically using the global TASK_QUEUE.
-    """
-    from .task_queue import TASK_QUEUE
+    return True  # Keep the recurring task alive even if there was an error
+
+# def schedule_periodic_joining_check():
+#     """
+#     Schedules the check to run periodically using the global TASK_QUEUE.
+#     """
+#     from .task_queue import TASK_QUEUE
     
-    def task_wrapper():
-        # Execute the check
-        run_joining_date_check()
+#     def task_wrapper():
+#         # Execute the check
+#         run_joining_date_check()
         
-        # Schedule the next run in 1 hour
-        # We use threading.Timer to avoid blocking the current TASK_QUEUE worker
-        threading.Timer(3600, schedule_next).start()
+#         # Schedule the next run in 1 hour
+#         # We use threading.Timer to avoid blocking the current TASK_QUEUE worker
+#         threading.Timer(3600, schedule_next).start()
 
-    def schedule_next():
-        TASK_QUEUE.enqueue(run_joining_date_check_and_reschedule)
+#     def schedule_next():
+#         TASK_QUEUE.enqueue(run_joining_date_check_and_reschedule)
 
-    # We use a separate function that both runs and reschedules to keep it in the queue flow
-    TASK_QUEUE.enqueue(run_joining_date_check_and_reschedule)
+#     # We use a separate function that both runs and reschedules to keep it in the queue flow
+#     TASK_QUEUE.enqueue(run_joining_date_check_and_reschedule)
 
-def run_joining_date_check_and_reschedule():
-    """
-    Task that runs the check and then schedules itself again.
-    """
-    from .task_queue import TASK_QUEUE
+# def run_joining_date_check_and_reschedule():
+#     """
+#     Task that runs the check and then schedules itself again.
+#     """
+#     from .task_queue import TASK_QUEUE
     
-    run_joining_date_check()
+#     run_joining_date_check()
     
-    # Wait for 1 hour then enqueue again
-    # Note: We use a daemon thread for the timer to not block shutdown
-    timer = threading.Timer(3600, lambda: TASK_QUEUE.enqueue(run_joining_date_check_and_reschedule))
-    timer.daemon = True
-    timer.start()
+#     # Wait for 1 hour then enqueue again
+#     # Note: We use a daemon thread for the timer to not block shutdown
+#     timer = threading.Timer(3600, lambda: TASK_QUEUE.enqueue(run_joining_date_check_and_reschedule))
+#     timer.daemon = True
+#     timer.start()

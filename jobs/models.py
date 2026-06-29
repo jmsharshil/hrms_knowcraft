@@ -650,10 +650,10 @@ class JobApplication(models.Model):
     notice_period = models.CharField(max_length=50, blank=True,null=True)
     
     # LinkedIn Profile
-    linkedin_url = models.URLField(blank=True, max_length=500,null=True)
+    linkedin_url = models.CharField(blank=True, max_length=500,null=True)
     
     # Portfolio/GitHub
-    portfolio_url = models.URLField(blank=True, max_length=500,null=True)
+    portfolio_url = models.CharField(blank=True, max_length=500,null=True)
     
     # Timestamps
     created_at = models.DateTimeField(default=timezone.now)
