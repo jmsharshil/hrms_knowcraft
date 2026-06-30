@@ -524,6 +524,51 @@ class JobViewSet(viewsets.ModelViewSet):
             'data': serializer.data
         }, status=status.HTTP_200_OK)
     
+    @transaction.atomic
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanCloseJobs])
+    def force_close(self, request, pk=None):
+        """Force close a job without checking positions_filled"""
+        job = self.get_object()
+        
+        # Don't close if already closed/filled/cancelled
+        if job.status in ['closed', 'filled', 'cancelled']:
+            return Response({'error': f'Job is already {job.status}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        closure_notes = request.data.get('closure_notes', 'Closed due to age/inactivity')
+        
+        job.previous_status = job.status
+        job.status = 'closed'
+        job.closed_at = timezone.now()
+        job.closed_by = request.user
+        job.closure_notes = closure_notes
+        job.is_active = False
+        job.save()
+        
+        # Deactivate all application links
+        job.application_links.filter(is_active=True).update(is_active=False)
+        
+        # Create history record
+        JobAssignmentHistory.objects.create(
+            job=job,
+            action='closed',
+            consultancy=job.assigned_to_consultancy,
+            performed_by=request.user,
+            notes=closure_notes
+        )
+
+        # Sync with MRF
+        if hasattr(job, 'mrf') and job.mrf:
+            mrf = job.mrf
+            mrf.previous_status = mrf.status
+            mrf.status = 'closed'
+            mrf.save()
+        
+        serializer = JobDetailSerializer(job, context={'request': request})
+        return Response({
+            'message': 'Job force closed successfully',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+    
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanEditJobs])
     def mark_position_filled(self, request, pk=None):
         """Mark one position as filled (increment positions_filled)"""

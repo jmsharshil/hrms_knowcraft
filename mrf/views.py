@@ -973,3 +973,47 @@ class MRFViewSet(viewsets.ModelViewSet):
         data["statistics"] = stats
 
         return Response(data)
+
+    @transaction.atomic
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanEditMRF])
+    def force_close(self, request, pk=None):
+        """Force close an MRF and its related job"""
+        mrf = self.get_object()
+        
+        if mrf.status in ['closed', 'filled', 'cancelled']:
+            return Response({'error': f'MRF is already {mrf.status}'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        closure_notes = request.data.get('closure_notes', 'MRF closed')
+        
+        mrf.previous_status = mrf.status
+        mrf.status = 'closed'
+        mrf.save()
+        
+        # Sync with Job
+        if hasattr(mrf, 'job') and mrf.job:
+            job = mrf.job
+            if job.status not in ['closed', 'filled', 'cancelled']:
+                job.previous_status = job.status
+                job.status = 'closed'
+                job.closed_at = timezone.now()
+                job.closed_by = request.user
+                job.closure_notes = closure_notes
+                job.is_active = False
+                job.save()
+                
+                job.application_links.filter(is_active=True).update(is_active=False)
+                
+                from jobs.models import JobAssignmentHistory
+                JobAssignmentHistory.objects.create(
+                    job=job,
+                    action='closed',
+                    consultancy=job.assigned_to_consultancy,
+                    performed_by=request.user,
+                    notes=closure_notes
+                )
+                
+        serializer = MRFDetailSerializer(mrf, context={'request': request})
+        return Response({
+            'message': 'MRF and associated Job force closed successfully',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)

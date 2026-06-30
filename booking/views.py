@@ -511,6 +511,11 @@ FEEDBACK_PATHS = {
         "junior": "/api/slots/techjunior/",
         "senior": "/api/slots/techsenior/",
     },
+    "management_client_round": {
+        "fresher": "/api/slots/techfresher/",
+        "junior": "/api/slots/techjunior/",
+        "senior": "/api/slots/techsenior/",
+    },
 }
 
 def get_experience_level(designation):

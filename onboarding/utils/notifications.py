@@ -1426,18 +1426,18 @@ def notify_internal(candidate: Any, stage: str, cc: list) -> bool:
             # FEEDBACK LINK
             # =========================
             if stage.startswith("interview_pending"):
+                from onboarding.utils.interview_feedback_reminder import get_feedback_link
 
-                mapping = {
-                    'interview_pending_1': ("hr_round", "hr-feedback-form"),
-                    'interview_pending_2': ("technical_round", "technical-feedback-form-one"),
-                    'interview_pending_3': ("case_study_round", "technical-feedback-form-two"),
-                    'interview_pending_final': ("final_round", "final-feedback-form"),
-                    'interview_pending_management_client': ("management_client_round", "management-feedback-form"),
+                round_mapping = {
+                    'interview_pending_1': "hr_round",
+                    'interview_pending_2': "technical_round",
+                    'interview_pending_3': "case_study_round",
+                    'interview_pending_final': "final_round",
+                    'interview_pending_management_client': "management_client_round",
                 }
 
-                if stage in mapping:
-                    round, endpoint = mapping[stage]
-                    feedback_link = f"{FRONTEND_URL}/api/slots/{endpoint}/?interview_round={round}&job_application={candidate.id}"
+                if stage in round_mapping:
+                    feedback_link = get_feedback_link(candidate, round_mapping[stage])
 
             # =========================
             # RECEIVER NAME (SAFE)
