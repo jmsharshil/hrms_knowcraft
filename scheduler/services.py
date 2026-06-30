@@ -199,6 +199,14 @@ class TaskScheduler:
                 print(f"[SCHEDULER] Executing task {task_id} ({task.task_type})...")
                 result = fn(**task.task_kwargs)
 
+                # Re-read task status from DB: another thread/request may have
+                # cancelled this task while it was running (e.g. feedback was
+                # submitted during reminder execution).
+                task.refresh_from_db()
+                if task.status == "cancelled":
+                    print(f"[SCHEDULER] Task {task_id} was cancelled during execution — not rescheduling.")
+                    return
+
                 # ── Success ──────────────────────────────────────────
                 task.status = "completed"
                 task.completed_at = timezone.now()

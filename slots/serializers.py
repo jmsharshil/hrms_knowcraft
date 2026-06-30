@@ -96,16 +96,29 @@ class InterviewFeedbackCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         instance = super().create(validated_data)
         
-        # Cancel any pending reminders for this candidate
+        # Cancel any pending/running reminders for this candidate's bookings.
+        # We cancel both 'pending' and 'running' to avoid race conditions where
+        # a reminder task is mid-execution when feedback is submitted — the task
+        # would otherwise reschedule itself after completing.
         from scheduler.services import TaskScheduler
+        from scheduler.models import ScheduledTask
         from booking.models import Booking
+        from django.utils import timezone as tz
         
         bookings = Booking.objects.filter(candidate=instance.job_application)
         for booking in bookings:
+            # Standard cancel (marks pending → cancelled)
             TaskScheduler.cancel(
                 "interview_feedback_reminder",
                 task_kwargs_filter={"booking_id": str(booking.id)}
             )
+            # Also cancel any 'running' tasks to prevent reschedule after
+            # the current execution completes (race condition)
+            ScheduledTask.objects.filter(
+                task_type="interview_feedback_reminder",
+                status="running",
+                task_kwargs__contains={"booking_id": str(booking.id)},
+            ).update(status="cancelled", updated_at=tz.now())
             
         return instance
 
