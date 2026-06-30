@@ -183,6 +183,7 @@ class MRF(models.Model):
         ('revision_required', 'Revision Required'),
         ('joining_pending', 'Joining Pending'),
         ('filled', 'Position Filled'),
+        ('closed', 'Closed'),
     ]
     
     CASE_STUDY_CHOICES = [
