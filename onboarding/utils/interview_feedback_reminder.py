@@ -9,27 +9,62 @@ logger = logging.getLogger(__name__)
 # REMINDER_INTERVAL = 7200  # 120 minutes
 
 
+def _get_experience_level(candidate) -> str:
+    """Determine fresher/junior/senior based on experience_years (primary)
+    or fallback to designation.expirience range. Used to select the
+    correct level-specific frontend feedback form (techfresher, hrfresher, etc.).
+    """
+    if getattr(candidate, "experience_years", None) is not None:
+        try:
+            years = float(candidate.experience_years)
+            if years < 1.5:
+                return "fresher"
+            elif years < 5.0:
+                return "junior"
+            else:
+                return "senior"
+        except (ValueError, TypeError):
+            pass
+
+    # Fallback using MRF/Job designation experience range (note spelling in model)
+    job = getattr(candidate, "job", None)
+    if job and getattr(job, "mrf", None) and getattr(job.mrf, "designation", None):
+        exp_str = (job.mrf.designation.expirience or "").lower()
+        if any(k in exp_str for k in ["fresher", "fresh", "0-1", "0", "<1"]):
+            return "fresher"
+        if any(k in exp_str for k in ["junior", "2-4", "1-3", "associate"]):
+            return "junior"
+        return "senior"
+
+    # Default
+    return "junior"
+
+
 def get_feedback_link(candidate, round_name: str) -> str:
-    """Return the correct feedback form URL for the given round.
-    Uses round-specific endpoints so that reminders for earlier rounds
-    do not incorrectly pick up the final-round link stored on the candidate.
+    """Return the correct level-specific feedback form URL for the given round.
+    Updated per new frontend routes (/api/slots/techfresher/, /api/slots/hrjunior/,
+    /api/slots/techsenior/ etc.). Round is still passed via query param so the form
+    knows which questions/fields to show. This replaces the old generic
+    *-feedback-form endpoints and fixes link/round mismatch.
     """
     FRONTEND_URL = getattr(settings, "FRONTEND_URL", "https://hirepro.knowcraftanalytics.com")
-    mapping = {
-        "hr_round": ("hr-feedback-form", "hr_round"),
-        "technical_round": ("technical-feedback-form-one", "technical_round"),
-        "case_study_round": ("technical-feedback-form-two", "case_study_round"),
-        "final_round": ("final-feedback-form", "final_round"),
-        "management_client_round": ("management-feedback-form", "management_client_round"),
-    }
-    if round_name in mapping:
-        endpoint, rparam = mapping[round_name]
-        return (
-            f"{FRONTEND_URL}/api/slots/{endpoint}/"
-            f"?interview_round={rparam}&job_application={candidate.id}"
-        )
-    # fallback
-    return getattr(candidate, "feedback_link", "") or f"{FRONTEND_URL}/candidate/feedback/{candidate.id}"
+
+    level = _get_experience_level(candidate)
+
+    # Map round to base prefix (hr vs tech forms) + query param
+    if round_name == "hr_round":
+        base = "hr"
+        rparam = "hr_round"
+    else:
+        # All technical/final/management rounds use tech* forms (level determines variant)
+        base = "tech"
+        rparam = round_name
+
+    endpoint = f"{base}{level}"
+    return (
+        f"{FRONTEND_URL}/api/slots/{endpoint}/"
+        f"?interview_round={rparam}&job_application={candidate.id}"
+    )
 
 def send_feedback_reminder_email(interviewer_email, interviewer_name, interviewer_phone, candidate_name, round_name,link,position):
     subject = f"Gentle Reminder: Interview Feedback Form Pending ({round_name})"
@@ -106,17 +141,31 @@ HR Team
 def interview_feedback_reminder_task(booking_id, round_name=None):
     try:
         booking = Booking.objects.select_related(
-            "candidate", "interviewer", "candidate__job", "candidate__job__mrf"
+            "candidate",
+            "interviewer",
+            "candidate__job",
+            "candidate__job__mrf",
+            "candidate__job__mrf__designation",  # for experience level fallback
         ).get(id=booking_id)
     except Booking.DoesNotExist:
         logger.warning(f"Booking {booking_id} does not exist. Skipping reminder.")
         return False
 
-    # If interview is not over yet, just return — the recurring scheduler
-    # will call us again at the next interval.
-    if booking.end > timezone.now():
-        logger.info(f"Interview not over yet for Booking {booking_id}. Will retry on next cycle.")
-        return True  # keep the recurring chain alive
+    # If interview is not over yet (accounting for the 30min buffer in scheduler),
+    # just return — the recurring scheduler will call us again at the next interval.
+    # Use UTC (timezone.now()) for consistency with how DateTimeFields are stored
+    # in the DB (avoids IST/UTC comparison bugs that could cause premature reminders).
+    now = timezone.now()
+    if booking.end:
+        end = booking.end
+        if timezone.is_naive(end):
+            end = timezone.make_aware(end, timezone.get_current_timezone())
+        if end > now:
+            logger.info(
+                f"Interview not over yet for Booking {booking_id} "
+                f"(end={end}, now={now}, buffer=30min). Will retry on next cycle."
+            )
+            return True  # keep the recurring chain alive
 
     # Expanded mapping covers pending, done, rejected, and transition states.
     # This ensures the correct round is used even if the candidate status has
@@ -169,8 +218,9 @@ def interview_feedback_reminder_task(booking_id, round_name=None):
         )
         return False  # tell scheduler not to create the next recurring task
 
-    # Build link based on *this* round (not the possibly-updated
-    # candidate.feedback_link which reflects the latest round).
+    # Build link using the *current* round + candidate's experience level.
+    # This uses the new frontend routes (techfresher/hrfresher/techjunior/etc.)
+    # instead of the stale candidate.feedback_link (which tracks latest round only).
     link = get_feedback_link(booking.candidate, round_name)
 
     # Send reminder

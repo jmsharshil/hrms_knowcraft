@@ -9,8 +9,6 @@ from mrf.models import MRF
 from slots.models import Interviewer
 from django.conf import settings
 from django.utils import timezone
-from booking.models import Booking
-from scheduler.services import TaskScheduler
 
 @receiver(pre_save, sender=JobApplication)
 def store_old_job(sender, instance, **kwargs):
@@ -288,65 +286,3 @@ def update_candidate_slot_link(candidate):
 
     candidate.save(update_fields=["slot_link","inperson_link","round_name"])
 
-@receiver(post_save, sender=Booking)
-def schedule_feedback_reminder_on_booking(sender, instance, created, **kwargs):
-    """Schedule recurring feedback reminder after a Booking is created.
-    Cancels any prior reminders for the same booking_id. Uses the persistent
-    TaskScheduler so reminders survive restarts and stop cleanly once feedback
-    is submitted (via the task's return-False + explicit cancel).
-    """
-    if not created:
-        return
-
-    # Cancel any stale reminders from previous bookings for same candidate/round
-    TaskScheduler.cancel(
-        "interview_feedback_reminder",
-        task_kwargs_filter={"booking_id": str(instance.id)},
-    )
-
-    # Compute delay from *now* until interview end (handles past dates gracefully)
-    delay_seconds = max(
-        0, int((instance.end - timezone.now()).total_seconds())
-    )
-
-    status_to_round = {
-        "shortlisted": "hr_round",
-        "interview_pending_1": "hr_round",
-        "interview_done_1": "hr_round",
-        "interview_rejected_1": "hr_round",
-        "interview_next_2": "technical_round",
-        "interview_pending_2": "technical_round",
-        "interview_done_2": "technical_round",
-        "interview_rejected_2": "technical_round",
-        "interview_next_3": "case_study_round",
-        "interview_pending_3": "case_study_round",
-        "interview_done_3": "case_study_round",
-        "interview_rejected_3": "case_study_round",
-        "interview_next_final": "final_round",
-        "interview_pending_final": "final_round",
-        "interview_done_final": "final_round",
-        "interview_rejected_final": "final_round",
-        "interview_next_management_client": "management_client_round",
-        "interview_pending_management_client": "management_client_round",
-        "interview_done_management_client": "management_client_round",
-        "interview_rejected_management_client": "management_client_round",
-    }
-
-    computed_round = status_to_round.get(
-        instance.candidate.status,
-        getattr(instance.candidate, "round_name", None)
-    )
-    round_name = computed_round or "final_round"
-
-    TaskScheduler.schedule(
-        task_type="interview_feedback_reminder",
-        task_kwargs={"booking_id": str(instance.id), "round_name": round_name},
-        delay_seconds=delay_seconds,
-        is_recurring=True,
-        interval_seconds=7200,  # 2h
-    )
-
-    print(
-        f"[SCHEDULER] Scheduled recurring interview_feedback_reminder for "
-        f"Booking {instance.id} (round={round_name}, delay={delay_seconds}s)"
-    )

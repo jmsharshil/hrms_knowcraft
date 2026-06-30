@@ -75,13 +75,13 @@ class SchedulerConfig(AppConfig):
         """Register all task_type → callable mappings."""
         from .services import TaskScheduler
 
-        # Interview feedback reminder
+        # Interview feedback reminder (supports optional round_name for per-round targeting)
         from onboarding.utils.interview_feedback_reminder import (
             interview_feedback_reminder_task,
         )
         TaskScheduler.register(
             "interview_feedback_reminder",
-            lambda booking_id: interview_feedback_reminder_task(booking_id),
+            interview_feedback_reminder_task,  # directly register; accepts booking_id + round_name=None
         )
 
         # MRF approval reminder (submit reminder — fires while MRF is in draft)
