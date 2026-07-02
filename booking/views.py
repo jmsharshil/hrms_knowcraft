@@ -1668,6 +1668,21 @@ class ManageBookingView(APIView):
         if not cancel_meeting(booking.interviewer.email, booking.meeting_id):
             return Response({"detail": "Failed to cancel event"}, status=500)
 
+        # Cancel all pending/running feedback reminder tasks for this booking
+        # so no phantom reminders are sent after the interview is cancelled.
+        from scheduler.services import TaskScheduler
+        from scheduler.models import ScheduledTask
+        TaskScheduler.cancel(
+            "interview_feedback_reminder",
+            task_kwargs_filter={"booking_id": str(booking.id)},
+        )
+        # Also cancel any currently-running tasks (race condition guard)
+        ScheduledTask.objects.filter(
+            task_type="interview_feedback_reminder",
+            status="running",
+            task_kwargs__contains={"booking_id": str(booking.id)},
+        ).update(status="cancelled", updated_at=timezone.now())
+
         self._send_cancel_notifications(booking, candidate)
 
         interviewer = booking.interviewer

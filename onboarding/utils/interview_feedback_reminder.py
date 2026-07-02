@@ -203,7 +203,37 @@ def interview_feedback_reminder_task(booking_id, round_name=None):
         )
         return False  # stop the recurring chain
 
-    # ── CHECK 2: Interview not over yet? ─────────────────────────
+    # ── CHECK 2: Candidate status no longer requires a reminder? ──
+    # Only send reminders when the candidate is still at the
+    # interview_pending_X status for this round.  Once the status
+    # changes to interview_done_X, interview_next_Y,
+    # interview_rejected_X, or any later pipeline status, there is
+    # no need to keep reminding — the interview outcome has already
+    # been recorded or the candidate has moved on.
+    ROUND_PENDING_STATUS = {
+        "hr_round": {"shortlisted", "interview_pending_1"},
+        "technical_round": {"interview_pending_2"},
+        "case_study_round": {"interview_pending_3"},
+        "final_round": {"interview_pending_final"},
+        "management_client_round": {"interview_pending_management_client"},
+    }
+
+    candidate_status = booking.candidate.status
+    allowed_statuses = ROUND_PENDING_STATUS.get(round_name, set())
+
+    if candidate_status not in allowed_statuses:
+        logger.info(
+            f"Candidate {booking.candidate.id} status is '{candidate_status}' "
+            f"(not pending for round '{round_name}'). Stopping reminder."
+        )
+        from scheduler.services import TaskScheduler
+        TaskScheduler.cancel(
+            "interview_feedback_reminder",
+            task_kwargs_filter={"booking_id": str(booking_id)},
+        )
+        return False
+
+    # ── CHECK 3: Interview not over yet? ─────────────────────────
     # If the interview hasn't ended, do NOT send a reminder and do NOT
     # reschedule via the recurring chain.  Return False so the scheduler
     # stops creating follow-up tasks.  The original booking signal already

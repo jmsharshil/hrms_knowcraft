@@ -1,5 +1,5 @@
 # booking/signals.py
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 from .models import Booking
 from django.utils import timezone
@@ -83,3 +83,26 @@ def schedule_feedback_reminder(sender, instance, created, **kwargs):
         is_recurring=True,
         interval_seconds=7200,  # re-check every 2 hours
     )
+
+
+@receiver(pre_delete, sender=Booking)
+def cancel_feedback_reminder_on_delete(sender, instance, **kwargs):
+    """
+    Cancel all pending/running feedback reminder tasks when a Booking is
+    deleted (cancelled interview, graph webhook deletion, admin action, etc.).
+    This is the safety-net — ensures no orphan reminders survive regardless
+    of the deletion path.
+    """
+    from scheduler.services import TaskScheduler
+    from scheduler.models import ScheduledTask
+
+    TaskScheduler.cancel(
+        task_type="interview_feedback_reminder",
+        task_kwargs_filter={"booking_id": str(instance.id)},
+    )
+    # Also cancel any currently-running tasks (race condition guard)
+    ScheduledTask.objects.filter(
+        task_type="interview_feedback_reminder",
+        status="running",
+        task_kwargs__contains={"booking_id": str(instance.id)},
+    ).update(status="cancelled", updated_at=timezone.now())
