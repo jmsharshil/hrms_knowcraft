@@ -34,9 +34,48 @@ def restart_tasks(modeladmin, request, queryset):
     modeladmin.message_user(request, f"Successfully restarted {count} tasks.")
 
 
+@admin.action(description="🛑 Cancel ALL feedback reminders (pending + running)")
+def cancel_all_feedback_reminders(modeladmin, request, queryset):
+    """
+    Bulk-cancel every pending AND running interview_feedback_reminder task.
+    This is independent of the queryset selection — it cancels ALL of them.
+    Useful when reminders are misbehaving and you need an emergency stop.
+    """
+    now = timezone.now()
+
+    # Cancel pending
+    pending_count = ScheduledTask.objects.filter(
+        task_type="interview_feedback_reminder",
+        status="pending",
+    ).update(status="cancelled", updated_at=now)
+
+    # Cancel running (prevents reschedule after current execution)
+    running_count = ScheduledTask.objects.filter(
+        task_type="interview_feedback_reminder",
+        status="running",
+    ).update(status="cancelled", updated_at=now)
+
+    # Clear armed task IDs so in-memory timers are ignored when they fire
+    cancelled_ids = list(
+        ScheduledTask.objects.filter(
+            task_type="interview_feedback_reminder",
+            status="cancelled",
+        ).values_list("id", flat=True)
+    )
+    for tid in cancelled_ids:
+        TaskScheduler._armed_task_ids.discard(tid)
+
+    total = pending_count + running_count
+    modeladmin.message_user(
+        request,
+        f"🛑 Cancelled {total} feedback reminder task(s) "
+        f"({pending_count} pending, {running_count} running)."
+    )
+
+
 @admin.register(ScheduledTask)
 class ScheduledTaskAdmin(admin.ModelAdmin):
-    actions = [cancel_tasks, restart_tasks]
+    actions = [cancel_tasks, restart_tasks, cancel_all_feedback_reminders]
     list_display = [
         "task_type",
         "status",
@@ -58,3 +97,4 @@ class ScheduledTaskAdmin(admin.ModelAdmin):
         "completed_at",
     ]
     ordering = ["-created_at"]
+

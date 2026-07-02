@@ -255,6 +255,18 @@ class UploadJobApplicationDocumentAPI(APIView):
                 status=400
             )
 
+        # ✅ File size validation (max 5MB to match FILE_UPLOAD_MAX_MEMORY_SIZE in settings)
+        MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+        for field_name, file_obj in request.FILES.items():
+            if file_obj.size > MAX_FILE_SIZE:
+                return Response(
+                    {
+                        "error": f"File '{file_obj.name}' exceeds maximum allowed size of 5MB. "
+                        "Please upload a smaller file."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
         # 🟢 Save uploaded files
         updated = False
         for field in request.FILES:
@@ -428,7 +440,7 @@ class SendApprovalNoteAPIView(APIView):
 
         elif user.role == "hr":
             # HR sees only notes created by them
-            approval_notes = ApprovalNote.objects.filter(created_by=user)
+            approval_notes = ApprovalNote.objects.filter(Q(created_by=user) | Q(candidate__job__assigned_internal_hrs=user))
 
         else:
             # Default: manager sees notes assigned to them
