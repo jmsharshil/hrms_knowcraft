@@ -440,7 +440,7 @@ class SendApprovalNoteAPIView(APIView):
 
         elif user.role == "hr":
             # HR sees only notes created by them
-            approval_notes = ApprovalNote.objects.filter(created_by=user)
+            approval_notes = ApprovalNote.objects.filter(Q(created_by=user) | Q(candidate__job__assigned_internal_hrs=user))
 
         else:
             # Default: manager sees notes assigned to them
