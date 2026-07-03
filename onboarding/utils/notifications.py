@@ -1240,10 +1240,10 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
             # =========================
             if role == "consultancy":
                 if candidate.source == 'consultancy':
-                    add_user(getattr(job, "assigned_to_consultancy", None))
-
-                    if hasattr(job, "assigned_consultancies"):
-                        add_users(job.assigned_consultancies.all())
+                    application_link = getattr(candidate, "application_link", None)
+                    if application_link:
+                        submitting_consultancy = getattr(application_link, "created_by", None)
+                        add_user(submitting_consultancy)
 
                 continue
 
