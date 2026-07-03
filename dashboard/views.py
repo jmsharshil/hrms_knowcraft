@@ -124,8 +124,8 @@ class DashboardAPIView(APIView):
 
         # ── base querysets scoped to company ──
         # Admin and HR managers can see all records (including private ones)
-        jobs_qs = Job.objects.filter(company=user.company)
-        apps_qs = JobApplication.objects.filter(job__company=user.company)
+        jobs_qs = Job.objects.filter(company=user.company, is_active=True)
+        apps_qs = JobApplication.objects.filter(job__company=user.company, is_active=True)
 
         # ── optional filters ──
         user_id = request.query_params.get('user_id')
@@ -370,7 +370,7 @@ class BaseAnalyticsView(APIView):
 
         # 3. MRF queryset (Filtered by Period Activity)
         # Admins and HR managers see all records including private ones
-        mrf_base_filter = Q(company=company) & role_mrf_q
+        mrf_base_filter = Q(company=company) & role_mrf_q & Q(is_active=True)
         if department_id:
             mrf_base_filter &= Q(department_id=department_id)
         if designation_id:
@@ -383,7 +383,7 @@ class BaseAnalyticsView(APIView):
         # 4. Job queryset
         # Base filter includes company, role, dept, desig, and user but NO date
         # Admins and HR managers see all records including private ones
-        job_base_filter = Q(company=company) & role_job_q
+        job_base_filter = Q(company=company) & role_job_q & Q(is_active=True)
         if job_id:
             job_base_filter &= Q(id=job_id)
         if department_id:
@@ -418,7 +418,7 @@ class BaseAnalyticsView(APIView):
         job_qs = Job.objects.filter(job_period_filter).distinct()
 
         # 5. JobApplication queryset (Filtered by Period Activity)
-        app_filter = Q(job__in=broad_job_qs) & date_filter & role_app_q
+        app_filter = Q(job__in=broad_job_qs) & date_filter & role_app_q & Q(is_active=True)
         if source_filter:
             app_filter &= Q(source=source_filter)
         if user_id:
@@ -2152,7 +2152,7 @@ class BaseAnalyticsView(APIView):
 
     def calc_overall_summary_kpis(self, mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, company, date_range=None):
         section8 = {}
-        base_app_qs = JobApplication.objects.filter(job__company=company)
+        base_app_qs = JobApplication.objects.filter(job__company=company, is_active=True)
         
         section8['total_candidates'] = app_qs.count() + platform_app_qs.filter(is_touched=False).count() + referral_qs.filter(is_touched=False).count()
         section8['total_positions_filled'] = sum(j.positions_filled for j in job_qs)
@@ -2193,7 +2193,7 @@ class BaseAnalyticsView(APIView):
 
         # Active counts (ignores date filter to show live snapshot)
         # Using company-wide querysets for these KPIs to avoid being affected by the date range selected
-        base_job_qs = Job.objects.filter(company=company)
+        base_job_qs = Job.objects.filter(company=company, is_active=True)
         section8['active_jobs_count'] = base_job_qs.filter(is_active=True).count()
         section8['active_consultancies_count'] = User.objects.filter(role='consultancy', company=company, is_active=True).filter(assigned_jobs__in=base_job_qs).distinct().count()
         section8['active_internal_hrs_count'] = User.objects.filter(role__in=['hr', 'hr_manager'], company=company, is_active=True).filter(assigned_internal_jobs__in=base_job_qs).distinct().count()

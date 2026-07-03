@@ -56,6 +56,13 @@ class Department(models.Model):
     def __str__(self):
         return self.name
 
+    def soft_delete(self):
+        """Soft delete department (sets is_active=False). Cascades filter in related querysets.
+        Related MRFs/Jobs will be filtered by is_active.
+        """
+        self.is_active = False
+        self.save(update_fields=['is_active', 'updated_at'])
+
 
 class Designation(models.Model):
     """Designation master - easily add/modify/delete"""
@@ -117,6 +124,12 @@ class Designation(models.Model):
     def __str__(self):
         return self.name
 
+    def soft_delete(self):
+        """Soft delete designation (sets is_active=False). Cascades filter in related querysets.
+        """
+        self.is_active = False
+        self.save(update_fields=['is_active', 'updated_at'])
+
 
 class WorkflowTemplate(models.Model):
     """Workflow template - a collection of approval levels"""
@@ -147,6 +160,11 @@ class WorkflowTemplate(models.Model):
         """Get all approval levels for this workflow"""
         return self.levels.filter(is_active=True).order_by('order', 'level')
 
+    def soft_delete(self):
+        """Soft delete workflow template (sets is_active=False)."""
+        self.is_active = False
+        self.save(update_fields=['is_active', 'updated_at'])
+
 
 class ApprovalWorkflow(models.Model):
     """Individual approval level in a workflow template"""
@@ -167,6 +185,11 @@ class ApprovalWorkflow(models.Model):
     
     def __str__(self):
         return f"{self.template.name} - Level {self.level} ({self.required_role})"
+
+    def soft_delete(self):
+        """Soft delete approval workflow level."""
+        self.is_active = False
+        self.save(update_fields=['is_active', 'updated_at'])
 
 
 class MRF(models.Model):
@@ -346,6 +369,9 @@ class MRF(models.Model):
     submitted_at = models.DateTimeField(blank=True, null=True)
     approved_at = models.DateTimeField(blank=True, null=True)
     rejected_at = models.DateTimeField(blank=True, null=True)
+    
+    # Active flag for soft delete
+    is_active = models.BooleanField(default=True)
     
     class Meta:
         ordering = ['-created_at']
@@ -543,6 +569,23 @@ class MRF(models.Model):
         
         return False
 
+    def soft_delete(self):
+        """Soft delete MRF and cascade to related Job, approvals, revisions, private levels.
+        Consistent with is_active=True filters everywhere.
+        """
+        with transaction.atomic():
+            self.is_active = False
+            self.save(update_fields=['is_active', 'updated_at'])
+            
+            # Cascade to Job if exists
+            if hasattr(self, 'job') and self.job and self.job.is_active:
+                self.job.soft_delete()
+            
+            # Deactivate related private levels (approvals/ revisions use status instead of soft-delete)
+            self.private_approval_levels.filter(is_active=True).update(is_active=False)
+            
+            # Do not cascade-soft-delete shared WorkflowTemplate (used by multiple MRFs)
+
 
 class MRFApproval(models.Model):
     """Track approval history for each MRF"""
@@ -612,4 +655,9 @@ class PrivateMRFApprovalLevel(models.Model):
 
     def __str__(self):
         return f"Private MRF {self.mrf_id} - Level {self.level} ({self.approver.name})"
+
+    def soft_delete(self):
+        """Soft delete private approval level."""
+        self.is_active = False
+        self.save(update_fields=['is_active', 'updated_at'])
     

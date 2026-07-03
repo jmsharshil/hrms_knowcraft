@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 from jobs.models import JobApplication
 from accounts.models import Company
@@ -13,6 +13,7 @@ class Interviewer(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
     subscription_id = models.CharField(max_length=255, null=True, blank=True)
     subscription_expiry = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True, help_text="Is the interviewer active?")
 
     class Meta:
         ordering = ['email']
@@ -25,6 +26,17 @@ class Interviewer(models.Model):
 
     def __str__(self):
         return self.name
+
+    def soft_delete(self):
+        """Soft delete this interviewer (sets is_active=False).
+        Consistent with full soft-delete pattern. Cascades handled in views/signals.
+        """
+        with transaction.atomic():
+            self.is_active = False
+            self.save(update_fields=['is_active'])
+            
+            # Remove from any M2M slots (prevents inactive interviewers from being booked)
+            self.slots.clear()
 
 class Slot(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -213,3 +225,8 @@ class InterviewLocation(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.city}"
+    
+    def soft_delete(self):
+        """Soft delete this interview location (sets is_active=False)."""
+        self.is_active = False
+        self.save(update_fields=['is_active'])

@@ -371,6 +371,40 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
         return User.objects.filter(company=self.request.user.company)
 
 
+class UserSoftDeleteView(APIView):
+    """Soft delete a user (set is_active=False). Only admin/hr_manager can deactivate users."""
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
+
+    def post(self, request, pk=None):
+        try:
+            user = User.objects.get(id=pk, company=request.user.company)
+        except User.DoesNotExist:
+            return Response(
+                {'detail': 'User not found in your company.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if not user.is_active:
+            return Response(
+                {'detail': 'User is already soft deleted.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Prevent self-deactivation
+        if user.id == request.user.id:
+            return Response(
+                {'detail': 'You cannot soft delete your own account.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        user.soft_delete()
+
+        return Response({
+            'message': 'User soft deleted successfully (is_active=False).',
+            'user_id': str(user.id)
+        }, status=status.HTTP_200_OK)
+
+
 class CurrentUserView(APIView):
     """Get current authenticated user details"""
     permission_classes = [permissions.IsAuthenticated]

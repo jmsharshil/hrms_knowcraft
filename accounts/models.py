@@ -109,6 +109,13 @@ class User(AbstractBaseUser, PermissionsMixin):
         """Check if user can create other users"""
         return self.role in ['admin', 'hr_manager']
 
+    def soft_delete(self):
+        """Soft delete user (sets is_active=False). This disables login and filters from lists.
+        Cascades via signals or views to assigned jobs/MRFs etc.
+        """
+        self.is_active = False
+        self.save(update_fields=['is_active', 'updated_at'])
+
 
 class MagicLink(models.Model):
     """Magic link for password-less authentication and PIN setup"""
