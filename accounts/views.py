@@ -351,16 +351,14 @@ class UserListView(generics.ListAPIView):
     serializer_class = UserSerializer
     
     def get_queryset(self):
-        # Only show users from the same company - default to active=True unless ?is_active=false
-        queryset = User.objects.filter(company=self.request.user.company)
-        
+        # Only show users from the same company
+        queryset = User.objects.all()
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
-        else:
-            queryset = queryset.filter(is_active=True)
-        
-        return queryset
+        if self.request.user.role == 'admin':
+            return queryset.filter(company=self.request.user.company)    
+        return queryset.filter(company=self.request.user.company,is_active=True)
 
 
 class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -370,21 +368,7 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
     
     def get_queryset(self):
         # Only access users from the same company
-        queryset = User.objects.filter(company=self.request.user.company)
-        is_active = self.request.query_params.get('is_active')
-        if is_active is not None:
-            queryset = queryset.filter(is_active=is_active.lower() == 'true')
-        return queryset
-    
-    def perform_destroy(self, instance):
-        """Override to soft-delete instead of hard delete."""
-        if instance.is_active:
-            instance.soft_delete()
-            # Also deactivate related magic links
-            MagicLink.objects.filter(user=instance, is_used=False).update(is_used=True, expires_at=timezone.now())
-        else:
-            # Hard delete only if already soft-deleted (for admin cleanup)
-            instance.delete()
+        return User.objects.filter(company=self.request.user.company)
 
 
 class CurrentUserView(APIView):

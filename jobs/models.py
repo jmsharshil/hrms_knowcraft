@@ -251,38 +251,6 @@ class Job(models.Model):
     def is_on_hold(self):
         return self.status == 'on_hold'
     
-    def soft_delete(self):
-        """Soft delete this Job and cascade to related records (MRF, applications, links).
-        Consistent with dashboard/analytics filters that use is_active=True.
-        """
-        with transaction.atomic():
-            self.is_active = False
-            self.save(update_fields=['is_active', 'updated_at'])
-            
-            # Deactivate related application links
-            self.application_links.filter(is_active=True).update(is_active=False)
-            
-            # Deactivate related JobApplications and Applications
-            self.applications.filter(is_active=True).update(is_active=False)
-            # Also handle platform applications if linked
-            from .models import Application
-            Application.objects.filter(job=self, is_active=True).update(is_active=False)
-            
-            # Sync with MRF if exists
-            if hasattr(self, 'mrf') and self.mrf and self.mrf.is_active:
-                self.mrf.soft_delete()
-            
-            # Log the soft delete
-            try:
-                JobAssignmentHistory.objects.create(
-                    job=self,
-                    action='deleted',  # or add 'soft_deleted' to choices if needed
-                    performed_by=None,  # system action
-                    notes='Soft deleted via API'
-                )
-            except Exception:
-                pass  # non-critical
-    
     # @classmethod
     # @transaction.atomic
     # def close_expired_jobs(cls):
@@ -780,11 +748,6 @@ class JobApplication(models.Model):
         if self.application_link:
             return self.application_link.get_platform_display()
         return self.get_source_display()
-    
-    def soft_delete(self):
-        """Soft delete this application (for archive consistency)."""
-        self.is_active = False
-        self.save(update_fields=['is_active', 'updated_at'])
 
 
 class JobAssignmentHistory(models.Model):
@@ -803,9 +766,6 @@ class JobAssignmentHistory(models.Model):
         ('filled', 'Position Filled'),
         ('reopened', 'Job Reopened'),
         ('cancelled', 'Job Cancelled'),
-        ('hold', 'Job Put on Hold'),
-        ('hold_released', 'Job Hold Released'),
-        ('deleted', 'Job Soft Deleted'),
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -870,19 +830,10 @@ class ReferralApplication(models.Model):
     
     is_touched = models.BooleanField(default=False, help_text="Has the candidate been touched at least once?")
     touched_at = models.DateTimeField(null=True, blank=True, help_text="When was the candidate last touched?")
-
-    is_active = models.BooleanField(default=True, help_text="Is the referral application active?")
     
     class Meta:
         db_table = 'referral_applications'
         ordering = ['-created_at']
-
-    def soft_delete(self):
-        """Soft delete this referral application (sets is_active=False).
-        Consistent with all list/analytics filters using is_active=True.
-        """
-        self.is_active = False
-        self.save(update_fields=['is_active', 'updated_at'])
 
 class ApplicationSource(models.TextChoices):
     CAREER = 'career_page', 'Career Page'
@@ -955,15 +906,6 @@ class Application(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now)
 
-    is_active = models.BooleanField(default=True, help_text="Is the application active?")
-
     class Meta:
         db_table = 'applications'
         ordering = ['-created_at']
-
-    def soft_delete(self):
-        """Soft delete this platform application (sets is_active=False).
-        Consistent with all list/analytics filters using is_active=True.
-        """
-        self.is_active = False
-        self.save(update_fields=['is_active', 'updated_at'])

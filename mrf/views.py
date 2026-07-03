@@ -61,45 +61,6 @@ class DepartmentViewSet(viewsets.ModelViewSet):
         else:
             serializer.save()
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanManageWorkflow])
-    def soft_delete(self, request, pk=None):
-        """Soft delete an ApprovalWorkflow level (set is_active=False)."""
-        level = self.get_object()
-        if not level.is_active:
-            return Response({"detail": "Level is already soft deleted."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        level.soft_delete()
-        return Response({
-            "message": "Approval level soft deleted successfully",
-            "id": str(level.id)
-        }, status=status.HTTP_200_OK)
-
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanManageMasterData])
-    def soft_delete(self, request, pk=None):
-        """Soft delete a Designation (set is_active=False). Only allowed for admin/hr_manager."""
-        designation = self.get_object()
-        if not designation.is_active:
-            return Response({"detail": "Designation is already soft deleted."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        designation.soft_delete()
-        return Response({
-            "message": "Designation soft deleted successfully",
-            "id": str(designation.id)
-        }, status=status.HTTP_200_OK)
-
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanManageMasterData])
-    def soft_delete(self, request, pk=None):
-        """Soft delete a Department (set is_active=False). Only allowed for admin/hr_manager."""
-        department = self.get_object()
-        if not department.is_active:
-            return Response({"detail": "Department is already soft deleted."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        department.soft_delete()
-        return Response({
-            "message": "Department soft deleted successfully",
-            "id": str(department.id)
-        }, status=status.HTTP_200_OK)
-
 class DesignationViewSet(viewsets.ModelViewSet):
     """ViewSet for managing designations"""
     queryset = Designation.objects.all()
@@ -205,19 +166,6 @@ class WorkflowTemplateViewSet(viewsets.ModelViewSet):
         else:
             serializer.save()
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanManageWorkflow])
-    def soft_delete(self, request, pk=None):
-        """Soft delete a WorkflowTemplate (set is_active=False)."""
-        workflow = self.get_object()
-        if not workflow.is_active:
-            return Response({"detail": "Workflow is already soft deleted."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        workflow.soft_delete()
-        return Response({
-            "message": "Workflow template soft deleted successfully",
-            "id": str(workflow.id)
-        }, status=status.HTTP_200_OK)
-
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
 
@@ -304,7 +252,7 @@ class ApprovalWorkflowViewSet(viewsets.ModelViewSet):
 
 class MRFViewSet(viewsets.ModelViewSet):
     """ViewSet for managing MRFs"""
-    queryset = MRF.objects.filter(is_active=True)
+    queryset = MRF.objects.all()
     permission_classes = [IsAuthenticated]
     
     def get_serializer_class(self):
@@ -1068,25 +1016,4 @@ class MRFViewSet(viewsets.ModelViewSet):
         return Response({
             'message': 'MRF and associated Job force closed successfully',
             'data': serializer.data
-        }, status=status.HTTP_200_OK)
-
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanEditMRF])
-    def soft_delete(self, request, pk=None):
-        """Soft delete an MRF (set is_active=False)"""
-        mrf = self.get_object()
-        if not mrf.is_active:
-            return Response({"detail": "MRF is already soft deleted."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        mrf.soft_delete()
-
-        if hasattr(mrf, 'job') and mrf.job:
-            job = mrf.job
-            if job.is_active:
-                job.soft_delete()
-                job.application_links.filter(is_active=True).update(is_active=False)
-                job.application.filter(is_active=True).update(is_active=False)
-
-        return Response({
-            "message": "MRF soft deleted successfully",
-            "id": str(mrf.id)
         }, status=status.HTTP_200_OK)

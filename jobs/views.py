@@ -37,7 +37,7 @@ from mrf.utils import is_valid_uuid
 class JobViewSet(viewsets.ModelViewSet):
     """ViewSet for managing Jobs"""
     
-    queryset = Job.objects.filter(is_active=True)
+    queryset = Job.objects.all()
     
     def get_serializer_class(self):
         if self.action == 'list':
@@ -568,26 +568,6 @@ class JobViewSet(viewsets.ModelViewSet):
             'message': 'Job force closed successfully',
             'data': serializer.data
         }, status=status.HTTP_200_OK)
-
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanEditJobs])
-    def soft_delete(self, request, pk=None):
-        """Soft delete a Job (set is_active=False)"""
-        job = self.get_object()
-        if not job.is_active:
-            return Response({"detail": "Job is already soft deleted."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        job.soft_delete()
-        # Also soft delete related MRF if exists
-        if hasattr(job, 'mrf') and job.mrf and job.mrf.is_active:
-            job.mrf.soft_delete()
-
-        job.application_links.filter(is_active=True).update(is_active=False)
-        job.applications.filter(is_active=True).update(is_active=False)
-        
-        return Response({
-            "message": "Job (and linked MRF) soft deleted successfully",
-            "id": str(job.id)
-        }, status=status.HTTP_200_OK)
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanEditJobs])
     def mark_position_filled(self, request, pk=None):
@@ -693,7 +673,7 @@ class JobViewSet(viewsets.ModelViewSet):
             queryset = Job.objects.none()
         
         if hasattr(user, 'company'):
-            queryset = queryset.filter(company=user.company,is_active=True)
+            queryset = queryset.filter(company=user.company)
         
         stats = {
             'total': queryset.count(),
@@ -1494,7 +1474,7 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Job.objects.filter(is_active=True).select_related(
+        queryset = Job.objects.select_related(
             'department',
             'designation',
             'posted_by'
