@@ -18,9 +18,12 @@ def extract_text(file_path):
     ext = Path(file_path).suffix.lower()
 
     if ext == ".pdf":
+        text_parts = []
         with pdfplumber.open(file_path) as pdf:
-            pages = [page.extract_text() or "" for page in pdf.pages]
-            return "\n".join(pages)
+            for page in pdf.pages:
+                page = page.dedupe_chars(tolerance=1)  # <-- the fix: drops duplicate overlapping chars
+                text_parts.append(page.extract_text() or "")
+        return "\n".join(text_parts)
 
     elif ext in [".doc", ".docx"]:
         return docx2txt.process(file_path)
