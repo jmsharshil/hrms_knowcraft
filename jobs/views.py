@@ -37,7 +37,7 @@ from mrf.utils import is_valid_uuid
 class JobViewSet(viewsets.ModelViewSet):
     """ViewSet for managing Jobs"""
     
-    queryset = Job.objects.all()
+    queryset = Job.objects.filter(is_active=True)
     
     def get_serializer_class(self):
         if self.action == 'list':
@@ -129,6 +129,8 @@ class JobViewSet(viewsets.ModelViewSet):
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:
             queryset = queryset.filter(is_active=is_active.lower() == 'true')
+        else:
+            queryset = queryset.filter(is_active=True)
         
         # Search
         search = self.request.query_params.get('search')
@@ -652,6 +654,23 @@ class JobViewSet(viewsets.ModelViewSet):
             'data': serializer.data
         }, status=status.HTTP_200_OK)
     
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanEditJobs])
+    def soft_delete(self, request, pk=None):
+        """Soft delete a job (and cascade to related records). Only admin/HR-manager can soft-delete inactive records."""
+        job = self.get_object()
+        
+        if not job.is_active and request.user.role not in ['admin', 'hr_manager']:
+            return Response(
+                {'error': 'Only admin or HR manager may soft-delete inactive records.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        job.soft_delete()
+        return Response({
+            'message': 'Job soft-deleted successfully (is_active=False). Related applications/links/MRF also deactivated.',
+            'job_id': str(job.id)
+        }, status=status.HTTP_200_OK)
+    
     @action(detail=False, methods=['get'])
     def statistics(self, request):
         """Get job statistics"""
@@ -1040,7 +1059,7 @@ class JobApplicationPagination(PageNumberPagination):
 class JobApplicationViewSet(viewsets.ModelViewSet):
     """ViewSet for managing Job Applications"""
     
-    queryset = JobApplication.objects.all()
+    queryset = JobApplication.objects.filter(is_active=True)
     
     filter_backends = [DjangoFilterBackend]
     filterset_class = JobApplicationFilter
@@ -1078,6 +1097,15 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         queryset = JobApplication.objects.select_related(
             'job', 'job__department', 'submitted_by', 'application_link'
         )
+        
+        # Default to active=True (consistent with soft-delete pattern); 
+        # ?is_active=false param retained for admin/HR-manager
+        is_active_param = self.request.query_params.get('is_active')
+        if is_active_param is not None:
+            queryset = queryset.filter(is_active=is_active_param.lower() == 'true')
+        else:
+            queryset = queryset.filter(is_active=True)
+        
         if not user.is_authenticated:
             return queryset.order_by(
                 F('match_score').desc(nulls_last=True),
@@ -1176,9 +1204,11 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         user = request.user
         
         if user.role in ['admin', 'hr_manager', 'hr']:
-            queryset = JobApplication.objects.all()
+            queryset = JobApplication.objects.filter(is_active=True)
         elif user.role == 'consultancy':
-            queryset = JobApplication.objects.filter(job__assigned_to_consultancy=user)
+            queryset = JobApplication.objects.filter(
+                job__assigned_to_consultancy=user, is_active=True
+            )
         else:
             queryset = JobApplication.objects.none()
         
@@ -1203,6 +1233,23 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         }
         
         return Response(stats, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanManageApplications])
+    def soft_delete(self, request, pk=None):
+        """Soft delete application. Only admin/HR can soft-delete inactive ones."""
+        application = self.get_object()
+        
+        if not application.is_active and request.user.role not in ['admin', 'hr_manager']:
+            return Response(
+                {'error': 'Only admin or HR manager may soft-delete inactive records.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        application.soft_delete()
+        return Response({
+            'message': 'Application soft-deleted successfully.',
+            'application_id': str(application.id)
+        }, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['post'])
     def reparse_application(self, request):
@@ -1252,7 +1299,18 @@ class ReferralApplicationViewSet(viewsets.ModelViewSet):
     filterset_class = ReferralApplicationFilter
 
     def get_permissions(self):
+        if self.action in ['soft_delete']:
+            return [IsAuthenticated(), CanManageApplications()]
         return [AllowAny()]
+
+    def get_queryset(self):
+        queryset = ReferralApplication.objects.all()
+        is_active_param = self.request.query_params.get('is_active')
+        if is_active_param is not None:
+            queryset = queryset.filter(is_active=is_active_param.lower() == 'true')
+        else:
+            queryset = queryset.filter(is_active=True)
+        return queryset
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -1300,6 +1358,23 @@ class ReferralApplicationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'])
+    def soft_delete(self, request, pk=None):
+        """Soft delete referral application."""
+        referral = self.get_object()
+        
+        if not referral.is_active and request.user.role not in ['admin', 'hr_manager']:
+            return Response(
+                {'error': 'Only admin or HR manager may soft-delete inactive records.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        referral.soft_delete()
+        return Response({
+            'message': 'Referral application soft-deleted successfully.',
+            'referral_id': str(referral.id)
+        }, status=status.HTTP_200_OK)
     
 from .serializers import (
     CareersJobListSerializer,
@@ -1485,7 +1560,7 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
             'posted_by__name',
             'company',
             'is_active'
-        ).exclude(status='on_hold')
+        ).filter(is_active=True).exclude(status='on_hold')
 
         # Role-based filtering
         if user.is_authenticated:
@@ -1523,7 +1598,7 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
             if hasattr(user, 'company'):
                 queryset = queryset.filter(company=user.company)
         else:
-            queryset = queryset.filter(is_active=True, is_private=False)
+            queryset = queryset.filter(is_private=False)
 
         # Subquery to get representative job for merged group
         subquery = Job.objects.filter(
@@ -1674,8 +1749,7 @@ class ApplicationViewSet(viewsets.GenericViewSet):
 
         queryset = self.filter_queryset(queryset)
 
-        # page = self.paginate_queryset(queryset)
-        paginator = ApplicationPagination()   # 👈 custom paginator
+        paginator = ApplicationPagination()
         page = paginator.paginate_queryset(queryset, request)
 
         if page is not None:

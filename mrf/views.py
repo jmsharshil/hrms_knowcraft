@@ -419,6 +419,14 @@ class MRFViewSet(viewsets.ModelViewSet):
         if hasattr(user, 'company'):
             queryset = queryset.filter(company=user.company)
 
+        # Default to active=True (consistent with soft-delete pattern);
+        # ?is_active=false param retained for admin/HR-manager
+        is_active_param = self.request.query_params.get('is_active')
+        if is_active_param is not None:
+            queryset = queryset.filter(is_active=is_active_param.lower() == 'true')
+        else:
+            queryset = queryset.filter(is_active=True)
+
         # Annotate with priority to push joining_pending and filled to the end
         queryset = queryset.annotate(
             status_priority=Case(
@@ -1016,4 +1024,18 @@ class MRFViewSet(viewsets.ModelViewSet):
         return Response({
             'message': 'MRF and associated Job force closed successfully',
             'data': serializer.data
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanEditMRF])
+    def soft_delete(self, request, pk=None):
+        """Soft delete an MRF (set is_active=False)"""
+        mrf = self.get_object()
+        if not mrf.is_active:
+            return Response({"detail": "MRF is already soft deleted."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        mrf.soft_delete()
+
+        return Response({
+            "message": "MRF soft deleted successfully",
+            "id": str(mrf.id)
         }, status=status.HTTP_200_OK)

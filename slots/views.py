@@ -29,7 +29,7 @@ class AvailableSlotsForInterviewerView(APIView):
         if not candidate_id or not interviewer_id:
             return Response({"detail": "candidate_id and interviewer_id are required"}, status=400)
 
-        interviewer = Interviewer.objects.filter(id=interviewer_id).first()
+        interviewer = Interviewer.objects.filter(id=interviewer_id, is_active=True).first()
         if not interviewer:
             return Response({"detail": "Interviewer not found"}, status=404)
 
@@ -126,11 +126,26 @@ class InterviewerView(APIView):
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def soft_delete(self, request, pk):
+        """Soft delete interviewer. Only admin/HR-manager for inactive records."""
+        interviewer = self.get_object(request, pk)
+        
+        if not interviewer.is_active and request.user.role not in ['admin', 'hr_manager']:
+            return Response(
+                {'error': 'Only admin or HR manager may soft-delete inactive records.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        interviewer.soft_delete()
+        return Response({
+            'message': 'Interviewer soft-deleted successfully (cascades via signals).'
+        }, status=status.HTTP_204_NO_CONTENT)
+
 class InterviewerListView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        interviewers = Interviewer.objects.all()
+        interviewers = Interviewer.objects.filter(is_active=True)
         if request.user.is_authenticated:
             interviewers = interviewers.filter(company=request.user.company)
         serializer = InterviewerSerializer(interviewers, many=True)
@@ -148,7 +163,7 @@ class InterviewFeedbackListCreateAPIView(APIView):
         """
         queryset = InterviewFeedback.objects.select_related(
             "job_application", "job_application__job"
-        ).all()
+        ).filter(job_application__is_active=True)
 
         job_application = request.query_params.get("job_application")
         interview_round = request.query_params.get("interview_round")
@@ -174,6 +189,7 @@ class InterviewFeedbackListCreateAPIView(APIView):
         # Determine new status based on current application status
         current_status = application.status
         new_status = self._get_status_after_interview(application,current_status, request.data.get('is_selected', 'hire'))
+        application.refresh_from_db()
         automation_engine(application, application.status, new_status)
 
         # Save feedback
@@ -391,7 +407,8 @@ class InterviewLocationListCreateAPIView(APIView):
 
     def get(self, request):
         locations = InterviewLocation.objects.filter(
-            company=request.user.company
+            company=request.user.company,
+            is_active=True
         ).order_by("-created_at")
 
         serializer = InterviewLocationSerializer(locations, many=True)
@@ -449,7 +466,21 @@ class InterviewLocationDetailAPIView(APIView):
             return Response({"detail": "Not found"}, status=404)
 
         location.delete()
-        return Response(status=204)
+        return Response({"message": "Interview location deleted successfully."}, status=204)
+
+    def soft_delete(self, request, pk):
+        location = self.get_object(request, pk)
+        if not location:
+            return Response({"detail": "Not found"}, status=404)
+        
+        if not location.is_active and request.user.role not in ['admin', 'hr_manager']:
+            return Response(
+                {'error': 'Only admin or HR manager may soft-delete inactive records.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        location.soft_delete()
+        return Response({'message': 'Interview location soft-deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
 
 class InterviewerBulkUploadView(APIView):
     def post(self, request):
