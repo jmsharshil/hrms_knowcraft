@@ -13,6 +13,7 @@ class Interviewer(models.Model):
     company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True)
     subscription_id = models.CharField(max_length=255, null=True, blank=True)
     subscription_expiry = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True, help_text="Soft delete flag for interviewer")
 
     class Meta:
         ordering = ['email']
@@ -25,6 +26,11 @@ class Interviewer(models.Model):
 
     def __str__(self):
         return self.name
+
+    def soft_delete(self):
+        """Soft delete interviewer (sets is_active=False). Update related MRFs/feedback if needed via signals or views."""
+        self.is_active = False
+        self.save(update_fields=['is_active', 'updated_at'])
 
 class Slot(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

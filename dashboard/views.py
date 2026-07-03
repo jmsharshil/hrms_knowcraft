@@ -124,8 +124,8 @@ class DashboardAPIView(APIView):
 
         # ── base querysets scoped to company ──
         # Admin and HR managers can see all records (including private ones)
-        jobs_qs = Job.objects.filter(company=user.company)
-        apps_qs = JobApplication.objects.filter(job__company=user.company)
+        jobs_qs = Job.objects.filter(company=user.company, is_active=True)
+        apps_qs = JobApplication.objects.filter(job__company=user.company, is_active=True)
 
         # ── optional filters ──
         user_id = request.query_params.get('user_id')
@@ -370,7 +370,7 @@ class BaseAnalyticsView(APIView):
 
         # 3. MRF queryset (Filtered by Period Activity)
         # Admins and HR managers see all records including private ones
-        mrf_base_filter = Q(company=company) & role_mrf_q
+        mrf_base_filter = Q(company=company) & role_mrf_q & Q(is_active=True)
         if department_id:
             mrf_base_filter &= Q(department_id=department_id)
         if designation_id:
@@ -383,7 +383,7 @@ class BaseAnalyticsView(APIView):
         # 4. Job queryset
         # Base filter includes company, role, dept, desig, and user but NO date
         # Admins and HR managers see all records including private ones
-        job_base_filter = Q(company=company) & role_job_q
+        job_base_filter = Q(company=company) & role_job_q & Q(is_active=True)
         if job_id:
             job_base_filter &= Q(id=job_id)
         if department_id:
@@ -418,7 +418,7 @@ class BaseAnalyticsView(APIView):
         job_qs = Job.objects.filter(job_period_filter).distinct()
 
         # 5. JobApplication queryset (Filtered by Period Activity)
-        app_filter = Q(job__in=broad_job_qs) & date_filter & role_app_q
+        app_filter = Q(job__in=broad_job_qs) & date_filter & role_app_q & Q(is_active=True)
         if source_filter:
             app_filter &= Q(source=source_filter)
         if user_id:
@@ -2150,16 +2150,22 @@ class BaseAnalyticsView(APIView):
         section7['bottleneck_stage'] = {'stage_name': bottleneck[0], 'avg_days': bottleneck[1]}
         return section7
 
-    def calc_overall_summary_kpis(self, mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, company, date_range=None):
+    def calc_overall_summary_kpis(self, mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, company, date_range=None, broad_job_qs=None):
         section8 = {}
-        base_app_qs = JobApplication.objects.filter(job__company=company)
+        base_app_qs = JobApplication.objects.filter(job__company=company, is_active=True)
+        
+        # Use broad_job_qs (all assigned, ignoring date) for position KPIs to match calc_summary_totals
+        # This ensures consistency with "jobs_for_count" logic and remaining_positions() canonical method
+        jobs_for_count = broad_job_qs if broad_job_qs is not None else job_qs
         
         section8['total_candidates'] = app_qs.count() + platform_app_qs.filter(is_touched=False).count() + referral_qs.filter(is_touched=False).count()
-        section8['total_positions_filled'] = sum(j.positions_filled for j in job_qs)
-        section8['total_positions_open'] = sum((j.no_of_positions - j.positions_filled) for j in job_qs)
-        section8['total_positions'] = sum(j.no_of_positions for j in job_qs)
-        section8['total_joining_pending_job_open_positions'] = sum(j.no_of_positions - j.positions_filled for j in job_qs if j.status == 'joining_pending')
-        section8['total_joining_pending_job_count'] = sum(1 for j in job_qs if j.status == 'joining_pending')
+        section8['total_positions_filled'] = sum(j.positions_filled for j in jobs_for_count)
+        section8['total_positions_open'] = sum(max(0, j.remaining_positions()) for j in jobs_for_count)
+        section8['total_positions'] = sum(j.no_of_positions for j in jobs_for_count)
+        section8['total_joining_pending_job_open_positions'] = sum(
+            max(0, j.remaining_positions()) for j in jobs_for_count if j.status == 'joining_pending'
+        )
+        section8['total_joining_pending_job_count'] = sum(1 for j in jobs_for_count if j.status == 'joining_pending')
         
         offer_sent_statuses = ['offer_sent', 'offer_accepted', 'offer_rejected', 'joined', 'joining_pending', 'joining_poned']
         offer_accepted_statuses = ['offer_accepted', 'joined', 'joining_poned', 'joining_pending']
@@ -2193,7 +2199,7 @@ class BaseAnalyticsView(APIView):
 
         # Active counts (ignores date filter to show live snapshot)
         # Using company-wide querysets for these KPIs to avoid being affected by the date range selected
-        base_job_qs = Job.objects.filter(company=company)
+        base_job_qs = Job.objects.filter(company=company, is_active=True)
         section8['active_jobs_count'] = base_job_qs.filter(is_active=True).count()
         section8['active_consultancies_count'] = User.objects.filter(role='consultancy', company=company, is_active=True).filter(assigned_jobs__in=base_job_qs).distinct().count()
         section8['active_internal_hrs_count'] = User.objects.filter(role__in=['hr', 'hr_manager'], company=company, is_active=True).filter(assigned_internal_jobs__in=base_job_qs).distinct().count()
@@ -2222,20 +2228,25 @@ class BaseAnalyticsView(APIView):
         Used for total_jobs so filtered-by-user views show all their jobs, not just period-created ones.
         """
         # Use broad_job_qs for total counts if provided (user_id filter scenario)
-        jobs_for_count = job_qs
-        
+        # This ensures KPIs like total_jobs, total_open_positions reflect ALL assigned jobs
+        # (not just those created in the selected date range), while respecting is_active=True
+        jobs_for_count = broad_job_qs if broad_job_qs is not None else job_qs
+
         direct_count = app_qs.count()
         platform_count = platform_app_qs.filter(is_touched=False).count()
         referral_count = referral_qs.filter(is_touched=False).count()
         combined_count = direct_count + platform_count + referral_count
 
-        # Joining Pending in next 30 / 60 days
+        # Joining Pending in next 30 / 60 days - use broader app_qs if available for snapshot
         from datetime import date
         today = date.today()
-        joining_pending_qs = app_qs.filter(
+        # Use unfiltered active applications for snapshot KPIs (independent of date range)
+        joining_pending_qs = JobApplication.objects.filter(
+            job__in=jobs_for_count,
             status='joining_pending',
             joining_date__isnull=False,
             joining_date__gte=today,
+            is_active=True
         )
         joining_pending_next_30_days = joining_pending_qs.filter(
             joining_date__lte=today + timedelta(days=30)
@@ -2260,11 +2271,23 @@ class BaseAnalyticsView(APIView):
                 "combined": combined_count,
                 "total": direct_count + platform_count + referral_count
             },
-            # "total_open_positions": sum((j.no_of_positions - j.positions_filled) for j in jobs_for_count),
-            "total_open_positions": sum(j.remaining_positions() for j in jobs_for_count),"jobs_by_assignment": {
-                "hr_only": jobs_for_count.filter(Q(status='assigned_to_internal_hr') | Q(previous_status='assigned_to_internal_hr'), assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=True).count(),
-                "consultancy_only": jobs_for_count.filter(Q(status='assigned_to_consultancy') | Q(previous_status='assigned_to_consultancy'), assigned_to_consultancy__isnull=False, assigned_to_internal_hr__isnull=True).count(),
-                "both": jobs_for_count.filter(Q(status='assigned_to_both') | Q(previous_status='assigned_to_both'), assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=False).count()
+            "total_open_positions": sum(max(0, j.remaining_positions()) for j in jobs_for_count),
+            "jobs_by_assignment": {
+                "hr_only": jobs_for_count.filter(
+                    Q(status='assigned_to_internal_hr') | Q(previous_status='assigned_to_internal_hr'),
+                    assigned_to_internal_hr__isnull=False,
+                    assigned_to_consultancy__isnull=True
+                ).count(),
+                "consultancy_only": jobs_for_count.filter(
+                    Q(status='assigned_to_consultancy') | Q(previous_status='assigned_to_consultancy'),
+                    assigned_to_consultancy__isnull=False,
+                    assigned_to_internal_hr__isnull=True
+                ).count(),
+                "both": jobs_for_count.filter(
+                    Q(status='assigned_to_both') | Q(previous_status='assigned_to_both'),
+                    assigned_to_internal_hr__isnull=False,
+                    assigned_to_consultancy__isnull=False
+                ).count()
             }
         }
 
@@ -2340,7 +2363,10 @@ class BaseAnalyticsView(APIView):
             # Pass company to filter OfferDocuments correctly
             data['document_offer_process_timeline'] = self.calc_document_offer_process_timeline(broad_job_qs, (date_from, date_to), company, request.user, request.user.role)
         if 'overall_summary_kpis' in requested_sections:
-            data['overall_summary_kpis'] = self.calc_overall_summary_kpis(mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, company, (date_from, date_to))
+            data['overall_summary_kpis'] = self.calc_overall_summary_kpis(
+                mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, company, 
+                (date_from, date_to), broad_job_qs=broad_job_qs
+            )
 
         return Response(data, status=status.HTTP_200_OK)
 
