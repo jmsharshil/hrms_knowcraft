@@ -156,31 +156,23 @@ def interview_feedback_reminder_task(booking_id, round_name=None):
     # booking and reminder execution.
     if not round_name:
         status_to_round = {
-            "shortlisted": "hr_round",
             "interview_pending_1": "hr_round",
-            "interview_done_1": "hr_round",
-            "interview_rejected_1": "hr_round",
-            "interview_next_2": "technical_round",
             "interview_pending_2": "technical_round",
-            "interview_done_2": "technical_round",
-            "interview_rejected_2": "technical_round",
-            "interview_next_3": "case_study_round",
             "interview_pending_3": "case_study_round",
-            "interview_done_3": "case_study_round",
-            "interview_rejected_3": "case_study_round",
-            "interview_next_final": "final_round",
             "interview_pending_final": "final_round",
-            "interview_done_final": "final_round",
-            "interview_rejected_final": "final_round",
-            "interview_next_management_client": "management_client_round",
             "interview_pending_management_client": "management_client_round",
-            "interview_done_management_client": "management_client_round",
-            "interview_rejected_management_client": "management_client_round",
         }
         round_name = status_to_round.get(
             booking.candidate.status,
             getattr(booking.candidate, "round_name", None)
-        ) or "final_round"
+        ) or None
+
+        if not round_name:
+            logger.warning(
+                f"Booking {booking_id} has no valid round_name. "
+                f"Candidate status={booking.candidate.status}. Skipping reminder."
+            )
+            return False
 
     # ── CHECK 1: Feedback already submitted? ─────────────────────
     # Do this FIRST, before the end-time check.  If feedback is already in,
