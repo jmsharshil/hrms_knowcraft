@@ -263,9 +263,9 @@ class Job(models.Model):
             self.application_links.filter(is_active=True).update(is_active=False)
             
             # Deactivate related JobApplications and Applications
-            self.applications.filter(is_active=True).update(is_active=False)
+            # self.applications.filter(is_active=True).update(is_active=False)
             # Also handle platform applications if linked
-            Application.objects.filter(job=self, is_active=True).update(is_active=False)
+            # Application.objects.filter(job=self, is_active=True).update(is_active=False)
             
             # Sync with MRF if exists
             if hasattr(self, 'mrf') and self.mrf and self.mrf.is_active:
