@@ -753,7 +753,7 @@ from datetime import timedelta
 def parse_resume_task(application,resume_file,job):
     # ---- AI extraction ----
     parsed = parse_resume_ai(resume_file)
-    name = safe_str(parsed.get("name") or parsed.get("full_name") or application.original_filename).capitalize()
+    name = safe_str(parsed.get("name") or parsed.get("full_name")).capitalize()
     email = safe_str(parsed.get("email"))
     phone = parsed.get('phone_number') or parsed.get('phone')
     if isinstance(phone, dict):
