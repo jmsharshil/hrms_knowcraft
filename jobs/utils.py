@@ -14,15 +14,36 @@ from onboarding.utils.engine import automation_engine
 FRONTEND_URL = getattr(settings,"FRONTEND_URL")
 
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
+# def extract_text(file_path):
+#     ext = Path(file_path).suffix.lower()
+
+#     if ext == ".pdf":
+#         text_parts = []
+#         with pdfplumber.open(file_path) as pdf:
+#             for page in pdf.pages:
+#                 page = page.dedupe_chars(tolerance=1)  # <-- the fix: drops duplicate overlapping chars
+#                 text_parts.append(page.extract_text() or "")
+#         return "\n".join(text_parts)
+
+#     elif ext in [".doc", ".docx"]:
+#         return docx2txt.process(file_path)
+
+#     elif ext == ".txt":
+#         return Path(file_path).read_text()
+
+#     return ""
+
+import fitz  # PyMuPDF — pip install pymupdf
+
 def extract_text(file_path):
     ext = Path(file_path).suffix.lower()
 
     if ext == ".pdf":
-        text_parts = []
-        with pdfplumber.open(file_path) as pdf:
-            for page in pdf.pages:
-                page = page.dedupe_chars(tolerance=1)  # <-- the fix: drops duplicate overlapping chars
-                text_parts.append(page.extract_text() or "")
+        doc = fitz.open(file_path)
+        try:
+            text_parts = [page.get_text("text") for page in doc]
+        finally:
+            doc.close()
         return "\n".join(text_parts)
 
     elif ext in [".doc", ".docx"]:
@@ -753,7 +774,7 @@ from datetime import timedelta
 def parse_resume_task(application,resume_file,job):
     # ---- AI extraction ----
     parsed = parse_resume_ai(resume_file)
-    name = safe_str(parsed.get("name") or parsed.get("full_name")).capitalize()
+    name = safe_str(parsed.get("name") or parsed.get("full_name") or application.original_filename).capitalize()
     email = safe_str(parsed.get("email"))
     phone = parsed.get('phone_number') or parsed.get('phone')
     if isinstance(phone, dict):
