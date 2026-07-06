@@ -8,10 +8,10 @@ from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.template import Template, Context
 from django.db.models import Q
-from .models import JobApplicationDocument,ApprovalNote,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent
+from .models import JobApplicationDocument,ApprovalNote,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog
 from onboarding.utils.engine import automation_engine
 from .utils.sender import send_email,send_text,send_document
-from .serializers import JobApplicationDocumentSerializer,SalaryAnnexureSerializer,SalaryAnnexureHistorySerializer
+from .serializers import JobApplicationDocumentSerializer,SalaryAnnexureSerializer,SalaryAnnexureHistorySerializer,EmailLogSerializer
 import logging
 from jobs.models import JobApplication, Job
 from rest_framework.viewsets import ModelViewSet,ReadOnlyModelViewSet
@@ -781,7 +781,10 @@ Knowcraft Analytics Private Limited
                         text="Approval required. Please view this email in HTML format.",
                         to=approver.email,
                         template=html_rendered,
-                        attachments=[resume_attachment] if resume_attachment else None
+                        attachments=[resume_attachment] if resume_attachment else None,
+                        event="approval_note_sent",
+                        email_type="approval",
+                        candidate=candidate
                     )
                     if approver.phone:
                         send_text(to=approver.phone,text=whatsapp_text)
@@ -1361,7 +1364,10 @@ Thank you.
                 text=message,
                 to=recipient_email,
                 template=template,
-                attachments=[annexure_attachment] if annexure_attachment else None
+                attachments=[annexure_attachment] if annexure_attachment else None,
+                event="salary_annexure_sent",
+                email_type="candidate",
+                candidate=job_application
             )
         else:
             print(f"Skipping Offer Letter notification for private job: {job_application.job.id}")
@@ -1515,7 +1521,10 @@ Thank you.
                 text=message,
                 to=recipient_email,
                 template=template,
-                attachments=[resume_attachment] if resume_attachment else None
+                attachments=[resume_attachment] if resume_attachment else None,
+                event="offer_letter_sent",
+                email_type="candidate",
+                candidate=job_application
             )
         else:
             print(f"Skipping Salary Annexure Prep notification for private job: {job_application.job.id}")
@@ -1985,3 +1994,42 @@ class DownloadApprovalNoteAPIView(APIView):
             response = HttpResponse(json.dumps(data, indent=4), content_type='application/json')
             response['Content-Disposition'] = f'attachment; filename="approval_note_{note.candidate.candidate_name}.json"'
             return response
+
+class EmailLogViewSet(ReadOnlyModelViewSet):
+    """
+    API View to list all emails sent out from the system.
+    Supports filtering by email, event, status, type, and candidate.
+    """
+    queryset = EmailLog.objects.all().order_by('-sent_at')
+    serializer_class = EmailLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        # Only HR/Admin can see email audit logs
+        if user.role !='admin':
+            return EmailLog.objects.none()
+
+        qs = super().get_queryset()
+
+        recipient = self.request.query_params.get("recipient_email")
+        if recipient:
+            qs = qs.filter(recipient_email__icontains=recipient)
+
+        event = self.request.query_params.get("event")
+        if event:
+            qs = qs.filter(event=event)
+
+        status_val = self.request.query_params.get("status")
+        if status_val:
+            qs = qs.filter(status=status_val)
+
+        email_type = self.request.query_params.get("email_type")
+        if email_type:
+            qs = qs.filter(email_type=email_type)
+            
+        candidate_id = self.request.query_params.get("candidate_id")
+        if candidate_id:
+            qs = qs.filter(candidate_id=candidate_id)
+
+        return qs

@@ -183,7 +183,10 @@ def send_salary_annexure_email(annexure, requested_by):
             subject=f"Salary Annexure Approval - {candidate.candidate_name}",
             text="Please view this email in HTML format.",
             to=approver.email,
-            template=html_content
+            template=html_content,
+            event="salary_annexure_approval",
+            email_type="internal",
+            candidate=candidate
         )
 
         whatsapp_text = f"""

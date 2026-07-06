@@ -714,7 +714,7 @@ class MRFSubmitSerializer(serializers.Serializer):
             text = text.format(manager_name=manager_name,hod_name=mrf.requested_by.name,designation=mrf.designation.name,date=mrf.created_at.strftime("%B %d,%Y"))
         try:
             is_private = mrf.is_private
-            send_email(to=manager_email,subject=subject,template=template,text=text, is_private=is_private)
+            send_email(to=manager_email,subject=subject,template=template,text=text, is_private=is_private, event="mrf_submitted", email_type="internal")
             if manager_phone:
                 send_text(to=manager_phone,text=text, is_private=is_private)
             from .utils import schedule_mrf_reminder

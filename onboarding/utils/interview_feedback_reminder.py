@@ -132,7 +132,9 @@ HR Team
         to=interviewer_email,
         subject=subject,
         text=text,
-        template=template
+        template=template,
+        event="interview_feedback_reminder",
+        email_type="internal"
     )
     if interviewer_phone:
         send_text(to=interviewer_phone,text=text)

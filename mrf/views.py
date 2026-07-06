@@ -660,7 +660,7 @@ class MRFViewSet(viewsets.ModelViewSet):
                                 date=mrf.created_at.strftime("%B %d, %Y")
                             )
                             if not mrf.is_private:
-                                send_email(to=approver.email, subject=subject, template=template, text=text)
+                                send_email(to=approver.email, subject=subject, template=template, text=text, event="mrf_approval_request", email_type="internal")
                                 if approver.phone:
                                     send_text(to=approver.phone, text=text)
                     schedule_mrf_reminder(mrf.id)
@@ -679,7 +679,7 @@ class MRFViewSet(viewsets.ModelViewSet):
                         date=mrf.approved_at.strftime("%B %d, %Y")
                     )
                     if not mrf.is_private:
-                        send_email(to=mrf.requested_by.email, subject=subject, template=template, text=text)
+                        send_email(to=mrf.requested_by.email, subject=subject, template=template, text=text, event="mrf_approved", email_type="internal")
                         if mrf.requested_by.phone:
                             send_text(to=mrf.requested_by.phone, text=text)
                     message = f'MRF fully approved. Requisition No: {mrf.requisition_no}'
@@ -714,7 +714,7 @@ class MRFViewSet(viewsets.ModelViewSet):
                     designation=mrf.designation.name,
                     date=mrf.rejected_at.strftime("%B %d, %Y")
                 )
-                send_email(to=mrf.requested_by.email, subject=subject, template=template, text=text)
+                send_email(to=mrf.requested_by.email, subject=subject, template=template, text=text, event="mrf_rejected", email_type="internal")
                 if mrf.requested_by.phone:
                     send_text(to=mrf.requested_by.phone, text=text)
             
