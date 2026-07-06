@@ -9,9 +9,10 @@ class BgvConfig(AppConfig):
     def ready(self):
         import bgv.signals  # noqa: F401
 
-        # Prevent schedulers during tests
+        # Prevent schedulers during management commands
         import sys
-        if 'test' in sys.argv:
+        ignored_commands = ["test", "makemigrations", "migrate", "showmigrations"]
+        if any(cmd in sys.argv for cmd in ignored_commands):
             return
 
         # Prevent duplicate starts (e.g. if ready() is called twice)
