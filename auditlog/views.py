@@ -22,6 +22,26 @@ from .models import AuditLog
 from .serializers import AuditLogSerializer
 from .tasks import flush_logs_to_blob
 from .blob_service import download_log_file
+import django_filters
+
+
+class AuditLogFilter(django_filters.FilterSet):
+    status = django_filters.NumberFilter(field_name="status_code")
+
+    class Meta:
+        model = AuditLog
+        fields = {
+            "user": ["exact"],
+            "user_id": ["exact"],
+            "company": ["exact"],
+            "company_id": ["exact"],
+            "action": ["exact"],
+            "method": ["exact"],
+            "path": ["icontains"],
+            "status_code": ["exact"],
+            "flushed_to_blob": ["exact"],
+            "timestamp": ["gte", "lte", "exact"],
+        }
 
 
 # ── List & Retrieve views ─────────────────────────────────────────
@@ -42,19 +62,9 @@ class AuditLogListView(generics.ListAPIView):
 
     serializer_class = AuditLogSerializer
     permission_classes = [IsAuthenticated, IsAdminOrHRManager]
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = {
-        "user": ["exact"],
-        "user_id": ["exact"],
-        "company": ["exact"],
-        "company_id": ["exact"],
-        "action": ["exact"],
-        "method": ["exact"],
-        "path": ["icontains"],
-        "status_code": ["exact"],
-        "flushed_to_blob": ["exact"],
-        "timestamp": ["gte", "lte", "exact"],
-    }
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_class = AuditLogFilter
+    search_fields = ["user__name", "user__email", "path", "action", "method", "ip_address", "endpoint_name"]
     ordering_fields = ["timestamp", "action", "method"]
     ordering = ["-timestamp"]
 
