@@ -219,6 +219,8 @@ def automation_engine(candidate, old, new):
         # candidate.feedback_link = None
         candidate.round_name = None
 
+    # Prevent JobApplication.save() from double-triggering this engine
+    candidate._skip_engine_trigger = True
     candidate.save()
 
     from slots.models import Interviewer
