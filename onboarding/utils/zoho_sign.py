@@ -773,7 +773,10 @@ def send_offer_letter_email(candidate):
         to=candidate.candidate_email,
         subject=f"Offer Letter - {candidate.candidate_name}",
         template=html_rendered,
-        text=''
+        text='',
+        event="offer_letter_zoho_sent",
+        email_type="candidate",
+        candidate=candidate
     )
     send_text(to=candidate.candidate_phone,text=f"""
 Hi {candidate.candidate_name},  

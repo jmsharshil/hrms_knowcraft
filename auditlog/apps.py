@@ -13,8 +13,9 @@ class AuditlogConfig(AppConfig):
         import os
         import sys
 
-        # Prevent during tests
-        if 'test' in sys.argv:
+        # Prevent during management commands
+        ignored_commands = ["test", "makemigrations", "migrate", "showmigrations"]
+        if any(cmd in sys.argv for cmd in ignored_commands):
             return
 
         # Prevent duplicate starts

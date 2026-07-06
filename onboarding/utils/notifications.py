@@ -785,6 +785,9 @@ def notify_candidate(candidate: Any, stage: str,cc:list, feedback_link: str = No
                     feedback_link=feedback_link
                 ),
                 attachments=attachments,
+                event="onboarding_stage_update",
+                email_type="candidate",
+                candidate=candidate
             )
         except Exception as exc:
             logger.exception("Email failed for %s (stage=%s): %s", candidate.candidate_email, stage, exc)
@@ -1450,7 +1453,7 @@ def notify_internal(candidate: Any, stage: str, cc: list) -> bool:
                 reciever_name=reciever_name
             )
 
-            send_email(email, subject=subject, text=body, template=template)
+            send_email(email, subject=subject, text=body, template=template,event="onboarding_stage_update",email_type="internal")
 
         # =========================
         # SMS (FIXED)

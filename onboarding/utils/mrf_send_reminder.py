@@ -76,7 +76,9 @@ Submit for Approval
         to=creator_email,
         subject=subject,
         text=text,
-        template=template
+        template=template,
+        event="mrf_submission_reminder",
+        email_type="internal"
     )
 
     if creator_phone:

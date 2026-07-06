@@ -296,7 +296,7 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
     </body>
     </html>""",
         to=candidate.candidate_email
-    )
+    , event="booking_notification", email_type="candidate")
         send_text(to=candidate.candidate_phone,text=f"""Dear {candidate.candidate_name},\nWe are pleased to inform you have been shortlisted for {round_name} of Interview for the position of {candidate.job.mrf.designation.name} has been scheduled at {start_str}.\nJoin link: {meeting_link}\nKindly ensure that you join the interview via given link on time using a laptop or desktop for a smooth experience.
 \nWe look forward to speaking with you.
 \nPlease feel free to reach out if you have any questions or require further assistance.
@@ -373,7 +373,7 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
         </html>""",
             to=interviewer.email,
             attachments=[resume_attachment] if resume_attachment else None
-        )
+        , event="booking_notification", email_type="internal")
         if interviewer.phone:
             send_text(to=interviewer.phone,text=f"Dear {interviewer.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}\n Feedback link: {feedback_link}")
             send_document(to=interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
@@ -442,7 +442,7 @@ def send_online_interview_notification(candidate,meeting_link,interviewer_id,sta
             </html>""",
             to=extra.email,
             attachments=[resume_attachment] if resume_attachment else None
-        )
+        , event="booking_notification", email_type="internal")
             if extra.phone:
                 send_text(to=extra.phone,text=f"Dear {extra.name},\nThis is to inform you that the interview for Mr./Mrs.{candidate.candidate_name} for the role of {candidate.job.mrf.designation.name} has been scheduled on {start_str}.\nPlease find below the MS Teams link and attached candidate’s details.\n Join Link: {meeting_link}")
                 send_document(to=extra.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
@@ -632,7 +632,7 @@ Team – HR""",
             """,
             to=extra.email,
             attachments=[resume_attachment] if resume_attachment else None
-        )
+        , event="booking_notification", email_type="internal")
         if extra.phone:
             send_text(to=extra.phone,text=f"""Dear {extra.name},
 
@@ -781,7 +781,7 @@ Knowcraft Analytics Private Limited
             </body>
             </html>
         """
-        )
+        , event="booking_notification", email_type="candidate")
 
     if not is_private:
         # SMS
@@ -879,7 +879,7 @@ Team – HR""",
             </html>
         """,
         attachments=[resume_attachment] if resume_attachment else None
-        )
+        , event="booking_notification", email_type="internal")
 
         if not is_private:
             if interviewer.phone:
@@ -1741,7 +1741,7 @@ class ManageBookingView(APIView):
                 template=html_content,
                 to=booking.interviewer.email,
                 attachments=[resume_attachment] if resume_attachment else None
-            )
+            , event="booking_notification", email_type="internal")
             if booking.interviewer.phone:
                 send_text(booking.interviewer.phone,f"Dear {booking.interviewer.name}, your interview scheduled has been rescheduled at {start_str}.\n Join: {booking.meeting_link} \n Give feedback: {candidate.feedback_link}")
                 send_document(to=booking.interviewer.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
@@ -1751,7 +1751,7 @@ class ManageBookingView(APIView):
                 text=reschedule_online_interview_text.format(candidate=candidate,start_str=start_str),
                 template=reschedule_online_interview_template.format(candidate=candidate,start_str=start_str),
                 to=candidate.candidate_email
-            )
+            , event="booking_notification", email_type="candidate")
             if candidate.candidate_phone:
                 send_text(to=candidate.candidate_phone,text=reschedule_online_interview_text.format(candidate=candidate,start_str=start_str))
 
@@ -1764,7 +1764,7 @@ class ManageBookingView(APIView):
                         to=extra.email,
                         template=reschedule_online_interview_extra_template.format(candidate=candidate,booking=booking,start_str=start_str,extra=extra),
                         attachments=[resume_attachment] if resume_attachment else None
-                    )
+                    , event="booking_notification", email_type="internal")
                     if extra.phone:
                         send_text(extra.phone,reschedule_online_interview_extra_text.format(candidate=candidate,booking=booking,start_str=start_str,extra=extra))
         else:
@@ -1777,7 +1777,7 @@ class ManageBookingView(APIView):
                 to=booking.interviewer.email,
                 template=reschedule_offline_interview_template.format(booking=booking,candidate=candidate,start_str=start_str,maps_link=maps_link,location_str=location_str),
                 attachments=[resume_attachment] if resume_attachment else None
-            )
+            , event="booking_notification", email_type="internal")
 
             if booking.interviewer.phone:
                 send_text(booking.interviewer.phone,f"Dear {booking.interviewer.name}, your interview scheduled has been rescheduled at {start_str}.\n Location: {location_str}\nGoole Map Link: {maps_link} \n Give feedback: {candidate.feedback_link}")
@@ -1788,7 +1788,7 @@ class ManageBookingView(APIView):
                 text=reschedule_offline_interview_candidate_text.format(candidate=candidate,start_str=start_str,maps_link=maps_link,location_str=location_str),
                 to=candidate.candidate_email,
                 template= reschedule_offline_interview_candidate_template.format(candidate=candidate,start_str=start_str,maps_link=maps_link,location_str=location_str)
-            )
+            , event="booking_notification", email_type="candidate")
 
             if candidate.candidate_phone:
                 send_text(candidate.candidate_phone,reschedule_offline_interview_candidate_text.format(candidate=candidate,start_str=start_str,maps_link=maps_link,location_str=location_str))
@@ -1802,7 +1802,7 @@ class ManageBookingView(APIView):
                         to=extra.email,
                         template=reschedule_offline_interview_extra_template.format(candidate=candidate,start_str=start_str,extra=extra,location_str=location_str,maps_link=maps_link),
                         attachments=[resume_attachment] if resume_attachment else None
-                    )
+                    , event="booking_notification", email_type="internal")
                     if extra.phone:
                         send_text(extra.phone,reschedule_offline_interview_extra_text.format(candidate=candidate,start_str=start_str,extra=extra,location_str=location_str,maps_link=maps_link))
         
@@ -1829,7 +1829,7 @@ class ManageBookingView(APIView):
                 text=f"Dear {booking.interviewer.name}, your interview attendees has been updated for interview scheduled at {candidate.interview_scheduled_at}",
                 template=html_content,
                 to=booking.interviewer.email
-            )
+            , event="booking_notification", email_type="internal")
             if booking.interviewer.phone:
                 send_text(booking.interviewer.phone,f"Dear {booking.interviewer.name}, your interview attendees has been updated for interview scheduled at {candidate.interview_scheduled_at}")
             
@@ -1840,7 +1840,7 @@ class ManageBookingView(APIView):
                     to=extra.email,
                     template=attendees_update_online_template.format(candidate=candidate,booking=booking,extra=extra),
                     attachments=[resume_attachment] if resume_attachment else None
-                )
+                , event="booking_notification", email_type="internal")
                 if extra.phone:
                     send_text(extra.phone,attendees_update_online_text.format(candidate=candidate,booking=booking,extra=extra))
 
@@ -1852,7 +1852,7 @@ class ManageBookingView(APIView):
                 text=attendees_update_interviewer_text.format(booking=booking,candidate=candidate,location_str=location_str),
                 to=booking.interviewer.email,
                 template=attendees_update_interviewer_template.format(booking=booking,candidate=candidate,location_str=location_str,maps_link=maps_link)
-            )
+            , event="booking_notification", email_type="internal")
             if booking.interviewer.phone:
                 send_text(booking.interviewer.phone,attendees_update_interviewer_text.format(booking=booking,candidate=candidate,location_str=location_str))
             
@@ -1863,7 +1863,7 @@ class ManageBookingView(APIView):
                     to=extra.email,
                     template=attendees_update_template.format(candidate=candidate,extra=extra,location_str=location_str,maps_link=maps_link),
                     attachments=[resume_attachment] if resume_attachment else None
-                )
+                , event="booking_notification", email_type="internal")
                 if extra.phone:
                     send_text(extra.phone,attendees_update_text.format(candidate=candidate,extra=extra,location_str=location_str,maps_link=maps_link))
 
@@ -1891,14 +1891,14 @@ class ManageBookingView(APIView):
                 text=f"Dear {booking.interviewer.name}, your interview scheduled at {candidate.interview_scheduled_at} has been cancelled.",
                 template=html_content,
                 to=booking.interviewer.email
-            )
+            , event="booking_notification", email_type="internal")
 
             send_email(
                 subject=f"Interview Cancelled – {candidate.job.mrf.designation.name} at Knowcraft Analytics",
                 text=cancel_online_interview_text.format(candidate=candidate),
                 template=cancel_online_interview_template.format(candidate=candidate),
                 to=candidate.candidate_email
-            )
+            , event="booking_notification", email_type="candidate")
 
             attendees = booking.attendees.all()
             if attendees.exists():
@@ -1908,7 +1908,7 @@ class ManageBookingView(APIView):
                         text=cancel_online_interview_extra_text.format(candidate=candidate,extra=extra),
                         to=extra.email,
                         template=cancel_online_interview_extra_template.format(candidate=candidate,extra=extra),
-                    )
+                    event="booking_notification", email_type="internal")
                     if extra.phone:
                         send_text(extra.phone,cancel_online_interview_extra_text.format(candidate=candidate,extra=extra))
             
@@ -1921,14 +1921,14 @@ class ManageBookingView(APIView):
                 text=cancel_offline_interview_text.format(candidate=candidate,booking=booking,location_str=location_str,maps_link=maps_link),
                 to=booking.interviewer.email,
                 template=cancel_offline_interview_template.format(candidate=candidate,booking=booking,location_str=location_str,maps_link=maps_link)
-            )
+            , event="booking_notification", email_type="internal")
 
             send_email(
                 subject=f"In-Person Interview Cancelled – {candidate.job.mrf.designation.name}",
                 text=cancel_offline_interview_candidate_text.format(candidate=candidate,location_str=location_str),
                 to=candidate.candidate_email,
                 template=cancel_offline_interview_candidate_template.format(candidate=candidate,location_str=location_str)
-            )
+            , event="booking_notification", email_type="candidate")
 
             attendees = booking.attendees.all()
             if attendees.exists():
@@ -1938,7 +1938,7 @@ class ManageBookingView(APIView):
                         text=cancel_offline_interview_extra_text.format(candidate=candidate,extra=extra,location_str=location_str,maps_link=maps_link),
                         to=extra.email,
                         template=cancel_offline_interview_extra_template.format(candidate=candidate,extra=extra,location_str=location_str,maps_link=maps_link),
-                    )
+                    event="booking_notification", email_type="internal")
                     if extra.phone:
                         send_text(extra.phone,cancel_offline_interview_extra_text.format(candidate=candidate,extra=extra,location_str=location_str,maps_link=maps_link))
         

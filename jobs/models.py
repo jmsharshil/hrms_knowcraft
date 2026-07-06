@@ -755,6 +755,10 @@ class JobApplication(models.Model):
             models.Index(fields=['source']),
             models.Index(fields=['application_link']),
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._skip_engine_trigger = False
     
     def __str__(self):
         return f"{self.candidate_name} - {self.job.job_title}"
@@ -771,8 +775,10 @@ class JobApplication(models.Model):
         trigger_engine_joined = False
 
         # Manual transition detection (if status was manually changed to joined)
+        # Skip if _skip_engine_trigger is set (automation_engine already handling this)
         if not is_new and self.status == 'joined' and old_status != 'joined':
-            trigger_engine_joined = True
+            if not getattr(self, '_skip_engine_trigger', False):
+                trigger_engine_joined = True
 
         super().save(*args, **kwargs)
 

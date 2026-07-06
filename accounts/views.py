@@ -117,6 +117,8 @@ Best regards,
         text=message,
         to=user.email,
         template=template,
+        event="set_pin",
+        email_type="internal"
     )
     if user.phone:
         send_text(to=user.phone,text=message)
@@ -208,6 +210,8 @@ Best regards,
         text=message,
         to=user.email,
         template=template,
+        event="reset_pin",
+        email_type="internal"
     )
     if user.phone:
         send_text(to=user.phone,text=message)

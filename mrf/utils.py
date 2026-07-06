@@ -502,7 +502,9 @@ def mrf_pending_approval_reminder_task(mrf_id):
                 to=approver.email,
                 subject=f"Reminder – Requisition Pending Review",
                 template=template,
-                text=text
+                text=text,
+                event="mrf_reminder",
+                email_type="internal"
             )
             if approver.phone:
                 send_text(to=approver.phone,text=text)

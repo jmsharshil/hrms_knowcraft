@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import DocuSignOffer, JobApplicationDocument,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent
+from .models import DocuSignOffer, JobApplicationDocument,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog
 from jobs.models import JobApplication
 # class CandidateSerializer(serializers.ModelSerializer):
 #     class Meta:
@@ -168,3 +168,30 @@ class DocuSignOfferSerializer(serializers.ModelSerializer):
     class Meta:
         model = DocuSignOffer
         fields = '__all__'
+
+
+class EmailLogSerializer(serializers.ModelSerializer):
+    candidate_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EmailLog
+        fields = [
+            "id",
+            "recipient_email",
+            "cc_emails",
+            "subject",
+            "body_text",
+            "body_html",
+            "event",
+            "email_type",
+            "candidate",
+            "candidate_name",
+            "status",
+            "error_message",
+            "sent_at"
+        ]
+
+    def get_candidate_name(self, obj):
+        if obj.candidate:
+            return obj.candidate.candidate_name
+        return None

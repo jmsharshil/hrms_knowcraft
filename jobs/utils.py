@@ -33,18 +33,37 @@ client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 #     return ""
 
-import fitz  # PyMuPDF — pip install pymupdf
+try:
+    import fitz  # PyMuPDF
+except Exception:
+    fitz = None
+
 
 def extract_text(file_path):
     ext = Path(file_path).suffix.lower()
 
     if ext == ".pdf":
-        doc = fitz.open(file_path)
+        if fitz is not None:
+            try:
+                doc = fitz.open(file_path)
+                try:
+                    text_parts = [page.get_text("text") for page in doc]
+                finally:
+                    doc.close()
+                return "\n".join(text_parts)
+            except Exception:
+                pass
+
         try:
-            text_parts = [page.get_text("text") for page in doc]
-        finally:
-            doc.close()
-        return "\n".join(text_parts)
+            with pdfplumber.open(file_path) as pdf:
+                text_parts = []
+                for page in pdf.pages:
+                    text = page.extract_text() or ""
+                    if text:
+                        text_parts.append(text)
+                return "\n".join(text_parts)
+        except Exception:
+            return ""
 
     elif ext in [".doc", ".docx"]:
         return docx2txt.process(file_path)
@@ -1066,7 +1085,9 @@ def send_job_assignment_email(user, job, assigned_by):
         to=user.email,
         subject=subject,
         template=template,
-        text=text
+        text=text,
+        event="job_assigned",
+        email_type="internal"
     )
     if user.phone:
         send_text(to=user.phone,text=text)
@@ -1190,7 +1211,9 @@ def send_job_unassignment_email(user, job, assigned_by):
         to=user.email,
         subject=subject,
         template=template,
-        text=text
+        text=text,
+        event="job_unassigned",
+        email_type="internal"
     )
 
     if user.phone:
@@ -1476,7 +1499,9 @@ def send_rejection_notification(application, rejection_reason=""):
             subject=subject,
             template=template,
             text=text,
-            cc=['talent@knowcraft.in']  # Optional: CC to HR
+            cc=['talent@knowcraft.in'],  # Optional: CC to HR
+            event="application_rejected",
+            email_type="candidate"
         )
         print(f"Rejection email sent to {application.candidate_email}")
         if application.candidate_phone:

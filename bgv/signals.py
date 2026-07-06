@@ -154,6 +154,8 @@ View Details on Portal
                     subject=subject,
                     text=plain_text,
                     template=html_template,
+                    event="bgv_status_update",
+                    email_type="internal"
                 )
                 logger.info(
                     "BGV status email sent to HR %s (%s) for candidate %s",

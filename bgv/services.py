@@ -926,7 +926,10 @@ def send_notification_for_bgv(candidate, is_reminder=False):
                 to=candidate.candidate_email, 
                 subject=email_subject, 
                 text=email_text,
-                template=html_template
+                template=html_template,
+                event="bgv_initiation",
+                email_type="candidate",
+                candidate=candidate
             )
             logger.info("BGV initiation link sent to candidate %s (%s)", candidate.candidate_name, candidate.candidate_email)
         

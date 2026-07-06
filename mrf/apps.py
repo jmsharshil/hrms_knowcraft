@@ -7,6 +7,7 @@ class MrfConfig(AppConfig):
 
     def ready(self):
         import sys
-        if 'test' in sys.argv:
+        ignored_commands = ["test", "makemigrations", "migrate", "showmigrations"]
+        if any(cmd in sys.argv for cmd in ignored_commands):
             return
         import mrf.signals

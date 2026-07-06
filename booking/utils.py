@@ -330,7 +330,10 @@ def handle_event(change_type, event_id, interviewer):
         send_email(
             subject="Interview Cancelled",
             text="Interview was cancelled from calendar.",
-            to=booking.candidate.candidate_email
+            to=booking.candidate.candidate_email,
+            event="interview_cancelled",
+            email_type="candidate",
+            candidate=booking.candidate
         )
 
     elif change_type == "updated":
@@ -360,7 +363,10 @@ def handle_event(change_type, event_id, interviewer):
         send_email(
             subject="Interview Updated",
             text=f"New time: {booking.start}",
-            to=booking.candidate.candidate_email
+            to=booking.candidate.candidate_email,
+            event="interview_updated",
+            email_type="candidate",
+            candidate=booking.candidate
         )
 
 def get_event_details(booking):

@@ -3,9 +3,15 @@ from django.test import RequestFactory
 from django.db.models import Q
 from jobs.models import ReferralApplication
 from jobs.filters import ReferralApplicationFilter
+from jobs import utils as job_utils
 from accounts.models import Company
 from datetime import timedelta
 from django.utils import timezone
+
+
+class ResumeUtilityImportTest(TestCase):
+    def test_job_utils_module_imports(self):
+        self.assertTrue(hasattr(job_utils, "extract_text"))
 
 
 class ReferralFilterTest(TestCase):

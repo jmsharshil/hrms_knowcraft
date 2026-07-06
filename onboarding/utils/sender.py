@@ -8,34 +8,60 @@ import queue
 import logging
 logger = logging.getLogger(__name__)
 
-def send_email(to,subject,cc=[],text="",template=None,attachments=None, use_default_cc=True, is_private=False):
+def send_email(to, subject, cc=[], text="", template=None, attachments=None, use_default_cc=True, is_private=False, event="", email_type="other", candidate=None):
     if is_private:
         logger.info(f"Skipping email to {to} for private record: {subject}")
+        _log_email(to, cc, subject, text, template, event, email_type, candidate, status="skipped")
         return
 
     cc_list = list(cc)
     if use_default_cc:
         cc_list.append("talent@knowcraft.in")
 
-    msg = EmailMultiAlternatives(subject, text, "talent@knowcraft.in",to= [to],cc= cc_list)
-    if template:
-        msg.attach_alternative(template, "text/html")
-    if attachments:
-        for attachment in attachments:
-            try:
-                if isinstance(attachment, str):
-                    # attachment is a file path
-                    filename = attachment.split("/")[-1]
-                    with open(attachment, "rb") as f:
-                        msg.attach(filename, f.read(), "application/pdf")
-                else:
-                    # attachment is a tuple
-                    # (filename, content_bytes, mimetype)
-                    msg.attach(*attachment)
-            except Exception as e:
-                print("Error Attachning Documents:",e)
-        pass
-    msg.send()
+    try:
+        msg = EmailMultiAlternatives(subject, text, "talent@knowcraft.in", to=[to], cc=cc_list)
+        if template:
+            msg.attach_alternative(template, "text/html")
+        if attachments:
+            for attachment in attachments:
+                try:
+                    if isinstance(attachment, str):
+                        # attachment is a file path
+                        filename = attachment.split("/")[-1]
+                        with open(attachment, "rb") as f:
+                            msg.attach(filename, f.read(), "application/pdf")
+                    else:
+                        # attachment is a tuple
+                        # (filename, content_bytes, mimetype)
+                        msg.attach(*attachment)
+                except Exception as e:
+                    print("Error Attaching Documents:", e)
+            pass
+        msg.send()
+        _log_email(to, cc_list, subject, text, template, event, email_type, candidate, status="sent")
+    except Exception as e:
+        logger.error(f"Failed to send email to {to}: {e}")
+        _log_email(to, cc_list, subject, text, template, event, email_type, candidate, status="failed", error=str(e))
+
+
+def _log_email(to, cc, subject, text, template, event, email_type, candidate, status="sent", error=None):
+    """Persist an email audit record (fire-and-forget, never blocks the caller)."""
+    try:
+        from onboarding.models import EmailLog
+        EmailLog.objects.create(
+            recipient_email=to,
+            cc_emails=cc or [],
+            subject=subject,
+            body_text=text or "",
+            body_html=template or "",
+            event=event or "unknown",
+            email_type=email_type or "other",
+            candidate=candidate,
+            status=status,
+            error_message=error or "",
+        )
+    except Exception as exc:
+        logger.warning(f"Failed to log email record: {exc}")
 
 
 API_BASE = "https://www.wasenderapi.com"

@@ -549,3 +549,65 @@ class DocuSignOffer(models.Model):
 
     def __str__(self):
         return f"DocuSign Offer for {self.job_application.candidate_name} - {self.status}"
+
+
+class EmailLog(models.Model):
+    """Audit log for every email sent through the system."""
+
+    EMAIL_TYPE_CHOICES = [
+        ("candidate", "Candidate Notification"),
+        ("internal", "Internal Notification"),
+        ("approval", "Approval Request"),
+        ("offer", "Offer Letter"),
+        ("feedback", "Feedback Reminder"),
+        ("assignment", "Job Assignment"),
+        ("other", "Other"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Who received the email
+    recipient_email = models.EmailField(help_text="Primary recipient email address")
+    cc_emails = models.JSONField(default=list, blank=True, help_text="List of CC email addresses")
+
+    # What was sent
+    subject = models.CharField(max_length=500)
+    body_text = models.TextField(blank=True, help_text="Plain text body")
+    body_html = models.TextField(blank=True, help_text="HTML body content")
+
+    # Why it was sent
+    event = models.CharField(max_length=100, help_text="The event/stage that triggered this email (e.g., joined, shortlisted)")
+    email_type = models.CharField(max_length=20, choices=EMAIL_TYPE_CHOICES, default="other")
+
+    # Linked candidate (optional)
+    candidate = models.ForeignKey(
+        JobApplication,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="email_logs",
+        help_text="Linked candidate application, if applicable"
+    )
+
+    # Status
+    status = models.CharField(
+        max_length=20,
+        choices=[("sent", "Sent"), ("failed", "Failed"), ("skipped", "Skipped")],
+        default="sent"
+    )
+    error_message = models.TextField(blank=True, null=True)
+
+    sent_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "email_logs"
+        ordering = ["-sent_at"]
+        indexes = [
+            models.Index(fields=["recipient_email"]),
+            models.Index(fields=["event"]),
+            models.Index(fields=["sent_at"]),
+            models.Index(fields=["candidate"]),
+        ]
+
+    def __str__(self):
+        return f"{self.subject} → {self.recipient_email} ({self.event})"

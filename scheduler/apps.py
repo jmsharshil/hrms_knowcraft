@@ -15,8 +15,9 @@ class SchedulerConfig(AppConfig):
     _started = False  # Class-level flag to prevent duplicate starts
 
     def ready(self):
-        # Prevent during tests
-        if "test" in sys.argv:
+        # Prevent during management commands
+        ignored_commands = ["test", "makemigrations", "migrate", "showmigrations"]
+        if any(cmd in sys.argv for cmd in ignored_commands):
             return
 
         # Prevent duplicate starts
