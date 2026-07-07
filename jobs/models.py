@@ -766,9 +766,12 @@ class JobApplication(models.Model):
     def save(self, *args, **kwargs):
         is_new = self.pk is None
         old_status = None
+        old_joining_date = None
         if not is_new:
             try:
-                old_status = JobApplication.objects.get(pk=self.pk).status
+                old_obj = JobApplication.objects.get(pk=self.pk)
+                old_status = old_obj.status
+                old_joining_date = old_obj.joining_date
             except JobApplication.DoesNotExist:
                 pass
 
@@ -786,6 +789,44 @@ class JobApplication(models.Model):
             from onboarding.utils.engine import automation_engine
             # Trigger engine for manual status jump to joined
             automation_engine(self, old_status, 'joined')
+        
+        # If joining_date was previously in the past (which may have auto-transitioned
+        # the candidate to 'joined') and is now moved to a future date, revert the
+        # candidate back to 'joining_pending' and adjust Job/MRF counts/status.
+        try:
+            from datetime import date
+            from django.utils import timezone as _tz
+
+            if (not is_new) and old_joining_date is not None and old_joining_date <= date.today() and (self.joining_date is None or self.joining_date > date.today()):
+                # Only act if candidate is currently marked as joined
+                if self.status == 'joined':
+                    job = self.job
+                    if job:
+                        # Recompute positions_filled based on other joined candidates
+                        other_joined = job.applications.filter(status='joined').exclude(pk=self.pk).count()
+                        job.positions_filled = other_joined
+                        # If positions filled are now less than required, set job->joining_pending
+                        if job.positions_filled < job.no_of_positions:
+                            job.status = 'joining_pending'
+                        # Persist job changes
+                        job.save(update_fields=['positions_filled', 'status'])
+
+                        # Sync MRF status if needed
+                        if hasattr(job, 'mrf') and job.mrf:
+                            try:
+                                if job.mrf.status == 'filled' and job.positions_filled < job.no_of_positions:
+                                    job.mrf.status = 'joining_pending'
+                                    job.mrf.save(update_fields=['status'])
+                            except Exception:
+                                pass
+
+                    # Revert candidate status in DB directly to avoid recursive engine triggers
+                    JobApplication.objects.filter(pk=self.pk).update(status='joining_pending', updated_at=_tz.now())
+                    # Keep in-memory instance in sync
+                    self.status = 'joining_pending'
+        except Exception:
+            # Non-fatal — don't block save on revert failures
+            pass
             
     def get_platform_name(self):
         """Get the platform name from application link"""
