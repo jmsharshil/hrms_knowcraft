@@ -797,7 +797,7 @@ class JobApplication(models.Model):
             from datetime import date
             from django.utils import timezone as _tz
 
-            if (not is_new) and old_joining_date is not None and old_joining_date <= date.today() and (self.joining_date is None or self.joining_date > date.today()):
+            if (not is_new) and old_status == 'joined' and old_joining_date != self.joining_date and (self.joining_date is None or self.joining_date > date.today()):
                 # Only act if candidate is currently marked as joined
                 if self.status == 'joined':
                     job = self.job
