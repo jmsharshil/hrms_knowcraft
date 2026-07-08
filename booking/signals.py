@@ -11,68 +11,52 @@ def schedule_feedback_reminder(sender, instance, created, **kwargs):
     if not instance.end:
         return
 
-    # Normalize to aware datetime (prevents TZ comparison bugs between
-    # stored Booking.end and scheduler/task checks). Schedule first reminder
-    # 30 minutes AFTER interview end time. This prevents reminders before
-    # the interview has actually ended.
+    from scheduler.services import TaskScheduler
+    from scheduler.models import ScheduledTask
+
+    # Map candidate status → interview round name (frozen at booking time
+    # so it survives later status changes).
+    # Only statuses that represent an active/pending interview should
+    # trigger a reminder. Once the candidate has moved past the interview
+    # (done/rejected/next) the booking signal should NOT create a new task.
+    PENDING_STATUS_TO_ROUND = {
+        "shortlisted": "hr_round",
+        "interview_pending_1": "hr_round",
+        "interview_pending_2": "technical_round",
+        "interview_pending_3": "case_study_round",
+        "interview_pending_final": "final_round",
+        "interview_pending_management_client": "management_client_round",
+    }
+
+    candidate_status = instance.candidate.status
+    round_name = PENDING_STATUS_TO_ROUND.get(
+        candidate_status,
+        getattr(instance.candidate, "round_name", None)
+    )
+
+    if not round_name:
+        # Status is not an interview_pending_* — nothing to remind about.
+        import logging
+        logging.getLogger(__name__).info(
+            "[BOOKING SIGNAL] Skipping reminder schedule: candidate %s has status '%s' "
+            "which is not an interview-pending state.",
+            instance.candidate.id, candidate_status
+        )
+        return
+
+    # Normalize end to aware datetime and compute delay.
     end = instance.end
     if timezone.is_naive(end):
         end = timezone.make_aware(end, timezone.get_current_timezone())
-    buffer_after_end = timedelta(minutes=30)
-    target_time = end + buffer_after_end
-    delay = (target_time - timezone.now()).total_seconds()
+    target_time = end + timedelta(minutes=30)
+    delay = max((target_time - timezone.now()).total_seconds(), 0)
 
-    # Ensure non-negative delay (if booking created/updated after end time,
-    # run the task immediately — the task's own check will still skip if needed).
-    if delay < 0:
-        delay = 0
-
-    from scheduler.services import TaskScheduler
-
-    # Compute canonical round_name at schedule time using full status map.
-    # This decouples from later status changes on the candidate and ensures
-    # we always pass a valid interview_round value that matches both the
-    # InterviewFeedback.interview_round choices and the get_feedback_link mapping.
-    status_to_round = {
-        "shortlisted": "hr_round",
-        "interview_pending_1": "hr_round",
-        "interview_done_1": "hr_round",
-        "interview_rejected_1": "hr_round",
-        "interview_next_2": "technical_round",
-        "interview_pending_2": "technical_round",
-        "interview_done_2": "technical_round",
-        "interview_rejected_2": "technical_round",
-        "interview_next_3": "case_study_round",
-        "interview_pending_3": "case_study_round",
-        "interview_done_3": "case_study_round",
-        "interview_rejected_3": "case_study_round",
-        "interview_next_final": "final_round",
-        "interview_pending_final": "final_round",
-        "interview_done_final": "final_round",
-        "interview_rejected_final": "final_round",
-        "interview_next_management_client": "management_client_round",
-        "interview_pending_management_client": "management_client_round",
-        "interview_done_management_client": "management_client_round",
-        "interview_rejected_management_client": "management_client_round",
-    }
-
-    computed_round = status_to_round.get(
-        instance.candidate.status,
-        getattr(instance.candidate, "round_name", None)
-    )
-    round_name = computed_round or "final_round"
-
-    # Pass both booking_id and the round_name so that the task can target the
-    # exact feedback round immediately. The task falls back to its own
-    # status-to-round mapping if the passed round_name is None.
-
-    # Cancel existing pending tasks for this booking (by booking_id) so we don't
-    # get duplicates if a booking is rescheduled.
+    # Cancel any existing tasks for this booking before creating a fresh one
+    # (prevents duplicates on booking reschedule / save).
     TaskScheduler.cancel(
         task_type="interview_feedback_reminder",
         task_kwargs_filter={"booking_id": str(instance.id)}
     )
-    from scheduler.models import ScheduledTask
     ScheduledTask.objects.filter(
         task_type="interview_feedback_reminder",
         status="running",
@@ -87,7 +71,7 @@ def schedule_feedback_reminder(sender, instance, created, **kwargs):
         },
         delay_seconds=int(delay),
         is_recurring=True,
-        interval_seconds=7200,  # re-check every 2 hours
+        interval_seconds=7200,  # re-check every 2 hours if feedback still pending
     )
 
 

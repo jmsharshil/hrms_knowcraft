@@ -198,27 +198,46 @@ def interview_feedback_reminder_task(booking_id, round_name=None):
         return False  # stop the recurring chain
 
     # ── CHECK 2: Candidate status no longer requires a reminder? ──
-    # Only send reminders when the candidate is still at the
-    # interview_pending_X status for this round.  Once the status
-    # changes to interview_done_X, interview_next_Y,
-    # interview_rejected_X, or any later pipeline status, there is
-    # no need to keep reminding — the interview outcome has already
-    # been recorded or the candidate has moved on.
-    ROUND_PENDING_STATUS = {
-        "hr_round": {"shortlisted", "interview_pending_1"},
-        "technical_round": {"interview_next_2", "interview_pending_2"},
-        "case_study_round": {"interview_next_3", "interview_pending_3"},
-        "final_round": {"interview_next_final", "interview_pending_final"},
-        "management_client_round": {"interview_next_management_client", "interview_pending_management_client"},
+    # Send reminders as long as the interview is in progress for this round
+    # (pending OR done but feedback not yet submitted).
+    # Stop ONLY when the candidate has definitively moved PAST this round
+    # (e.g. promoted to next round, selected, rejected, or any later stage).
+    # NOTE: We do NOT stop on interview_done_X because at that point the
+    # interviewer still needs to submit feedback.
+    ROUND_STOP_ON = {
+        # For hr_round: stop once moved to next round, selected or rejected.
+        "hr_round": {
+            "interview_next_2", "interview_next_3", "interview_next_final",
+            "interview_next_management_client", "interview_rejected_1",
+            "consolidated_result_review", "selected", "rejected",
+        },
+        "technical_round": {
+            "interview_next_3", "interview_next_final",
+            "interview_next_management_client", "interview_rejected_2",
+            "consolidated_result_review", "selected", "rejected",
+        },
+        "case_study_round": {
+            "interview_next_final", "interview_next_management_client",
+            "interview_rejected_3",
+            "consolidated_result_review", "selected", "rejected",
+        },
+        "final_round": {
+            "interview_next_management_client", "interview_rejected_final",
+            "consolidated_result_review", "selected", "rejected",
+        },
+        "management_client_round": {
+            "interview_rejected_management_client",
+            "consolidated_result_review", "selected", "rejected",
+        },
     }
 
     candidate_status = booking.candidate.status
-    allowed_statuses = ROUND_PENDING_STATUS.get(round_name, set())
+    stop_statuses = ROUND_STOP_ON.get(round_name, set())
 
-    if candidate_status not in allowed_statuses:
+    if candidate_status in stop_statuses:
         logger.info(
             f"Candidate {booking.candidate.id} status is '{candidate_status}' "
-            f"(not pending for round '{round_name}'). Stopping reminder."
+            f"— moved past '{round_name}'. Stopping reminder."
         )
         from scheduler.services import TaskScheduler
         TaskScheduler.cancel(
