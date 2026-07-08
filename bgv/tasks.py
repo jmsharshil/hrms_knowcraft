@@ -42,6 +42,7 @@ def bgv_form_reminder_task(bgv_id):
                 task_kwargs_filter={"bgv_id": str(bgv_id)}
             )
             logger.info("BGV form reminder cancelled for candidate %s (status=%s)", bgv.candidate.candidate_name, bgv.status)
+            return False
     except CandidateBGV.DoesNotExist:
         # Cancel if record is deleted
         TaskScheduler.cancel(
@@ -49,6 +50,7 @@ def bgv_form_reminder_task(bgv_id):
             task_kwargs_filter={"bgv_id": str(bgv_id)}
         )
         logger.warning("BGV record %s not found. Reminder task cancelled.", bgv_id)
+        return False
 
 
 # ─────────────────────────────────────────────────────────────

@@ -72,6 +72,12 @@ def schedule_feedback_reminder(sender, instance, created, **kwargs):
         task_type="interview_feedback_reminder",
         task_kwargs_filter={"booking_id": str(instance.id)}
     )
+    from scheduler.models import ScheduledTask
+    ScheduledTask.objects.filter(
+        task_type="interview_feedback_reminder",
+        status="running",
+        task_kwargs__contains={"booking_id": str(instance.id)},
+    ).update(status="cancelled", updated_at=timezone.now())
 
     TaskScheduler.schedule(
         task_type="interview_feedback_reminder",
