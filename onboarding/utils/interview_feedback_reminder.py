@@ -205,11 +205,11 @@ def interview_feedback_reminder_task(booking_id, round_name=None):
     # no need to keep reminding — the interview outcome has already
     # been recorded or the candidate has moved on.
     ROUND_PENDING_STATUS = {
-        "hr_round": {"interview_pending_1"},
-        "technical_round": {"interview_pending_2"},
-        "case_study_round": {"interview_pending_3"},
-        "final_round": {"interview_pending_final"},
-        "management_client_round": {"interview_pending_management_client"},
+        "hr_round": {"shortlisted", "interview_pending_1"},
+        "technical_round": {"interview_next_2", "interview_pending_2"},
+        "case_study_round": {"interview_next_3", "interview_pending_3"},
+        "final_round": {"interview_next_final", "interview_pending_final"},
+        "management_client_round": {"interview_next_management_client", "interview_pending_management_client"},
     }
 
     candidate_status = booking.candidate.status
