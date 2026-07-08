@@ -81,9 +81,11 @@ class TaskScheduler:
 
         # ── Singleton guard for recurring tasks ───────────
         if is_recurring:
+            # Only check 'pending' status. If we include 'running', a currently running
+            # task cannot reschedule itself (which it may need to do if it aborts early).
             existing_qs = ScheduledTask.objects.filter(
                 task_type=task_type,
-                status__in=["pending", "running"],
+                status="pending",
             )
             if task_kwargs:
                 existing_qs = existing_qs.filter(task_kwargs=task_kwargs)

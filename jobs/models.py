@@ -823,7 +823,7 @@ class JobApplication(models.Model):
                     # Revert candidate status in DB directly to avoid recursive engine triggers
                     JobApplication.objects.filter(pk=self.pk).update(status='joining_pending', updated_at=_tz.now())
                     from onboarding.models import ApprovalNote
-                    ApprovalNote.objects.filter(candidate=self).update(status='joining_pending', updated_at=_tz.now())
+                    ApprovalNote.objects.filter(candidate=self.id).update(status='joining_pending', updated_at=_tz.now())
                     # Keep in-memory instance in sync
                     self.status = 'joining_pending'
         except Exception as e:

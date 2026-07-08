@@ -243,7 +243,7 @@ def interview_feedback_reminder_task(booking_id, round_name=None):
             end = timezone.make_aware(end, timezone.get_current_timezone())
         from datetime import timedelta
         target_time = end + timedelta(minutes=30)  # same 30-min buffer as signal
-        if target_time > now:
+        if (target_time - now).total_seconds() > 5:
             remaining = int((target_time - now).total_seconds())
             logger.info(
                 f"Interview not over yet for Booking {booking_id} "
