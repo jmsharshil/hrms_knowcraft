@@ -826,9 +826,10 @@ class JobApplication(models.Model):
                     ApprovalNote.objects.filter(candidate=self).update(status='joining_pending', updated_at=_tz.now())
                     # Keep in-memory instance in sync
                     self.status = 'joining_pending'
-        except Exception:
+        except Exception as e:
             # Non-fatal — don't block save on revert failures
-            pass
+            import logging
+            logging.getLogger(__name__).error(f"Failed to revert joining status for {self.pk}: {e}", exc_info=True)
             
     def get_platform_name(self):
         """Get the platform name from application link"""
