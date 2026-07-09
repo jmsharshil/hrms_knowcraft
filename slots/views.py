@@ -189,8 +189,10 @@ class InterviewFeedbackListCreateAPIView(APIView):
         # Determine new status based on current application status
         current_status = application.status
         new_status = self._get_status_after_interview(application, current_status, request.data.get('is_selected', 'hire'))
+        application.refresh_from_db()
+        automation_engine(application, application.status, new_status)
 
-        # Save feedback FIRST so the reminder task sees it via CHECK 1
+        # Save feedback
         serializer = InterviewFeedbackCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         feedback = serializer.save()
