@@ -58,7 +58,7 @@ def get_feedback_link(candidate, round_name: str) -> str:
     else:
         # All technical/final/management rounds use tech* forms (level determines variant)
         base = "tech"
-        rparam = "technical_round"
+        rparam = round_name.replace(" ","_").lower()
 
     endpoint = f"{base}{level}"
     return (
