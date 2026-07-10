@@ -468,9 +468,9 @@ class SendApprovalNoteAPIView(APIView):
         if approver_id:
             approval_notes = approval_notes.filter(manager_id=approver_id)
 
-        status = request.query_params.get("status")
-        if status:
-            approval_notes = approval_notes.filter(status=status)
+        note_status = request.query_params.get("status")
+        if note_status:
+            approval_notes = approval_notes.filter(status=note_status)
 
         date_from = request.query_params.get("date_from")
         if date_from:
@@ -529,7 +529,7 @@ class SendApprovalNoteAPIView(APIView):
                 "count": len(results),
                 "approval_notes": results
             },
-            status=status.HTTP_200_OK if results else status.HTTP_204_NO_CONTENT
+            status=status.HTTP_200_OK
         )
 
     def post(self, request):
