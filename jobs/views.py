@@ -1096,7 +1096,7 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = JobApplication.objects.select_related(
             'job', 'job__department', 'job__designation', 'job__posted_by',
-            'job__job_title','submitted_by', 'application_link'
+            'submitted_by', 'application_link'
         )
         
         # Default to active=True (consistent with soft-delete pattern); 

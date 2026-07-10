@@ -458,4 +458,4 @@ class CandidateBGVFilter(django_filters.FilterSet):
             | Q(candidate__job__job_title__icontains=value)
             | Q(ongrid_individual_id__icontains=value)
             | Q(status__icontains=value)
-        )
+        ).distinct()
