@@ -1586,6 +1586,7 @@ class ApplicationListSerializer(serializers.ModelSerializer):
     department_name = serializers.CharField(source='department.name', read_only=True)
     designation_name = serializers.CharField(source='designation.name', read_only=True)
     status = serializers.SerializerMethodField()
+    status_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Application
