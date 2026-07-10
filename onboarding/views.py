@@ -498,9 +498,6 @@ class SendApprovalNoteAPIView(APIView):
 
         results = []
 
-        if not results:
-            return Response({"count": 0, "approval_notes": []}, status=status.HTTP_200_OK)
-
         for note in approval_notes:
             can_approve = (
                 note.manager == request.user
@@ -527,6 +524,13 @@ class SendApprovalNoteAPIView(APIView):
                 "offer_letter_upload_link": f"{FRONTEND_URL}/review-documents/{note.candidate.id}"
             })
 
+        if not results:
+            return Response(
+                {
+                    "count": 0,
+                    "approval_notes": []
+                },
+            )
         return Response(
             {
                 "count": len(results),
