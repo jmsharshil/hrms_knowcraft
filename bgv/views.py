@@ -10,8 +10,10 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import permissions
+from django_filters.rest_framework import DjangoFilterBackend
 
 from jobs.models import JobApplication
+from jobs.filters import CandidateBGVFilter
 
 from .models import CandidateBGV
 from .serializers import CandidateBGVSerializer, CandidateBGVListSerializer
@@ -30,10 +32,23 @@ logger = logging.getLogger(__name__)
 class CandidateBGVViewSet(viewsets.ModelViewSet):
     """
     CRUD + custom actions for Background Verification records.
+    Supports filtering and search via CandidateBGVFilter.
+    List action uses CandidateBGVListSerializer (as before).
     """
 
-    queryset = CandidateBGV.objects.select_related("candidate").all()
     permission_classes = [permissions.AllowAny]
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = CandidateBGVFilter
+
+    def get_queryset(self):
+        """Optimized queryset for list/detail + filtering/search (avoids N+1 on
+        candidate/job fields used by CandidateBGVListSerializer and filter_search)."""
+        return CandidateBGV.objects.select_related(
+            "candidate",
+            "candidate__job",
+            "candidate__job__department",
+            "candidate__job__designation",
+        ).all()
 
     def get_serializer_class(self):
         if self.action == 'list':

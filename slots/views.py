@@ -188,7 +188,7 @@ class InterviewFeedbackListCreateAPIView(APIView):
 
         # Determine new status based on current application status
         current_status = application.status
-        new_status = self._get_status_after_interview(application,current_status, request.data.get('is_selected', 'hire'))
+        new_status = self._get_status_after_interview(application, current_status, request.data.get('is_selected', 'hire'))
         application.refresh_from_db()
         automation_engine(application, application.status, new_status)
 
@@ -196,6 +196,30 @@ class InterviewFeedbackListCreateAPIView(APIView):
         serializer = InterviewFeedbackCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         feedback = serializer.save()
+
+        # Proactively cancel any pending reminder tasks for bookings
+        # associated with this candidate + round so no reminder fires after
+        # feedback has already been submitted.
+        try:
+            from scheduler.services import TaskScheduler
+            from booking.models import Booking
+            from scheduler.models import ScheduledTask
+            from django.utils import timezone as tz
+            round_name = feedback.interview_round
+            if round_name:
+                for booking in Booking.objects.filter(candidate=application):
+                    TaskScheduler.cancel(
+                        "interview_feedback_reminder",
+                        task_kwargs_filter={"booking_id": str(booking.id)},
+                    )
+                    ScheduledTask.objects.filter(
+                        task_type="interview_feedback_reminder",
+                        status="running",
+                        task_kwargs__contains={"booking_id": str(booking.id)},
+                    ).update(status="cancelled", updated_at=tz.now())
+        except Exception as _e:
+            import logging
+            logging.getLogger(__name__).warning("Failed to cancel reminder after feedback submit: %s", _e)
 
         return Response(
             {

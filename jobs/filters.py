@@ -1,6 +1,7 @@
 import django_filters
 from django.db.models import Q
 from .models import JobApplication,Application,ReferralApplication
+from bgv.models import CandidateBGV
 from django.db.models.functions import Cast
 from django.db.models import FloatField
 
@@ -143,7 +144,10 @@ class JobApplicationFilter(django_filters.FilterSet):
             self.queryset = self.queryset.filter(job__company=request.user.company)
 
     def filter_search(self, queryset, name, value):
-        """Search candidate details, job title, and referral fields (for referral job applications)."""
+        """Search across candidate details, job title, department name, designation name,
+        and referral fields (for referral job applications). This is used by JobApplicationViewSet.
+        Note: The view's get_queryset no longer applies a limiting candidate-only search,
+        allowing these job-related fields to be searchable."""
         return queryset.filter(
             Q(candidate_name__icontains=value) |
             Q(candidate_email__icontains=value) |
@@ -152,7 +156,9 @@ class JobApplicationFilter(django_filters.FilterSet):
             Q(referral_name__icontains=value) |
             Q(referral_email__icontains=value) |
             Q(referral_phone__icontains=value) |
-            Q(referral_emp_code__icontains=value)
+            Q(referral_emp_code__icontains=value) |
+            Q(job__department__name__icontains=value) |
+            Q(job__designation__name__icontains=value)
         )
 
     def filter_job(self, queryset, name, value):
@@ -379,3 +385,77 @@ class ReferralApplicationFilter(django_filters.FilterSet):
             Q(position_title__icontains=value) |
             Q(notes__icontains=value)
         )
+
+
+class CandidateBGVFilter(django_filters.FilterSet):
+    """
+    FilterSet for CandidateBGVViewSet (and its CandidateBGVListSerializer).
+    Re-uses patterns from JobApplicationFilter.
+    Supports ?search= (across candidate/job fields + BGV-specific), status, is_fresher,
+    date ranges, UUIDs, etc. Company scoping applied in __init__.
+    """
+    # =============================
+    # BGV SPECIFIC FILTERS
+    # =============================
+    status = django_filters.ChoiceFilter(
+        field_name="status", choices=CandidateBGV.STATUS_CHOICES
+    )
+    is_fresher = django_filters.BooleanFilter(field_name='is_fresher')
+    job_id = django_filters.UUIDFilter(field_name='candidate__job_id')
+    candidate_id = django_filters.UUIDFilter(field_name='candidate_id')
+    ongrid_individual_id = django_filters.CharFilter(
+        field_name='ongrid_individual_id', lookup_expr='icontains'
+    )
+
+    # =============================
+    # DATE FILTERS
+    # =============================
+    bgv_scheduled_date = django_filters.DateFromToRangeFilter()
+    initiated_from = django_filters.DateFilter(
+        field_name='initiated_at', lookup_expr='date__gte'
+    )
+    initiated_to = django_filters.DateFilter(
+        field_name='initiated_at', lookup_expr='date__lte'
+    )
+    completed_from = django_filters.DateFilter(
+        field_name='completed_at', lookup_expr='date__gte'
+    )
+    completed_to = django_filters.DateFilter(
+        field_name='completed_at', lookup_expr='date__lte'
+    )
+
+    # =============================
+    # SEARCH FILTER
+    # =============================
+    search = django_filters.CharFilter(method='filter_search')
+
+    class Meta:
+        model = CandidateBGV
+        fields = []
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = getattr(self, 'request', None)
+        if (
+            request
+            and hasattr(request, 'user')
+            and hasattr(request.user, 'company')
+        ):
+            # Scope to user's company (via the linked JobApplication.job.company)
+            self.queryset = self.queryset.filter(
+                candidate__job__company=request.user.company
+            )
+
+    def filter_search(self, queryset, name, value):
+        """Search across candidate fields (name/email/phone), job title,
+        OnGrid ID, BGV status, and remarks. Works with CandidateBGVListSerializer
+        (which uses flattened sources like candidate.job.job_title).
+        View uses select_related to avoid N+1."""
+        return queryset.filter(
+            Q(candidate__candidate_name__icontains=value)
+            | Q(candidate__candidate_email__icontains=value)
+            | Q(candidate__candidate_phone__icontains=value)
+            | Q(candidate__job__job_title__icontains=value)
+            | Q(ongrid_individual_id__icontains=value)
+            | Q(status__icontains=value)
+        ).distinct()

@@ -462,12 +462,12 @@ def mrf_pending_approval_reminder_task(mrf_id):
     try:
         mrf = MRF.objects.get(id=mrf_id)
         if mrf.is_private:
-            return
+            return False
 
         if mrf.status in ["approved", "rejected"]:
-            return
+            return False
         if not mrf.status.startswith("pending"):
-            return
+            return False
 
         # Only send reminder if still pending
         next_level = mrf.current_approval_level + 1
@@ -478,12 +478,12 @@ def mrf_pending_approval_reminder_task(mrf_id):
         ).select_related('approver').first()
 
         if not workflow or not workflow.approver:
-            return
+            return False
 
         approver = workflow.approver
 
         if not approver.is_active or approver.company_id != mrf.company_id:
-            return
+            return False
 
         if approver:
             template = email_templates["mrf_reminder"].format(

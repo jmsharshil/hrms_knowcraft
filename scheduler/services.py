@@ -81,9 +81,11 @@ class TaskScheduler:
 
         # ── Singleton guard for recurring tasks ───────────
         if is_recurring:
+            # Only check 'pending' status. If we include 'running', a currently running
+            # task cannot reschedule itself (which it may need to do if it aborts early).
             existing_qs = ScheduledTask.objects.filter(
                 task_type=task_type,
-                status__in=["pending", "running"],
+                status="pending",
             )
             if task_kwargs:
                 existing_qs = existing_qs.filter(task_kwargs=task_kwargs)
@@ -163,6 +165,7 @@ class TaskScheduler:
         from django.db import transaction
         from .models import ScheduledTask
 
+        # ── Phase 1: Claim the task inside a short atomic block ──────
         with transaction.atomic():
             try:
                 # Use select_for_update to lock the row and skip if another worker already grabbed it
@@ -192,77 +195,79 @@ class TaskScheduler:
             task.started_at = timezone.now()
             task.save(update_fields=["status", "started_at", "updated_at"])
 
-        # Execute OUTSIDE the transaction so we don't hold the lock for the entire duration
-        # of the task (which could be a long-running API call)
+        # ── Phase 2: Execute OUTSIDE the transaction ─────────────────
+        # The lock is released now so the task function can freely do its
+        # own DB queries (InterviewFeedback check, TaskScheduler.cancel, etc.)
+        # without deadlocking.
+        try:
+            print(f"[SCHEDULER] Executing task {task_id} ({task.task_type})...")
+            result = fn(**task.task_kwargs)
 
-            try:
-                print(f"[SCHEDULER] Executing task {task_id} ({task.task_type})...")
-                result = fn(**task.task_kwargs)
+            # Re-read task status from DB: another thread/request may have
+            # cancelled this task while it was running (e.g. feedback was
+            # submitted during reminder execution).
+            task.refresh_from_db()
+            if task.status == "cancelled":
+                print(f"[SCHEDULER] Task {task_id} was cancelled during execution — not rescheduling.")
+                return
 
-                # Re-read task status from DB: another thread/request may have
-                # cancelled this task while it was running (e.g. feedback was
-                # submitted during reminder execution).
-                task.refresh_from_db()
-                if task.status == "cancelled":
-                    print(f"[SCHEDULER] Task {task_id} was cancelled during execution — not rescheduling.")
-                    return
+            # ── Success ──────────────────────────────────────────
+            task.status = "completed"
+            task.completed_at = timezone.now()
+            task.save(update_fields=["status", "completed_at", "updated_at"])
+            print(f"[SCHEDULER] Task {task_id} completed successfully.")
 
-                # ── Success ──────────────────────────────────────────
-                task.status = "completed"
-                task.completed_at = timezone.now()
-                task.save(update_fields=["status", "completed_at", "updated_at"])
-                print(f"[SCHEDULER] Task {task_id} completed successfully.")
-
-                # Recurring only on success and if the task function did not return False
-                # (used by conditional tasks like feedback reminders to stop after completion)
-                if (
-                    task.is_recurring
-                    and task.interval_seconds
-                    and result is not False
-                ):
-                    print(
-                        f"[SCHEDULER] Recurring task '{task.task_type}' — "
-                        f"scheduling next run in {task.interval_seconds}s"
-                    )
-                    cls.schedule(
-                        task_type=task.task_type,
-                        task_kwargs=task.task_kwargs if task.task_kwargs else None,
-                        delay_seconds=task.interval_seconds,
-                        is_recurring=True,
-                        interval_seconds=task.interval_seconds,
-                        max_retries=task.max_retries,
-                    )
-
-            except Exception as exc:
-                logger.exception(
-                    "[SCHEDULER] Task %s (%s) failed: %s",
-                    task_id, task.task_type, exc,
+            # Recurring only on success and if the task function did not return False
+            # (used by conditional tasks like feedback reminders to stop after completion)
+            if (
+                task.is_recurring
+                and task.interval_seconds
+                and result is not False
+            ):
+                print(
+                    f"[SCHEDULER] Recurring task '{task.task_type}' — "
+                    f"scheduling next run in {task.interval_seconds}s"
                 )
-                task.retry_count += 1
+                cls.schedule(
+                    task_type=task.task_type,
+                    task_kwargs=task.task_kwargs if task.task_kwargs else None,
+                    delay_seconds=task.interval_seconds,
+                    is_recurring=True,
+                    interval_seconds=task.interval_seconds,
+                    max_retries=task.max_retries,
+                )
 
-                if task.retry_count < task.max_retries:
-                    # ── Retry with exponential backoff ───────────────
-                    backoff = 2 ** task.retry_count
-                    task.status = "pending"
-                    task.scheduled_at = timezone.now() + timedelta(seconds=backoff)
-                    task.error_message = str(exc)
-                    task.save(update_fields=[
-                        "status", "retry_count", "scheduled_at",
-                        "error_message", "updated_at",
-                    ])
-                    print(
-                        f"[SCHEDULER] Task {task_id} will retry "
-                        f"({task.retry_count}/{task.max_retries}) in {backoff}s"
-                    )
-                    cls._schedule_in_memory(task_id, backoff)
-                    return  # Don't reschedule recurring yet
-                else:
-                    task.status = "failed"
-                    task.error_message = str(exc)
-                    task.save(update_fields=[
-                        "status", "retry_count", "error_message", "updated_at",
-                    ])
-                    print(f"[SCHEDULER] Task {task_id} failed permanently after {task.max_retries} retries.")
+        except Exception as exc:
+            logger.exception(
+                "[SCHEDULER] Task %s (%s) failed: %s",
+                task_id, task.task_type, exc,
+            )
+            task.refresh_from_db()
+            task.retry_count += 1
+
+            if task.retry_count < task.max_retries:
+                # ── Retry with exponential backoff ───────────────
+                backoff = 2 ** task.retry_count
+                task.status = "pending"
+                task.scheduled_at = timezone.now() + timedelta(seconds=backoff)
+                task.error_message = str(exc)
+                task.save(update_fields=[
+                    "status", "retry_count", "scheduled_at",
+                    "error_message", "updated_at",
+                ])
+                print(
+                    f"[SCHEDULER] Task {task_id} will retry "
+                    f"({task.retry_count}/{task.max_retries}) in {backoff}s"
+                )
+                cls._schedule_in_memory(task_id, backoff)
+                return  # Don't reschedule recurring yet
+            else:
+                task.status = "failed"
+                task.error_message = str(exc)
+                task.save(update_fields=[
+                    "status", "retry_count", "error_message", "updated_at",
+                ])
+                print(f"[SCHEDULER] Task {task_id} failed permanently after {task.max_retries} retries.")
 
     # ── Reconciliation ───────────────────────────────────────────
 

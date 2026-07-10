@@ -468,6 +468,32 @@ class SendApprovalNoteAPIView(APIView):
         if approver_id:
             approval_notes = approval_notes.filter(manager_id=approver_id)
 
+        note_status = request.query_params.get("status")
+        if note_status:
+            approval_notes = approval_notes.filter(status=note_status)
+
+        date_from = request.query_params.get("date_from")
+        if date_from:
+            approval_notes = approval_notes.filter(created_at__date__gte=date_from)
+
+        date_to = request.query_params.get("date_to")
+        if date_to:
+            approval_notes = approval_notes.filter(created_at__date__lte=date_to)
+
+        search = request.query_params.get("search")
+        if search:
+            approval_notes = approval_notes.filter(
+                Q(candidate__candidate_name__icontains=search) |
+                Q(candidate__job__title__icontains=search) |
+                Q(candidate__candidate_email__icontains=search) |
+                Q(candidate__job__department__name__icontains=search) |
+                Q(candidate__job__designation__name__icontains=search) |
+                Q(manager__name__icontains=search) |
+                Q(manager__email__icontains=search) |
+                Q(created_by__name__icontains=search) |
+                Q(created_by__email__icontains=search)
+            )
+
         approval_notes = approval_notes.select_related("candidate").distinct()
 
         results = []

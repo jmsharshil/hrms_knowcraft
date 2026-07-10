@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ApprovalNote,JobApplicationDocument,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,OfferDocument
+from .models import ApprovalNote,JobApplicationDocument,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,OfferDocument,EmailLog
 
 # Register your models here.
 
@@ -171,3 +171,16 @@ admin.site.register(JobApplicationDocument, JobApplicationDocumentAdmin)
 # admin.site.register(SalaryAnnexureHistory, SalaryAnnexureHistoryAdmin)
 # admin.site.register(DocuSignOffer)
 admin.site.register(OfferDocument, OfferDocumentAdmin)
+
+
+class EmailLogAdmin(admin.ModelAdmin):
+    list_display = ('id', 'recipient_email', 'subject', 'status', 'sent_at', 'error_message')
+    list_filter = ('status', 'sent_at')
+    search_fields = ('recipient_email', 'subject', 'body_text', 'error_message')
+    readonly_fields = ('sent_at',)
+    date_hierarchy = 'sent_at'
+    ordering = ('-sent_at',)
+    list_per_page = 50
+    list_select_related = ('job_application',)
+
+admin.site.register(EmailLog, EmailLogAdmin)
