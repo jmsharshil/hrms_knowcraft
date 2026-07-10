@@ -1095,7 +1095,8 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         queryset = JobApplication.objects.select_related(
-            'job', 'job__department', 'submitted_by', 'application_link'
+            'job', 'job__department', 'job__designation', 'job__posted_by',
+            'job__job_title','submitted_by', 'application_link'
         )
         
         # Default to active=True (consistent with soft-delete pattern); 
@@ -1137,7 +1138,8 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
                 Q(job__is_private=True, job__assigned_internal_hrs=user) |
                 Q(job__is_private=True, job__assigned_consultancies=user)
             )
-        # Apply filters
+        # Apply filters (search is handled comprehensively by JobApplicationFilter's filter_search method,
+        # which supports job_title, job__department__name, job__designation__name, candidate details, and referral fields)
         job_filter = self.request.query_params.get('job')
         if job_filter and is_valid_uuid(job_filter):
             queryset = queryset.filter(job_id=job_filter)
@@ -1158,14 +1160,6 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         if my_applications and my_applications.lower() == 'true':
             queryset = queryset.filter(submitted_by=user)
         
-        # Search
-        search = self.request.query_params.get('search')
-        if search:
-            queryset = queryset.filter(
-                Q(candidate_name__icontains=search) |
-                Q(candidate_email__icontains=search) |
-                Q(candidate_phone__icontains=search)
-            )
         queryset = queryset.order_by(F('match_score').desc(nulls_last=True), '-created_at')
         return queryset.distinct()
     
