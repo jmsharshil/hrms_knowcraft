@@ -524,19 +524,12 @@ class SendApprovalNoteAPIView(APIView):
                 "offer_letter_upload_link": f"{FRONTEND_URL}/review-documents/{note.candidate.id}"
             })
 
-        if not results:
-            return Response(
-                {
-                    "count": 0,
-                    "approval_notes": []
-                },
-            )
         return Response(
             {
                 "count": len(results),
                 "approval_notes": results
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK if results else status.HTTP_204_NO_CONTENT
         )
 
     def post(self, request):
