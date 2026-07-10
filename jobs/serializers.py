@@ -1664,7 +1664,7 @@ class ApplicationListSerializer(serializers.ModelSerializer):
                 matching_apps,
                 key=lambda app: STATUS_RANK.get(app.status, 0)
             )
-            return highest_app.status
+            return highest_app.status or 'recieved'
         except Exception:
             return None
 
@@ -1700,7 +1700,7 @@ class ApplicationListSerializer(serializers.ModelSerializer):
                 matching_apps,
                 key=lambda app: STATUS_RANK.get(app.status, 0)
             )
-            return highest_app.get_status_display()
+            return highest_app.get_status_display() or 'Recieved'
         except Exception:
             return None
 
