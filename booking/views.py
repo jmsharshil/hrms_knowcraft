@@ -1577,35 +1577,37 @@ class ManageBookingView(APIView):
                 end_dt = parse_datetime(end)
             except ValidationError as ve:
                 return Response({"detail": str(ve)}, status=400)
+            
+            if booking.start != start_dt or booking.end != end_dt:
+                
+                res = update_teams_meeting(
+                    organizer_email=booking.interviewer.email,
+                    event_id=booking.meeting_id,
+                    start_dt=start_dt,
+                    end_dt=end_dt
+                )
 
-            res = update_teams_meeting(
-                organizer_email=booking.interviewer.email,
-                event_id=booking.meeting_id,
-                start_dt=start_dt,
-                end_dt=end_dt
-            )
+                if res is None:
+                    return Response({"detail": "Failed to update event"}, status=500)
 
-            if res is None:
-                return Response({"detail": "Failed to update event"}, status=500)
+                # Update DB
+                booking.start = start_dt
+                booking.end = end_dt
+                booking.save()
 
-            # Update DB
-            booking.start = start_dt
-            booking.end = end_dt
-            booking.save()
+                candidate.interview_scheduled_at = start_dt
+                candidate.interview_end_at = end_dt
+                candidate.reschedule_count += 1
+                candidate.save()
 
-            candidate.interview_scheduled_at = start_dt
-            candidate.interview_end_at = end_dt
-            candidate.reschedule_count += 1
-            candidate.save()
-
-            updated_fields.append("rescheduled")
+                updated_fields.append("rescheduled")
 
         # ================= UPDATE ATTENDEES =================
         if attendee_ids is not None:
             attendees = Interviewer.objects.filter(id__in=attendee_ids)
 
-            if not attendees.exists():
-                return Response({"detail": "Add valid attendees"}, status=400)
+            if attendee_ids and attendees.count() != len(attendee_ids):
+                return Response({"detail": "One or more attendee IDs are invalid"}, status=400)
 
             # ✅ Check if actually changed
             existing_ids = set(booking.attendees.values_list("id", flat=True))
