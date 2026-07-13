@@ -237,7 +237,10 @@ def trigger_bgv_on_offer_accepted(sender, instance, created, **kwargs):
         # ── Experienced: Schedule BGV 15 days before joining ─
         joining_date = instance.joining_date
         if joining_date:
+            from django.utils import timezone
             scheduled_date = joining_date - timedelta(days=15)
+            if scheduled_date < timezone.now().date():
+                scheduled_date = timezone.now().date()
             logger.info(
                 "Experienced candidate %s – scheduling BGV for %s "
                 "(15 days before joining date %s).",
@@ -294,7 +297,10 @@ def update_bgv_schedule_on_joining_date_change(sender, instance, created, **kwar
     except CandidateBGV.DoesNotExist:
         return
 
+    from django.utils import timezone
     new_scheduled_date = instance.joining_date - timedelta(days=15)
+    if new_scheduled_date < timezone.now().date():
+        new_scheduled_date = timezone.now().date()
 
     if bgv.bgv_scheduled_date != new_scheduled_date:
         bgv.bgv_scheduled_date = new_scheduled_date
