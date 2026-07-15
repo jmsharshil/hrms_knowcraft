@@ -1603,6 +1603,7 @@ class ManageBookingView(APIView):
                 updated_fields.append("rescheduled")
 
         # ================= UPDATE ATTENDEES =================
+        newly_added_attendees = []  # always define to avoid NameError
         if attendee_ids is not None:
             attendees = Interviewer.objects.filter(id__in=attendee_ids)
 
@@ -1611,10 +1612,10 @@ class ManageBookingView(APIView):
 
             # ✅ Check if actually changed
             existing_ids = set(booking.attendees.values_list("id", flat=True))
-            new_ids = set(attendee_ids)
+            new_ids = set(str(i) for i in attendee_ids)
 
             if existing_ids != new_ids:
-                newly_added_attendees = [a for a in attendees if a.id not in existing_ids]
+                newly_added_attendees = [a for a in attendees if str(a.id) not in existing_ids]
 
                 emails = [a.email for a in attendees]
                 emails.append(candidate.candidate_email)
