@@ -9,43 +9,46 @@ logger = logging.getLogger(__name__)
 # REMINDER_INTERVAL = 7200  # 120 minutes
 
 
+# Designation lists — kept in sync with booking/views.py
+FRESHER_DESIGNATIONS = [
+    "Analyst", "Associate", "Advanced Analyst", "Advanced Associate"
+]
+
+JUNIOR_DESIGNATIONS = [
+    "Senior Analyst I", "Senior Analyst II",
+    "Senior Associate I", "Senior Associate II",
+    "Team Lead"
+]
+
+SENIOR_DESIGNATIONS = [
+    "Assistant Manager", "Associate Manager",
+    "Manager", "Senior Manager",
+    "Associate Vice President"
+]
+
+
 def _get_experience_level(candidate) -> str:
-    """Determine fresher/junior/senior based on experience_years (primary)
-    or fallback to designation.expirience range. Used to select the
-    correct level-specific frontend feedback form (techfresher, hrfresher, etc.).
+    """Determine fresher/junior/senior based on the candidate's designation name,
+    mirroring the logic in booking/views.py (get_experience_level).
     """
-    if getattr(candidate, "experience_years", None) is not None:
-        try:
-            years = float(candidate.experience_years)
-            if years < 1.5:
-                return "fresher"
-            elif years < 5.0:
-                return "junior"
-            else:
-                return "senior"
-        except (ValueError, TypeError):
-            pass
+    try:
+        designation_name = candidate.job.mrf.designation.name
+    except AttributeError:
+        designation_name = ""
 
-    # Fallback using MRF/Job designation experience range (note spelling in model)
-    job = getattr(candidate, "job", None)
-    if job and getattr(job, "mrf", None) and getattr(job.mrf, "designation", None):
-        exp_str = (job.mrf.designation.expirience or "").lower()
-        if any(k in exp_str for k in ["fresher", "fresh", "0-1", "0", "<1"]):
-            return "fresher"
-        if any(k in exp_str for k in ["junior", "2-4", "1-3", "associate"]):
-            return "junior"
+    if designation_name in FRESHER_DESIGNATIONS:
+        return "fresher"
+    if designation_name in JUNIOR_DESIGNATIONS:
+        return "junior"
+    if designation_name in SENIOR_DESIGNATIONS:
         return "senior"
-
-    # Default
-    return "junior"
+    return "fresher"  # safe default (matches booking/views.py)
 
 
 def get_feedback_link(candidate, round_name: str) -> str:
     """Return the correct level-specific feedback form URL for the given round.
-    Updated per new frontend routes (/api/slots/techfresher/, /api/slots/hrjunior/,
-    /api/slots/techsenior/ etc.). Round is still passed via query param so the form
-    knows which questions/fields to show. This replaces the old generic
-    *-feedback-form endpoints and fixes link/round mismatch.
+    Uses the same designation-based level lookup as booking/views.py so the
+    reminder link always matches the one sent at booking time.
     """
     FRONTEND_URL = getattr(settings, "FRONTEND_URL", "https://hirepro.knowcraftanalytics.com")
 
