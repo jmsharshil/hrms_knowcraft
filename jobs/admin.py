@@ -98,43 +98,110 @@ class JobAssignmentHistoryAdmin(admin.ModelAdmin):
 @admin.register(JobApplication)
 class JobApplicationAdmin(admin.ModelAdmin):
     list_display = [
-        'candidate_name', 'candidate_email', 'job', 'status',
-        'joining_date', 'offer_accepted_date',
-        'source', 'submitted_by', 'created_at'
+        'candidate_name', 'candidate_email', 'candidate_phone',
+        'job', 'status', 'bgv_status', 'source',
+        'experience_years', 'joining_date', 'offer_accepted_date',
+        'is_active', 'submitted_by', 'created_at',
     ]
-    list_filter = ['status', 'source', 'created_at','bgv_status']
+    list_filter = [
+        'status', 'bgv_status', 'source', 'round_name',
+        'is_active', 'is_duplicate', 'is_shortlisted',
+        'is_selected', 'is_approved', 'is_rejected',
+        'created_at',
+    ]
     search_fields = [
         'candidate_name', 'candidate_email', 'candidate_phone',
-        'job__job_title', 'notes'
+        'job__job_title', 'notes', 'current_employer',
+        'referral_name', 'referral_email', 'referral_emp_code',
+        'interviewer_name',
     ]
-    readonly_fields = ['id']
+    readonly_fields = [
+        'id', 'created_at', 'updated_at',
+        'consolidated_feedback_avg', 'match_score',
+        'no_show_count', 'reschedule_count',
+    ]
+    filter_horizontal = ()
     fieldsets = (
         ('Candidate Information', {
             'fields': (
-                'id', 'candidate_name', 'candidate_email', 'candidate_phone',
-                'resume', 'experience_years'
+                'id',
+                'candidate_name', 'candidate_email', 'candidate_phone',
+                'location', 'linkedin_url', 'portfolio_url',
+                'current_employer', 'availibility',
+                'skill', 'education',
+                'cover_letter',
             )
         }),
-        ('Job & Status', {
+        # ── 2. Job & Application ──────────────────────────────────
+        ('Job & Application', {
             'fields': (
-                'job', 'status', 'joining_date', 'offer_accepted_date', 'source', 'submitted_by', 'bgv_status'
+                'job', 'application_link',
+                'source', 'submitted_by',
             )
         }),
+        # ── 3. Pipeline Status ───────────────────────────────────
+        ('Status & Flags', {
+            'fields': (
+                'status', 'bgv_status',
+                'is_active', 'is_duplicate', 'is_shortlisted',
+                'is_selected', 'is_approved', 'is_rejected',
+                'joining_date', 'offer_accepted_date',
+                'rejection_reason', 'offer_decline_reason',
+                'slot_link', 'inperson_link',
+            )
+        }),
+        # ── 4. Compensation ───────────────────────────────────────
         ('Compensation', {
             'fields': (
-                'current_ctc', 'expected_ctc', 'notice_period'
+                'experience_years', 'relevant_experience_years',
+                'current_ctc', 'expected_ctc', 'notice_period',
             )
         }),
-        ('Additional Information', {
+        # ── 5. Interview Details ──────────────────────────────────
+        ('Interview Details', {
+            'fields': (
+                'round_name',
+                'interview_scheduled_at', 'interview_end_at',
+                'interviewer_name',
+                'interview_link', 'feedback_link',
+                'no_show_count', 'reschedule_count',
+            )
+        }),
+        # ── 6. Referral ───────────────────────────────────────────
+        ('Referral Details', {
+            'classes': ('collapse',),
+            'fields': (
+                'referral_name', 'referral_email', 'referral_phone',
+                'referral_emp_code', 'referral_designation', 'referral_department',
+            )
+        }),
+        # ── 7. Resume & AI Scoring ────────────────────────────────
+        ('Resume & Files', {
+            'fields': (
+                'resume', 'original_filename', 'file_size',
+                'resume_report', 'match_score',
+            )
+        }),
+        # ── 8. Ratings & Feedback ─────────────────────────────────
+        ('Ratings & Feedback', {
+            'classes': ('collapse',),
+            'fields': (
+                'rating', 'consolidated_feedback_avg',
+                'candidate_history',
+            )
+        }),
+        # ── 9. Timestamps & Notes ─────────────────────────────────
+        ('Tracking & Notes', {
             'fields': (
                 'notes', 'created_at', 'updated_at'
             )
         }),
     )
-    
+
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
-            'job', 'job__department', 'submitted_by'
+            'job', 'job__department', 'job__mrf',
+            'submitted_by', 'application_link',
         )
     
 @admin.register(ReferralApplication)

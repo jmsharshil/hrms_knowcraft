@@ -180,6 +180,36 @@ class BGVTests(TestCase):
         sync_bgv_status_to_application(CandidateBGV, mock_bgv)
         self.assertEqual(self.application.status, "bgv_initiated")
 
+    @patch("bgv.signals.initiate_bgv")
+    @patch("bgv.signals.is_fresher")
+    def test_trigger_bgv_on_offer_accepted_experienced_short_notice(self, mock_is_fresher, mock_initiate):
+        """Test BGV is scheduled for today if joining date is less than 15 days away."""
+        mock_is_fresher.return_value = False
+        self.application.joining_date = timezone.now().date() + timezone.timedelta(days=5)
+        self.application.status = "offer_accepted"
+        self.application.save()
+
+        trigger_bgv_on_offer_accepted(JobApplication, self.application, False)
+
+        bgv = CandidateBGV.objects.get()
+        self.assertEqual(bgv.bgv_scheduled_date, timezone.now().date())
+
+    def test_update_bgv_schedule_on_joining_date_change_short_notice(self):
+        """Test BGV schedule updates to today if new joining date is less than 15 days away."""
+        bgv = CandidateBGV.objects.create(
+            candidate=self.application,
+            status="pending_schedule",
+            is_fresher=False,
+            bgv_scheduled_date=self.application.joining_date - timezone.timedelta(days=30)
+        )
+
+        self.application.joining_date = timezone.now().date() + timezone.timedelta(days=2)
+        self.application.save()
+        update_bgv_schedule_on_joining_date_change(JobApplication, self.application, False)
+
+        bgv.refresh_from_db()
+        self.assertEqual(bgv.bgv_scheduled_date, timezone.now().date())
+
     def test_is_fresher(self):
         """Test the is_fresher helper function for all edge cases."""
         app_fresher = JobApplication(experience_years=0.5)

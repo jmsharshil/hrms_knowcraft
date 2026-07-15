@@ -465,6 +465,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     candidate_experience_link = serializers.SerializerMethodField()
     is_private = serializers.SerializerMethodField()
     mrf_details = serializers.SerializerMethodField()
+    attendees_details = serializers.SerializerMethodField()
     
     class Meta:
         model = JobApplication
@@ -480,7 +481,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at','is_selected','is_approved','is_rejected','inperson_link','reschedule_count','no_show_count',
             'interview_scheduled_at','interviewer_name','interview_link','feedback_link','round_name','round_name_display',
             "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone","interview_end_at",
-            "document_upload_link", "candidate_experience_link","is_private","mrf_details"
+            "document_upload_link", "candidate_experience_link","is_private","mrf_details", "attendees_details"
         ]
     
     def get_platform_name(self, obj):
@@ -514,6 +515,12 @@ class JobApplicationSerializer(serializers.ModelSerializer):
 
     def get_mrf_details(self, obj):
         return MRFListSerializer(obj.job.mrf).data
+
+    def get_attendees_details(self, obj):
+        latest_booking = obj.bookings.order_by('-created_at').first()
+        if latest_booking:
+            return [{"id": a.id, "name": a.name, "email": a.email} for a in latest_booking.attendees.all()]
+        return []
 
 
 class JobApplicationCreateSerializer(serializers.ModelSerializer):
