@@ -1039,3 +1039,69 @@ class MRFViewSet(viewsets.ModelViewSet):
             "message": "MRF soft deleted successfully",
             "id": str(mrf.id)
         }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["get"])
+    def export_mrf_data(self, request):
+        from jobs import Job, JobApplication
+        import pandas as pd
+        from django.db.models import F
+        from django.http import HttpResponse
+
+        mrf_data_list = []
+
+        for mrf in MRF.objects.filter(is_private=False):
+            mrf_details = {
+                "id": mrf.id,
+                "name": mrf.mrf_name,
+                "status": mrf.status,
+                "created_at": mrf.created_at,
+                "requested_by": mrf.requested_by_name,
+                "requisition_no": mrf.requisition_no,
+                "department": mrf.department.name if mrf.department else "",
+                "designation": mrf.designation.name if mrf.designation else "",
+                "job_type": mrf.job_type,
+                "priority": mrf.priority,
+                "approved_at": mrf.approved_at,
+                "no_of_vacancies": mrf.no_of_vacancies,
+                "held_at": mrf.held_at,
+                "held_by": mrf.held_by.name if mrf.held_by else "",
+                "hold_reason": mrf.hold_reason,
+            }
+
+            job = Job.objects.filter(mrf=mrf).first()
+
+            mrf_details["positions_filled"] = (
+                job.positions_filled if job else 0
+            )
+
+            if job:
+                applications = JobApplication.objects.filter(job=job).values(
+                    "joining_date",
+                    "created_at",
+                ).annotate(
+                    candidate_name=F("candidate__name")
+                )
+
+                mrf_details["applications"] = ", ".join(
+                    [
+                        f'{app["candidate_name"]} ({app["joining_date"]})'
+                        for app in applications
+                    ]
+                )
+            else:
+                mrf_details["applications"] = ""
+
+            mrf_data_list.append(mrf_details)
+
+        df = pd.DataFrame(mrf_data_list)
+
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = 'attachment; filename="mrf_data.xlsx"'
+
+        df.to_excel(response, index=False)
+
+        return response
+        
+            
