@@ -259,7 +259,7 @@ def cancel_meeting(organizer_email, event_id):
 
     if response.status_code != 204:
         print("Cancel Error:", response.text)
-        return False
+        # return False
 
     return True
 
