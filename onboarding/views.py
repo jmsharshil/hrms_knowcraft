@@ -484,7 +484,7 @@ class SendApprovalNoteAPIView(APIView):
         if search:
             approval_notes = approval_notes.filter(
                 Q(candidate__candidate_name__icontains=search) |
-                Q(candidate__job__title__icontains=search) |
+                Q(candidate__job__job_title__icontains=search) |
                 Q(candidate__candidate_email__icontains=search) |
                 Q(candidate__job__department__name__icontains=search) |
                 Q(candidate__job__designation__name__icontains=search) |
