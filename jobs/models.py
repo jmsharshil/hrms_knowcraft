@@ -216,9 +216,12 @@ class Job(models.Model):
         
         # Check if expected_closure_date is changing
         old_closure_date = None
+        old_status = None
         if self.pk:
             try:
-                old_closure_date = Job.objects.get(pk=self.pk).expected_closure_date
+                old_job = Job.objects.get(pk=self.pk)
+                old_closure_date = old_job.expected_closure_date
+                old_status = old_job.status
             except Job.DoesNotExist:
                 pass
         
@@ -232,6 +235,10 @@ class Job(models.Model):
             
             # Use update() to propagate to all related links efficiently
             self.application_links.update(expires_at=expiry_dt)
+            
+        # Deactivate all application links if position is filled
+        if old_status != 'filled' and self.status == 'filled':
+            self.application_links.update(is_active=False)
 
     def __str__(self):
         return f"{self.job_title} - {self.department.name if self.department else 'N/A'}"
@@ -669,6 +676,21 @@ class JobApplication(models.Model):
         default='pending_schedule'
     )
     
+    # Onboarding & Post Joining Fields
+    it_ticket_ref = models.CharField(max_length=255, null=True, blank=True)
+    emp_account_active = models.BooleanField(default=False)
+    work_email = models.EmailField(null=True, blank=True)
+    is_escalated = models.BooleanField(default=False)
+    is_satisfaction_survey_filled = models.BooleanField(default=False)
+    is_hod_survey_filled = models.BooleanField(default=False)
+    is_d45_call_scheduled = models.BooleanField(default=False)
+    is_d90_call_scheduled = models.BooleanField(default=False)
+    
+    technical_buddy_email = models.EmailField(null=True, blank=True)
+    technical_buddy_name = models.CharField(max_length=255, null=True, blank=True)
+    cultural_buddy_email = models.EmailField(null=True, blank=True)
+    cultural_buddy_name = models.CharField(max_length=255, null=True, blank=True)
+    
     # Additional Info
     notes = models.TextField(blank=True)
     experience_years = models.DecimalField(
@@ -823,14 +845,26 @@ class JobApplication(models.Model):
                     # Revert candidate status in DB directly to avoid recursive engine triggers
                     JobApplication.objects.filter(pk=self.pk).update(status='joining_pending', updated_at=_tz.now())
                     from onboarding.models import ApprovalNote
-                    ApprovalNote.objects.filter(candidate=self.id).update(status='joining_pending', updated_at=_tz.now())
+                    ApprovalNote.objects.filter(candidate=self.pk).update(status='joining_pending', updated_at=_tz.now())
                     # Keep in-memory instance in sync
                     self.status = 'joining_pending'
         except Exception as e:
             # Non-fatal — don't block save on revert failures
             import logging
             logging.getLogger(__name__).error(f"Failed to revert joining status for {self.pk}: {e}", exc_info=True)
-            
+
+        # ── Auto-sync is_rejected based on current status ────────────────────
+        REJECTION_STATUSES = {
+            'duplicate_rejected', 'interview_rejected_1', 'interview_rejected_2',
+            'interview_rejected_3', 'interview_rejected_final',
+            'interview_rejected_management_client', 'approval_rejected',
+            'offer_rejected', 'rejected',
+        }
+        should_be_rejected = self.status in REJECTION_STATUSES
+        if self.is_rejected != should_be_rejected:
+            self.is_rejected = should_be_rejected
+            JobApplication.objects.filter(pk=self.pk).update(is_rejected=should_be_rejected)
+
     def get_platform_name(self):
         """Get the platform name from application link"""
         if self.application_link:

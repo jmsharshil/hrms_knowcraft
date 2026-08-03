@@ -31,6 +31,7 @@ class UpdatestatusAPI(APIView):
     def post(self, request, id):
 
         new_status = request.data.get("status") or request.POST.get("status")
+        rejection_reason = request.data.get("rejection_reason") or request.POST.get("rejection_reason") or ""
 
         try:
             application = JobApplication.objects.get(id=id)
@@ -78,10 +79,84 @@ class UpdatestatusAPI(APIView):
                 interviewer_id = None
                 application.slot_link = ""
                 application.inperson_link = ""
+            if application.status == "rejected" and rejection_reason:
+                application.rejection_reason = rejection_reason
             application.save()
             return Response({"success": ok,"status":application.status})
         else:
-            return Response({"Error:",reason})
+            return Response({"error": reason}, status=400)
+
+class RevertRejectionAPI(APIView):
+    permission_classes = [permissions.AllowAny] 
+    def post(self, request, id):
+        try:
+            application = JobApplication.objects.get(id=id)
+        except JobApplication.DoesNotExist:
+            return Response({"error": "Job Application not found"}, status=404)
+
+        old_status = application.status
+        
+        # We only allow reverting from terminal rejection states
+        from onboarding.utils.stage_transition_rules import ALLOWED_TRANSITIONS
+        
+        rejection_states = [
+            "duplicate_rejected", "interview_rejected_1", "interview_rejected_2", 
+            "interview_rejected_3", "interview_rejected_final", 
+            "interview_rejected_management_client", "approval_rejected", 
+            "offer_rejected", "rejected"
+        ]
+        
+        if old_status not in rejection_states:
+            return Response({"error": f"Candidate is in '{old_status}', which is not a revertible rejected state."}, status=400)
+        
+        allowed_next = ALLOWED_TRANSITIONS.get(old_status, [])
+        if not allowed_next:
+            return Response({"error": f"No revert status defined for '{old_status}'."}, status=400)
+            
+        new_status = allowed_next[0]
+        logger.info(f"[Revert Rejection] {application.candidate_name}: {old_status} → {new_status}")
+        
+        ok,reason = automation_engine(application, old_status, new_status)
+        if ok:
+            from slots.models import Interviewer
+            interviewer_email,interviewer = None,None
+            if application.status == 'shortlisted':
+                if application.job.mrf.interviewer_email_1:
+                    interviewer_email = application.job.mrf.interviewer_email_1
+                elif application.job.mrf.interviewer_email_2:
+                    interviewer_email = application.job.mrf.interviewer_email_2
+                elif application.job.mrf.interviewer_email_3:
+                    interviewer_email = application.job.mrf.interviewer_email_3
+                elif application.job.mrf.interviewer_email_final:
+                    interviewer_email = application.job.mrf.interviewer_email_final
+            elif application.status == "interview_next_2":
+                interviewer_email = application.job.mrf.interviewer_email_2
+            elif application.status == "interview_next_3":
+                interviewer_email = application.job.mrf.interviewer_email_3
+            elif application.status == "interview_next_final":
+                interviewer_email = application.job.mrf.interviewer_email_final
+            elif application.status == "interview_next_management_client":
+                interviewer_email = application.job.mrf.interviewer_email_management_client
+            
+            if interviewer_email:
+                name = interviewer_email.split("@")[0].replace(".", " ").title()
+                interviewer, created = Interviewer.objects.get_or_create(
+                    email=interviewer_email,
+                    defaults={"name": name}
+                )
+            if interviewer:
+                interviewer_id = interviewer.id
+                application.slot_link = f"{FRONTEND_URL}/api/slots/available/?candidate_id={application.id}&interviewer_id={interviewer_id}"
+                application.inperson_link = f"{FRONTEND_URL}/api/inperson/interview/?candidate_id={application.id}&interviewer_id={interviewer_id}"
+            else:
+                interviewer_id = None
+                application.slot_link = ""
+                application.inperson_link = ""
+            application.save()
+            return Response({"success": ok,"status":application.status})
+        else:
+            return Response({"Error:": reason}, status=400)
+
 
 # class JobCreateAPIView(APIView):
 #     permission_classes = [permissions.AllowAny] 
@@ -901,7 +976,13 @@ Knowcraft Analytics Private Limited
         # Update payload
         approval_note.payload = current_payload
         approval_note.updated_at = timezone.now()
-        approval_note.save()
+        # Save only the payload and updated_at to prevent overwriting status changes
+        # that were applied in the JobApplication.save() method.
+        approval_note.save(update_fields=['payload', 'updated_at'])
+        
+        # Refresh from db so that the in-memory object reflects the new status 
+        # (e.g., 'joining_pending' if it was reverted)
+        approval_note.refresh_from_db()
 
         return Response(
             {
@@ -2059,3 +2140,388 @@ class EmailLogViewSet(ReadOnlyModelViewSet):
             qs = qs.filter(candidate_id=candidate_id)
 
         return qs
+
+# --- Onboarding Post-Joining APIs ---
+
+class InitiateOnboardingAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+        
+        # Extract full form data as per the ME onboarding form
+        form_data = {
+            "assets": request.data.get("assets"),
+            "site": request.data.get("site"),
+            "subject": request.data.get("subject"),
+            "first_name": request.data.get("first_name"),
+            "last_name": request.data.get("last_name"),
+            "personal_email_id": request.data.get("personal_email_id"),
+            "contact_number": request.data.get("contact_number"),
+            "joining_date": request.data.get("joining_date"),
+            "designation": request.data.get("designation"),
+            "department": request.data.get("department"),
+            "employee_category": request.data.get("employee_category"),
+            "center_office_location": request.data.get("center_office_location"),
+            "mode_for_collecting_assets": request.data.get("mode_for_collecting_assets"),
+            "team_manager": request.data.get("team_manager"),
+            "work_from": request.data.get("work_from"),
+            "crafter_id": request.data.get("crafter_id"),
+            "emails_to_notify": request.data.get("emails_to_notify"),
+            "current_address": request.data.get("current_address"),
+            "description": request.data.get("description"),
+            "custom_notes": request.data.get("custom_notes", "")
+        }
+        
+        try:
+            from onboarding.utils.zoho_manageengine import ManageEngineClient
+            from onboarding.models import OnboardingForm
+            me_client = ManageEngineClient()
+            ticket_id = me_client.create_onboarding_ticket(application, form_data=form_data)
+            
+            if ticket_id:
+                application.it_ticket_ref = ticket_id
+                application.save(update_fields=['it_ticket_ref'])
+                
+                # Persist the onboarding form data
+                OnboardingForm.objects.update_or_create(
+                    job_application=application,
+                    defaults={
+                        'submitted_by': request.user if request.user.is_authenticated else None,
+                        'ticket_ref': ticket_id,
+                        **{k: v for k, v in form_data.items() if k != 'custom_notes'},
+                        'custom_notes': form_data.get('custom_notes', ''),
+                    }
+                )
+                
+                # Notify IT Team
+                from onboarding.utils.notifications import notify_internal
+                notify_internal(application, 'it_team_ticket_created')
+                
+                return Response({
+                    "message": "Onboarding initiated and IT ticket created successfully.",
+                    "ticket_id": ticket_id
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({"error": "Failed to create IT ticket."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+        except Exception as e:
+            logger.error(f"Error initiating onboarding for {application.id}: {e}")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class ResolveEscalationAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def patch(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+        application.is_escalated = False
+        application.save(update_fields=['is_escalated'])
+        return Response({"message": "Escalation resolved successfully"}, status=status.HTTP_200_OK)
+
+class SearchTeamsUsersAPI(APIView):
+    permission_classes = [permissions.AllowAny]
+    
+    def get(self, request):
+        query = request.query_params.get("query", "")
+        try:
+            from slots.graph import get_graph_token
+            import requests
+            token = get_graph_token()
+            url = "https://graph.microsoft.com/v1.0/users"
+            headers = {"Authorization": f"Bearer {token}"}
+            params = {
+                "$select": "id,displayName,mail,userPrincipalName",
+                "$top": "50"
+            }
+            if query:
+                params["$filter"] = f"startswith(displayName,'{query}') or startswith(mail,'{query}')"
+                
+            r = requests.get(url, headers=headers, params=params)
+            if not r.ok:
+                return Response({"error": "Failed to fetch users from MS Graph", "details": r.text}, status=r.status_code)
+                
+            return Response(r.json().get("value", []), status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AssignBuddyAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def patch(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+        
+        technical_buddy_email = request.data.get('technical_buddy_email')
+        technical_buddy_name = request.data.get('technical_buddy_name')
+        cultural_buddy_email = request.data.get('cultural_buddy_email')
+        cultural_buddy_name = request.data.get('cultural_buddy_name')
+        
+        update_fields = []
+        if technical_buddy_email and technical_buddy_name:
+            application.technical_buddy_email = technical_buddy_email
+            application.technical_buddy_name = technical_buddy_name
+            update_fields.extend(['technical_buddy_email', 'technical_buddy_name'])
+        
+        if cultural_buddy_email and cultural_buddy_name:
+            application.cultural_buddy_email = cultural_buddy_email
+            application.cultural_buddy_name = cultural_buddy_name
+            update_fields.extend(['cultural_buddy_email', 'cultural_buddy_name'])
+            
+        application.emp_account_active = True
+        if 'emp_account_active' not in update_fields:
+            update_fields.append('emp_account_active')
+            
+        if update_fields:
+            application.save(update_fields=update_fields)
+        
+        # Send buddy emails
+        try:
+            from onboarding.utils.sender import send_email
+            from onboarding.utils.templates import NOTIFY_INTERNAL_HTML_TEMPLATES
+            html_template = NOTIFY_INTERNAL_HTML_TEMPLATES.get('buddy_assigned', '<p>Buddy assigned.</p>')
+            formatted_html = html_template.format(candidate=application)
+            
+            if technical_buddy_email:
+                send_email(
+                    to=technical_buddy_email,
+                    subject="You have been assigned as a Technical Buddy",
+                    text="You have been assigned as a Technical Buddy for " + application.candidate_name,
+                    template=formatted_html,
+                    event="buddy_assigned",
+                    email_type="internal",
+                    candidate=application
+                )
+            if cultural_buddy_email:
+                send_email(
+                    to=cultural_buddy_email,
+                    subject="You have been assigned as a Cultural Buddy",
+                    text="You have been assigned as a Cultural Buddy for " + application.candidate_name,
+                    template=formatted_html,
+                    event="buddy_assigned",
+                    email_type="internal",
+                    candidate=application
+                )
+        except Exception as e:
+            logger.error(f"Error notifying buddies: {e}")
+        
+        return Response({"message": "Buddies assigned successfully"}, status=status.HTTP_200_OK)
+
+LIKERT_OPTIONS = ["strongly_agree", "agree", "neutral", "disagree", "strongly_disagree"]
+RECOMMEND_OPTIONS = ["yes", "no", "not_sure"]
+
+SURVEY_90_DAY_STRUCTURE = {
+    "title": "90-Day Onboarding Survey",
+    "sections": [
+        {
+            "id": 1,
+            "title": "Role Clarity & Expectations",
+            "questions": [
+                {"id": 1, "type": "likert", "text": "I clearly understand my role and key responsibilities."},
+                {"id": 2, "type": "likert", "text": "My goals and performance expectations were clearly communicated."},
+                {"id": 3, "type": "likert", "text": "I understand how my role contributes to the team and organization's objectives."},
+            ]
+        },
+        {
+            "id": 2,
+            "title": "Training & Resources",
+            "questions": [
+                {"id": 4, "type": "likert", "text": "The onboarding training prepared me to perform my role effectively."},
+                {"id": 5, "type": "likert", "text": "I received timely access to the required tools, systems, and resources."},
+                {"id": 6, "type": "likert", "text": "The learning materials and documentation were useful and accessible."},
+            ]
+        },
+        {
+            "id": 3,
+            "title": "Manager & Team Support",
+            "questions": [
+                {"id": 7, "type": "likert", "text": "My manager provided adequate guidance and support during my first 90 days."},
+                {"id": 8, "type": "likert", "text": "Regular check-ins and feedback helped me adjust to my role."},
+                {"id": 9, "type": "likert", "text": "My team has been welcoming, collaborative, and supportive."},
+            ]
+        },
+        {
+            "id": 4,
+            "title": "Culture & Engagement",
+            "questions": [
+                {"id": 10, "type": "likert", "text": "I feel welcomed and included in the organization."},
+                {"id": 11, "type": "likert", "text": "I understand and align with the company's values and culture."},
+                {"id": 12, "type": "likert", "text": "I feel comfortable sharing ideas or asking questions."},
+            ]
+        },
+        {
+            "id": 5,
+            "title": "Overall Experience",
+            "questions": [
+                {"id": 13, "type": "likert", "text": "Overall, my onboarding experience met my expectations."},
+                {"id": 14, "type": "likert", "text": "I feel confident in my ability to succeed in my role going forward."},
+            ]
+        },
+        {
+            "id": 6,
+            "title": "Feedback",
+            "questions": [
+                {"id": 15, "type": "text", "text": "What aspects of the onboarding process worked well for you?"},
+                {"id": 16, "type": "text", "text": "What challenges did you face during your first 90 days?"},
+                {"id": 17, "type": "text", "text": "What improvements would you suggest for future onboarding programs?"},
+                {"id": 18, "type": "text", "text": "Is there any additional support or training you feel would help you perform better?"},
+            ]
+        },
+        {
+            "id": 7,
+            "title": "Final Question",
+            "questions": [
+                {"id": 19, "type": "recommend", "text": "Would you recommend this organization as a good place to work based on your onboarding experience?"},
+            ]
+        },
+    ],
+    "options": {
+        "likert": LIKERT_OPTIONS,
+        "recommend": RECOMMEND_OPTIONS,
+    }
+}
+
+
+class GetSurveyStructureAPI(APIView):
+    """Returns the full 90-day survey form structure for the frontend to render."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+        survey_type = request.query_params.get('survey_type', 'candidate')
+
+        # Check if already submitted
+        from onboarding.models import SurveyResponse
+        existing = SurveyResponse.objects.filter(
+            job_application=application,
+            survey_type=survey_type
+        ).first()
+
+        return Response({
+            "survey_type": survey_type,
+            "candidate_name": application.candidate_name,
+            "role": application.job.mrf.designation.name if hasattr(application.job, 'mrf') and application.job.mrf else "",
+            "department": application.job.mrf.department.name if hasattr(application.job, 'mrf') and application.job.mrf else "",
+            "date_of_joining": application.joining_date,
+            "already_submitted": existing is not None,
+            "submitted_at": existing.submitted_at if existing else None,
+            "structure": SURVEY_90_DAY_STRUCTURE,
+        })
+
+class CompleteSurveyAPI(APIView):
+    permission_classes = [permissions.AllowAny]
+    def patch(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+        survey_type = request.data.get('survey_type', 'candidate')
+
+        respondent_name = request.data.get('respondent_name', '')
+        respondent_email = request.data.get('respondent_email', '')
+        responses_data = request.data.get('responses', {})
+
+        if not isinstance(responses_data, dict):
+            return Response({"error": "'responses' must be a JSON object."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ── Validate likert questions (Q1–Q14) ──────────────────────────────
+        likert_qids = list(range(1, 15))
+        errors = {}
+        for qid in likert_qids:
+            key = str(qid)
+            val = responses_data.get(key)
+            if val is None:
+                errors[key] = f"Q{qid} is required."
+            elif val not in LIKERT_OPTIONS:
+                errors[key] = f"Q{qid}: must be one of {LIKERT_OPTIONS}."
+
+        # ── Validate recommend question (Q19) ───────────────────────────────
+        val19 = responses_data.get("19")
+        if val19 is None:
+            errors["19"] = "Q19 is required."
+        elif val19 not in RECOMMEND_OPTIONS:
+            errors["19"] = f"Q19: must be one of {RECOMMEND_OPTIONS}."
+
+        # ── Text questions (Q15–Q18) are optional, just ensure strings ──────
+        for qid in range(15, 19):
+            key = str(qid)
+            val = responses_data.get(key)
+            if val is not None and not isinstance(val, str):
+                errors[key] = f"Q{qid}: must be a text string."
+
+        if errors:
+            return Response({"error": "Validation failed.", "fields": errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ── Persist ─────────────────────────────────────────────────────────
+        from onboarding.models import SurveyResponse
+        SurveyResponse.objects.update_or_create(
+            job_application=application,
+            survey_type=survey_type,
+            defaults={
+                'respondent_name': respondent_name,
+                'respondent_email': respondent_email,
+                'responses': responses_data,
+            }
+        )
+
+        if survey_type == 'hod':
+            application.is_hod_survey_filled = True
+            application.save(update_fields=['is_hod_survey_filled'])
+        else:
+            application.is_satisfaction_survey_filled = True
+            application.save(update_fields=['is_satisfaction_survey_filled'])
+
+        return Response({"message": "Survey submitted successfully."}, status=status.HTTP_200_OK)
+
+class ScheduleD45CallAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def patch(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+        
+        organizer_email = request.data.get('organizer_email')
+        start_time_str = request.data.get('start_time')
+        end_time_str = request.data.get('end_time')
+        
+        if organizer_email and start_time_str and end_time_str:
+            try:
+                from dateutil.parser import parse
+                from slots.graph import create_teams_meeting
+                
+                start_dt = parse(start_time_str)
+                end_dt = parse(end_time_str)
+                candidate_email = application.work_email or application.candidate_email
+                subject = f"Day 45 Check-in Call: {application.candidate_name}"
+                
+                create_teams_meeting(organizer_email, candidate_email, start_dt, end_dt, subject)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error creating Teams meeting for D45: {e}")
+                return Response({"error": f"Failed to book MS Teams meeting: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+                
+        application.is_d45_call_scheduled = True
+        application.save(update_fields=['is_d45_call_scheduled'])
+        return Response({"message": "Day 45 check-in call booked and marked as scheduled"}, status=status.HTTP_200_OK)
+
+class ScheduleD90CallAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def patch(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+        
+        organizer_email = request.data.get('organizer_email')
+        start_time_str = request.data.get('start_time')
+        end_time_str = request.data.get('end_time')
+        
+        if organizer_email and start_time_str and end_time_str:
+            try:
+                from dateutil.parser import parse
+                from slots.graph import create_teams_meeting
+                
+                start_dt = parse(start_time_str)
+                end_dt = parse(end_time_str)
+                candidate_email = application.work_email or application.candidate_email
+                subject = f"Day 90 Final Review Call: {application.candidate_name}"
+                
+                create_teams_meeting(organizer_email, candidate_email, start_dt, end_dt, subject)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error creating Teams meeting for D90: {e}")
+                return Response({"error": f"Failed to book MS Teams meeting: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        application.is_d90_call_scheduled = True
+        application.save(update_fields=['is_d90_call_scheduled'])
+        return Response({"message": "Day 90 final review call booked and marked as scheduled"}, status=status.HTTP_200_OK)

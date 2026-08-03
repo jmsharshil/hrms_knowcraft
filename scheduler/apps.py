@@ -122,6 +122,10 @@ class SchedulerConfig(AppConfig):
         from onboarding.utils.joining_check import run_joining_date_check
         TaskScheduler.register("joining_date_check", lambda: run_joining_date_check())
 
+        # Daily Onboarding Check
+        # from onboarding.utils.onboarding_tasks import daily_onboarding_check
+        # TaskScheduler.register("daily_onboarding_check", lambda: daily_onboarding_check())
+
         print("[SCHEDULER APP] All task types registered.")
 
     def _ensure_recurring_tasks(self):
@@ -150,6 +154,12 @@ class SchedulerConfig(AppConfig):
                 "delay_seconds": 15,             # first run after 15s
                 "max_retries": 3,
             },
+            # {
+            #     "task_type": "daily_onboarding_check",
+            #     "interval_seconds": 86400,       # 1 day
+            #     "delay_seconds": 20,             # first run after 20s
+            #     "max_retries": 3,
+            # },
         ]
 
         for cfg in RECURRING_TASKS:

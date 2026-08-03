@@ -657,6 +657,56 @@ Knowcraft Analytics Private Limited""",
         "sms": "Dear {candidate.candidate_name},\n\nThank you for your time during our recruitment process. We'd love to hear about your experience.\nPlease fill the feedback form:\n {FRONTEND_URL}/candidate/feedback/{candidate.id}",
         "log": "Feedback request sent to {candidate.candidate_email}",
     },
+
+    # --------------------------------------------------------------
+    # POST-JOINING STAGES (Triggered by onboarding_tasks.py cron)
+    # --------------------------------------------------------------
+    "welcome_joining": {
+        "email": {
+            "subject": "Welcome to the Knowcraft Family! Your Joining Day is Almost Here.",
+            "text": (
+                "We are thrilled to welcome you to Knowcraft Analytics! "
+                "Your joining date is just around the corner. "
+                "Please ensure you have all your original documents ready. "
+                "Our team will be there to assist you throughout the day."
+            ),
+        },
+        "sms": (
+            "Dear {candidate.candidate_name}, your joining date at Knowcraft Analytics is just 2 days away! "
+            "Please carry all original documents. We look forward to seeing you."
+        ),
+        "log": "Pre-joining welcome sent to {candidate.candidate_email}",
+    },
+    "login_request_reminder": {
+        "email": {
+            "subject": "Action Required: Complete Your Joining Documents",
+            "text": (
+                "Welcome aboard! We noticed that your joining documents are still pending. "
+                "Please complete the document upload process at the earliest to ensure your account activation and payroll onboarding are not delayed."
+            ),
+        },
+        "sms": (
+            "Dear {candidate.candidate_name}, your joining documents are still pending. "
+            "Please upload them at the earliest to avoid delays in your account setup."
+        ),
+        "log": "Login/doc reminder sent to {candidate.candidate_email}",
+    },
+    "satisfaction_survey": {
+        "email": {
+            "subject": "30-Day Check-In: We'd Love Your Feedback!",
+            "text": (
+                "Congratulations on completing your first 30 days at Knowcraft Analytics! "
+                "We hope your journey has been smooth and fulfilling. "
+                "Please take a moment to fill in our short Satisfaction Survey — "
+                "your feedback helps us continuously improve the onboarding experience for everyone."
+            ),
+        },
+        "sms": (
+            "Hi {candidate.candidate_name}, you've completed 30 days at Knowcraft Analytics! "
+            "Please fill our quick satisfaction survey. Your feedback matters to us."
+        ),
+        "log": "30-day satisfaction survey sent to {candidate.candidate_email}",
+    },
 }
 
 def notify_candidate(candidate: Any, stage: str,cc:list, feedback_link: str = None) -> bool:
@@ -773,8 +823,9 @@ def notify_candidate(candidate: Any, stage: str,cc:list, feedback_link: str = No
             #     from onboarding.utils.docs_reupload import get_pending_documents
             #     pending_docs = get_pending_documents(candidate.documents)
             #     pending_docs_html = "<ul>" + "".join(f"<li>{doc}</li>" for doc in pending_docs) + "</ul>"
+            recipient_email = getattr(candidate, 'work_email', None) or candidate.candidate_email
             send_email(
-                to=candidate.candidate_email,
+                to=recipient_email,
                 subject=email_cfg["subject"],
                 text=email_cfg["text"],
                 cc= cc,

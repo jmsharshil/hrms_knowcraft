@@ -1377,3 +1377,530 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
     </html>
 """,
 }
+
+
+HTML_TEMPLATES.update({
+    "welcome_joining": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Your Joining Day Is Almost Here!</h2>
+                                <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
+                                <p style="margin:0 0 16px 0;">We are thrilled to welcome you to the Knowcraft Analytics family! Your official Date of Joining is just <strong>2 days away</strong>.</p>
+                                <p style="margin:0 0 16px 0;">Please ensure you carry all <strong>original documents</strong> on your first day. Our HR team will be there to guide you through the formalities.</p>
+                                <p style="margin:0 0 16px 0;">We look forward to seeing you!</p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """,
+    "login_request_reminder": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#dc2626;font-size:24px;font-weight:600;">Action Required: Complete Your Documents</h2>
+                                <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
+                                <p style="margin:0 0 16px 0;">Welcome aboard! We noticed that your <strong>joining documents are still pending</strong>.</p>
+                                <p style="margin:0 0 16px 0;">Please complete the document upload process at the earliest to ensure your account activation and payroll onboarding are not delayed.</p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """,
+    "satisfaction_survey": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">30-Day Check-In: We'd Love Your Feedback!</h2>
+                                <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
+                                <p style="margin:0 0 16px 0;">Congratulations on completing your <strong>first 30 days</strong> at Knowcraft Analytics! We hope your journey has been smooth and rewarding.</p>
+                                <p style="margin:0 0 16px 0;">Please take a moment to share your experience by filling out our quick <strong>30-Day Satisfaction Survey</strong>. Your honest feedback helps us continuously improve the onboarding experience for everyone.</p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+})
+
+NOTIFY_INTERNAL_HTML_TEMPLATES.update({
+    "buddy_assigned": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Header -->
+                        <tr>
+                            <td align="center" style="background:#ffffff;padding:25px 40px;border-bottom:1px solid #e2e8f0;">
+                                <img src="{{FRONTEND_URL}}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
+                            </td>
+                        </tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">
+                                    Buddy Assignment Notification
+                                </h2>
+                                <p style="margin:0 0 16px 0;">Dear Team,</p>
+                                <p style="margin:0 0 16px 0;">
+                                    This is to inform you that buddies have been formally assigned for our new candidate <strong>{{candidate.candidate_name}}</strong>.
+                                </p>
+                                <p style="margin:0 0 16px 0;">
+                                    Please ensure you reach out and support them during their initial onboarding period.
+                                </p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """,
+    "bgv_escalation": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Header -->
+                        <tr>
+                            <td align="center" style="background:#ffffff;padding:25px 40px;border-bottom:1px solid #e2e8f0;">
+                                <img src="{{FRONTEND_URL}}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
+                            </td>
+                        </tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#dc2626;font-size:24px;font-weight:600;">
+                                    ESCALATION: BGV Pending
+                                </h2>
+                                <p style="margin:0 0 16px 0;">Dear HR Team,</p>
+                                <p style="margin:0 0 16px 0;">
+                                    This is an automated escalation. The Background Verification (BGV) for candidate <strong>{{candidate.candidate_name}}</strong> is currently not marked as clear, and they have already crossed the 7-day post-joining threshold.
+                                </p>
+                                <p style="margin:0 0 16px 0;">
+                                    Please review their file immediately and resolve this escalation to unblock their onboarding flow.
+                                </p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """,
+    "doj_minus_15_it_team": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Header -->
+                        <tr>
+                            <td align="center" style="background:#ffffff;padding:25px 40px;border-bottom:1px solid #e2e8f0;">
+                                <img src="{{FRONTEND_URL}}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
+                            </td>
+                        </tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">
+                                    Upcoming Joining - Laptop Procurement
+                                </h2>
+                                <p style="margin:0 0 16px 0;">Dear IT Team,</p>
+                                <p style="margin:0 0 16px 0;">
+                                    Please be informed that candidate <strong>{{candidate.candidate_name}}</strong> is scheduled to join us in exactly 15 days.
+                                </p>
+                                <p style="margin:0 0 16px 0;">
+                                    Kindly ensure that all laptop procurement and initial account setup tasks assigned via Zoho ManageEngine are completed prior to their joining date.
+                                </p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """,
+    "doj_minus_7_hod": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Header -->
+                        <tr>
+                            <td align="center" style="background:#ffffff;padding:25px 40px;border-bottom:1px solid #e2e8f0;">
+                                <img src="{{FRONTEND_URL}}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
+                            </td>
+                        </tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">
+                                    Upcoming Team Member Joining
+                                </h2>
+                                <p style="margin:0 0 16px 0;">Dear HOD,</p>
+                                <p style="margin:0 0 16px 0;">
+                                    This is a reminder that candidate <strong>{{candidate.candidate_name}}</strong> will be joining your department in 7 days.
+                                </p>
+                                <p style="margin:0 0 16px 0;">
+                                    We are currently coordinating with the Admin team to prepare their desk and onboarding materials.
+                                </p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """,
+    "doj_minus_7_admin": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Header -->
+                        <tr>
+                            <td align="center" style="background:#ffffff;padding:25px 40px;border-bottom:1px solid #e2e8f0;">
+                                <img src="{{FRONTEND_URL}}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
+                            </td>
+                        </tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">
+                                    Action Required: New Joiner Preparations
+                                </h2>
+                                <p style="margin:0 0 16px 0;">Dear Admin,</p>
+                                <p style="margin:0 0 16px 0;">
+                                    Candidate <strong>{{candidate.candidate_name}}</strong> is scheduled to join us in 7 days as an office joiner.
+                                </p>
+                                <p style="margin:0 0 16px 0;">
+                                    Please proceed with allocating their seating arrangement and generating the necessary access ID cards before their start date.
+                                </p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """,
+    "satisfaction_survey_hod": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Header -->
+                        <tr>
+                            <td align="center" style="background:#ffffff;padding:25px 40px;border-bottom:1px solid #e2e8f0;">
+                                <img src="{{FRONTEND_URL}}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
+                            </td>
+                        </tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">
+                                    30-Day Completion Notification
+                                </h2>
+                                <p style="margin:0 0 16px 0;">Dear HOD,</p>
+                                <p style="margin:0 0 16px 0;">
+                                    This is to notify you that <strong>{{candidate.candidate_name}}</strong> has successfully completed their first 30 days with us.
+                                </p>
+                                <p style="margin:0 0 16px 0;">
+                                    We have automatically dispatched the 30-Day Satisfaction Survey to the employee to gauge their onboarding experience.
+                                </p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """,
+    "schedule_checkin_call_reminder": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Header -->
+                        <tr>
+                            <td align="center" style="background:#ffffff;padding:25px 40px;border-bottom:1px solid #e2e8f0;">
+                                <img src="{{FRONTEND_URL}}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
+                            </td>
+                        </tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">
+                                    Action Required: 45-Day Check-In Call
+                                </h2>
+                                <p style="margin:0 0 16px 0;">Dear HR/HOD,</p>
+                                <p style="margin:0 0 16px 0;">
+                                    This is an automated reminder to schedule the 45-day check-in call for candidate <strong>{{candidate.candidate_name}}</strong>.
+                                </p>
+                                <p style="margin:0 0 16px 0;">
+                                    Please coordinate via Microsoft Teams and mark the check-in as complete in the HRMS dashboard once finished.
+                                </p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """,
+    "schedule_final_review_reminder": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Header -->
+                        <tr>
+                            <td align="center" style="background:#ffffff;padding:25px 40px;border-bottom:1px solid #e2e8f0;">
+                                <img src="{{FRONTEND_URL}}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
+                            </td>
+                        </tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">
+                                    Action Required: 90-Day Final Review
+                                </h2>
+                                <p style="margin:0 0 16px 0;">Dear HR/HOD,</p>
+                                <p style="margin:0 0 16px 0;">
+                                    This is an automated reminder to schedule the 90-day final review call for candidate <strong>{{candidate.candidate_name}}</strong>.
+                                </p>
+                                <p style="margin:0 0 16px 0;">
+                                    Please hold the meeting and mark the 90-day milestone as complete in the HRMS to officially close out their onboarding pipeline.
+                                </p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """,
+    "it_team_ticket_created": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Header -->
+                        <tr>
+                            <td align="center" style="background:#ffffff;padding:25px 40px;border-bottom:1px solid #e2e8f0;">
+                                <img src="{{FRONTEND_URL}}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
+                            </td>
+                        </tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">
+                                    New Onboarding IT Ticket
+                                </h2>
+                                <p style="margin:0 0 16px 0;">Dear IT Team,</p>
+                                <p style="margin:0 0 16px 0;">
+                                    An onboarding service request has just been initiated for candidate <strong>{{candidate.candidate_name}}</strong>.
+                                </p>
+                                <p style="margin:0 0 16px 0;">
+                                    ManageEngine Ticket Reference: <strong>{{candidate.it_ticket_ref}}</strong>
+                                </p>
+                                <p style="margin:0 0 16px 0;">
+                                    Please monitor this ticket and ensure procurement and setup are finalized according to the joining schedule.
+                                </p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+})

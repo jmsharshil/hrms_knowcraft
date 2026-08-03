@@ -611,3 +611,94 @@ class EmailLog(models.Model):
 
     def __str__(self):
         return f"{self.subject} → {self.recipient_email} ({self.event})"
+
+
+class OnboardingForm(models.Model):
+    """
+    Stores the full onboarding initiation form submitted by HR
+    when creating the Zoho ManageEngine IT ticket.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    job_application = models.OneToOneField(
+        JobApplication,
+        on_delete=models.CASCADE,
+        related_name="onboarding_form"
+    )
+    submitted_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="submitted_onboarding_forms"
+    )
+
+    # ManageEngine ticket reference
+    ticket_ref = models.CharField(max_length=255, null=True, blank=True)
+
+    # Form fields matching the ME onboarding form
+    assets = models.CharField(max_length=255, null=True, blank=True)
+    site = models.CharField(max_length=255, null=True, blank=True)
+    subject = models.CharField(max_length=500, null=True, blank=True)
+    first_name = models.CharField(max_length=255, null=True, blank=True)
+    last_name = models.CharField(max_length=255, null=True, blank=True)
+    personal_email_id = models.EmailField(null=True, blank=True)
+    contact_number = models.CharField(max_length=20, null=True, blank=True)
+    joining_date = models.DateField(null=True, blank=True)
+    designation = models.CharField(max_length=255, null=True, blank=True)
+    department = models.CharField(max_length=255, null=True, blank=True)
+    employee_category = models.CharField(max_length=100, null=True, blank=True)
+    center_office_location = models.CharField(max_length=255, null=True, blank=True)
+    mode_for_collecting_assets = models.CharField(max_length=100, null=True, blank=True)
+    team_manager = models.CharField(max_length=255, null=True, blank=True)
+    work_from = models.CharField(max_length=100, null=True, blank=True)
+    crafter_id = models.CharField(max_length=100, null=True, blank=True)
+    emails_to_notify = models.TextField(null=True, blank=True)
+    current_address = models.TextField(null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
+    custom_notes = models.TextField(null=True, blank=True)
+
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "onboarding_forms"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Onboarding Form: {self.job_application.candidate_name}"
+
+
+class SurveyResponse(models.Model):
+    """
+    Stores the actual survey answers for both Candidate Satisfaction
+    and HOD surveys at the DOJ+30 milestone.
+    """
+    SURVEY_TYPE_CHOICES = [
+        ("candidate", "Candidate Satisfaction Survey"),
+        ("hod", "HOD Satisfaction Survey"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    job_application = models.ForeignKey(
+        JobApplication,
+        on_delete=models.CASCADE,
+        related_name="survey_responses"
+    )
+    survey_type = models.CharField(max_length=20, choices=SURVEY_TYPE_CHOICES)
+    respondent_name = models.CharField(max_length=255, null=True, blank=True)
+    respondent_email = models.EmailField(null=True, blank=True)
+
+    # Flexible JSON to hold all survey answers
+    responses = models.JSONField(
+        default=dict,
+        help_text="JSON dict of question-answer pairs, e.g. {'overall_rating': 4, 'comments': '...'}"
+    )
+
+    submitted_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "survey_responses"
+        ordering = ["-submitted_at"]
+        unique_together = [("job_application", "survey_type")]
+
+    def __str__(self):
+        return f"{self.get_survey_type_display()} - {self.job_application.candidate_name}"

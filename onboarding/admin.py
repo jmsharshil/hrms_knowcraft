@@ -1,5 +1,8 @@
 from django.contrib import admin
-from .models import ApprovalNote,JobApplicationDocument,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,OfferDocument,EmailLog
+from .models import (
+    ApprovalNote, JobApplicationDocument, SalaryAnnexure, SalaryAnnexureHistory,
+    SalaryComponent, OfferDocument, EmailLog, OnboardingForm, SurveyResponse
+)
 
 # Register your models here.
 
@@ -184,3 +187,37 @@ class EmailLogAdmin(admin.ModelAdmin):
     list_select_related = ('job_application',)
 
 admin.site.register(EmailLog, EmailLogAdmin)
+
+
+class OnboardingFormAdmin(admin.ModelAdmin):
+    list_display = ('id', 'get_candidate_name', 'ticket_ref', 'designation', 'department', 'work_from', 'created_at')
+    search_fields = ('job_application__candidate_name', 'job_application__candidate_email', 'ticket_ref', 'first_name', 'last_name')
+    list_filter = ('department', 'work_from', 'employee_category', 'created_at')
+    readonly_fields = ('id', 'created_at')
+    date_hierarchy = 'created_at'
+    ordering = ('-created_at',)
+    list_per_page = 50
+
+    def get_candidate_name(self, obj):
+        return obj.job_application.candidate_name if obj.job_application else ''
+    get_candidate_name.short_description = 'Candidate Name'
+    get_candidate_name.admin_order_field = 'job_application__candidate_name'
+
+
+class SurveyResponseAdmin(admin.ModelAdmin):
+    list_display = ('id', 'get_candidate_name', 'survey_type', 'respondent_name', 'respondent_email', 'submitted_at')
+    search_fields = ('job_application__candidate_name', 'job_application__candidate_email', 'respondent_name', 'respondent_email')
+    list_filter = ('survey_type', 'submitted_at')
+    readonly_fields = ('id', 'submitted_at')
+    date_hierarchy = 'submitted_at'
+    ordering = ('-submitted_at',)
+    list_per_page = 50
+
+    def get_candidate_name(self, obj):
+        return obj.job_application.candidate_name if obj.job_application else ''
+    get_candidate_name.short_description = 'Candidate Name'
+    get_candidate_name.admin_order_field = 'job_application__candidate_name'
+
+
+admin.site.register(OnboardingForm, OnboardingFormAdmin)
+admin.site.register(SurveyResponse, SurveyResponseAdmin)

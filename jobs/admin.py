@@ -150,6 +150,14 @@ class JobApplicationAdmin(admin.ModelAdmin):
                 'slot_link', 'inperson_link',
             )
         }),
+        # ── 3.5. Post Joining & Onboarding ────────────────────────────
+        ('Post Joining & Onboarding', {
+            'fields': (
+                'it_ticket_ref', 'emp_account_active', 'work_email',
+                'technical_buddy_name', 'technical_buddy_email', 'cultural_buddy_name', 'cultural_buddy_email', 'is_escalated', 
+                'is_satisfaction_survey_filled', 'is_d45_call_scheduled', 'is_d90_call_scheduled'
+            )
+        }),
         # ── 4. Compensation ───────────────────────────────────────
         ('Compensation', {
             'fields': (
