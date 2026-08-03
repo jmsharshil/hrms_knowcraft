@@ -113,49 +113,91 @@ class RevertRejectionAPI(APIView):
         if not allowed_next:
             return Response({"error": f"No revert status defined for '{old_status}'."}, status=400)
             
-        new_status = allowed_next[0]
+        # ── Smart next-round detection ────────────────────────────────────────
+        # For interview rejections, determine the correct next stage by checking
+        # which rounds are actually configured in the MRF (i.e. have an interviewer).
+        mrf = application.job.mrf
+        new_status = allowed_next[0]  # safe default
+
+        if old_status == "interview_rejected_1":
+            # Rejected after HR round → try Technical, then Case Study, then Final
+            if mrf.interviewer_email_2:
+                new_status = "interview_next_2"
+            elif mrf.interviewer_email_3:
+                new_status = "interview_next_3"
+            elif mrf.interviewer_email_final:
+                new_status = "interview_next_final"
+            else:
+                new_status = "selected"
+
+        elif old_status == "interview_rejected_2":
+            # Rejected after Technical round → check Case Study, then Final
+            if mrf.interviewer_email_3:
+                new_status = "interview_next_3"        # case study is configured
+            elif mrf.interviewer_email_final:
+                new_status = "interview_next_final"    # skip straight to final
+            else:
+                new_status = "selected"
+
+        elif old_status == "interview_rejected_3":
+            # Rejected after Case Study round → check Final round
+            if mrf.interviewer_email_final:
+                new_status = "interview_next_final"
+            else:
+                new_status = "selected"
+
+        elif old_status in ("interview_rejected_final", "interview_rejected_management_client"):
+            # No further interview round after Final / Management-Client
+            new_status = "selected"
+        # ─────────────────────────────────────────────────────────────────────
+
         logger.info(f"[Revert Rejection] {application.candidate_name}: {old_status} → {new_status}")
-        
-        ok,reason = automation_engine(application, old_status, new_status)
+
+        ok, reason = automation_engine(application, old_status, new_status)
         if ok:
             from slots.models import Interviewer
-            interviewer_email,interviewer = None,None
-            if application.status == 'shortlisted':
-                if application.job.mrf.interviewer_email_1:
-                    interviewer_email = application.job.mrf.interviewer_email_1
-                elif application.job.mrf.interviewer_email_2:
-                    interviewer_email = application.job.mrf.interviewer_email_2
-                elif application.job.mrf.interviewer_email_3:
-                    interviewer_email = application.job.mrf.interviewer_email_3
-                elif application.job.mrf.interviewer_email_final:
-                    interviewer_email = application.job.mrf.interviewer_email_final
-            elif application.status == "interview_next_2":
-                interviewer_email = application.job.mrf.interviewer_email_2
-            elif application.status == "interview_next_3":
-                interviewer_email = application.job.mrf.interviewer_email_3
-            elif application.status == "interview_next_final":
-                interviewer_email = application.job.mrf.interviewer_email_final
-            elif application.status == "interview_next_management_client":
-                interviewer_email = application.job.mrf.interviewer_email_management_client
-            
+            interviewer_email, interviewer = None, None
+
+            # Resolve the interviewer for the new stage
+            stage_email_map = {
+                "shortlisted":                      (mrf.interviewer_email_1 or mrf.interviewer_email_2
+                                                     or mrf.interviewer_email_3 or mrf.interviewer_email_final),
+                "interview_next_2":                 mrf.interviewer_email_2,
+                "interview_next_3":                 mrf.interviewer_email_3,
+                "interview_next_final":             mrf.interviewer_email_final,
+                "interview_next_management_client": mrf.interviewer_email_management_client,
+            }
+            interviewer_email = stage_email_map.get(application.status)
+
             if interviewer_email:
                 name = interviewer_email.split("@")[0].replace(".", " ").title()
-                interviewer, created = Interviewer.objects.get_or_create(
+                interviewer, _ = Interviewer.objects.get_or_create(
                     email=interviewer_email,
                     defaults={"name": name}
                 )
             if interviewer:
                 interviewer_id = interviewer.id
-                application.slot_link = f"{FRONTEND_URL}/api/slots/available/?candidate_id={application.id}&interviewer_id={interviewer_id}"
-                application.inperson_link = f"{FRONTEND_URL}/api/inperson/interview/?candidate_id={application.id}&interviewer_id={interviewer_id}"
+                application.slot_link = (
+                    f"{FRONTEND_URL}/api/slots/available/"
+                    f"?candidate_id={application.id}&interviewer_id={interviewer_id}"
+                )
+                application.inperson_link = (
+                    f"{FRONTEND_URL}/api/inperson/interview/"
+                    f"?candidate_id={application.id}&interviewer_id={interviewer_id}"
+                )
             else:
-                interviewer_id = None
                 application.slot_link = ""
                 application.inperson_link = ""
             application.save()
-            return Response({"success": ok,"status":application.status})
+            return Response({
+                "success": ok,
+                "status": application.status,
+                "slot_link": application.slot_link or None,
+                "inperson_link": application.inperson_link or None,
+                "book_interview_link": application.slot_link or None,
+            })
         else:
-            return Response({"Error:": reason}, status=400)
+            return Response({"error": reason}, status=400)
 
 
 # class JobCreateAPIView(APIView):
