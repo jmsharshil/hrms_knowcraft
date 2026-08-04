@@ -111,7 +111,7 @@ class ManageEngineClient:
                 "subject": subject,
                 "description": desc,
                 "requester": {
-                    "name": application.job.mrf.created_by.get_full_name() if application.job.mrf.created_by else "HR Admin"
+                    "name": application.job.mrf.requested_by.name if application.job.mrf.requested_by else "HR Admin"
                 },
                 # Email to Notify mapped to email_ids to notify (can be internal fields, or mapped here)
                 "email_ids_to_notify": [form_data.get("emails_to_notify")] if form_data.get("emails_to_notify") else [],
