@@ -617,7 +617,7 @@ def _build_payload(candidate, extra_data=None):
         # "uid": str(candidate.id)  # safer idempotency
     }
 
-    raw_phone = str(candidate.candidate_phone or "")
+    raw_phone = str(candidate.candidate_phone or "") or extra.get("phone")
 
     # Strip country code if present and set separately
     if raw_phone.startswith("+91"):
