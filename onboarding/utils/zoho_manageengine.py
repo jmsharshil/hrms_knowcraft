@@ -14,12 +14,12 @@ class ManageEngineClient:
     """
     
     def __init__(self):
-        self.client_id = os.getenv('ZOHO_ME_CLIENT_ID')
-        self.client_secret = os.getenv('ZOHO_ME_CLIENT_SECRET')
-        self.refresh_token = os.getenv('ZOHO_ME_REFRESH_TOKEN')
+        self.client_id = os.getenv('ZOHO_CLIENT_ID')
+        self.client_secret = os.getenv('ZOHO_CLIENT_SECRET')
+        self.refresh_token = os.getenv('ZOHO_REFRESH_TOKEN')
         # Defaulting to .in data center, but configurable
-        self.auth_url = os.getenv('ZOHO_ME_AUTH_URL', 'https://accounts.zoho.in/oauth/v2/token')
-        self.base_url = os.getenv('ZOHO_ME_BASE_URL', 'https://sdpondemand.manageengine.in/api/v3')
+        self.auth_url = os.getenv('ZOHO_AUTH_URL', 'https://accounts.zoho.in/oauth/v2/token')
+        self.base_url = os.getenv('ZOHO_BASE_URL', 'https://sdpondemand.manageengine.in/api/v3')
         
     def _get_access_token(self):
         """
