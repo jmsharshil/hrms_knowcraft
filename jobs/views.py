@@ -1134,7 +1134,7 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
                 F('match_score').desc(nulls_last=True),
                 '-created_at'
             )
-# Filter based on user role
+        # Filter based on user role
         if user.role in ['admin', 'hr_manager']:
             # Can see all applications
             pass

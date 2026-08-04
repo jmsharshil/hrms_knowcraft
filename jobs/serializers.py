@@ -527,7 +527,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             if attendees is not None and not isinstance(attendees, list):  # if not prefetched queryset
                 attendees = attendees.all()
             return [
-                {"id": a.id, "name": getattr(a, 'name', a.display_name or ''), "email": a.email}
+                {"id": a.id, "name": getattr(a, 'name', ''), "email": a.email}
                 for a in (attendees or [])
             ]
         return []
