@@ -3,10 +3,12 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from django.db.models import Q, Count, F, Sum, Min, OuterRef, Subquery, Case, When, Value, IntegerField
+from django.db.models import Q, Count, F, Sum, Min, OuterRef, Subquery, Case, When, Value, IntegerField, Prefetch
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.utils import timezone
 from django.db import transaction
+from booking.models import Booking  # for prefetching latest bookings/attendees in list API
+from django.shortcuts import get_object_or_404
 
 from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLink,ReferralApplication,Application
 from .serializers import (
@@ -1054,7 +1056,9 @@ class JobApplicationLinkViewSet(viewsets.ModelViewSet):
 from rest_framework.pagination import PageNumberPagination
 
 class JobApplicationPagination(PageNumberPagination):
-    page_size = 500
+    page_size = 100
+    page_size_query_param = 'page_size'
+    max_page_size = 200
 
 class JobApplicationViewSet(viewsets.ModelViewSet):
     """ViewSet for managing Job Applications"""
@@ -1095,18 +1099,36 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         queryset = JobApplication.objects.select_related(
-            'job', 'job__department', 'job__designation', 'job__posted_by',
-            'submitted_by', 'application_link'
+            'job',
+            'job__department',
+            'job__designation',
+            'job__posted_by',
+            'job__mrf',  # for mrf_details
+            'submitted_by',
+            'application_link',
+            'application_link__created_by',
+            # onboarding related (from previous extensions)
+            'documents',
+        ).prefetch_related(
+            'bookings__attendees',  # critical for get_attendees_details (avoids per-object query)
+            'interview_feedbacks',  # if used in consolidated feedback
+            Prefetch(
+                'bookings',
+                queryset=Booking.objects.select_related('created_by').order_by('-created_at')[:5],
+                to_attr='prefetched_bookings'
+            ),
+            # Add any survey/BGV relations if exposed in serializer
+            'survey_responses',
         )
-        
-        # Default to active=True (consistent with soft-delete pattern); 
+
+        # Default to active=True (consistent with soft-delete pattern);
         # ?is_active=false param retained for admin/HR-manager
         is_active_param = self.request.query_params.get('is_active')
         if is_active_param is not None:
             queryset = queryset.filter(is_active=is_active_param.lower() == 'true')
         else:
             queryset = queryset.filter(is_active=True)
-        
+
         if not user.is_authenticated:
             return queryset.order_by(
                 F('match_score').desc(nulls_last=True),
@@ -1117,12 +1139,16 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
             # Can see all applications
             pass
         elif user.role == 'hr':
-            # Internal HR: only applications for jobs assigned to them
-            queryset = queryset.filter(Q(job__assigned_to_internal_hr=user) | Q(job__assigned_internal_hrs=user))
+            queryset = queryset.filter(
+                Q(job__assigned_to_internal_hr=user) | Q(job__assigned_internal_hrs=user)
+            )
         elif user.role == 'consultancy':
-            # Can see applications for jobs assigned to them
-            queryset = queryset.filter(Q(job__assigned_to_consultancy=user) |
-                Q(job__assigned_consultancies=user),source='consultancy',application_link__created_by=user)
+            queryset = queryset.filter(
+                Q(job__assigned_to_consultancy=user) |
+                Q(job__assigned_consultancies=user),
+                source='consultancy',
+                application_link__created_by=user
+            )
         else:
             queryset = queryset.none()
 
@@ -1143,23 +1169,23 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         job_filter = self.request.query_params.get('job')
         if job_filter and is_valid_uuid(job_filter):
             queryset = queryset.filter(job_id=job_filter)
-        
+
         status_filter = self.request.query_params.get('status')
         if status_filter:
             queryset = queryset.filter(status=status_filter)
-        
+
         source_filter = self.request.query_params.get('source')
         if source_filter:
             queryset = queryset.filter(source=source_filter)
-        
+
         platform_filter = self.request.query_params.get('platform')
         if platform_filter:
             queryset = queryset.filter(application_link__platform=platform_filter)
-        
+
         my_applications = self.request.query_params.get('my_applications')
         if my_applications and my_applications.lower() == 'true':
             queryset = queryset.filter(submitted_by=user)
-        
+
         queryset = queryset.order_by(F('match_score').desc(nulls_last=True), '-created_at')
         return queryset.distinct()
     

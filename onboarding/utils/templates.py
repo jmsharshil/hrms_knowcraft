@@ -1433,10 +1433,17 @@ HTML_TEMPLATES.update({
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
                         <tr>
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
-                                <h2 style="margin:0 0 22px 0;color:#dc2626;font-size:24px;font-weight:600;">Action Required: Complete Your Documents</h2>
+                                <h2 style="margin:0 0 22px 0;color:#dc2626;font-size:24px;font-weight:600;">Action Required: Complete Your Onboarding Documents (JMS)</h2>
                                 <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
-                                <p style="margin:0 0 16px 0;">Welcome aboard! We noticed that your <strong>joining documents are still pending</strong>.</p>
-                                <p style="margin:0 0 16px 0;">Please complete the document upload process at the earliest to ensure your account activation and payroll onboarding are not delayed.</p>
+                                <p style="margin:0 0 16px 0;">Welcome to Knowcraft Analytics! We noticed that your <strong>joining documents are still pending</strong> as per the JMS Onboarding Form.</p>
+                                <p style="margin:0 0 16px 0;">To activate your account, enable payroll, and complete IT setup, please upload the required documents immediately using the link below.</p>
+                                
+                                <p style="margin:25px 0 30px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}/api/application/documents/upload/{{candidate.id}}" 
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">Upload Documents Now</a>
+                                </p>
+                                
+                                <p style="margin:0 0 16px 0;">This is critical for your smooth transition. Our HR and IT teams are ready to support you.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
@@ -1470,12 +1477,59 @@ HTML_TEMPLATES.update({
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
                         <tr>
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
-                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">30-Day Check-In: We'd Love Your Feedback!</h2>
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">30-Day Onboarding Feedback</h2>
                                 <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
-                                <p style="margin:0 0 16px 0;">Congratulations on completing your <strong>first 30 days</strong> at Knowcraft Analytics! We hope your journey has been smooth and rewarding.</p>
-                                <p style="margin:0 0 16px 0;">Please take a moment to share your experience by filling out our quick <strong>30-Day Satisfaction Survey</strong>. Your honest feedback helps us continuously improve the onboarding experience for everyone.</p>
+                                <p style="margin:0 0 16px 0;">Congratulations on completing your first 30 days at Knowcraft Analytics!</p>
+                                <p style="margin:0 0 16px 0;">As part of our JMS Onboarding process, we value your feedback on orientation, buddy support, role clarity, training effectiveness, team integration, and overall experience.</p>
+                                <p style="margin:25px 0 30px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}/onboarding/survey/{{candidate.id}}/?survey_type=candidate" 
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">Complete 30-Day Satisfaction Survey</a>
+                                </p>
+                                <p style="margin:0 0 16px 0;">Your responses (stored in SurveyResponse model) will help us improve the onboarding pipeline for future joiners. All feedback is confidential.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """,
+    "d90_survey": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">90-Day Onboarding Survey</h2>
+                                <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
+                                <p style="margin:0 0 16px 0;">Congratulations on reaching your <strong>90-day milestone</strong> at Knowcraft Analytics!</p>
+                                <p style="margin:0 0 16px 0;">Your feedback on role clarity, training, team support, culture, and overall experience is extremely valuable. Please complete our structured 90-Day Survey below (or via the link in your dashboard).</p>
+                                <p style="margin:25px 0 30px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}/onboarding/survey/{{candidate.id}}/?survey_type=candidate" 
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">Complete 90-Day Survey</a>
+                                </p>
+                                <p style="margin:0 0 16px 0;">All responses are securely saved in our database (SurveyResponse model) for analysis and process improvement.</p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Thank you in advance for your time,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
                                 <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
@@ -1499,41 +1553,29 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
     <html>
     <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
         <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <!-- Logo -->
             <tr>
-                <td align="center" style="padding:30px 15px;">
-                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
-                        <!-- Header -->
-                        <tr>
-                            <td align="center" style="background:#ffffff;padding:25px 40px;border-bottom:1px solid #e2e8f0;">
-                                <img src="{{FRONTEND_URL}}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
-                            </td>
-                        </tr>
-                        <!-- Content -->
-                        <tr>
-                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
-                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">
-                                    Buddy Assignment Notification
-                                </h2>
-                                <p style="margin:0 0 16px 0;">Dear Team,</p>
-                                <p style="margin:0 0 16px 0;">
-                                    This is to inform you that buddies have been formally assigned for our new candidate <strong>{{candidate.candidate_name}}</strong>.
-                                </p>
-                                <p style="margin:0 0 16px 0;">
-                                    Please ensure you reach out and support them during their initial onboarding period.
-                                </p>
-                                <br>
-                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
-                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
-                            </td>
-                        </tr>
-                        <!-- Footer -->
-                        <tr>
-                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
-                            </td>
-                        </tr>
-                    </table>
+                <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                    <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                </td>
+            </tr>
+            <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+            <!-- Content -->
+            <tr>
+                <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
+                    <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Buddy Assigned</h2>
+                    <p style="margin:0 0 16px 0;">Dear Team,</p>
+                    <p style="margin:0 0 16px 0;">Buddies (Technical & Cultural) have been assigned to <strong>{{candidate.candidate_name}}</strong> per the JMS Onboarding Form.</p>
+                    <p style="margin:0 0 16px 0;">Please coordinate to ensure the new joiner receives proper guidance on tools, processes, team culture, and role expectations during the first 30/45/90 days.</p>
+                    <br>
+                    <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                    <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                    <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                    © 2026 Knowcraft Analytics Private Limited • Confidential
                 </td>
             </tr>
         </table>

@@ -101,12 +101,15 @@ class JobApplicationAdmin(admin.ModelAdmin):
         'candidate_name', 'candidate_email', 'candidate_phone',
         'job', 'status', 'bgv_status', 'source',
         'experience_years', 'joining_date', 'offer_accepted_date',
-        'is_active', 'submitted_by', 'created_at',
+        'is_active', 'is_satisfaction_survey_filled', 'is_hod_survey_filled',
+        'is_d45_call_scheduled', 'is_d90_call_scheduled', 'submitted_by', 'created_at',
     ]
     list_filter = [
         'status', 'bgv_status', 'source', 'round_name',
         'is_active', 'is_duplicate', 'is_shortlisted',
         'is_selected', 'is_approved', 'is_rejected',
+        'is_satisfaction_survey_filled', 'is_hod_survey_filled',
+        'is_d45_call_scheduled', 'is_d90_call_scheduled',
         'created_at',
     ]
     search_fields = [
@@ -155,7 +158,8 @@ class JobApplicationAdmin(admin.ModelAdmin):
             'fields': (
                 'it_ticket_ref', 'emp_account_active', 'work_email',
                 'technical_buddy_name', 'technical_buddy_email', 'cultural_buddy_name', 'cultural_buddy_email', 'is_escalated', 
-                'is_satisfaction_survey_filled', 'is_d45_call_scheduled', 'is_d90_call_scheduled'
+                'is_satisfaction_survey_filled', 'is_hod_survey_filled',
+                'is_d45_call_scheduled', 'is_d90_call_scheduled'
             )
         }),
         # ── 4. Compensation ───────────────────────────────────────
@@ -211,6 +215,25 @@ class JobApplicationAdmin(admin.ModelAdmin):
             'job', 'job__department', 'job__mrf',
             'submitted_by', 'application_link',
         )
+
+    actions = ['send_90_day_survey']
+
+    def send_90_day_survey(self, request, queryset):
+        """Send 90-day survey form link to selected candidates. Responses saved to SurveyResponse model in DB."""
+        from onboarding.utils.notifications import notify_candidate
+        count = 0
+        for application in queryset:
+            if not getattr(application, 'is_satisfaction_survey_filled', False):
+                success = notify_candidate(
+                    application, 
+                    "d90_survey", 
+                    cc=[]
+                )
+                if success:
+                    count += 1
+        self.message_user(request, f"Successfully sent 90-day survey form to {count} candidate(s). Responses will be automatically saved to the database (SurveyResponse model) when submitted via the form.")
+    send_90_day_survey.short_description = "Send 90 Day Survey Form (saves responses to DB)"
+
     
 @admin.register(ReferralApplication)
 class ReferralApplicationAdmin(admin.ModelAdmin):

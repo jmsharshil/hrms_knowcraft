@@ -517,9 +517,19 @@ class JobApplicationSerializer(serializers.ModelSerializer):
         return MRFListSerializer(obj.job.mrf).data
 
     def get_attendees_details(self, obj):
-        latest_booking = obj.bookings.order_by('-created_at').first()
+        bookings = getattr(obj, 'prefetched_bookings', None)
+        if bookings:
+            latest_booking = bookings[0] if bookings else None
+        else:
+            latest_booking = obj.bookings.order_by('-created_at').first()
         if latest_booking:
-            return [{"id": a.id, "name": a.name, "email": a.email} for a in latest_booking.attendees.all()]
+            attendees = getattr(latest_booking, 'attendees', None)
+            if attendees is not None and not isinstance(attendees, list):  # if not prefetched queryset
+                attendees = attendees.all()
+            return [
+                {"id": a.id, "name": getattr(a, 'name', a.display_name or ''), "email": a.email}
+                for a in (attendees or [])
+            ]
         return []
 
 

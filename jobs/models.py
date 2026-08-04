@@ -776,6 +776,9 @@ class JobApplication(models.Model):
             models.Index(fields=['status']),
             models.Index(fields=['source']),
             models.Index(fields=['application_link']),
+            models.Index(fields=['match_score', 'status', 'created_at']),
+            models.Index(fields=['candidate_name', 'candidate_email']),
+            models.Index(fields=['job_id', 'is_active'])
         ]
 
     def __init__(self, *args, **kwargs):

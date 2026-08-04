@@ -707,6 +707,22 @@ Knowcraft Analytics Private Limited""",
         ),
         "log": "30-day satisfaction survey sent to {candidate.candidate_email}",
     },
+    "d90_survey": {
+        "email": {
+            "subject": "90-Day Onboarding Survey - Your Feedback is Valuable",
+            "text": (
+                "Congratulations on reaching your 90-day milestone at Knowcraft Analytics! "
+                "We'd like to hear about your full onboarding experience, role clarity, support received, "
+                "and any suggestions for improvement. Please complete our 90-Day Survey using the link below. "
+                "Your responses are saved directly to our database and help shape future improvements."
+            ),
+        },
+        "sms": (
+            "Hi {candidate.candidate_name}, it's your 90-day mark at Knowcraft! "
+            "Please complete the 90 day survey form. Link in email. Your input is saved in our DB."
+        ),
+        "log": "90-day survey form sent to {candidate.candidate_email}",
+    },
 }
 
 def notify_candidate(candidate: Any, stage: str,cc:list, feedback_link: str = None) -> bool:
@@ -1222,6 +1238,64 @@ This concludes the hiring process for this profile.
 Warm Regards,
 Team – HR
 Knowcraft Analytics Private Limited""",
+    },
+
+    # --------------------------------------------------------------
+    # POST-JOINING / ONBOARDING MILESTONE INTERNAL NOTIFICATIONS
+    # --------------------------------------------------------------
+    "doj_minus_15_it_team": {
+        "receivers": ["it_team", "admin"],
+        "subject": "Upcoming Joiner - IT Procurement Reminder (15 Days)",
+        "body": "Candidate is joining in 15 days. Please ensure laptop procurement and account setup via ManageEngine.",
+        "sms": "Upcoming joiner {candidate.candidate_name} in 15 days - prepare IT assets.",
+    },
+    "doj_minus_7_hod": {
+        "receivers": ["department_head"],
+        "subject": "Upcoming Team Member Joining (7 Days)",
+        "body": "New team member {candidate.candidate_name} joining your department in 7 days. Please prepare for onboarding.",
+        "sms": "New joiner {candidate.candidate_name} for your team in 7 days.",
+    },
+    "doj_minus_7_admin": {
+        "receivers": ["admin"],
+        "subject": "New Office Joiner Preparations (7 Days)",
+        "body": "Candidate {candidate.candidate_name} (office joiner) arriving in 7 days. Please arrange seating and access card.",
+        "sms": "Office joiner preparations required for {candidate.candidate_name}.",
+    },
+    "bgv_escalation": {
+        "receivers": ["hr", "admin"],
+        "subject": "ESCALATION: BGV Pending Beyond 7 Days",
+        "body": "BGV for candidate {candidate.candidate_name} is still pending 7+ days post-joining. Please review and resolve immediately.",
+        "sms": "BGV ESCALATION for {candidate.candidate_name} - action required.",
+    },
+    "satisfaction_survey_hod": {
+        "receivers": ["department_head"],
+        "subject": "30-Day Employee Survey Dispatched",
+        "body": "The 30-day satisfaction survey has been sent to {candidate.candidate_name}. Please follow up on their feedback if needed.",
+        "sms": "30-day survey sent to new joiner {candidate.candidate_name}.",
+    },
+    "schedule_checkin_call_reminder": {
+        "receivers": ["hr", "department_head"],
+        "subject": "Action Required: Schedule 45-Day Check-In Call",
+        "body": "Please schedule the 45-day check-in call with {candidate.candidate_name} via Microsoft Teams and update the HRMS flag.",
+        "sms": "Schedule 45-day check-in for {candidate.candidate_name}.",
+    },
+    "schedule_final_review_reminder": {
+        "receivers": ["hr", "department_head"],
+        "subject": "Action Required: Schedule 90-Day Final Review",
+        "body": "Please schedule the 90-day final review call with {candidate.candidate_name}. Mark as complete in HRMS to close onboarding.",
+        "sms": "Schedule 90-day final review for {candidate.candidate_name}.",
+    },
+    "buddy_assigned": {
+        "receivers": ["hr", "department_head"],
+        "subject": "Technical & Cultural Buddy Assigned",
+        "body": "Buddies have been assigned to {candidate.candidate_name}. Please ensure they connect within first week.",
+        "sms": "Buddies assigned for new joiner {candidate.candidate_name}.",
+    },
+    "it_team_ticket_created": {
+        "receivers": ["it_team", "admin"],
+        "subject": "New Onboarding IT Ticket Created",
+        "body": "IT ticket {candidate.it_ticket_ref} created for onboarding of {candidate.candidate_name}. Please monitor and complete setup.",
+        "sms": "New IT onboarding ticket created for {candidate.candidate_name}.",
     },
 }
 

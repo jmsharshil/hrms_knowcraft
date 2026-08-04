@@ -120,35 +120,35 @@ def daily_onboarding_check():
                 app.save(update_fields=['is_escalated'])
                 notify_internal(app, "bgv_escalation")
 
-        # ── DOJ + 30 Days (Satisfaction Survey) ─────────────────
-        elif days_until_joining <= -30:
+        # Calculate days past joining for post-onboarding triggers
+        days_past = 0
+        if days_until_joining < 0:
             days_past = abs(days_until_joining)
-            
-            # Send candidate survey reminder if not filled
-            if not app.is_satisfaction_survey_filled:
-                if days_past >= 30:
-                    logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending candidate survey reminder.")
-                    notify_candidate(app, "satisfaction_survey", cc=[])
-            
-            # Send HOD survey reminder if not filled
-            if not app.is_hod_survey_filled:
-                if days_past >= 30:
-                    logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending HOD survey reminder.")
-                    notify_internal(app, "satisfaction_survey_hod")
 
-        # ── DOJ + 45 Days (Check-in Call) ───────────────────────
-        elif days_until_joining <= -45 and not app.is_d45_call_scheduled:
-            logger.info(f"DOJ + {abs(days_until_joining)} for candidate {app.candidate_name}. Check-in invite reminder.")
+        # ── DOJ + 30 Days (30-Day Satisfaction Survey for Candidate + HOD) ─────────────────
+        if days_past >= 30 and not getattr(app, 'is_satisfaction_survey_filled', False):
+            logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending 30-day candidate survey reminder.")
+            notify_candidate(app, "satisfaction_survey", cc=[])
+            
+        if days_past >= 30 and not getattr(app, 'is_hod_survey_filled', False):
+            logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending HOD survey reminder.")
+            notify_internal(app, "satisfaction_survey_hod")
+
+        # ── DOJ + 45 Days (D45 Check-in Call Reminder) ───────────────────────
+        if days_past >= 45 and not getattr(app, 'is_d45_call_scheduled', False):
+            logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Check-in invite reminder (D45).")
             notify_internal(app, "schedule_checkin_call_reminder")
-                
-        # ── DOJ + 90 Days (Final Event & Close) ─────────────────
-        elif days_until_joining <= -90 and not app.is_d90_call_scheduled:
-            logger.info(f"DOJ + {abs(days_until_joining)} for candidate {app.candidate_name}. Final review reminder.")
+            # Note: ScheduleD45CallAPI should be called from frontend to book Teams meeting and set flag=True
+
+        # ── DOJ + 90 Days (90-Day Survey + Final Review) ─────────────────
+        if days_past >= 90 and not getattr(app, 'is_d90_call_scheduled', False):
+            logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending 90-day survey + final review reminder.")
+            # Send the dedicated 90-day survey to candidate
+            notify_candidate(app, "d90_survey", cc=[])
             notify_internal(app, "schedule_final_review_reminder")
                 
             # If it's exactly day 90, close the ME ticket
-            if days_until_joining == -90:
-                if app.it_ticket_ref:
-                    me_client.close_ticket(app.it_ticket_ref)
+            if days_past == 90 and app.it_ticket_ref:
+                me_client.close_ticket(app.it_ticket_ref)
                 
     return True
