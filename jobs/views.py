@@ -1134,7 +1134,7 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
                 F('match_score').desc(nulls_last=True),
                 '-created_at'
             )
-        # Filter based on user role
+# Filter based on user role
         if user.role in ['admin', 'hr_manager']:
             # Can see all applications
             pass
@@ -1147,7 +1147,9 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
                 Q(job__assigned_to_consultancy=user) |
                 Q(job__assigned_consultancies=user),
                 source='consultancy',
-                application_link__created_by=user
+            ).filter(
+                Q(application_link__created_by=user) |
+                Q(application_link__isnull=True)
             )
         else:
             queryset = queryset.none()
