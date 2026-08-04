@@ -1114,7 +1114,7 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
             'interview_feedbacks',  # if used in consolidated feedback
             Prefetch(
                 'bookings',
-                queryset=Booking.objects.select_related('created_by').order_by('-created_at')[:5],
+                queryset=Booking.objects.select_related('interviewer', 'candidate', 'slot', 'location').order_by('-created_at')[:5],
                 to_attr='prefetched_bookings'
             ),
             # Add any survey/BGV relations if exposed in serializer
