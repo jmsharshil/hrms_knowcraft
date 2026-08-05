@@ -147,6 +147,22 @@ def daily_onboarding_check():
             # Send the dedicated 90-day survey to candidate
             notify_candidate(app, "d90_survey", cc=[])
             notify_internal(app, "schedule_final_review_reminder")
+
+            # Save a DB record for the 90-day candidate survey (responses empty until candidate fills it)
+            try:
+                from onboarding.models import SurveyResponse
+                SurveyResponse.objects.get_or_create(
+                    job_application=app,
+                    survey_type='90_day_candidate',
+                    defaults={
+                        'respondent_name': app.candidate_name,
+                        'respondent_email': getattr(app, 'work_email', None) or app.candidate_email,
+                        'responses': {},
+                    }
+                )
+            except Exception as survey_err:
+                logger.warning(f"Could not create 90-day SurveyResponse record for {app.candidate_name}: {survey_err}")
+
             # Mark survey as sent so this does not re-fire every day
             app.is_d90_survey_sent = True
             app.save(update_fields=['is_d90_survey_sent'])

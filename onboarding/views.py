@@ -2441,8 +2441,8 @@ class GetSurveyStructureAPI(APIView):
             "role": application.job.mrf.designation.name if hasattr(application.job, 'mrf') and application.job.mrf else "",
             "department": application.job.mrf.department.name if hasattr(application.job, 'mrf') and application.job.mrf else "",
             "date_of_joining": application.joining_date,
-            "already_submitted": existing is not None,
-            "submitted_at": existing.submitted_at if existing else None,
+            "already_submitted": existing is not None and bool(existing.responses),
+            "submitted_at": existing.submitted_at if (existing and bool(existing.responses)) else None,
             "structure": SURVEY_90_DAY_STRUCTURE,
         })
 
@@ -2499,10 +2499,15 @@ class CompleteSurveyAPI(APIView):
             }
         )
 
+        # ── Update completion flag based on survey type ───────────────────────
         if survey_type == 'hod':
             application.is_hod_survey_filled = True
             application.save(update_fields=['is_hod_survey_filled'])
+        elif survey_type == '90_day_candidate':
+            application.is_d90_survey_filled = True
+            application.save(update_fields=['is_d90_survey_filled'])
         else:
+            # Default: 30-day candidate survey
             application.is_satisfaction_survey_filled = True
             application.save(update_fields=['is_satisfaction_survey_filled'])
 

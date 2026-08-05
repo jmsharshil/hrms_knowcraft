@@ -673,8 +673,9 @@ class SurveyResponse(models.Model):
     and HOD surveys at the DOJ+30 milestone.
     """
     SURVEY_TYPE_CHOICES = [
-        ("candidate", "Candidate Satisfaction Survey"),
-        ("hod", "HOD Satisfaction Survey"),
+        ("candidate", "30-Day Candidate Satisfaction Survey"),
+        ("hod", "30-Day HOD Satisfaction Survey"),
+        ("90_day_candidate", "90-Day Candidate Survey"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
