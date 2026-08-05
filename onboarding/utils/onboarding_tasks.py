@@ -26,7 +26,7 @@ def daily_onboarding_check():
     # Exclude candidates who have completed onboarding or are rejected/withdrawn.
     active_statuses = [
         "offer_accepted", "docs_pending", "docs_uploaded", 
-        "joining_pending", "joined"
+        "joining_pending", "joined", "docs_approved"
     ]
     
     candidates = JobApplication.objects.filter(
@@ -141,14 +141,22 @@ def daily_onboarding_check():
             # Note: ScheduleD45CallAPI should be called from frontend to book Teams meeting and set flag=True
 
         # ── DOJ + 90 Days (90-Day Survey + Final Review) ─────────────────
-        if days_past >= 90 and not getattr(app, 'is_d90_call_scheduled', False):
+        if days_past >= 90 and not getattr(app, 'is_d90_survey_sent', False):
+            # Gap 10 fix: gate survey send on its own flag, not the call-scheduled flag
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending 90-day survey + final review reminder.")
             # Send the dedicated 90-day survey to candidate
             notify_candidate(app, "d90_survey", cc=[])
             notify_internal(app, "schedule_final_review_reminder")
-                
-            # If it's exactly day 90, close the ME ticket
-            if days_past == 90 and app.it_ticket_ref:
-                me_client.close_ticket(app.it_ticket_ref)
+            # Mark survey as sent so this does not re-fire every day
+            app.is_d90_survey_sent = True
+            app.save(update_fields=['is_d90_survey_sent'])
+
+        # Gap 8 fix: Close ME ticket once we are AT OR PAST day 90, using a dedicated flag
+        # so this fires exactly once even if the cron misses the exact day-90 run.
+        if days_past >= 90 and app.it_ticket_ref and not getattr(app, 'it_ticket_closed', False):
+            logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Closing ManageEngine IT ticket.")
+            if me_client.close_ticket(app.it_ticket_ref):
+                app.it_ticket_closed = True
+                app.save(update_fields=['it_ticket_closed'])
                 
     return True
