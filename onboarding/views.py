@@ -2526,13 +2526,33 @@ class ScheduleD45CallAPI(APIView):
             try:
                 from dateutil.parser import parse
                 from slots.graph import create_teams_meeting
+                from onboarding.models import OnboardingCall
                 
                 start_dt = parse(start_time_str)
                 end_dt = parse(end_time_str)
                 candidate_email = application.work_email or application.candidate_email
                 subject = f"Day 45 Check-in Call: {application.candidate_name}"
                 
-                create_teams_meeting(organizer_email, candidate_email, start_dt, end_dt, subject)
+                event = create_teams_meeting(organizer_email, candidate_email, start_dt, end_dt, subject)
+                
+                meeting_id = event.get("id")
+                meeting_link = (
+                    event.get("onlineMeeting", {}).get("joinUrl")
+                    or event.get("onlineMeetingUrl")
+                    or event.get("onlineMeeting", {}).get("joinWebUrl")
+                    or None
+                )
+                
+                OnboardingCall.objects.create(
+                    job_application=application,
+                    call_type="d45",
+                    organizer_email=organizer_email,
+                    start_time=start_dt,
+                    end_time=end_dt,
+                    meeting_id=meeting_id,
+                    meeting_link=meeting_link
+                )
+                
             except Exception as e:
                 import logging
                 logger = logging.getLogger(__name__)
@@ -2540,7 +2560,7 @@ class ScheduleD45CallAPI(APIView):
                 return Response({"error": f"Failed to book MS Teams meeting: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
                 
         application.is_d45_call_scheduled = True
-        application.save(update_fields=['is_d45_call_scheduled'])
+        application.save(update_fields=['is_d45_call_scheduled'])     
         return Response({"message": "Day 45 check-in call booked and marked as scheduled"}, status=status.HTTP_200_OK)
 
 class ScheduleD90CallAPI(APIView):
@@ -2556,13 +2576,33 @@ class ScheduleD90CallAPI(APIView):
             try:
                 from dateutil.parser import parse
                 from slots.graph import create_teams_meeting
+                from onboarding.models import OnboardingCall
                 
                 start_dt = parse(start_time_str)
                 end_dt = parse(end_time_str)
                 candidate_email = application.work_email or application.candidate_email
                 subject = f"Day 90 Final Review Call: {application.candidate_name}"
                 
-                create_teams_meeting(organizer_email, candidate_email, start_dt, end_dt, subject)
+                event = create_teams_meeting(organizer_email, candidate_email, start_dt, end_dt, subject)
+                
+                meeting_id = event.get("id")
+                meeting_link = (
+                    event.get("onlineMeeting", {}).get("joinUrl")
+                    or event.get("onlineMeetingUrl")
+                    or event.get("onlineMeeting", {}).get("joinWebUrl")
+                    or None
+                )
+                
+                OnboardingCall.objects.create(
+                    job_application=application,
+                    call_type="d90",
+                    organizer_email=organizer_email,
+                    start_time=start_dt,
+                    end_time=end_dt,
+                    meeting_id=meeting_id,
+                    meeting_link=meeting_link
+                )
+                
             except Exception as e:
                 import logging
                 logger = logging.getLogger(__name__)

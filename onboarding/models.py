@@ -703,3 +703,28 @@ class SurveyResponse(models.Model):
 
     def __str__(self):
         return f"{self.get_survey_type_display()} - {self.job_application.candidate_name}"
+
+class OnboardingCall(models.Model):
+    CALL_TYPE_CHOICES = (
+        ("d45", "Day 45 Check-in"),
+        ("d90", "Day 90 Final Review"),
+    )
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    job_application = models.ForeignKey(JobApplication, on_delete=models.CASCADE, related_name="onboarding_calls")
+    call_type = models.CharField(max_length=10, choices=CALL_TYPE_CHOICES)
+    
+    organizer_email = models.EmailField(null=True, blank=True)
+    start_time = models.DateTimeField(null=True, blank=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+    
+    meeting_id = models.CharField(max_length=512, blank=True, null=True)
+    meeting_link = models.TextField(blank=True, null=True)
+    
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "onboarding_calls"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.get_call_type_display()} - {self.job_application.candidate_name}"
