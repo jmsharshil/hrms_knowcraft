@@ -649,6 +649,26 @@ Team – HR
 Knowcraft Analytics Private Limited""",
         "log": "Final rejection sent to {candidate.candidate_email}",
     },
+    
+    # --------------------------------------------------------------
+    # ONBOARDING SURVEYS (CANDIDATE)
+    # --------------------------------------------------------------
+    "satisfaction_survey": {
+        "email": {
+            "subject": "30-Day Check-in Survey",
+            "text": "Please take a moment to fill out your 30-day onboarding satisfaction survey: {FRONTEND_URL}/candidate/satisfaction-survey/{candidate.id}",
+        },
+        "sms": "Please check your email or visit {FRONTEND_URL}/candidate/satisfaction-survey/{candidate.id} for your 30-day survey.",
+        "log": "30-Day satisfaction survey sent to {candidate.candidate_email}",
+    },
+    "d90_survey": {
+        "email": {
+            "subject": "90-Day Check-in Survey",
+            "text": "Please take a moment to fill out your 90-day onboarding survey: {FRONTEND_URL}/candidate/90-day-survey/{candidate.id}",
+        },
+        "sms": "Please check your email or visit {FRONTEND_URL}/candidate/90-day-survey/{candidate.id} for your 90-day survey.",
+        "log": "90-Day survey sent to {candidate.candidate_email}",
+    },
     "candidate_feedback": {
         "email": {
             "subject": "Candidate Experience Feedback - Knowcraft Analytics",
@@ -839,11 +859,18 @@ def notify_candidate(candidate: Any, stage: str,cc:list, feedback_link: str = No
             #     from onboarding.utils.docs_reupload import get_pending_documents
             #     pending_docs = get_pending_documents(candidate.documents)
             #     pending_docs_html = "<ul>" + "".join(f"<li>{doc}</li>" for doc in pending_docs) + "</ul>"
+            formatted_text = email_cfg["text"]
+            if "{" in formatted_text:
+                try:
+                    formatted_text = formatted_text.format(FRONTEND_URL=FRONTEND_URL, candidate=candidate)
+                except KeyError:
+                    pass
+
             recipient_email = getattr(candidate, 'work_email', None) or candidate.candidate_email
             send_email(
                 to=recipient_email,
                 subject=email_cfg["subject"],
-                text=email_cfg["text"],
+                text=formatted_text,
                 cc= cc,
                 template=html_template.format(
                     candidate=candidate,
@@ -1514,7 +1541,9 @@ def resolve_internal_phones(candidate, receivers: list[str]) -> list[str]:
         logger.exception(f"Error finding phones to send: {e}")
         return []
 
-def notify_internal(candidate: Any, stage: str, cc: list) -> bool:
+def notify_internal(candidate: Any, stage: str, cc: list = None) -> bool:
+    if cc is None:
+        cc = []
     # Private Job Check: No automated communications for private records
     try:
         if hasattr(candidate, 'job') and candidate.job and candidate.job.is_private:

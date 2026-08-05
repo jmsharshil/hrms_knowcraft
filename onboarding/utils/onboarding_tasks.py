@@ -126,9 +126,11 @@ def daily_onboarding_check():
             days_past = abs(days_until_joining)
 
         # ── DOJ + 30 Days (30-Day Satisfaction Survey for Candidate + HOD) ─────────────────
-        if days_past >= 30 and not getattr(app, 'is_satisfaction_survey_filled', False):
+        if days_past >= 30 and not getattr(app, 'is_d30_survey_sent', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending 30-day candidate survey reminder.")
             notify_candidate(app, "satisfaction_survey", cc=[])
+            app.is_d30_survey_sent = True
+            app.save(update_fields=['is_d30_survey_sent'])
             
         if days_past >= 30 and not getattr(app, 'is_hod_survey_filled', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending HOD survey reminder.")

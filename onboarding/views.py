@@ -2514,7 +2514,7 @@ class CompleteSurveyAPI(APIView):
         return Response({"message": "Survey submitted successfully."}, status=status.HTTP_200_OK)
 
 class ScheduleD45CallAPI(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     def patch(self, request, id):
         application = get_object_or_404(JobApplication, id=id)
         
@@ -2564,7 +2564,7 @@ class ScheduleD45CallAPI(APIView):
         return Response({"message": "Day 45 check-in call booked and marked as scheduled"}, status=status.HTTP_200_OK)
 
 class ScheduleD90CallAPI(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     def patch(self, request, id):
         application = get_object_or_404(JobApplication, id=id)
         

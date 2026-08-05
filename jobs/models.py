@@ -685,6 +685,7 @@ class JobApplication(models.Model):
     is_hod_survey_filled = models.BooleanField(default=False)
     is_d45_call_scheduled = models.BooleanField(default=False)
     is_d90_call_scheduled = models.BooleanField(default=False)
+    is_d30_survey_sent = models.BooleanField(default=False)
     is_d90_survey_sent = models.BooleanField(default=False)   # Gap 10: track survey send separately from call
     is_d90_survey_filled = models.BooleanField(default=False) # tracks when candidate submits the 90-day survey
     it_ticket_closed = models.BooleanField(default=False)     # Gap 8:  guard ME ticket close (>= day 90)
