@@ -174,7 +174,8 @@ class ManageEngineClient:
         
         try:
             response = requests.post(url, headers=headers, data=payload)
-            response.raise_for_status()
+            print('ME API RESPONSE', response.text)
+            #response.raise_for_status()
             data = response.json()
             if 'request' in data and 'id' in data['request']:
                 ticket_id = data['request']['id']
