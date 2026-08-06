@@ -129,15 +129,14 @@ class ManageEngineClient:
         udf_fields = {k: v for k, v in udf_fields.items() if v is not None}
         
         requester_data = {}
-        if form_data.get("requester_email_id") or form_data.get("requester_name"):
-            if form_data.get("requester_name"):
-                requester_data["name"] = form_data.get("requester_name")
-            if form_data.get("requester_email_id"):
-                requester_data["email_id"] = form_data.get("requester_email_id")
-        elif form_data.get("requester_id"):
+        if form_data.get("requester_id"):
             requester_data["id"] = form_data.get("requester_id")
-        else:
-            # Fallback for testing
+        if form_data.get("requester_name"):
+            requester_data["name"] = form_data.get("requester_name")
+        if form_data.get("requester_email_id"):
+            requester_data["email_id"] = form_data.get("requester_email_id")
+        if not requester_data:
+            # Fallback for testing if nothing is provided
             requester_data["email_id"] = "jms@knowcraft.in"
             requester_data["name"] = "JMS Admin"
 
