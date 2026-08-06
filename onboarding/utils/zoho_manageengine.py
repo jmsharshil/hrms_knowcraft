@@ -142,6 +142,12 @@ class ManageEngineClient:
 
         template_data = {"id": form_data.get("template_id", "5538000000236131")}
         
+        notify_emails = form_data.get("emails_to_notify")
+        if isinstance(notify_emails, str):
+            notify_emails = [e.strip() for e in notify_emails.split(',') if e.strip()]
+        elif not isinstance(notify_emails, list):
+            notify_emails = []
+
         request_payload = {
             "subject": subject,
             "description": desc,
@@ -149,7 +155,7 @@ class ManageEngineClient:
             "template": template_data,
             "request_template_task_ids": [],
             "request_template_checklist_ids": [],
-            "email_ids_to_notify": [form_data.get("emails_to_notify")] if form_data.get("emails_to_notify") else [],
+            "email_ids_to_notify": notify_emails,
             "udf_fields": udf_fields,
         }
         
