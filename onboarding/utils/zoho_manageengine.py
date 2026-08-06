@@ -77,50 +77,89 @@ class ManageEngineClient:
         
         # Combine descriptions
         form_description = form_data.get("description", "")
-        desc = form_description or "Auto-generated onboarding ticket for new hire."
+        desc = form_description or f"<div class=\"personalize-wrapper\" style=\"font-family: 'PT Sans',Arial,Helvetica,sans-serif, sans-serif;font-size: 13px;\"><div>Onboarding Request for {application.candidate_name}<br></div></div>"
         custom_notes = form_data.get("custom_notes") or custom_notes
         if custom_notes:
-            desc += f" Additional Notes: {custom_notes}"
+            desc += f"<br><div>Additional Notes: {custom_notes}</div>"
             
         subject = form_data.get("subject") or f"Onboarding Request - {application.candidate_name}"
             
+        # Date processing for udf_date1 (requires epoch milliseconds)
+        joining_date_epoch = None
+        j_date = form_data.get("joining_date") or application.joining_date
+        if j_date:
+            import datetime
+            if isinstance(j_date, str):
+                try:
+                    # try parsing it if it's string
+                    j_date = datetime.datetime.strptime(j_date, "%Y-%m-%d").date()
+                except ValueError:
+                    pass
+            if isinstance(j_date, datetime.date) or isinstance(j_date, datetime.datetime):
+                # convert to datetime at midnight
+                dt = datetime.datetime.combine(j_date, datetime.datetime.min.time())
+                joining_date_epoch = int(dt.timestamp() * 1000)
+
+        first_name = form_data.get("first_name")
+        last_name = form_data.get("last_name")
+        if not first_name:
+            name_parts = application.candidate_name.split()
+            first_name = name_parts[0] if name_parts else "Unknown"
+            last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+
         udf_fields = {
-            "udf_sline_1": form_data.get("first_name") or application.candidate_name.split()[0], # First Name
-            "udf_sline_2": form_data.get("last_name") or " ".join(application.candidate_name.split()[1:]), # Last Name
-            "udf_sline_3": form_data.get("personal_email_id") or application.candidate_email, # Personal Email
-            "udf_sline_4": form_data.get("contact_number") or application.candidate_phone, # Contact Number
-            "udf_date_1": {"value": str(form_data.get("joining_date") or application.joining_date)} if (form_data.get("joining_date") or application.joining_date) else None,
-            "udf_sline_5": form_data.get("designation") or (application.job.designation.name if application.job.designation else "N/A"),
-            "udf_sline_6": form_data.get("department") or (application.job.department.name if application.job.department else "N/A"),
-            "udf_sline_7": form_data.get("employee_category"),
-            "udf_sline_8": form_data.get("center_office_location"),
-            "udf_sline_9": form_data.get("mode_for_collecting_assets"),
-            "udf_sline_10": form_data.get("team_manager"),
-            "udf_sline_11": form_data.get("work_from") or application.job.job_type,
-            "udf_sline_12": form_data.get("crafter_id"),
-            "udf_sline_13": form_data.get("current_address"),
-            "udf_sline_14": form_data.get("assets"),
-            "udf_sline_15": form_data.get("site")
+            "udf_char5": first_name,
+            "udf_char6": last_name,
+            "udf_char7": form_data.get("personal_email_id") or application.candidate_email,
+            "udf_char8": form_data.get("contact_number") or application.candidate_phone,
+            "udf_date1": {"value": joining_date_epoch} if joining_date_epoch else None,
+            "udf_char19": form_data.get("designation") or (application.job.designation.name if application.job.designation else "N/A"),
+            "udf_char18": form_data.get("department") or (application.job.department.name if application.job.department else "N/A"),
+            "udf_char17": form_data.get("employee_category") or "Full Time Employee",
+            "udf_char105": form_data.get("center_office_location"),
+            "udf_char112": form_data.get("mode_for_collecting_assets"),
+            "udf_char113": form_data.get("team_manager"),
+            "udf_char140": form_data.get("work_from") or application.job.job_type,
+            "udf_char11": form_data.get("crafter_id"),
+            "udf_char131": form_data.get("reporting_manager_note") or "Please provide your Reporting Manager's email ID in the \"Emails to Notify\" field.",
+            "udf_char15": form_data.get("current_address")
         }
         
         # Remove None values so ME does not complain
         udf_fields = {k: v for k, v in udf_fields.items() if v is not None}
         
+        requester_data = {}
+        if form_data.get("requester_id"):
+            requester_data["id"] = form_data.get("requester_id")
+        else:
+            # Fallback to the ID provided in the user's example
+            requester_data["id"] = "5538000011620254"
+
+        template_data = {"id": form_data.get("template_id", "5538000000236131")}
+        
+        request_payload = {
+            "subject": subject,
+            "description": desc,
+            "requester": requester_data,
+            "template": template_data,
+            "request_template_task_ids": [],
+            "request_template_checklist_ids": [],
+            "email_ids_to_notify": [form_data.get("emails_to_notify")] if form_data.get("emails_to_notify") else [],
+            "udf_fields": udf_fields,
+        }
+        
+        if form_data.get("site"):
+            request_payload["site"] = {"id": str(form_data.get("site"))}
+            
+        assets = form_data.get("assets")
+        if assets:
+            if isinstance(assets, list):
+                request_payload["assets"] = [{"id": str(a)} for a in assets]
+            else:
+                request_payload["assets"] = [{"id": str(assets)}]
+
         input_data = {
-            "request": {
-                "subject": subject,
-                "description": desc,
-                "requester": {
-                    "name": application.job.mrf.requested_by.name if application.job.mrf.requested_by else "HR Admin"
-                },
-                # Email to Notify mapped to email_ids to notify (can be internal fields, or mapped here)
-                "email_ids_to_notify": [form_data.get("emails_to_notify")] if form_data.get("emails_to_notify") else [],
-                "udf_fields": udf_fields,
-                # Specify the template name if a specific service request template is used
-                "template": {
-                    "name": "Candidate Onboarding"
-                }
-            }
+            "request": request_payload
         }
         
         # SDP API v3 requires the JSON payload to be passed as a form parameter named 'input_data'
@@ -235,3 +274,41 @@ class ManageEngineClient:
         except Exception as e:
             logger.exception(f"Error closing Zoho ManageEngine ticket {ticket_id}: {e}")
             return False
+
+    def get_sites(self):
+        """
+        Retrieves a list of sites from ManageEngine.
+        """
+        headers = self._get_headers()
+        if not headers:
+            return []
+            
+        url = f"{self.base_url}/sites"
+        
+        try:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            return data.get('sites', [])
+        except Exception as e:
+            logger.exception(f"Error fetching Zoho ManageEngine sites: {e}")
+            return []
+
+    def get_assets(self):
+        """
+        Retrieves a list of assets from ManageEngine.
+        """
+        headers = self._get_headers()
+        if not headers:
+            return []
+            
+        url = f"{self.base_url}/assets"
+        
+        try:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            return data.get('assets', [])
+        except Exception as e:
+            logger.exception(f"Error fetching Zoho ManageEngine assets: {e}")
+            return []

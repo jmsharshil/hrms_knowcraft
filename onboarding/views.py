@@ -2612,3 +2612,21 @@ class ScheduleD90CallAPI(APIView):
         application.is_d90_call_scheduled = True
         application.save(update_fields=['is_d90_call_scheduled'])
         return Response({"message": "Day 90 final review call booked and marked as scheduled"}, status=status.HTTP_200_OK)
+
+class GetManageEngineSitesAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        from .utils.zoho_manageengine import ManageEngineClient
+        client = ManageEngineClient()
+        sites = client.get_sites()
+        return Response({"sites": sites}, status=status.HTTP_200_OK)
+
+class GetManageEngineAssetsAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        from .utils.zoho_manageengine import ManageEngineClient
+        client = ManageEngineClient()
+        assets = client.get_assets()
+        return Response({"assets": assets}, status=status.HTTP_200_OK)

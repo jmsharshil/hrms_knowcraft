@@ -7,7 +7,8 @@ from .views import (
     DownloadJobApplicationDocumentsView, DownloadApprovalNoteAPIView, RevertOfferAPIView,
     EmailLogViewSet,
     ResolveEscalationAPI, AssignBuddyAPI, CompleteSurveyAPI, ScheduleD45CallAPI, ScheduleD90CallAPI,
-    SearchTeamsUsersAPI, InitiateOnboardingAPI, RevertRejectionAPI, GetSurveyStructureAPI
+    SearchTeamsUsersAPI, InitiateOnboardingAPI, RevertRejectionAPI, GetSurveyStructureAPI,
+    GetManageEngineSitesAPI, GetManageEngineAssetsAPI
 )
 from .utils.opensign import opensign_webhook
 from .utils.zoho_sign import zoho_sign_webhook
@@ -42,6 +43,8 @@ urlpatterns = [
     path('application/<str:id>/d45-scheduled/', ScheduleD45CallAPI.as_view(), name='d45-scheduled'),
     path('application/<str:id>/d90-scheduled/', ScheduleD90CallAPI.as_view(), name='d90-scheduled'),
     path('teams/users/search/', SearchTeamsUsersAPI.as_view(), name='search-teams-users'),
+    path('manage-engine/sites/', GetManageEngineSitesAPI.as_view(), name='manage-engine-sites'),
+    path('manage-engine/assets/', GetManageEngineAssetsAPI.as_view(), name='manage-engine-assets'),
     path("", include(router.urls)),
     # path("send-offer/<uuid:application_id>/", send_offer_letter_view),
     # path("bulk-send-offers/", bulk_send_offers),
