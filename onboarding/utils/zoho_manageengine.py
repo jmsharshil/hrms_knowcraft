@@ -129,11 +129,17 @@ class ManageEngineClient:
         udf_fields = {k: v for k, v in udf_fields.items() if v is not None}
         
         requester_data = {}
-        if form_data.get("requester_id"):
+        if form_data.get("requester_email_id") or form_data.get("requester_name"):
+            if form_data.get("requester_name"):
+                requester_data["name"] = form_data.get("requester_name")
+            if form_data.get("requester_email_id"):
+                requester_data["email_id"] = form_data.get("requester_email_id")
+        elif form_data.get("requester_id"):
             requester_data["id"] = form_data.get("requester_id")
         else:
-            # Fallback to the ID provided in the user's example
-            requester_data["id"] = "5538000011620254"
+            # Fallback for testing
+            requester_data["email_id"] = "jms@knowcraft.in"
+            requester_data["name"] = "JMS Admin"
 
         template_data = {"id": form_data.get("template_id", "5538000000236131")}
         
@@ -178,8 +184,8 @@ class ManageEngineClient:
                 logger.error(f"Unexpected response format from ManageEngine: {data}")
                 return None
         except Exception as e:
-            logger.exception(f"Error creating Zoho ManageEngine ticket: {e}")
-            return None
+            logger.error(f"Error creating ManageEngine ticket: {e}")
+            raise
 
     def update_ticket(self, ticket_id, update_payload, note=None):
         """
@@ -311,4 +317,46 @@ class ManageEngineClient:
             return data.get('assets', [])
         except Exception as e:
             logger.exception(f"Error fetching Zoho ManageEngine assets: {e}")
+            return []
+
+    def get_departments(self):
+        """
+        Retrieves a list of departments from ManageEngine.
+        """
+        headers = self._get_headers()
+        if not headers:
+            return []
+            
+        url = f"{self.base_url}/departments"
+        
+        try:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            return data.get('departments', [])
+        except Exception as e:
+            logger.exception(f"Error fetching Zoho ManageEngine departments: {e}")
+            return []
+
+    def get_designations(self):
+        """
+        Retrieves a list of job titles/designations from ManageEngine.
+        """
+        headers = self._get_headers()
+        if not headers:
+            return []
+            
+        # Try jobtitles first, fallback to job_titles if 404
+        url = f"{self.base_url}/jobtitles"
+        
+        try:
+            response = requests.get(url, headers=headers)
+            if response.status_code == 404:
+                url = f"{self.base_url}/job_titles"
+                response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            return data.get('jobtitles', data.get('job_titles', []))
+        except Exception as e:
+            logger.exception(f"Error fetching Zoho ManageEngine designations: {e}")
             return []

@@ -8,7 +8,7 @@ from .views import (
     EmailLogViewSet,
     ResolveEscalationAPI, AssignBuddyAPI, CompleteSurveyAPI, ScheduleD45CallAPI, ScheduleD90CallAPI,
     SearchTeamsUsersAPI, InitiateOnboardingAPI, RevertRejectionAPI, GetSurveyStructureAPI,
-    GetManageEngineSitesAPI, GetManageEngineAssetsAPI
+    GetManageEngineSitesAPI, GetManageEngineAssetsAPI, GetManageEngineDepartmentsAPI, GetManageEngineDesignationsAPI
 )
 from .utils.opensign import opensign_webhook
 from .utils.zoho_sign import zoho_sign_webhook
@@ -45,6 +45,8 @@ urlpatterns = [
     path('teams/users/search/', SearchTeamsUsersAPI.as_view(), name='search-teams-users'),
     path('manage-engine/sites/', GetManageEngineSitesAPI.as_view(), name='manage-engine-sites'),
     path('manage-engine/assets/', GetManageEngineAssetsAPI.as_view(), name='manage-engine-assets'),
+    path('manage-engine/departments/', GetManageEngineDepartmentsAPI.as_view(), name='manage-engine-departments'),
+    path('manage-engine/designations/', GetManageEngineDesignationsAPI.as_view(), name='manage-engine-designations'),
     path("", include(router.urls)),
     # path("send-offer/<uuid:application_id>/", send_offer_letter_view),
     # path("bulk-send-offers/", bulk_send_offers),

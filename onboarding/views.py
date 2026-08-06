@@ -2212,7 +2212,10 @@ class InitiateOnboardingAPI(APIView):
             "emails_to_notify": request.data.get("emails_to_notify"),
             "current_address": request.data.get("current_address"),
             "description": request.data.get("description"),
-            "custom_notes": request.data.get("custom_notes", "")
+            "custom_notes": request.data.get("custom_notes", ""),
+            "requester_email_id": request.data.get("requester_email_id"),
+            "requester_name": request.data.get("requester_name"),
+            "requester_id": request.data.get("requester_id"),
         }
         
         try:
@@ -2345,8 +2348,93 @@ class AssignBuddyAPI(APIView):
         
         return Response({"message": "Buddies assigned successfully"}, status=status.HTTP_200_OK)
 
+BINARY_OPTIONS = ["agree", "disagree"]
 LIKERT_OPTIONS = ["strongly_agree", "agree", "neutral", "disagree", "strongly_disagree"]
 RECOMMEND_OPTIONS = ["yes", "no", "not_sure"]
+
+CANDIDATE_SURVEY_STRUCTURE = {
+    "title": "45-Day Onboarding Experience Survey",
+    "purpose": "To understand Crafter's onboarding experience and identify opportunities to improve the new hire journey.",
+    "rating_info": "Each statement can be rated as: Agree or Disagree.",
+    "sections": [
+        {
+            "id": 1,
+            "title": "Section 1: Pre-Joining Experience",
+            "questions": [
+                {"id": 1, "type": "binary", "text": "The communication provided before my joining date was timely and clear."},
+                {"id": 2, "type": "binary", "text": "I received all necessary information before my first day."},
+                {"id": 3, "type": "binary", "text": "HR was responsive to my queries during the pre-joining process."},
+            ]
+        },
+        {
+            "id": 2,
+            "title": "Section 2: Joining Day Experience",
+            "questions": [
+                {"id": 4, "type": "binary", "text": "My first day was well-organized and welcoming."},
+                {"id": 5, "type": "binary", "text": "I had access to the required assets and resources on time."},
+                {"id": 6, "type": "binary", "text": "The joining formalities and documentation process were smooth."},
+            ]
+        },
+        {
+            "id": 3,
+            "title": "Section 3: Role & Expectations",
+            "questions": [
+                {"id": 7, "type": "binary", "text": "My role and responsibilities were clearly explained."},
+                {"id": 8, "type": "binary", "text": "I understand how my work contributes to the team's goals."},
+            ]
+        },
+        {
+            "id": 4,
+            "title": "Section 4: Training & Support",
+            "questions": [
+                {"id": 9,  "type": "binary", "text": "The onboarding and training sessions were useful."},
+                {"id": 10, "type": "binary", "text": "The training provided was adequate for me to perform my job effectively."},
+                {"id": 11, "type": "binary", "text": "I know whom to approach when I need support or guidance."},
+                {"id": 12, "type": "binary", "text": "The onboarding materials and resources were helpful."},
+            ]
+        },
+        {
+            "id": 5,
+            "title": "Section 5: Manager & Team Integration",
+            "questions": [
+                {"id": 13, "type": "binary", "text": "My manager / Trainers has been available and supportive during my onboarding and training period."},
+                {"id": 14, "type": "binary", "text": "I receive regular guidance and feedback from my manager."},
+                {"id": 15, "type": "binary", "text": "My team has been welcoming and supportive."},
+                {"id": 16, "type": "binary", "text": "I feel comfortable asking questions and seeking help when needed."},
+            ]
+        },
+        {
+            "id": 6,
+            "title": "Section 6: Culture & Work Environment",
+            "questions": [
+                {"id": 17, "type": "binary", "text": "I have gained a good understanding of the company's culture and values."},
+                {"id": 18, "type": "binary", "text": "I feel included and connected with my team."},
+                {"id": 19, "type": "binary", "text": "The work environment supports my learning and growth."},
+            ]
+        },
+        {
+            "id": 7,
+            "title": "Section 7: Overall Experience",
+            "questions": [
+                {"id": 20, "type": "binary", "text": "Overall, I am satisfied with my onboarding experience."},
+                {"id": 21, "type": "binary", "text": "The organization has helped me settle into my role effectively."},
+                {"id": 22, "type": "binary", "text": "I can see myself building a successful career here."},
+                {"id": 23, "type": "binary", "text": "I would recommend this organization to prospective employees."},
+            ]
+        },
+        {
+            "id": 8,
+            "title": "Open-Ended Questions",
+            "questions": [
+                {"id": 24, "type": "text", "text": "What could we have done differently to improve your onboarding experience?"},
+                {"id": 25, "type": "text", "text": "Any other comments or suggestions?"},
+            ]
+        },
+    ],
+    "options": {
+        "binary": BINARY_OPTIONS,
+    }
+}
 
 SURVEY_90_DAY_STRUCTURE = {
     "title": "90-Day Onboarding Survey",
@@ -2421,7 +2509,7 @@ SURVEY_90_DAY_STRUCTURE = {
 
 
 class GetSurveyStructureAPI(APIView):
-    """Returns the full 90-day survey form structure for the frontend to render."""
+    """Returns the full survey form structure for the frontend to render."""
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, id):
@@ -2435,6 +2523,12 @@ class GetSurveyStructureAPI(APIView):
             survey_type=survey_type
         ).first()
 
+        # Choose correct structure
+        if survey_type == 'candidate':
+            structure = CANDIDATE_SURVEY_STRUCTURE
+        else:
+            structure = SURVEY_90_DAY_STRUCTURE
+
         return Response({
             "survey_type": survey_type,
             "candidate_name": application.candidate_name,
@@ -2443,7 +2537,7 @@ class GetSurveyStructureAPI(APIView):
             "date_of_joining": application.joining_date,
             "already_submitted": existing is not None and bool(existing.responses),
             "submitted_at": existing.submitted_at if (existing and bool(existing.responses)) else None,
-            "structure": SURVEY_90_DAY_STRUCTURE,
+            "structure": structure,
         })
 
 class CompleteSurveyAPI(APIView):
@@ -2459,30 +2553,48 @@ class CompleteSurveyAPI(APIView):
         if not isinstance(responses_data, dict):
             return Response({"error": "'responses' must be a JSON object."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # ── Validate likert questions (Q1–Q14) ──────────────────────────────
-        likert_qids = list(range(1, 15))
         errors = {}
-        for qid in likert_qids:
-            key = str(qid)
-            val = responses_data.get(key)
-            if val is None:
-                errors[key] = f"Q{qid} is required."
-            elif val not in LIKERT_OPTIONS:
-                errors[key] = f"Q{qid}: must be one of {LIKERT_OPTIONS}."
 
-        # ── Validate recommend question (Q19) ───────────────────────────────
-        val19 = responses_data.get("19")
-        if val19 is None:
-            errors["19"] = "Q19 is required."
-        elif val19 not in RECOMMEND_OPTIONS:
-            errors["19"] = f"Q19: must be one of {RECOMMEND_OPTIONS}."
+        if survey_type == 'candidate':
+            # ── Validate binary questions (Q1–Q23) ──────────────────────────
+            binary_qids = list(range(1, 24))
+            for qid in binary_qids:
+                key = str(qid)
+                val = responses_data.get(key)
+                if val is None:
+                    errors[key] = f"Q{qid} is required."
+                elif val not in BINARY_OPTIONS:
+                    errors[key] = f"Q{qid}: must be one of {BINARY_OPTIONS}."
+            # ── Text questions (Q24–Q25) are optional ────────────────────────
+            for qid in [24, 25]:
+                key = str(qid)
+                val = responses_data.get(key)
+                if val is not None and not isinstance(val, str):
+                    errors[key] = f"Q{qid}: must be a text string."
+        else:
+            # ── Validate likert questions (Q1–Q14) ──────────────────────────────
+            likert_qids = list(range(1, 15))
+            for qid in likert_qids:
+                key = str(qid)
+                val = responses_data.get(key)
+                if val is None:
+                    errors[key] = f"Q{qid} is required."
+                elif val not in LIKERT_OPTIONS:
+                    errors[key] = f"Q{qid}: must be one of {LIKERT_OPTIONS}."
 
-        # ── Text questions (Q15–Q18) are optional, just ensure strings ──────
-        for qid in range(15, 19):
-            key = str(qid)
-            val = responses_data.get(key)
-            if val is not None and not isinstance(val, str):
-                errors[key] = f"Q{qid}: must be a text string."
+            # ── Validate recommend question (Q19) ───────────────────────────────
+            val19 = responses_data.get("19")
+            if val19 is None:
+                errors["19"] = "Q19 is required."
+            elif val19 not in RECOMMEND_OPTIONS:
+                errors["19"] = f"Q19: must be one of {RECOMMEND_OPTIONS}."
+
+            # ── Text questions (Q15–Q18) are optional, just ensure strings ──────
+            for qid in range(15, 19):
+                key = str(qid)
+                val = responses_data.get(key)
+                if val is not None and not isinstance(val, str):
+                    errors[key] = f"Q{qid}: must be a text string."
 
         if errors:
             return Response({"error": "Validation failed.", "fields": errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -2630,3 +2742,21 @@ class GetManageEngineAssetsAPI(APIView):
         client = ManageEngineClient()
         assets = client.get_assets()
         return Response({"assets": assets}, status=status.HTTP_200_OK)
+
+class GetManageEngineDepartmentsAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        from .utils.zoho_manageengine import ManageEngineClient
+        client = ManageEngineClient()
+        departments = client.get_departments()
+        return Response({"departments": departments}, status=status.HTTP_200_OK)
+
+class GetManageEngineDesignationsAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        from .utils.zoho_manageengine import ManageEngineClient
+        client = ManageEngineClient()
+        designations = client.get_designations()
+        return Response({"designations": designations}, status=status.HTTP_200_OK)
