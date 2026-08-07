@@ -150,6 +150,9 @@ class ManageEngineClient:
             "request_template_task_ids": [],
             "request_template_checklist_ids": [],
             "udf_fields": udf_fields,
+            "created_time": None,
+            "due_by_time": None,
+            "attachments": []
         }
         
         if requester_data:
@@ -184,12 +187,55 @@ class ManageEngineClient:
             if 'request' in data and 'id' in data['request']:
                 ticket_id = data['request']['id']
                 logger.info(f"Successfully created ManageEngine ticket {ticket_id} for candidate {application.candidate_name}")
+                
+                # Handle attachments if provided
+                attachment_files = form_data.get("attachment_files", [])
+                for file_obj in attachment_files:
+                    try:
+                        self.upload_attachment(ticket_id, file_obj)
+                    except Exception as e:
+                        logger.error(f"Failed to upload attachment to ticket {ticket_id}: {e}")
+                        
                 return ticket_id
             else:
                 logger.error(f"Unexpected response format from ManageEngine: {data}")
                 return None
         except Exception as e:
             logger.error(f"Error creating ManageEngine ticket: {e}")
+            raise
+
+    def upload_attachment(self, ticket_id, file_obj):
+        """
+        Uploads an attachment to an existing request.
+        """
+        headers = self._get_headers()
+        if not headers:
+            return False
+            
+        # The upload API is multipart/form-data, so we shouldn't send application/json
+        headers.pop('Content-Type', None)
+        headers['Accept'] = 'application/vnd.manageengine.sdp.v3+json'
+        
+        url = f"{self.base_url}/requests/{ticket_id}/upload"
+        
+        # Determine filename
+        filename = file_obj.name if hasattr(file_obj, 'name') else 'attachment'
+        
+        # Reset file pointer just in case
+        if hasattr(file_obj, 'seek'):
+            file_obj.seek(0)
+            
+        files = {
+            'input_file': (filename, file_obj)
+        }
+        
+        try:
+            response = requests.put(url, headers=headers, files=files)
+            response.raise_for_status()
+            logger.info(f"Successfully uploaded attachment {filename} to ticket {ticket_id}")
+            return True
+        except Exception as e:
+            logger.exception(f"Error uploading attachment to ManageEngine ticket {ticket_id}: {e}")
             raise
 
     def update_ticket(self, ticket_id, update_payload, note=None):
