@@ -130,11 +130,13 @@ class ManageEngineClient:
         
         requester_data = {}
         if form_data.get("requester_id"):
-            requester_data["id"] = form_data.get("requester_id")
-        if form_data.get("requester_name"):
-            requester_data["name"] = form_data.get("requester_name")
-        if form_data.get("requester_email_id"):
-            requester_data["email_id"] = form_data.get("requester_email_id")
+            requester_data["id"] = str(form_data.get("requester_id"))
+        else:
+            if form_data.get("requester_name"):
+                requester_data["name"] = form_data.get("requester_name")
+            if form_data.get("requester_email_id"):
+                requester_data["email_id"] = form_data.get("requester_email_id")
+                
         if not requester_data:
             # Fallback for testing if nothing is provided
             requester_data["email_id"] = "jms@knowcraft.in"
@@ -155,9 +157,11 @@ class ManageEngineClient:
             "template": template_data,
             "request_template_task_ids": [],
             "request_template_checklist_ids": [],
-            "email_ids_to_notify": notify_emails,
             "udf_fields": udf_fields,
         }
+        
+        if notify_emails:
+            request_payload["email_ids_to_notify"] = notify_emails
         
         if form_data.get("site"):
             request_payload["site"] = {"id": str(form_data.get("site"))}
