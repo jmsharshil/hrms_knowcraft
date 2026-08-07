@@ -1679,7 +1679,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                         <!-- Header -->
                         <tr>
                             <td align="center" style="background:#ffffff;padding:25px 40px;border-bottom:1px solid #e2e8f0;">
-                                <img src="{{FRONTEND_URL}}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
+                                <img src="{FRONTEND_URL}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
                             </td>
                         </tr>
                         <!-- Content -->
@@ -1724,7 +1724,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                         <!-- Header -->
                         <tr>
                             <td align="center" style="background:#ffffff;padding:25px 40px;border-bottom:1px solid #e2e8f0;">
-                                <img src="{{FRONTEND_URL}}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
+                                <img src="{FRONTEND_URL}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
                             </td>
                         </tr>
                         <!-- Content -->
@@ -1769,7 +1769,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                         <!-- Header -->
                         <tr>
                             <td align="center" style="background:#ffffff;padding:25px 40px;border-bottom:1px solid #e2e8f0;">
-                                <img src="{{FRONTEND_URL}}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
+                                <img src="{FRONTEND_URL}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
                             </td>
                         </tr>
                         <!-- Content -->
@@ -1814,7 +1814,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                         <!-- Header -->
                         <tr>
                             <td align="center" style="background:#ffffff;padding:25px 40px;border-bottom:1px solid #e2e8f0;">
-                                <img src="{{FRONTEND_URL}}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
+                                <img src="{FRONTEND_URL}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
                             </td>
                         </tr>
                         <!-- Content -->
@@ -1859,7 +1859,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                         <!-- Header -->
                         <tr>
                             <td align="center" style="background:#ffffff;padding:25px 40px;border-bottom:1px solid #e2e8f0;">
-                                <img src="{{FRONTEND_URL}}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
+                                <img src="{FRONTEND_URL}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
                             </td>
                         </tr>
                         <!-- Content -->
@@ -1904,7 +1904,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                         <!-- Header -->
                         <tr>
                             <td align="center" style="background:#ffffff;padding:25px 40px;border-bottom:1px solid #e2e8f0;">
-                                <img src="{{FRONTEND_URL}}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
+                                <img src="{FRONTEND_URL}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
                             </td>
                         </tr>
                         <!-- Content -->
@@ -1949,7 +1949,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                         <!-- Header -->
                         <tr>
                             <td align="center" style="background:#ffffff;padding:25px 40px;border-bottom:1px solid #e2e8f0;">
-                                <img src="{{FRONTEND_URL}}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
+                                <img src="{FRONTEND_URL}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
                             </td>
                         </tr>
                         <!-- Content -->
@@ -1994,7 +1994,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                         <!-- Header -->
                         <tr>
                             <td align="center" style="background:#ffffff;padding:25px 40px;border-bottom:1px solid #e2e8f0;">
-                                <img src="{{FRONTEND_URL}}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
+                                <img src="{FRONTEND_URL}/assets/header-logo.png" alt="Knowcraft Analytics" width="220" style="display:block;border:0;">
                             </td>
                         </tr>
                         <!-- Content -->
