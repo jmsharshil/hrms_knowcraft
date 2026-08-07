@@ -2509,6 +2509,306 @@ SURVEY_90_DAY_STRUCTURE = {
 }
 
 
+HOD_SURVEY_STRUCTURE_JUNIOR = {
+    "title": "HOD Survey (Below Assistant Manager)",
+    "sections": [
+        {
+            "id": 1,
+            "title": "Core Assessment",
+            "questions": [
+                {
+                    "id": 1,
+                    "type": "binary",
+                    "text": "The Crafter has adapted well to the team and work environment."
+                },
+                {
+                    "id": 2,
+                    "type": "binary",
+                    "text": "The Crafter demonstrates a positive attitude and willingness to learn."
+                },
+                {
+                    "id": 3,
+                    "type": "binary",
+                    "text": "The Crafter understands their role and responsibilities."
+                },
+                {
+                    "id": 4,
+                    "type": "binary",
+                    "text": "The Crafter completes assigned tasks effectively and on time."
+                },
+                {
+                    "id": 5,
+                    "type": "binary",
+                    "text": "The Crafter communicates effectively with colleagues and stakeholders."
+                },
+                {
+                    "id": 6,
+                    "type": "binary",
+                    "text": "The Crafter collaborates well within the team."
+                },
+                {
+                    "id": 7,
+                    "type": "binary",
+                    "text": "The onboarding process adequately prepared the Crafter for their role."
+                },
+                {
+                    "id": 8,
+                    "type": "binary",
+                    "text": "The Crafter aligns with the organization's values and culture."
+                },
+                {
+                    "id": 9,
+                    "type": "binary",
+                    "text": "Overall, I am satisfied with the Crafter's progress during the initial period."
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "title": "Additional Questions for Junior Crafters",
+            "questions": [
+                {
+                    "id": 10,
+                    "type": "binary",
+                    "text": "The Crafter actively seeks feedback and applies it to improve performance."
+                },
+                {
+                    "id": 11,
+                    "type": "binary",
+                    "text": "The Crafter demonstrates eagerness to learn new skills and processes."
+                },
+                {
+                    "id": 12,
+                    "type": "binary",
+                    "text": "The Crafter asks relevant questions when clarification is needed."
+                },
+                {
+                    "id": 13,
+                    "type": "binary",
+                    "text": "The Crafter shows the ability to work independently on basic tasks."
+                },
+                {
+                    "id": 14,
+                    "type": "binary",
+                    "text": "The Crafter effectively follows established processes and guidelines."
+                },
+                {
+                    "id": 15,
+                    "type": "binary",
+                    "text": "The Crafter demonstrates growth in knowledge and capability since joining."
+                },
+                {
+                    "id": 16,
+                    "type": "binary",
+                    "text": "The Crafter is open to coaching and mentoring."
+                },
+                {
+                    "id": 17,
+                    "type": "binary",
+                    "text": "The Crafter takes ownership of assigned work and follows through on commitments."
+                },
+                {
+                    "id": 18,
+                    "type": "binary",
+                    "text": "The Crafter demonstrates the required foundational technical/professional skills for the role."
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "title": "Open-Ended Questions",
+            "questions": [
+                {
+                    "id": 19,
+                    "type": "text",
+                    "text": "What are the Crafter's key strengths?"
+                },
+                {
+                    "id": 20,
+                    "type": "text",
+                    "text": "What areas require further development?"
+                },
+                {
+                    "id": 21,
+                    "type": "text",
+                    "text": "What support or training would help the Crafter succeed?"
+                },
+                {
+                    "id": 22,
+                    "type": "text",
+                    "text": "Are there any concerns regarding the Crafter's performance or behavior?"
+                },
+                {
+                    "id": 23,
+                    "type": "text",
+                    "text": "Additional comments or recommendations."
+                }
+            ]
+        }
+    ],
+    "options": {
+        "binary": [
+            "agree",
+            "disagree"
+        ]
+    }
+}
+
+HOD_SURVEY_STRUCTURE_SENIOR = {
+    "title": "HOD Survey (Assistant Manager and Above)",
+    "sections": [
+        {
+            "id": 1,
+            "title": "Core Assessment",
+            "questions": [
+                {
+                    "id": 1,
+                    "type": "binary",
+                    "text": "The Crafter has adapted well to the team and work environment."
+                },
+                {
+                    "id": 2,
+                    "type": "binary",
+                    "text": "The Crafter demonstrates a positive attitude and willingness to learn."
+                },
+                {
+                    "id": 3,
+                    "type": "binary",
+                    "text": "The Crafter understands their role and responsibilities."
+                },
+                {
+                    "id": 4,
+                    "type": "binary",
+                    "text": "The Crafter completes assigned tasks effectively and on time."
+                },
+                {
+                    "id": 5,
+                    "type": "binary",
+                    "text": "The Crafter communicates effectively with colleagues and stakeholders."
+                },
+                {
+                    "id": 6,
+                    "type": "binary",
+                    "text": "The Crafter collaborates well within the team."
+                },
+                {
+                    "id": 7,
+                    "type": "binary",
+                    "text": "The onboarding process adequately prepared the Crafter for their role."
+                },
+                {
+                    "id": 8,
+                    "type": "binary",
+                    "text": "The Crafter aligns with the organization's values and culture."
+                },
+                {
+                    "id": 9,
+                    "type": "binary",
+                    "text": "Overall, I am satisfied with the Crafter's progress during the initial period."
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "title": "Additional Questions for Senior Crafters",
+            "questions": [
+                {
+                    "id": 10,
+                    "type": "binary",
+                    "text": "The Crafter demonstrates strong leadership and accountability."
+                },
+                {
+                    "id": 11,
+                    "type": "binary",
+                    "text": "The Crafter effectively mentors and supports team members."
+                },
+                {
+                    "id": 12,
+                    "type": "binary",
+                    "text": "The Crafter takes initiative in identifying and solving problems."
+                },
+                {
+                    "id": 13,
+                    "type": "binary",
+                    "text": "The Crafter contributes to strategic discussions and decision-making."
+                },
+                {
+                    "id": 14,
+                    "type": "binary",
+                    "text": "The Crafter effectively manages stakeholder expectations."
+                },
+                {
+                    "id": 15,
+                    "type": "binary",
+                    "text": "The Crafter drives collaboration across teams and functions."
+                },
+                {
+                    "id": 16,
+                    "type": "binary",
+                    "text": "The Crafter demonstrates expertise in their technical/professional domain."
+                },
+                {
+                    "id": 17,
+                    "type": "binary",
+                    "text": "The Crafter identifies opportunities for process improvement and innovation."
+                },
+                {
+                    "id": 18,
+                    "type": "binary",
+                    "text": "The Crafter makes sound decisions with minimal supervision."
+                },
+                {
+                    "id": 19,
+                    "type": "binary",
+                    "text": "The Crafter positively influences team performance and culture."
+                },
+                {
+                    "id": 20,
+                    "type": "binary",
+                    "text": "The Crafter effectively balances operational responsibilities with long-term objectives."
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "title": "Open-Ended Questions",
+            "questions": [
+                {
+                    "id": 21,
+                    "type": "text",
+                    "text": "What are the Crafter's key strengths?"
+                },
+                {
+                    "id": 22,
+                    "type": "text",
+                    "text": "What areas require further development?"
+                },
+                {
+                    "id": 23,
+                    "type": "text",
+                    "text": "What support or training would help the Crafter succeed?"
+                },
+                {
+                    "id": 24,
+                    "type": "text",
+                    "text": "Are there any concerns regarding the Crafter's performance or behavior?"
+                },
+                {
+                    "id": 25,
+                    "type": "text",
+                    "text": "Additional comments or recommendations."
+                }
+            ]
+        }
+    ],
+    "options": {
+        "binary": [
+            "agree",
+            "disagree"
+        ]
+    }
+}
+
 class GetSurveyStructureAPI(APIView):
     """Returns the full survey form structure for the frontend to render."""
     permission_classes = [permissions.AllowAny]
@@ -2527,6 +2827,20 @@ class GetSurveyStructureAPI(APIView):
         # Choose correct structure
         if survey_type == 'candidate':
             structure = CANDIDATE_SURVEY_STRUCTURE
+        elif survey_type == 'hod':
+            is_senior = False
+            if hasattr(application.job, 'mrf') and application.job.mrf and application.job.mrf.designation:
+                designation_name = application.job.mrf.designation.name.lower()
+                higher_keywords = ['assistant manager', 'manager', 'director', 'vp', 'vice president', 'president', 'head', 'chief', 'lead', 'principal', 'avp']
+                for kw in higher_keywords:
+                    if kw in designation_name:
+                        is_senior = True
+                        break
+            
+            if is_senior:
+                structure = HOD_SURVEY_STRUCTURE_SENIOR
+            else:
+                structure = HOD_SURVEY_STRUCTURE_JUNIOR
         else:
             structure = SURVEY_90_DAY_STRUCTURE
 
@@ -2572,7 +2886,39 @@ class CompleteSurveyAPI(APIView):
                 val = responses_data.get(key)
                 if val is not None and not isinstance(val, str):
                     errors[key] = f"Q{qid}: must be a text string."
-        else:
+        
+        elif survey_type == 'hod':
+            # ── Determine if Senior or Junior ────────────────────────────────
+            is_senior = False
+            if hasattr(application.job, 'mrf') and application.job.mrf and application.job.mrf.designation:
+                designation_name = application.job.mrf.designation.name.lower()
+                higher_keywords = ['assistant manager', 'manager', 'director', 'vp', 'vice president', 'president', 'head', 'chief', 'lead', 'principal', 'avp']
+                for kw in higher_keywords:
+                    if kw in designation_name:
+                        is_senior = True
+                        break
+            
+            binary_count = 20 if is_senior else 18
+            text_start = binary_count + 1
+            text_end = binary_count + 5
+            
+            # ── Validate binary questions ────────────────────────────────────
+            for qid in range(1, binary_count + 1):
+                key = str(qid)
+                val = responses_data.get(key)
+                if val is None:
+                    errors[key] = f"Q{qid} is required."
+                elif val not in BINARY_OPTIONS:
+                    errors[key] = f"Q{qid}: must be one of {BINARY_OPTIONS}."
+                    
+            # ── Text questions are optional ──────────────────────────────────
+            for qid in range(text_start, text_end + 1):
+                key = str(qid)
+                val = responses_data.get(key)
+                if val is not None and not isinstance(val, str):
+                    errors[key] = f"Q{qid}: must be a text string."
+                    
+        else: # 90_day_candidate
             # ── Validate likert questions (Q1–Q14) ──────────────────────────────
             likert_qids = list(range(1, 15))
             for qid in likert_qids:
