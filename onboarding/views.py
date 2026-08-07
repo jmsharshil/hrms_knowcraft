@@ -2216,6 +2216,7 @@ class InitiateOnboardingAPI(APIView):
             "requester_email_id": request.data.get("requester_email_id"),
             "requester_name": request.data.get("requester_name"),
             "requester_id": request.data.get("requester_id"),
+            "attachment_files": request.FILES.getlist("attachments"),
         }
         
         try:
