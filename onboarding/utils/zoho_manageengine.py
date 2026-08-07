@@ -127,21 +127,14 @@ class ManageEngineClient:
         
         # Remove None values so ME does not complain
         udf_fields = {k: v for k, v in udf_fields.items() if v is not None}
-        
         requester_data = {}
-        if form_data.get("requester_id"):
-            requester_data["id"] = str(form_data.get("requester_id"))
-        else:
-            if form_data.get("requester_name"):
-                requester_data["name"] = form_data.get("requester_name")
-            if form_data.get("requester_email_id"):
-                requester_data["email_id"] = form_data.get("requester_email_id")
-                
-        if not requester_data:
-            # Fallback for testing if nothing is provided
-            requester_data["email_id"] = "jms@knowcraft.in"
-            requester_data["name"] = "JMS Admin"
-
+        r_id = form_data.get("requester_id")
+        r_name = form_data.get("requester_name")
+        
+        if r_id and str(r_id).strip():
+            requester_data["id"] = str(r_id).strip()
+        elif r_name and str(r_name).strip():
+            requester_data["name"] = str(r_name).strip()
         template_data = {"id": form_data.get("template_id", "5538000000236131")}
         
         notify_emails = form_data.get("emails_to_notify")
@@ -153,12 +146,14 @@ class ManageEngineClient:
         request_payload = {
             "subject": subject,
             "description": desc,
-            "requester": requester_data,
             "template": template_data,
             "request_template_task_ids": [],
             "request_template_checklist_ids": [],
             "udf_fields": udf_fields,
         }
+        
+        if requester_data:
+            request_payload["requester"] = requester_data
         
         if notify_emails:
             request_payload["email_ids_to_notify"] = notify_emails
