@@ -2831,7 +2831,12 @@ class GetSurveyStructureAPI(APIView):
             is_senior = False
             if hasattr(application.job, 'mrf') and application.job.mrf and application.job.mrf.designation:
                 designation_name = application.job.mrf.designation.name.lower()
-                higher_keywords = ['assistant manager', 'manager', 'director', 'vp', 'vice president', 'president', 'head', 'chief', 'lead', 'principal', 'avp']
+                higher_keywords = [
+                    'assistant manager', 'associate manager', 'manager', 
+                    'senior manager', 'associate vice president', 
+                    'director', 'vp', 'vice president', 'president', 
+                    'head', 'chief', 'lead', 'principal', 'avp'
+                ]
                 for kw in higher_keywords:
                     if kw in designation_name:
                         is_senior = True
@@ -2892,7 +2897,12 @@ class CompleteSurveyAPI(APIView):
             is_senior = False
             if hasattr(application.job, 'mrf') and application.job.mrf and application.job.mrf.designation:
                 designation_name = application.job.mrf.designation.name.lower()
-                higher_keywords = ['assistant manager', 'manager', 'director', 'vp', 'vice president', 'president', 'head', 'chief', 'lead', 'principal', 'avp']
+                higher_keywords = [
+                    'assistant manager', 'associate manager', 'manager', 
+                    'senior manager', 'associate vice president', 
+                    'director', 'vp', 'vice president', 'president', 
+                    'head', 'chief', 'lead', 'principal', 'avp'
+                ]
                 for kw in higher_keywords:
                     if kw in designation_name:
                         is_senior = True
