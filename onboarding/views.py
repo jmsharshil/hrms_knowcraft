@@ -2354,7 +2354,7 @@ LIKERT_OPTIONS = ["strongly_agree", "agree", "neutral", "disagree", "strongly_di
 RECOMMEND_OPTIONS = ["yes", "no", "not_sure"]
 
 CANDIDATE_SURVEY_STRUCTURE = {
-    "title": "45-Day Onboarding Experience Survey",
+    "title": "30-Day Onboarding Experience Survey",
     "purpose": "To understand Crafter's onboarding experience and identify opportunities to improve the new hire journey.",
     "rating_info": "Each statement can be rated as: Agree or Disagree.",
     "sections": [

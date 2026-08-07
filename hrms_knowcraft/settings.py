@@ -28,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-0(s=ka%+mzk+5n3*t-h8l0#6yh7$bnt*y)=a!zy!7_q192j%$t'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 ONBOARDING_DEBUG_MINUTES = True # Set to True to test onboarding tasks in minutes instead of days
 
 ALLOWED_HOSTS = ['hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net','127.0.0.1','localhost','demp-hrms-hzdme4brg0dgfxa3.centralindia-01.azurewebsites.net','hireproknowcraft-crhacdc8dxd7dfhh.centralindia-01.azurewebsites.net','d7b9-2405-201-2005-1965-9445-471c-b9b-214.ngrok-free.app']
@@ -154,30 +154,30 @@ if DEBUG:
 #         ssl_require=True
 #     )
 # }
-    CONNECTION_STRING = os.environ['STAGING_DB_CON_STRING']
-    conn_str_params = {pair.split('=')[0]: pair.split('=')[1] for pair in CONNECTION_STRING.split(' ')}
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
+        CONNECTION_STRING = os.environ['STAGING_DB_CON_STRING']
+        conn_str_params = {pair.split('=')[0]: pair.split('=')[1] for pair in CONNECTION_STRING.split(' ')}
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
             'NAME': conn_str_params['dbname'],
             'HOST': conn_str_params['host'],
             'USER': conn_str_params['user'],
             'PASSWORD': conn_str_params['password'],
         }
-    }
+            }
     
 else:
-    CONNECTION_STRING = os.environ['AZURE_POSTGRESQL_CONNECTIONSTRING']
-    conn_str_params = {pair.split('=')[0]: pair.split('=')[1] for pair in CONNECTION_STRING.split(' ')}
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
+        CONNECTION_STRING = os.environ['AZURE_POSTGRESQL_CONNECTIONSTRING']
+        conn_str_params = {pair.split('=')[0]: pair.split('=')[1] for pair in CONNECTION_STRING.split(' ')}
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
             'NAME': conn_str_params['dbname'],
             'HOST': conn_str_params['host'],
             'USER': conn_str_params['user'],
             'PASSWORD': conn_str_params['password'],
         }
-    }
+        }
 
 
 # Password validation
@@ -252,7 +252,7 @@ SIMPLE_JWT = {
 
 # Email Configuration (Update with your email settings)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.office365.com'  # Change to your SMTP server
+EMAIL_HOST = 'smtp.gmail.com'  # Change to your SMTP server
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")  # Change to your email
@@ -288,6 +288,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://hireproui-gmfbf9hucjbqd2e6.centralindia-01.azurewebsites.net",
     'https://knowcraft.recruitsmart.co'
 ]
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = False  # Set to True only for development if needed
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
