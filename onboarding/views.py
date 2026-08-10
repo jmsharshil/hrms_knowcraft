@@ -2815,7 +2815,7 @@ class GetSurveyStructureAPI(APIView):
 
     def get(self, request, id):
         application = get_object_or_404(JobApplication, id=id)
-        survey_type = request.query_params.get('survey_type', 'candidate')
+        survey_type = request.query_params.get('survey_type', '30_day_candidate')
 
         # Check if already submitted
         from onboarding.models import SurveyResponse
@@ -2825,7 +2825,7 @@ class GetSurveyStructureAPI(APIView):
         ).first()
 
         # Choose correct structure
-        if survey_type == 'candidate':
+        if survey_type == '30_day_candidate':
             structure = CANDIDATE_SURVEY_STRUCTURE
         elif survey_type == 'hod':
             is_senior = False
@@ -2864,7 +2864,7 @@ class CompleteSurveyAPI(APIView):
     permission_classes = [permissions.AllowAny]
     def patch(self, request, id):
         application = get_object_or_404(JobApplication, id=id)
-        survey_type = request.data.get('survey_type', 'candidate')
+        survey_type = request.data.get('survey_type', '30_day_candidate')
 
         respondent_name = request.data.get('respondent_name', '')
         respondent_email = request.data.get('respondent_email', '')
@@ -2875,7 +2875,7 @@ class CompleteSurveyAPI(APIView):
 
         errors = {}
 
-        if survey_type == 'candidate':
+        if survey_type == '30_day_candidate':
             # ── Validate binary questions (Q1–Q23) ──────────────────────────
             binary_qids = list(range(1, 24))
             for qid in binary_qids:

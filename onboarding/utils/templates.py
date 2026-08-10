@@ -1569,7 +1569,7 @@ HTML_TEMPLATES.update({
                                 <p style="margin:0 0 16px 0;">Congratulations on completing your first 30 days at Knowcraft Analytics!</p>
                                 <p style="margin:0 0 16px 0;">As part of our JMS Onboarding process, we value your feedback on orientation, buddy support, role clarity, training effectiveness, team integration, and overall experience.</p>
                                 <p style="margin:25px 0 30px 0;text-align:center;">
-                                    <a href="{FRONTEND_URL}/onboarding/survey/{{candidate.id}}/?survey_type=candidate" 
+                                    <a href="{FRONTEND_URL}/onboarding/30-days-survey/{{candidate.id}}" 
                                        style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">Complete 30-Day Satisfaction Survey</a>
                                 </p>
                                 <p style="margin:0 0 16px 0;">Your responses (stored in SurveyResponse model) will help us improve the onboarding pipeline for future joiners. All feedback is confidential.</p>
@@ -1611,7 +1611,7 @@ HTML_TEMPLATES.update({
                                 <p style="margin:0 0 16px 0;">Congratulations on reaching your <strong>90-day milestone</strong> at Knowcraft Analytics!</p>
                                 <p style="margin:0 0 16px 0;">Your feedback on role clarity, training, team support, culture, and overall experience is extremely valuable. Please complete our structured 90-Day Survey below (or via the link in your dashboard).</p>
                                 <p style="margin:25px 0 30px 0;text-align:center;">
-                                    <a href="{FRONTEND_URL}/onboarding/survey/{{candidate.id}}/?survey_type=candidate" 
+                                    <a href="{FRONTEND_URL}/onboarding/90-days-survey/{{candidate.id}}" 
                                        style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">Complete 90-Day Survey</a>
                                 </p>
                                 <p style="margin:0 0 16px 0;">All responses are securely saved in our database (SurveyResponse model) for analysis and process improvement.</p>
