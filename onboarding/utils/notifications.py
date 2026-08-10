@@ -1294,11 +1294,17 @@ Knowcraft Analytics Private Limited""",
         "body": "BGV for candidate {candidate.candidate_name} is still pending 7+ days post-joining. Please review and resolve immediately.",
         "sms": "BGV ESCALATION for {candidate.candidate_name} - action required.",
     },
-    "satisfaction_survey_hod": {
+    "satisfaction_survey_hod_junior": {
         "receivers": ["department_head"],
-        "subject": "30-Day Employee Survey Dispatched",
-        "body": "The 30-day satisfaction survey has been sent to {candidate.candidate_name}. Please follow up on their feedback if needed.",
-        "sms": "30-day survey sent to new joiner {candidate.candidate_name}.",
+        "subject": "30-Day HOD Satisfaction Survey – Action Required",
+        "body": "Please complete the 30-day HOD satisfaction survey for {candidate.candidate_name} using the link in your email.",
+        "sms": "Please complete the 30-day HOD survey for new joiner {candidate.candidate_name}.",
+    },
+    "satisfaction_survey_hod_senior": {
+        "receivers": ["department_head"],
+        "subject": "30-Day HOD Satisfaction Survey (Senior) – Action Required",
+        "body": "Please complete the 30-day HOD satisfaction survey (senior level) for {candidate.candidate_name} using the link in your email.",
+        "sms": "Please complete the 30-day HOD senior survey for new joiner {candidate.candidate_name}.",
     },
     "schedule_checkin_call_reminder": {
         "receivers": ["hr", "department_head"],

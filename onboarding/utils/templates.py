@@ -2187,7 +2187,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
     </html>
     """,
 
-    "satisfaction_survey_hod": f"""
+    "satisfaction_survey_hod_junior": f"""
     <html>
     <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
         <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
@@ -2202,10 +2202,58 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
                         <tr>
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
-                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">30-Day Employee Survey Dispatched</h2>
-                                <p style="margin:0 0 16px 0;">Dear HOD,</p>
-                                <p style="margin:0 0 16px 0;">The 30-day satisfaction survey has been sent to <strong>{{candidate.candidate_name}}</strong>.</p>
-                                <p style="margin:0 0 16px 0;">Please follow up with them if needed and share any observations via the HRMS to help us improve the onboarding experience.</p>
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">30-Day HOD Satisfaction Survey</h2>
+                                <p style="margin:0 0 16px 0;">Dear {{reciever_name}},</p>
+                                <p style="margin:0 0 16px 0;"><strong>{{candidate.candidate_name}}</strong> has completed their first 30 days at Knowcraft Analytics.</p>
+                                <p style="margin:0 0 16px 0;">As their Head of Department, we'd value your assessment of their progress during this initial period. Please take a moment to complete the HOD Satisfaction Survey.</p>
+                                <p style="margin:25px 0 30px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}/onboarding/hod-survey-junior/{{candidate.id}}"
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">Complete HOD Survey</a>
+                                </p>
+                                <p style="margin:0 0 16px 0;">Your feedback helps us continuously improve the onboarding experience for all new joiners.</p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """,
+
+    "satisfaction_survey_hod_senior": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">30-Day HOD Satisfaction Survey (Senior)</h2>
+                                <p style="margin:0 0 16px 0;">Dear {{reciever_name}},</p>
+                                <p style="margin:0 0 16px 0;"><strong>{{candidate.candidate_name}}</strong> has completed their first 30 days at Knowcraft Analytics.</p>
+                                <p style="margin:0 0 16px 0;">As their Head of Department, we'd value your assessment of their leadership, strategic thinking, and overall contribution during this initial period. Please complete the HOD Satisfaction Survey (Senior Level).</p>
+                                <p style="margin:25px 0 30px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}/onboarding/hod-survey-senior/{{candidate.id}}"
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">Complete HOD Survey (Senior)</a>
+                                </p>
+                                <p style="margin:0 0 16px 0;">Your detailed feedback helps us refine the onboarding experience for senior professionals.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>

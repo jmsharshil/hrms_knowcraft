@@ -2866,12 +2866,25 @@ class CompleteSurveyAPI(APIView):
         application = get_object_or_404(JobApplication, id=id)
         survey_type = request.data.get('survey_type', '30_day_candidate')
 
-        respondent_name = request.data.get('respondent_name', '')
-        respondent_email = request.data.get('respondent_email', '')
         responses_data = request.data.get('responses', {})
+
+        # ── Respondent: auto-fill from DB for candidate surveys; require for HOD ──
+        if survey_type in ('30_day_candidate', '90_day_candidate'):
+            respondent_name = application.candidate_name or ''
+            respondent_email = getattr(application, 'work_email', None) or application.candidate_email or ''
+        else:
+            # HOD survey — must be supplied in the request body
+            respondent_name = request.data.get('respondent_name', '').strip()
+            respondent_email = request.data.get('respondent_email', '').strip()
+            if not respondent_name or not respondent_email:
+                return Response(
+                    {"error": "respondent_name and respondent_email are required for HOD surveys."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         if not isinstance(responses_data, dict):
             return Response({"error": "'responses' must be a JSON object."}, status=status.HTTP_400_BAD_REQUEST)
+
 
         errors = {}
 
@@ -2956,8 +2969,24 @@ class CompleteSurveyAPI(APIView):
         if errors:
             return Response({"error": "Validation failed.", "fields": errors}, status=status.HTTP_400_BAD_REQUEST)
 
-        # ── Persist ─────────────────────────────────────────────────────────
+        # ── Uniqueness guard: block re-submissions ────────────────────────────
         from onboarding.models import SurveyResponse
+        existing = SurveyResponse.objects.filter(
+            job_application=application,
+            survey_type=survey_type
+        ).first()
+
+        if existing and existing.responses:
+            return Response(
+                {
+                    "error": "Survey already submitted.",
+                    "already_submitted": True,
+                    "submitted_at": existing.submitted_at,
+                },
+                status=status.HTTP_409_CONFLICT
+            )
+
+        # ── Persist ─────────────────────────────────────────────────────────
         SurveyResponse.objects.update_or_create(
             job_application=application,
             survey_type=survey_type,

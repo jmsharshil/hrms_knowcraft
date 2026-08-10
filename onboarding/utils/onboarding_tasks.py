@@ -134,7 +134,26 @@ def daily_onboarding_check():
             
         if days_past >= 30 and not getattr(app, 'is_hod_survey_filled', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending HOD survey reminder.")
-            notify_internal(app, "satisfaction_survey_hod")
+            # Determine if the candidate is senior or junior based on designation
+            is_senior = False
+            try:
+                designation_name = app.job.mrf.designation.name.lower() if (
+                    hasattr(app, 'job') and app.job and
+                    hasattr(app.job, 'mrf') and app.job.mrf and
+                    app.job.mrf.designation
+                ) else ""
+                higher_keywords = [
+                    'assistant manager', 'associate manager', 'manager',
+                    'senior manager', 'associate vice president',
+                    'director', 'vp', 'vice president', 'president',
+                    'head', 'chief', 'lead', 'principal', 'avp'
+                ]
+                is_senior = any(kw in designation_name for kw in higher_keywords)
+            except Exception as e:
+                logger.warning(f"Could not determine seniority for {app.candidate_name}: {e}")
+
+            hod_stage = "satisfaction_survey_hod_senior" if is_senior else "satisfaction_survey_hod_junior"
+            notify_internal(app, hod_stage)
 
         # ── DOJ + 45 Days (D45 Check-in Call Reminder) ───────────────────────
         if days_past >= 45 and not getattr(app, 'is_d45_call_scheduled', False):
