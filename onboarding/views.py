@@ -3150,7 +3150,7 @@ class GetManageEngineDesignationsAPI(APIView):
 class OnboardingTaskListViewSet(ModelViewSet):
     queryset = OnboardingTaskList.objects.all()
     serializer_class = OnboardingTaskListSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -3164,7 +3164,7 @@ class OnboardingTaskListViewSet(ModelViewSet):
 class OnboardingTaskViewSet(ModelViewSet):
     queryset = OnboardingTask.objects.all()
     serializer_class = OnboardingTaskSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -3176,4 +3176,4 @@ class OnboardingTaskViewSet(ModelViewSet):
         if assigned_to_id:
             queryset = queryset.filter(assigned_to_id=assigned_to_id)
             
-        return queryset
+        return queryset
