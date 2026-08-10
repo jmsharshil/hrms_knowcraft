@@ -1,48 +1,48 @@
 ALLOWED_TRANSITIONS = {
     # APPLICATION
-    "received": ["duplicate_rejected", "shortlisted",'rejected'],
+    "received": ["duplicate_rejected", "shortlisted",'rejected', 'backed_out'],
     # SHORTLISTING & INTERVIEW
-    "shortlisted": ["interview_pending_1",'rejected',"interview_pending_2","interview_pending_3","interview_pending_final"],
-    "interview_pending_1": ["interview_done_1",'rejected'],
-    "interview_done_1": ["interview_next_2","interview_next_3","interview_next_final", "interview_rejected_1","consolidated_result_review","interview_next_management_client",'rejected'],
-    "interview_next_2":["interview_pending_2","interview_rejected_1",'rejected'],
-    "interview_pending_2": ["interview_done_2",'rejected'],
-    "interview_done_2": ["interview_next_final","interview_next_3", "interview_rejected_2","consolidated_result_review","interview_next_management_client",'rejected'],
-    "interview_next_3":["interview_pending_3","interview_rejected_2",'rejected'],
-    "interview_pending_3": ["interview_done_3",'rejected'],
-    "interview_done_3": ["interview_next_final", "interview_rejected_3","consolidated_result_review","interview_next_management_client",'rejected'],
-    "interview_next_final":["interview_pending_final","interview_rejected_3",'rejected'],
-    "interview_pending_final": ["interview_done_final",'rejected'],
-    "interview_done_final": ["consolidated_result_review", "interview_rejected_final","interview_next_management_client",'rejected'],
-    "interview_next_management_client": ['interview_pending_management_client','interview_rejected_final', 'rejected'],
-    "interview_pending_management_client":["interview_done_management_client",'rejected'],
-    "interview_done_management_client":["consolidated_result_review","interview_rejected_management_client",'rejected'],
+    "shortlisted": ["interview_pending_1",'rejected',"interview_pending_2","interview_pending_3","interview_pending_final", "backed_out"],
+    "interview_pending_1": ["interview_done_1",'rejected', 'backed_out'],
+    "interview_done_1": ["interview_next_2","interview_next_3","interview_next_final", "interview_rejected_1","consolidated_result_review","interview_next_management_client",'rejected', 'backed_out'],
+    "interview_next_2":["interview_pending_2","interview_rejected_1",'rejected', 'backed_out'],
+    "interview_pending_2": ["interview_done_2",'rejected', 'backed_out'],
+    "interview_done_2": ["interview_next_final","interview_next_3", "interview_rejected_2","consolidated_result_review","interview_next_management_client",'rejected', 'backed_out'],
+    "interview_next_3":["interview_pending_3","interview_rejected_2",'rejected', 'backed_out'],
+    "interview_pending_3": ["interview_done_3",'rejected', 'backed_out'],
+    "interview_done_3": ["interview_next_final", "interview_rejected_3","consolidated_result_review","interview_next_management_client",'rejected', 'backed_out'],
+    "interview_next_final":["interview_pending_final","interview_rejected_3",'rejected', 'backed_out'],
+    "interview_pending_final": ["interview_done_final",'rejected', 'backed_out'],
+    "interview_done_final": ["consolidated_result_review", "interview_rejected_final","interview_next_management_client",'rejected', 'backed_out'],
+    "interview_next_management_client": ['interview_pending_management_client','interview_rejected_final', 'rejected', 'backed_out'],
+    "interview_pending_management_client":["interview_done_management_client",'rejected', 'backed_out'],
+    "interview_done_management_client":["consolidated_result_review","interview_rejected_management_client",'rejected', 'backed_out'],
     # APPROVAL
-    "consolidated_result_review":['selected','rejected'],
-    "selected": ["approval_pending","rejected"],
-    "approval_pending": ["approved", "approval_rejected"],
+    "consolidated_result_review":['selected','rejected', 'backed_out'],
+    "selected": ["approval_pending","rejected", "backed_out"],
+    "approval_pending": ["approved", "approval_rejected", "backed_out"],
     # OFFER FLOW
-    "approved": ["docs_pending"],
-    "docs_pending": ["docs_uploaded"],
-    "docs_uploaded":["review_docs"],
-    "review_docs": ["docs_approved", "docs_incomplete","docs_unclear"],
-    "docs_incomplete": ["docs_pending","docs_approved"],  # reupload
-    "docs_unclear": ["docs_pending","docs_approved"],  # reupload
-    "docs_approved": ["salary_annexure_prep","offer_pending","salary_annexure_review","offer_sent"],
+    "approved": ["docs_pending", "backed_out"],
+    "docs_pending": ["docs_uploaded", "backed_out"],
+    "docs_uploaded":["review_docs", "backed_out"],
+    "review_docs": ["docs_approved", "docs_incomplete","docs_unclear", "backed_out"],
+    "docs_incomplete": ["docs_pending","docs_approved", "backed_out"],  # reupload
+    "docs_unclear": ["docs_pending","docs_approved", "backed_out"],  # reupload
+    "docs_approved": ["salary_annexure_prep","offer_pending","salary_annexure_review","offer_sent", "backed_out"],
     # HR prepares salary annexure
-    "salary_annexure_prep": ["salary_annexure_review","offer_sent"],
-    "salary_annexure_review":["approved_annexure","rejected_annexure"],
+    "salary_annexure_prep": ["salary_annexure_review","offer_sent", "backed_out"],
+    "salary_annexure_review":["approved_annexure","rejected_annexure", "backed_out"],
     "rejected_annexure":["salary_annexure_prep"],
     # HR head approves salary annexure
     # If rejected → back to salary_annexure_preparation
-    "approved_annexure": ["offer_pending","offer_sent"],
-    "offer_pending": ["offer_sent"],
-    "offer_sent": ["offer_accepted", "offer_rejected"],
+    "approved_annexure": ["offer_pending","offer_sent", "backed_out"],
+    "offer_pending": ["offer_sent", "backed_out"],
+    "offer_sent": ["offer_accepted", "offer_rejected", "backed_out"],
     # AFTER OFFER ACCEPTANCE
-    "offer_accepted": ["joining_pending"],
+    "offer_accepted": ["joining_pending", "backed_out"],
     # JOINING
-    "joining_pending": ["joined","rejected","joining_poned"],
-    "joining_poned":["joined","joining_pending","rejected"],
+    "joining_pending": ["joined","rejected","joining_poned", "backed_out"],
+    "joining_poned":["joined","joining_pending","rejected", "backed_out"],
     # TERMINAL
     "duplicate_rejected": ["shortlisted"],
     "interview_rejected_1": ["interview_next_2","selected"],
@@ -53,7 +53,8 @@ ALLOWED_TRANSITIONS = {
     "approval_rejected": ["selected","approval_pending"],
     "offer_rejected": ["selected"],
     "joined": [],
-    "rejected": ["selected"]
+    "rejected": ["selected"],
+    "backed_out": ["selected"]
 }
 
 def validate_transition(old, new):

@@ -561,6 +561,7 @@ class JobApplication(models.Model):
     ("joined", "Joined"),
     # General Rejection (fallback)
     ("rejected", "Rejected"),
+    ("backed_out", "Backed Out"),
 ]
 
     

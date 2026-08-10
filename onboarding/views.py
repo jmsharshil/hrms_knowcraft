@@ -79,7 +79,7 @@ class UpdatestatusAPI(APIView):
                 interviewer_id = None
                 application.slot_link = ""
                 application.inperson_link = ""
-            if application.status == "rejected" and rejection_reason:
+            if application.status in ["rejected", "backed_out"] and rejection_reason:
                 application.rejection_reason = rejection_reason
             application.save()
             return Response({"success": ok,"status":application.status})
