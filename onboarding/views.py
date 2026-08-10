@@ -8,10 +8,10 @@ from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.template import Template, Context
 from django.db.models import Q
-from .models import JobApplicationDocument,ApprovalNote,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog
+from .models import JobApplicationDocument,ApprovalNote,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog, OnboardingTask, OnboardingTaskList
 from onboarding.utils.engine import automation_engine
 from .utils.sender import send_email,send_text,send_document
-from .serializers import JobApplicationDocumentSerializer,SalaryAnnexureSerializer,SalaryAnnexureHistorySerializer,EmailLogSerializer
+from .serializers import JobApplicationDocumentSerializer,SalaryAnnexureSerializer,SalaryAnnexureHistorySerializer,EmailLogSerializer, OnboardingTaskSerializer, OnboardingTaskListSerializer
 import logging
 from jobs.models import JobApplication, Job
 from rest_framework.viewsets import ModelViewSet,ReadOnlyModelViewSet
@@ -3146,3 +3146,34 @@ class GetManageEngineDesignationsAPI(APIView):
         client = ManageEngineClient()
         designations = client.get_designations()
         return Response({"designations": designations}, status=status.HTTP_200_OK)
+
+class OnboardingTaskListViewSet(ModelViewSet):
+    queryset = OnboardingTaskList.objects.all()
+    serializer_class = OnboardingTaskListSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        job_application_id = self.request.query_params.get('job_application_id')
+        
+        if job_application_id:
+            queryset = queryset.filter(job_application_id=job_application_id)
+            
+        return queryset
+
+class OnboardingTaskViewSet(ModelViewSet):
+    queryset = OnboardingTask.objects.all()
+    serializer_class = OnboardingTaskSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        task_list_id = self.request.query_params.get('task_list_id')
+        assigned_to_id = self.request.query_params.get('assigned_to_id')
+        
+        if task_list_id:
+            queryset = queryset.filter(task_list_id=task_list_id)
+        if assigned_to_id:
+            queryset = queryset.filter(assigned_to_id=assigned_to_id)
+            
+        return queryset

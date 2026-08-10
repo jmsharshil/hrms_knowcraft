@@ -728,3 +728,42 @@ class OnboardingCall(models.Model):
 
     def __str__(self):
         return f"{self.get_call_type_display()} - {self.job_application.candidate_name}"
+
+class OnboardingTaskList(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    job_application = models.ForeignKey('jobs.JobApplication', on_delete=models.CASCADE, related_name='onboarding_task_lists')
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "onboarding_task_lists"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.name} - {self.job_application.candidate_name}"
+
+class OnboardingTask(models.Model):
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("in_progress", "In Progress"),
+        ("completed", "Completed"),
+        ("overdue", "Overdue")
+    ]
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task_list = models.ForeignKey(OnboardingTaskList, on_delete=models.CASCADE, related_name='tasks')
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="pending")
+    assigned_to = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_onboarding_tasks')
+    due_date = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "onboarding_tasks"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.title} - {self.task_list.name}"
