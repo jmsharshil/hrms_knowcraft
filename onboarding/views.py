@@ -3180,13 +3180,37 @@ class OnboardingJourneyAPI(APIView):
     Returns a consolidated snapshot of the candidate's end-to-end onboarding
     journey — from initialization through to Day 90 — including:
       • Candidate & role details
+      • MRF / Requisition details
       • Key milestone dates and completion flags
       • D45 / D90 call schedule data
-      • All survey responses (30-day, HOD, 90-day)
+      • All survey responses enriched with question text
       • Onboarding task lists and their tasks
       • IT ticket and buddy info
     """
     permission_classes = [permissions.AllowAny]
+
+    @staticmethod
+    def _build_question_map(structure):
+        """Flatten survey structure sections into {str(qid): (section_title, question_text)}."""
+        qmap = {}
+        for section in structure.get("sections", []):
+            section_title = section.get("title", "")
+            for q in section.get("questions", []):
+                qmap[str(q["id"])] = (section_title, q["text"])
+        return qmap
+
+    @staticmethod
+    def _enrich_responses(raw_responses, question_map):
+        """Convert {str(id): answer} to [{question_id, section, question, answer}] in survey order."""
+        enriched = []
+        for qid, (section_title, question_text) in question_map.items():
+            enriched.append({
+                "question_id": int(qid),
+                "section": section_title,
+                "question": question_text,
+                "answer": raw_responses.get(qid),
+            })
+        return enriched
 
     def get(self, request, id):
         from onboarding.models import OnboardingCall, SurveyResponse, OnboardingTaskList
@@ -3195,18 +3219,44 @@ class OnboardingJourneyAPI(APIView):
         application = get_object_or_404(JobApplication, id=id)
         today = tz.now().date()
 
-        # ── Days since / until joining ─────────────────────────────────────
+        # ── Days since joining ─────────────────────────────────────────────
         joining_date = application.joining_date
         days_since_joining = (today - joining_date).days if joining_date else None
 
-        # ── Role / Department ──────────────────────────────────────────────
-        role = ""
-        department = ""
+        # ── MRF / Requisition details ──────────────────────────────────────
+        mrf_data = None
+        is_senior = False
         try:
             if application.job and application.job.mrf:
                 mrf = application.job.mrf
-                role = mrf.designation.name if mrf.designation else ""
-                department = mrf.department.name if mrf.department else ""
+                designation_name = mrf.designation.name if mrf.designation else ""
+                higher_keywords = [
+                    'assistant manager', 'associate manager', 'manager',
+                    'senior manager', 'associate vice president',
+                    'director', 'vp', 'vice president', 'president',
+                    'head', 'chief', 'lead', 'principal', 'avp'
+                ]
+                is_senior = any(kw in designation_name.lower() for kw in higher_keywords)
+                mrf_data = {
+                    "id": str(mrf.id),
+                    "requisition_no": mrf.requisition_no,
+                    "mrf_name": mrf.mrf_name,
+                    "designation": designation_name,
+                    "department": mrf.department.name if mrf.department else "",
+                    "position_department": mrf.position_department.name if mrf.position_department else "",
+                    "team": mrf.team,
+                    "location": mrf.location,
+                    "job_type": mrf.job_type,
+                    "no_of_vacancies": mrf.no_of_vacancies,
+                    "experience_range": mrf.experience_range,
+                    "salary_range": mrf.salary_range,
+                    "status": mrf.status,
+                    "priority": mrf.priority,
+                    "requested_by_name": mrf.requested_by_name,
+                    "requested_by_designation": mrf.requested_by_designation,
+                    "date_of_request": mrf.date_of_request,
+                    "expected_date_of_joining": mrf.expected_date_of_joining,
+                }
         except Exception:
             pass
 
@@ -3231,18 +3281,30 @@ class OnboardingJourneyAPI(APIView):
             job_application=application, call_type="d90"
         ).first()
 
-        # ── Survey responses ───────────────────────────────────────────────
-        def serialize_survey(survey):
+        # ── Survey enrichment ──────────────────────────────────────────────
+        hod_structure = HOD_SURVEY_STRUCTURE_SENIOR if is_senior else HOD_SURVEY_STRUCTURE_JUNIOR
+        structure_map = {
+            "30_day_candidate": CANDIDATE_SURVEY_STRUCTURE,
+            "hod":              hod_structure,
+            "90_day_candidate": SURVEY_90_DAY_STRUCTURE,
+        }
+
+        def serialize_survey(survey, survey_type):
             if not survey:
                 return None
+            raw = survey.responses or {}
+            structure = structure_map.get(survey_type, {})
+            qmap = self._build_question_map(structure)
+            enriched = self._enrich_responses(raw, qmap) if raw else []
             return {
                 "id": str(survey.id),
-                "survey_type": survey.survey_type,
+                "survey_type": survey_type,
+                "survey_title": structure.get("title", ""),
                 "respondent_name": survey.respondent_name,
                 "respondent_email": survey.respondent_email,
-                "responses": survey.responses,
-                "is_submitted": bool(survey.responses),
+                "is_submitted": bool(raw),
                 "submitted_at": survey.submitted_at,
+                "responses": enriched,
             }
 
         surveys_qs = SurveyResponse.objects.filter(job_application=application)
@@ -3340,15 +3402,13 @@ class OnboardingJourneyAPI(APIView):
         ]
 
         data = {
-            # ── Candidate & role ─────────────────────────────────────
+            # ── Candidate ────────────────────────────────────────────
             "candidate": {
                 "id": str(application.id),
                 "name": application.candidate_name,
                 "email": application.candidate_email,
                 "work_email": application.work_email,
                 "phone": application.candidate_phone,
-                "role": role,
-                "department": department,
                 "status": application.status,
                 "joining_date": joining_date,
                 "days_since_joining": days_since_joining,
@@ -3358,7 +3418,10 @@ class OnboardingJourneyAPI(APIView):
                 "emp_account_active": application.emp_account_active,
             },
 
-            # ── Buddy info ───────────────────────────────────────────
+            # ── MRF / Requisition ────────────────────────────────────
+            "mrf": mrf_data,
+
+            # ── Buddies ──────────────────────────────────────────────
             "buddies": {
                 "technical_buddy_name": application.technical_buddy_name,
                 "technical_buddy_email": application.technical_buddy_email,
@@ -3366,7 +3429,7 @@ class OnboardingJourneyAPI(APIView):
                 "cultural_buddy_email": application.cultural_buddy_email,
             },
 
-            # ── Milestone flags ──────────────────────────────────────
+            # ── Milestones ───────────────────────────────────────────
             "milestones": milestones,
 
             # ── Calls ────────────────────────────────────────────────
@@ -3375,11 +3438,17 @@ class OnboardingJourneyAPI(APIView):
                 "d90": serialize_call(d90_call),
             },
 
-            # ── Surveys ──────────────────────────────────────────────
+            # ── Surveys (enriched Q&A) ───────────────────────────────
             "surveys": {
-                "30_day_candidate": serialize_survey(survey_map.get("30_day_candidate")),
-                "hod": serialize_survey(survey_map.get("hod")),
-                "90_day_candidate": serialize_survey(survey_map.get("90_day_candidate")),
+                "30_day_candidate": serialize_survey(
+                    survey_map.get("30_day_candidate"), "30_day_candidate"
+                ),
+                "hod": serialize_survey(
+                    survey_map.get("hod"), "hod"
+                ),
+                "90_day_candidate": serialize_survey(
+                    survey_map.get("90_day_candidate"), "90_day_candidate"
+                ),
             },
 
             # ── Tasks ────────────────────────────────────────────────
