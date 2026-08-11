@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import DocuSignOffer, JobApplicationDocument,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog, OnboardingTask, OnboardingTaskList
+from .models import DocuSignOffer, JobApplicationDocument,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog, OnboardingTask, OnboardingTaskList, DocumentEsignTask
 from jobs.models import JobApplication
 # class CandidateSerializer(serializers.ModelSerializer):
 #     class Meta:
@@ -220,4 +220,16 @@ class OnboardingTaskListSerializer(serializers.ModelSerializer):
         task_list = super().create(validated_data)
         for task_data in tasks_data:
             OnboardingTask.objects.create(task_list=task_list, **task_data)
-        return task_list
+        return task_list
+
+class DocumentEsignTaskSerializer(serializers.ModelSerializer):
+    candidate_name = serializers.CharField(source='job_application.candidate_name', read_only=True)
+    doc_type_display = serializers.CharField(source='get_doc_type_display', read_only=True)
+ 
+    class Meta:
+        model = DocumentEsignTask
+        fields = '__all__'
+        read_only_fields = [
+            'status', 'zoho_request_id', 'zoho_document_id', 'raw_response',
+            'sent_at', 'viewed_at', 'signed_at', 'completed_at', 'decline_reason',
+        ]

@@ -743,9 +743,39 @@ Knowcraft Analytics Private Limited""",
         ),
         "log": "90-day survey form sent to {candidate.candidate_email}",
     },
+    # --------------------------------------------------------------
+    # ESIGN / ZOHO SIGN FLOW (for statutory documents)
+    # --------------------------------------------------------------
+    "esign_request": {
+        "email": {
+            "subject": "Action Required: Sign Your Onboarding Documents",
+            "text": (
+                "Your statutory onboarding documents have been sent for e-signature via Zoho Sign. "
+                "Please review and digitally sign them promptly using the secure link in the Zoho Sign email."
+            ),
+        },
+        "sms": (
+            "Dear {candidate.candidate_name}, your onboarding documents (SA, NDA, KRA etc.) have been "
+            "sent for e-signature. Check your email (incl. spam) for the Zoho Sign link and sign ASAP."
+        ),
+        "log": "E-sign request sent to {candidate.candidate_email}",
+    },
+    "esign_reminder": {
+        "email": {
+            "subject": "Reminder: Pending E-Signature Documents",
+            "text": (
+                "This is a reminder that you still have pending documents requiring your e-signature: "
+                "{pending_docs}. Please complete them using the Zoho Sign link from our previous email."
+            ),
+        },
+        "sms": (
+            "Reminder: Pending e-sign docs ({pending_docs}). Please sign them via Zoho Sign link sent earlier."
+        ),
+        "log": "E-sign reminder sent to {candidate.candidate_email} for pending docs",
+    },
 }
 
-def notify_candidate(candidate: Any, stage: str,cc:list, feedback_link: str = None) -> bool:
+def notify_candidate(candidate: Any, stage: str, cc: list = None, feedback_link: str = None, extra_context: dict = None) -> bool:
     """
     Unified notification dispatcher.
 
@@ -775,10 +805,15 @@ def notify_candidate(candidate: Any, stage: str,cc:list, feedback_link: str = No
         logger.warning("No notification config for stage '%s'", stage)
         return False
 
+    if cc is None:
+        cc = []
+
     success = True
 
     email_cfg = cfg.get("email")
     sms_text = cfg.get("sms")
+    extra_context = extra_context or {}
+
     # ---------- EMAIL ----------
     
     if email_cfg:
@@ -795,8 +830,6 @@ def notify_candidate(candidate: Any, stage: str,cc:list, feedback_link: str = No
         pending_docs_html = None
         if cfg.get("opensign"):
             try:
-                # filename, pdf_bytes, mimetype = generate_offer_letter(candidate)
-
                 # Call OpenSign API
                 sign_url,form_id = send_to_opensign_and_get_link(candidate=candidate)
                 from django.core.cache import cache
@@ -837,54 +870,54 @@ def notify_candidate(candidate: Any, stage: str,cc:list, feedback_link: str = No
                         f"{FRONTEND_URL}/api/slots/available/"
                         f"?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
                     )
-                email_cfg["text"] = email_cfg["text"].format(schedule_link=schedule_link)
-                sms_text.format(schedule_link=schedule_link)
+                email_cfg["text"] = email_cfg.get("text", "").format(schedule_link=schedule_link)
+                if sms_text:
+                    sms_text = sms_text.format(schedule_link=schedule_link)
             except Exception as e:
-                print(e)
+                logger.warning("Schedule link generation failed: %s", e)
         try:
-            html_template = HTML_TEMPLATES[stage]
-            # if stage == "salary_docs_pending":
-            #     link = f"{FRONTEND_URL}/api/application/documents/upload/salary-bank/{candidate.id}"
-            #     email_cfg["text"].format(link=link)
-            #     sms_text.format(link=link)
-            # if stage == 'docs_pending':
-            #     link = f"{FRONTEND_URL}/api/application/documents/upload/docs/{candidate.id}"
-            #     email_cfg["text"].format(link=link)
-            #     sms_text.format(link=link)
-            # if stage == "resignation_pending":
-            #     link = f"{FRONTEND_URL}/api/application/documents/upload/resignation/{candidate.id}"
-            #     email_cfg["text"].format(link=link)
-            #     sms_text.format(link=link)
-            # if stage in ['docs_unclear','docs_incomplete','']:
-            #     from onboarding.utils.docs_reupload import get_pending_documents
-            #     pending_docs = get_pending_documents(candidate.documents)
-            #     pending_docs_html = "<ul>" + "".join(f"<li>{doc}</li>" for doc in pending_docs) + "</ul>"
-            formatted_text = email_cfg["text"]
+            html_template = HTML_TEMPLATES.get(stage)
+            if not html_template:
+                logger.warning("No HTML template for stage %s", stage)
+                html_template = "<p>{text}</p>"
+
+            formatted_text = email_cfg.get("text", "")
+            format_dict = {
+                "FRONTEND_URL": FRONTEND_URL,
+                "candidate": candidate,
+                **extra_context
+            }
             if "{" in formatted_text:
                 try:
-                    formatted_text = formatted_text.format(FRONTEND_URL=FRONTEND_URL, candidate=candidate)
-                except KeyError:
-                    pass
+                    formatted_text = formatted_text.format(**format_dict)
+                except (KeyError, ValueError) as e:
+                    logger.warning("Text formatting error for %s: %s", stage, e)
 
-            recipient_email = getattr(candidate, 'work_email', None) or candidate.candidate_email
-            send_email(
-                to=recipient_email,
-                subject=email_cfg["subject"],
-                text=formatted_text,
-                cc= cc,
-                template=html_template.format(
-                    candidate=candidate,
-                    sign_url=sign_url,
-                    schedule_link=schedule_link,
-                    feedback_link=feedback_link
-                ),
-                attachments=attachments,
-                event="onboarding_stage_update",
-                email_type="candidate",
-                candidate=candidate
-            )
+            recipient_email = getattr(candidate, 'work_email', None) or getattr(candidate, 'candidate_email', None)
+            if not recipient_email:
+                logger.warning("No email found for candidate")
+                success = False
+            else:
+                template_context = {
+                    "candidate": candidate,
+                    "sign_url": sign_url,
+                    "schedule_link": schedule_link,
+                    "feedback_link": feedback_link,
+                    **extra_context
+                }
+                send_email(
+                    to=recipient_email,
+                    subject=email_cfg["subject"],
+                    text=formatted_text,
+                    cc=cc,
+                    template=html_template.format(**template_context),
+                    attachments=attachments,
+                    event="onboarding_stage_update",
+                    email_type="candidate",
+                    candidate=candidate
+                )
         except Exception as exc:
-            logger.exception("Email failed for %s (stage=%s): %s", candidate.candidate_email, stage, exc)
+            logger.exception("Email failed for %s (stage=%s): %s", getattr(candidate, 'candidate_email', 'unknown'), stage, exc)
             success = False
 
     # ---------- SMS ----------

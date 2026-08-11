@@ -768,3 +768,67 @@ class OnboardingTask(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.task_list.name}"
+
+class DocumentEsignTask(models.Model):
+    """
+    One row per statutory document per candidate. Sent to Zoho Sign for signature —
+    mirrors OfferDocument's zoho_document_id / status / raw_response shape, scoped to
+    onboarding docs instead of the offer letter.
+    """
+    DOC_TYPE_CHOICES = [
+        ("SA", "Service Agreement"),
+        ("NDA", "NDA"),
+        ("BOND", "Employment Bond"),                 # only created if job_application.bond_required
+        ("ISMS_1", "ISMS Policy Part 1"),
+        ("ISMS_2", "ISMS Policy Part 2"),
+        ("FORM_2", "Form 2"),
+        ("NOMINATION_INS", "Nomination-Insurance Form"),
+        ("KRA", "KRA (Key Result Areas)"),
+        ("FORM_F", "Form F"),
+        ("FORM_11", "Form 11"),
+        ("IT_ASSET", "IT Asset Handover / Digital Asset Confirmation"),
+    ]
+    STATUS_CHOICES = [
+        ("pending", "Pending — File Not Yet Uploaded"),
+        ("ready", "File Uploaded, Not Yet Sent"),
+        ("sent", "Sent to Zoho Sign"),
+        ("viewed", "Viewed by Candidate"),
+        ("signed", "Signed"),
+        ("completed", "Completed"),
+        ("declined", "Declined"),
+        ("expired", "Expired"),
+        ("reminded", "Reminder Sent"),
+    ]
+ 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    job_application = models.ForeignKey(
+        JobApplication, on_delete=models.CASCADE, related_name="esign_documents"
+    )
+    doc_type = models.CharField(max_length=20, choices=DOC_TYPE_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+ 
+    source_file = models.FileField(upload_to="onboarding/esign_source/", null=True, blank=True)
+ 
+    # Zoho Sign — same shape as OfferDocument
+    zoho_request_id = models.CharField(max_length=255, null=True, blank=True)
+    zoho_document_id = models.CharField(max_length=255, null=True, blank=True)
+    raw_response = models.JSONField(null=True, blank=True)
+ 
+    generated_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    viewed_at = models.DateTimeField(null=True, blank=True)
+    signed_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    reminder_sent_at = models.DateTimeField(null=True, blank=True)
+    decline_reason = models.TextField(null=True, blank=True)
+ 
+    source_meta = models.JSONField(default=dict, blank=True)  # e.g. IT asset model/serial from ME ticket
+    created_at = models.DateTimeField(default=timezone.now)
+ 
+    class Meta:
+        db_table = "onboarding_document_esign_tasks"
+        ordering = ["-created_at"]
+        unique_together = [("job_application", "doc_type")]
+ 
+    def __str__(self):
+        return f"{self.get_doc_type_display()} - {self.job_application.candidate_name} ({self.status})"

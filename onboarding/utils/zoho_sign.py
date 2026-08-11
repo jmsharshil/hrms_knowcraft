@@ -839,4 +839,70 @@ def recall_zoho_offer(offer_document):
             
     except Exception as e:
         print(f"Exception during Zoho recall: {e}")
-        return False
+        return False
+
+def send_document_to_zoho_sign(document_task):
+    """
+    Sends one DocumentEsignTask's source_file to Zoho Sign for the candidate to sign.
+    Single signer (candidate only) — no HR view/approval chain, since these are
+    statutory onboarding forms, not the offer letter.
+    """
+    if not document_task.source_file:
+        print(
+            f"No source_file on {document_task.doc_type} for "
+            f"{document_task.job_application.candidate_name} — cannot send to Zoho Sign."
+        )
+        return None
+ 
+    app = document_task.job_application
+    access_token = get_access_token()
+    headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
+ 
+    actions = [
+        {
+            "recipient_name": app.candidate_name,
+            "recipient_email": app.work_email or app.candidate_email,
+            "action_type": "SIGN",
+            "signing_order": 1,
+        }
+    ]
+ 
+    payload = {
+        "data": json.dumps({
+            "requests": {
+                "request_name": f"{document_task.get_doc_type_display()} - {app.candidate_name}",
+                "is_sequential": True,
+                "actions": actions,
+            }
+        })
+    }
+ 
+    filename = document_task.source_file.name.split("/")[-1]
+    files = {"file": (filename, document_task.source_file.open("rb"), "application/pdf")}
+ 
+    try:
+        response = requests.post(ZOHO_SIGN_URL, headers=headers, data=payload, files=files)
+        data = response.json()
+ 
+        request_id = data["requests"]["request_id"]
+        document_ids = data["requests"].get("document_ids", [])
+        document_id = document_ids[0].get("document_id") if document_ids else None
+ 
+        document_task.zoho_request_id = request_id
+        document_task.zoho_document_id = document_id
+        document_task.status = "sent"
+        document_task.sent_at = timezone.now()
+        document_task.raw_response = data
+        document_task.save(update_fields=[
+            "zoho_request_id", "zoho_document_id", "status", "sent_at", "raw_response"
+        ])
+        return data
+ 
+    except requests.exceptions.RequestException as e:
+        print(f"Zoho Sign request failed for {document_task.doc_type} / {app.candidate_name}: {e}")
+    except KeyError:
+        print(f"Unexpected Zoho Sign response for {document_task.doc_type}: {response.text}")
+    except Exception as e:
+        print(f"Unable to send {document_task.doc_type} to Zoho Sign: {e}")
+ 
+    return None

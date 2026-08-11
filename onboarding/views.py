@@ -8,10 +8,10 @@ from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.template import Template, Context
 from django.db.models import Q
-from .models import JobApplicationDocument,ApprovalNote,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog, OnboardingTask, OnboardingTaskList
+from .models import JobApplicationDocument,ApprovalNote,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog, OnboardingTask, OnboardingTaskList, DocumentEsignTask
 from onboarding.utils.engine import automation_engine
 from .utils.sender import send_email,send_text,send_document
-from .serializers import JobApplicationDocumentSerializer,SalaryAnnexureSerializer,SalaryAnnexureHistorySerializer,EmailLogSerializer, OnboardingTaskSerializer, OnboardingTaskListSerializer
+from .serializers import JobApplicationDocumentSerializer,SalaryAnnexureSerializer,SalaryAnnexureHistorySerializer,EmailLogSerializer, OnboardingTaskSerializer, OnboardingTaskListSerializer, DocumentEsignTaskSerializer
 import logging
 from jobs.models import JobApplication, Job
 from rest_framework.viewsets import ModelViewSet,ReadOnlyModelViewSet
@@ -3523,4 +3523,21 @@ class OnboardingTaskViewSet(ModelViewSet):
         if assigned_to_id:
             queryset = queryset.filter(assigned_to_id=assigned_to_id)
             
+        return queryset
+
+class DocumentEsignTaskViewSet(ModelViewSet):
+    queryset = DocumentEsignTask.objects.all()
+    serializer_class = DocumentEsignTaskSerializer
+    permission_classes = [permissions.AllowAny]
+ 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        job_application_id = self.request.query_params.get('job_application_id')
+        status_filter = self.request.query_params.get('status')
+ 
+        if job_application_id:
+            queryset = queryset.filter(job_application_id=job_application_id)
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+ 
         return queryset
