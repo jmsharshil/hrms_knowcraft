@@ -2322,14 +2322,13 @@ class AssignBuddyAPI(APIView):
             from onboarding.utils.sender import send_email
             from onboarding.utils.templates import NOTIFY_INTERNAL_HTML_TEMPLATES
             html_template = NOTIFY_INTERNAL_HTML_TEMPLATES.get('buddy_assigned', '<p>Buddy assigned.</p>')
-            formatted_html = html_template.format(candidate=application)
             
             if technical_buddy_email:
                 send_email(
                     to=technical_buddy_email,
                     subject="You have been assigned as a Technical Buddy",
                     text="You have been assigned as a Technical Buddy for " + application.candidate_name,
-                    template=formatted_html,
+                    template=html_template.format(candidate=application, reciever_name=technical_buddy_name or "Team"),
                     event="buddy_assigned",
                     email_type="internal",
                     candidate=application
@@ -2339,12 +2338,13 @@ class AssignBuddyAPI(APIView):
                     to=cultural_buddy_email,
                     subject="You have been assigned as a Cultural Buddy",
                     text="You have been assigned as a Cultural Buddy for " + application.candidate_name,
-                    template=formatted_html,
+                    template=html_template.format(candidate=application, reciever_name=cultural_buddy_name or "Team"),
                     event="buddy_assigned",
                     email_type="internal",
                     candidate=application
                 )
         except Exception as e:
+            print("BUDDY ERROR:", e)
             logger.error(f"Error notifying buddies: {e}")
         
         return Response({"message": "Buddies assigned successfully"}, status=status.HTTP_200_OK)
