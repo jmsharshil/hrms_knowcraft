@@ -3019,11 +3019,15 @@ class ScheduleD45CallAPI(APIView):
         organizer_email = request.data.get('organizer_email')
         start_time_str = request.data.get('start_time')
         end_time_str = request.data.get('end_time')
+        # Extra attendees beyond the candidate (e.g. HR, HOD)
+        attendee_emails = request.data.get('attendee_emails', [])
+        if isinstance(attendee_emails, str):
+            attendee_emails = [attendee_emails]
         
         if organizer_email and start_time_str and end_time_str:
             try:
                 from dateutil.parser import parse
-                from slots.graph import create_teams_meeting
+                from booking.utils import create_teams_meeting, update_teams_meeting
                 from onboarding.models import OnboardingCall
                 
                 start_dt = parse(start_time_str)
@@ -3031,30 +3035,57 @@ class ScheduleD45CallAPI(APIView):
                 candidate_email = application.work_email or application.candidate_email
                 subject = f"Day 45 Check-in Call: {application.candidate_name}"
                 
-                event = create_teams_meeting(organizer_email, candidate_email, start_dt, end_dt, subject)
+                # Build deduplicated attendee list: candidate first, then extras
+                all_attendees = [candidate_email] + [
+                    e for e in attendee_emails if e and e != candidate_email
+                ]
                 
-                meeting_id = event.get("id")
-                meeting_link = (
-                    event.get("onlineMeeting", {}).get("joinUrl")
-                    or event.get("onlineMeetingUrl")
-                    or event.get("onlineMeeting", {}).get("joinWebUrl")
-                    or None
-                )
+                # Check if a meeting already exists for this candidate
+                existing_call = OnboardingCall.objects.filter(
+                    job_application=application, call_type="d45"
+                ).first()
                 
-                OnboardingCall.objects.create(
+                if existing_call and existing_call.meeting_id:
+                    # ── UPDATE the existing Teams calendar event (no duplicate created) ──
+                    event = update_teams_meeting(
+                        organizer_email=organizer_email,
+                        event_id=existing_call.meeting_id,
+                        start_dt=start_dt,
+                        end_dt=end_dt,
+                        subject=subject,
+                    )
+                    meeting_id = existing_call.meeting_id
+                    meeting_link = existing_call.meeting_link  # link stays the same
+                else:
+                    # ── CREATE a fresh Teams meeting ──
+                    event = create_teams_meeting(
+                        organizer_email, all_attendees, start_dt, end_dt, subject
+                    )
+                    meeting_id = event.get("id") if event else None
+                    meeting_link = (
+                        (event.get("onlineMeeting") or {}).get("joinUrl")
+                        or event.get("onlineMeetingUrl")
+                        or (event.get("onlineMeeting") or {}).get("joinWebUrl")
+                        or None
+                    ) if event else None
+                
+                # Persist / update the DB record
+                OnboardingCall.objects.update_or_create(
                     job_application=application,
                     call_type="d45",
-                    organizer_email=organizer_email,
-                    start_time=start_dt,
-                    end_time=end_dt,
-                    meeting_id=meeting_id,
-                    meeting_link=meeting_link
+                    defaults={
+                        "organizer_email": organizer_email,
+                        "start_time": start_dt,
+                        "end_time": end_dt,
+                        "meeting_id": meeting_id,
+                        "meeting_link": meeting_link,
+                    }
                 )
                 
             except Exception as e:
                 import logging
                 logger = logging.getLogger(__name__)
-                logger.error(f"Error creating Teams meeting for D45: {e}")
+                logger.error(f"Error creating/updating Teams meeting for D45: {e}")
                 return Response({"error": f"Failed to book MS Teams meeting: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
                 
         application.is_d45_call_scheduled = True
@@ -3069,11 +3100,15 @@ class ScheduleD90CallAPI(APIView):
         organizer_email = request.data.get('organizer_email')
         start_time_str = request.data.get('start_time')
         end_time_str = request.data.get('end_time')
+        # Extra attendees beyond the candidate (e.g. HR, HOD)
+        attendee_emails = request.data.get('attendee_emails', [])
+        if isinstance(attendee_emails, str):
+            attendee_emails = [attendee_emails]
         
         if organizer_email and start_time_str and end_time_str:
             try:
                 from dateutil.parser import parse
-                from slots.graph import create_teams_meeting
+                from booking.utils import create_teams_meeting, update_teams_meeting
                 from onboarding.models import OnboardingCall
                 
                 start_dt = parse(start_time_str)
@@ -3081,35 +3116,278 @@ class ScheduleD90CallAPI(APIView):
                 candidate_email = application.work_email or application.candidate_email
                 subject = f"Day 90 Final Review Call: {application.candidate_name}"
                 
-                event = create_teams_meeting(organizer_email, candidate_email, start_dt, end_dt, subject)
+                # Build deduplicated attendee list: candidate first, then extras
+                all_attendees = [candidate_email] + [
+                    e for e in attendee_emails if e and e != candidate_email
+                ]
                 
-                meeting_id = event.get("id")
-                meeting_link = (
-                    event.get("onlineMeeting", {}).get("joinUrl")
-                    or event.get("onlineMeetingUrl")
-                    or event.get("onlineMeeting", {}).get("joinWebUrl")
-                    or None
-                )
+                # Check if a meeting already exists for this candidate
+                existing_call = OnboardingCall.objects.filter(
+                    job_application=application, call_type="d90"
+                ).first()
                 
-                OnboardingCall.objects.create(
+                if existing_call and existing_call.meeting_id:
+                    # ── UPDATE the existing Teams calendar event (no duplicate created) ──
+                    event = update_teams_meeting(
+                        organizer_email=organizer_email,
+                        event_id=existing_call.meeting_id,
+                        start_dt=start_dt,
+                        end_dt=end_dt,
+                        subject=subject,
+                    )
+                    meeting_id = existing_call.meeting_id
+                    meeting_link = existing_call.meeting_link  # link stays the same
+                else:
+                    # ── CREATE a fresh Teams meeting ──
+                    event = create_teams_meeting(
+                        organizer_email, all_attendees, start_dt, end_dt, subject
+                    )
+                    meeting_id = event.get("id") if event else None
+                    meeting_link = (
+                        (event.get("onlineMeeting") or {}).get("joinUrl")
+                        or event.get("onlineMeetingUrl")
+                        or (event.get("onlineMeeting") or {}).get("joinWebUrl")
+                        or None
+                    ) if event else None
+                
+                # Persist / update the DB record
+                OnboardingCall.objects.update_or_create(
                     job_application=application,
                     call_type="d90",
-                    organizer_email=organizer_email,
-                    start_time=start_dt,
-                    end_time=end_dt,
-                    meeting_id=meeting_id,
-                    meeting_link=meeting_link
+                    defaults={
+                        "organizer_email": organizer_email,
+                        "start_time": start_dt,
+                        "end_time": end_dt,
+                        "meeting_id": meeting_id,
+                        "meeting_link": meeting_link,
+                    }
                 )
                 
             except Exception as e:
                 import logging
                 logger = logging.getLogger(__name__)
-                logger.error(f"Error creating Teams meeting for D90: {e}")
+                logger.error(f"Error creating/updating Teams meeting for D90: {e}")
                 return Response({"error": f"Failed to book MS Teams meeting: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
         
         application.is_d90_call_scheduled = True
         application.save(update_fields=['is_d90_call_scheduled'])
         return Response({"message": "Day 90 final review call booked and marked as scheduled"}, status=status.HTTP_200_OK)
+
+class OnboardingJourneyAPI(APIView):
+    """
+    GET /api/onboarding/application/<id>/journey/
+
+    Returns a consolidated snapshot of the candidate's end-to-end onboarding
+    journey — from initialization through to Day 90 — including:
+      • Candidate & role details
+      • Key milestone dates and completion flags
+      • D45 / D90 call schedule data
+      • All survey responses (30-day, HOD, 90-day)
+      • Onboarding task lists and their tasks
+      • IT ticket and buddy info
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, id):
+        from onboarding.models import OnboardingCall, SurveyResponse, OnboardingTaskList
+        from django.utils import timezone as tz
+
+        application = get_object_or_404(JobApplication, id=id)
+        today = tz.now().date()
+
+        # ── Days since / until joining ─────────────────────────────────────
+        joining_date = application.joining_date
+        days_since_joining = (today - joining_date).days if joining_date else None
+
+        # ── Role / Department ──────────────────────────────────────────────
+        role = ""
+        department = ""
+        try:
+            if application.job and application.job.mrf:
+                mrf = application.job.mrf
+                role = mrf.designation.name if mrf.designation else ""
+                department = mrf.department.name if mrf.department else ""
+        except Exception:
+            pass
+
+        # ── Onboarding calls ───────────────────────────────────────────────
+        def serialize_call(call):
+            if not call:
+                return None
+            return {
+                "id": str(call.id),
+                "organizer_email": call.organizer_email,
+                "start_time": call.start_time,
+                "end_time": call.end_time,
+                "meeting_id": call.meeting_id,
+                "meeting_link": call.meeting_link,
+                "created_at": call.created_at,
+            }
+
+        d45_call = OnboardingCall.objects.filter(
+            job_application=application, call_type="d45"
+        ).first()
+        d90_call = OnboardingCall.objects.filter(
+            job_application=application, call_type="d90"
+        ).first()
+
+        # ── Survey responses ───────────────────────────────────────────────
+        def serialize_survey(survey):
+            if not survey:
+                return None
+            return {
+                "id": str(survey.id),
+                "survey_type": survey.survey_type,
+                "respondent_name": survey.respondent_name,
+                "respondent_email": survey.respondent_email,
+                "responses": survey.responses,
+                "is_submitted": bool(survey.responses),
+                "submitted_at": survey.submitted_at,
+            }
+
+        surveys_qs = SurveyResponse.objects.filter(job_application=application)
+        survey_map = {s.survey_type: s for s in surveys_qs}
+
+        # ── Task lists & tasks ─────────────────────────────────────────────
+        task_lists = OnboardingTaskList.objects.filter(
+            job_application=application
+        ).prefetch_related("tasks")
+
+        task_data = []
+        for tl in task_lists:
+            tasks = []
+            for t in tl.tasks.all():
+                tasks.append({
+                    "id": str(t.id),
+                    "title": t.title,
+                    "description": t.description,
+                    "status": t.status,
+                    "assigned_to": t.assigned_to.get_full_name() if t.assigned_to else None,
+                    "due_date": t.due_date,
+                    "created_at": t.created_at,
+                    "updated_at": t.updated_at,
+                })
+            task_data.append({
+                "id": str(tl.id),
+                "name": tl.name,
+                "description": tl.description,
+                "created_at": tl.created_at,
+                "tasks": tasks,
+            })
+
+        # ── Milestone summary ──────────────────────────────────────────────
+        milestones = [
+            {
+                "key": "onboarding_initiated",
+                "label": "Onboarding Initiated",
+                "completed": bool(application.it_ticket_ref),
+                "detail": f"IT Ticket: {application.it_ticket_ref}" if application.it_ticket_ref else None,
+            },
+            {
+                "key": "joined",
+                "label": "Joined",
+                "completed": application.status == "joined",
+                "detail": str(joining_date) if joining_date else None,
+            },
+            {
+                "key": "d30_survey_sent",
+                "label": "Day 30 — Candidate Survey Sent",
+                "completed": application.is_d30_survey_sent,
+                "detail": None,
+            },
+            {
+                "key": "d30_survey_filled",
+                "label": "Day 30 — Candidate Survey Filled",
+                "completed": application.is_satisfaction_survey_filled,
+                "detail": None,
+            },
+            {
+                "key": "hod_survey_filled",
+                "label": "Day 30 — HOD Survey Filled",
+                "completed": application.is_hod_survey_filled,
+                "detail": None,
+            },
+            {
+                "key": "d45_call_scheduled",
+                "label": "Day 45 — Check-in Call Scheduled",
+                "completed": application.is_d45_call_scheduled,
+                "detail": str(d45_call.start_time) if d45_call and d45_call.start_time else None,
+            },
+            {
+                "key": "d90_survey_sent",
+                "label": "Day 90 — Survey Sent",
+                "completed": application.is_d90_survey_sent,
+                "detail": None,
+            },
+            {
+                "key": "d90_survey_filled",
+                "label": "Day 90 — Survey Filled",
+                "completed": application.is_d90_survey_filled,
+                "detail": None,
+            },
+            {
+                "key": "d90_call_scheduled",
+                "label": "Day 90 — Final Review Call Scheduled",
+                "completed": application.is_d90_call_scheduled,
+                "detail": str(d90_call.start_time) if d90_call and d90_call.start_time else None,
+            },
+            {
+                "key": "it_ticket_closed",
+                "label": "IT Ticket Closed",
+                "completed": application.it_ticket_closed,
+                "detail": None,
+            },
+        ]
+
+        data = {
+            # ── Candidate & role ─────────────────────────────────────
+            "candidate": {
+                "id": str(application.id),
+                "name": application.candidate_name,
+                "email": application.candidate_email,
+                "work_email": application.work_email,
+                "phone": application.candidate_phone,
+                "role": role,
+                "department": department,
+                "status": application.status,
+                "joining_date": joining_date,
+                "days_since_joining": days_since_joining,
+                "is_escalated": application.is_escalated,
+                "it_ticket_ref": application.it_ticket_ref,
+                "it_ticket_closed": application.it_ticket_closed,
+                "emp_account_active": application.emp_account_active,
+            },
+
+            # ── Buddy info ───────────────────────────────────────────
+            "buddies": {
+                "technical_buddy_name": application.technical_buddy_name,
+                "technical_buddy_email": application.technical_buddy_email,
+                "cultural_buddy_name": application.cultural_buddy_name,
+                "cultural_buddy_email": application.cultural_buddy_email,
+            },
+
+            # ── Milestone flags ──────────────────────────────────────
+            "milestones": milestones,
+
+            # ── Calls ────────────────────────────────────────────────
+            "calls": {
+                "d45": serialize_call(d45_call),
+                "d90": serialize_call(d90_call),
+            },
+
+            # ── Surveys ──────────────────────────────────────────────
+            "surveys": {
+                "30_day_candidate": serialize_survey(survey_map.get("30_day_candidate")),
+                "hod": serialize_survey(survey_map.get("hod")),
+                "90_day_candidate": serialize_survey(survey_map.get("90_day_candidate")),
+            },
+
+            # ── Tasks ────────────────────────────────────────────────
+            "task_lists": task_data,
+        }
+
+        return Response(data, status=status.HTTP_200_OK)
+
 
 class GetManageEngineSitesAPI(APIView):
     permission_classes = [permissions.IsAuthenticated]
