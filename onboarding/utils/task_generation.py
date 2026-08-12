@@ -31,8 +31,12 @@ def create_task(app, title, description="", due_date=None, assigned_to=None, tea
     )
     if created and team:
         email_to = None
+        from django.conf import settings
         if team == "it":
-            email_to = "itsupport@knowcraft.in"
+            if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
+                email_to = "solutions@jmsadvisory.in"
+            else:
+                email_to = "itsupport@knowcraft.in"
         elif team in ["hr", "admin"]:
             if app.job and app.job.assigned_to_internal_hr:
                 email_to = app.job.assigned_to_internal_hr.email
