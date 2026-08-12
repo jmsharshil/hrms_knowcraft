@@ -292,9 +292,79 @@ class JobApplicationAdmin(admin.ModelAdmin):
                 "DOJ_PLUS_45_CHECKIN",
                 "DOJ_PLUS_90_FINAL"
             ]
+            
+            from onboarding.utils.notifications import notify_candidate, notify_internal
+            
             for ms in milestones:
                 print(f"[DEBUG SIMULATION] Generating tasks for milestone: {ms}")
                 create_milestone_tasks(application, ms, joining_date)
+                
+                if ms == "DOJ_0_DOCS":
+                    from onboarding.models import DocumentEsignTask
+                    for doc_type in ['SA', 'NDA', 'ISMS_1', 'FORM_2']:
+                        DocumentEsignTask.objects.get_or_create(
+                            job_application=application,
+                            doc_type=doc_type,
+                            defaults={"status": "sent"}
+                        )
+                    notify_candidate(application, "esign_docs")
+                    
+                elif ms == "DOJ_PLUS_30_SURVEY":
+                    notify_candidate(application, "satisfaction_survey", cc=[])
+                    application.is_d30_survey_sent = True
+                    application.save(update_fields=['is_d30_survey_sent'])
+                    
+                    is_senior = False
+                    if application.job and application.job.mrf and application.job.mrf.designation:
+                        designation_name = application.job.mrf.designation.name.lower()
+                        if any(kw in designation_name for kw in ['manager', 'director', 'vp', 'head', 'lead']):
+                            is_senior = True
+                    notify_internal(application, "satisfaction_survey_hod_senior" if is_senior else "satisfaction_survey_hod_junior")
+                
+                elif ms == "DOJ_PLUS_45_CHECKIN":
+                    notify_internal(application, "schedule_checkin_call_reminder")
+                    from onboarding.models import OnboardingCall
+                    from django.utils import timezone
+                    import datetime
+                    
+                    start_dt = timezone.make_aware(datetime.datetime.combine(joining_date + datetime.timedelta(days=45), datetime.time(10, 0)))
+                    OnboardingCall.objects.get_or_create(
+                        job_application=application,
+                        call_type="d45",
+                        defaults={
+                            "organizer_email": "hr@jmstech.co",
+                            "start_time": start_dt,
+                            "end_time": start_dt + datetime.timedelta(hours=1),
+                            "meeting_link": "https://teams.microsoft.com/l/meetup-join/dummy"
+                        }
+                    )
+                    application.is_d45_call_scheduled = True
+                    application.save(update_fields=['is_d45_call_scheduled'])
+                
+                elif ms == "DOJ_PLUS_90_FINAL":
+                    notify_candidate(application, "d90_survey", cc=[])
+                    application.is_d90_survey_sent = True
+                    application.save(update_fields=['is_d90_survey_sent'])
+                    notify_internal(application, "schedule_final_review_reminder")
+                    
+                    from onboarding.models import OnboardingCall
+                    from django.utils import timezone
+                    import datetime
+                    
+                    start_dt = timezone.make_aware(datetime.datetime.combine(joining_date + datetime.timedelta(days=90), datetime.time(10, 0)))
+                    OnboardingCall.objects.get_or_create(
+                        job_application=application,
+                        call_type="d90",
+                        defaults={
+                            "organizer_email": "hr@jmstech.co",
+                            "start_time": start_dt,
+                            "end_time": start_dt + datetime.timedelta(hours=1),
+                            "meeting_link": "https://teams.microsoft.com/l/meetup-join/dummy"
+                        }
+                    )
+                    application.is_d90_call_scheduled = True
+                    application.save(update_fields=['is_d90_call_scheduled'])
+                
                 time.sleep(1)
                 
             count += 1
