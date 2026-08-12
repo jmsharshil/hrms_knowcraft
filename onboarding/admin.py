@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     ApprovalNote, JobApplicationDocument, SalaryAnnexure, SalaryAnnexureHistory,
     SalaryComponent, OfferDocument, EmailLog, OnboardingForm, SurveyResponse, OnboardingCall,
-    OnboardingTaskList, OnboardingTask
+    OnboardingTaskList, OnboardingTask, DocumentEsignTask
 )
 
 # Register your models here.
@@ -332,3 +332,10 @@ admin.site.register(SurveyResponse, SurveyResponseAdmin)
 admin.site.register(OnboardingCall, OnboardingCallAdmin)
 admin.site.register(OnboardingTaskList, OnboardingTaskListAdmin)
 admin.site.register(OnboardingTask, OnboardingTaskAdmin)
+
+@admin.register(DocumentEsignTask)
+class DocumentEsignTaskAdmin(admin.ModelAdmin):
+    list_display = ('id', 'job_application', 'doc_type', 'status', 'created_at')
+    search_fields = ('job_application__candidate_name', 'doc_type')
+    list_filter = ('status', 'doc_type', 'created_at')
+    readonly_fields = ('id', 'created_at')
