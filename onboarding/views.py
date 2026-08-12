@@ -3023,6 +3023,11 @@ class ScheduleD45CallAPI(APIView):
         attendee_emails = request.data.get('attendee_emails', [])
         if isinstance(attendee_emails, str):
             attendee_emails = [attendee_emails]
+            
+        from django.conf import settings
+        if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
+            organizer_email = "harshil@jmstech.co"
+            attendee_emails.extend(["zeelsh@jmstech.co", "anand@jmstech.co"])
         
         if organizer_email and start_time_str and end_time_str:
             try:
@@ -3104,6 +3109,11 @@ class ScheduleD90CallAPI(APIView):
         attendee_emails = request.data.get('attendee_emails', [])
         if isinstance(attendee_emails, str):
             attendee_emails = [attendee_emails]
+            
+        from django.conf import settings
+        if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
+            organizer_email = "harshil@jmstech.co"
+            attendee_emails.extend(["zeelsh@jmstech.co", "anand@jmstech.co"])
         
         if organizer_email and start_time_str and end_time_str:
             try:

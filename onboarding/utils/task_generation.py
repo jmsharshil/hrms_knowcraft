@@ -7,11 +7,10 @@ from onboarding.utils.notifications import send_email
 
 
 def get_or_create_task_list(app):
-    task_list, _ = OnboardingTaskList.objects.get_or_create(
+    return OnboardingTaskList.objects.get_or_create(
         job_application=app,
         defaults={"name": f"Onboarding — {app.candidate_name}"},
     )
-    return task_list
 
 
 def create_task(app, title, description="", due_date=None, assigned_to=None, team=None):
@@ -19,7 +18,7 @@ def create_task(app, title, description="", due_date=None, assigned_to=None, tea
     Idempotent per (task_list, title) — daily check can call this every day for the
     same milestone without creating duplicates.
     """
-    task_list = get_or_create_task_list(app)
+    task_list, list_created = get_or_create_task_list(app)
     task, created = OnboardingTask.objects.get_or_create(
         task_list=task_list,
         title=title,
@@ -29,7 +28,7 @@ def create_task(app, title, description="", due_date=None, assigned_to=None, tea
             "assigned_to": assigned_to,
         },
     )
-    if created and team:
+    if list_created and team:
         email_to = None
         from django.conf import settings
         if team == "it":
@@ -42,10 +41,9 @@ def create_task(app, title, description="", due_date=None, assigned_to=None, tea
                 email_to = app.job.assigned_to_internal_hr.email
         
         if email_to:
-            subject = f"New Onboarding Task: {title}"
-            body = f"A new onboarding task has been created for candidate {app.candidate_name}.\n\nTask: {title}\nDue Date: {due_date}"
+            subject = f"New Onboarding Tasks Generated: {app.candidate_name}"
+            body = f"A new set of onboarding tasks has been created for candidate {app.candidate_name}.\nPlease log into the HRMS to review and complete them."
             
-            due_str = due_date.strftime('%d %B %Y') if hasattr(due_date, 'strftime') else due_date
             html_template = f"""
     <html>
     <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
@@ -61,12 +59,11 @@ def create_task(app, title, description="", due_date=None, assigned_to=None, tea
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
                         <tr>
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
-                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">New Onboarding Task Assigned</h2>
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">New Onboarding Tasks Assigned</h2>
                                 <p style="margin:0 0 16px 0;">Dear Team,</p>
-                                <p style="margin:0 0 16px 0;">A new onboarding task has been automatically generated and assigned to your team.</p>
-                                <p style="margin:0 0 8px 0;"><strong>Candidate:</strong> {app.candidate_name}</p>
-                                <p style="margin:0 0 8px 0;"><strong>Task:</strong> {title}</p>
-                                <p style="margin:0 0 16px 0;"><strong>Due Date:</strong> {due_str}</p>
+                                <p style="margin:0 0 16px 0;">A new set of onboarding tasks has been automatically generated and assigned to your team.</p>
+                                <p style="margin:0 0 16px 0;"><strong>Candidate:</strong> {app.candidate_name}</p>
+                                <p style="margin:0 0 16px 0;">Please log into the HRMS portal to review and complete the assigned tasks at your earliest convenience.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
