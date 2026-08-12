@@ -1,7 +1,8 @@
 from django.contrib import admin
 from .models import (
     ApprovalNote, JobApplicationDocument, SalaryAnnexure, SalaryAnnexureHistory,
-    SalaryComponent, OfferDocument, EmailLog, OnboardingForm, SurveyResponse, OnboardingCall
+    SalaryComponent, OfferDocument, EmailLog, OnboardingForm, SurveyResponse, OnboardingCall,
+    OnboardingTaskList, OnboardingTask
 )
 
 # Register your models here.
@@ -314,6 +315,20 @@ class OnboardingCallAdmin(admin.ModelAdmin):
     get_has_meeting_link.boolean = True
 
 
+class OnboardingTaskListAdmin(admin.ModelAdmin):
+    list_display = ('id', 'job_application', 'name', 'created_at')
+    search_fields = ('name', 'job_application__candidate_name')
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    list_filter = ('created_at',)
+
+class OnboardingTaskAdmin(admin.ModelAdmin):
+    list_display = ('id', 'task_list', 'title', 'status', 'due_date', 'assigned_to')
+    search_fields = ('title', 'task_list__job_application__candidate_name')
+    list_filter = ('status', 'due_date', 'created_at')
+    readonly_fields = ('id', 'created_at', 'updated_at')
+
 admin.site.register(OnboardingForm, OnboardingFormAdmin)
 admin.site.register(SurveyResponse, SurveyResponseAdmin)
 admin.site.register(OnboardingCall, OnboardingCallAdmin)
+admin.site.register(OnboardingTaskList, OnboardingTaskListAdmin)
+admin.site.register(OnboardingTask, OnboardingTaskAdmin)

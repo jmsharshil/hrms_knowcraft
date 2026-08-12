@@ -216,7 +216,7 @@ class JobApplicationAdmin(admin.ModelAdmin):
             'submitted_by', 'application_link',
         )
 
-    actions = ['send_90_day_survey']
+    actions = ['send_90_day_survey', 'simulate_onboarding_process']
 
     def send_90_day_survey(self, request, queryset):
         """Send 90-day survey form link to selected candidates. Responses saved to SurveyResponse model in DB."""
@@ -234,6 +234,55 @@ class JobApplicationAdmin(admin.ModelAdmin):
         self.message_user(request, f"Successfully sent 90-day survey form to {count} candidate(s). Responses will be automatically saved to the database (SurveyResponse model) when submitted via the form.")
     send_90_day_survey.short_description = "Send 90 Day Survey Form (saves responses to DB)"
 
+    def simulate_onboarding_process(self, request, queryset):
+        import time
+        from onboarding.utils.engine import automation_engine
+        from onboarding.utils.task_generation import create_milestone_tasks
+        
+        count = 0
+        for application in queryset:
+            # First, make sure the candidate is joining_pending
+            if application.status != 'joining_pending':
+                application.status = 'joining_pending'
+                application.save(update_fields=['status'])
+            
+            # Now simulate transitions
+            states_to_simulate = [
+                'joined'
+            ]
+            
+            old_state = 'joining_pending'
+            for new_state in states_to_simulate:
+                print(f"[DEBUG SIMULATION] Moving {application.candidate_name} from {old_state} -> {new_state}")
+                automation_engine(application, old_state, new_state)
+                old_state = new_state
+                time.sleep(2)
+                
+            # Now simulate milestone task generations based on joining_date (if None, use today)
+            joining_date = application.joining_date
+            if not joining_date:
+                from django.utils import timezone
+                joining_date = timezone.now().date()
+            
+            milestones = [
+                "DOJ_MINUS_15",
+                "DOJ_MINUS_7",
+                "DOJ_0_DOCS",
+                "DOJ_PLUS_1_ESIGN_REMINDER",
+                "DOJ_PLUS_7_BGV",
+                "DOJ_PLUS_30_SURVEY",
+                "DOJ_PLUS_45_CHECKIN",
+                "DOJ_PLUS_90_FINAL"
+            ]
+            for ms in milestones:
+                print(f"[DEBUG SIMULATION] Generating tasks for milestone: {ms}")
+                create_milestone_tasks(application, ms, joining_date)
+                time.sleep(1)
+                
+            count += 1
+            
+        self.message_user(request, f"Successfully simulated onboarding process for {count} candidate(s). Check server logs for details.")
+    simulate_onboarding_process.short_description = "Simulate Onboarding Process (Realtime Emails & Tasks)"
     
 @admin.register(ReferralApplication)
 class ReferralApplicationAdmin(admin.ModelAdmin):
