@@ -216,7 +216,7 @@ class JobApplicationAdmin(admin.ModelAdmin):
             'submitted_by', 'application_link',
         )
 
-    actions = ['send_90_day_survey', 'simulate_onboarding_process']
+    actions = ['send_90_day_survey', 'simulate_onboarding_process', 'initiate_onboarding_process']
 
     def send_90_day_survey(self, request, queryset):
         """Send 90-day survey form link to selected candidates. Responses saved to SurveyResponse model in DB."""
@@ -233,6 +233,24 @@ class JobApplicationAdmin(admin.ModelAdmin):
                     count += 1
         self.message_user(request, f"Successfully sent 90-day survey form to {count} candidate(s). Responses will be automatically saved to the database (SurveyResponse model) when submitted via the form.")
     send_90_day_survey.short_description = "Send 90 Day Survey Form (saves responses to DB)"
+
+    def initiate_onboarding_process(self, request, queryset):
+        from onboarding.utils.engine import automation_engine
+        
+        count = 0
+        for application in queryset:
+            if application.status != 'joining_pending':
+                old_status = application.status
+                application.status = 'joining_pending'
+                application.save(update_fields=['status'])
+                
+                print(f"[ONBOARDING INITIATED] Moving {application.candidate_name} from {old_status} -> joining_pending")
+                automation_engine(application, old_status, 'joining_pending')
+                count += 1
+                
+        self.message_user(request, f"Successfully initiated onboarding for {count} candidate(s).")
+    initiate_onboarding_process.short_description = "Initiate Onboarding Process (Sets to Joining Pending)"
+
 
     def simulate_onboarding_process(self, request, queryset):
         import time

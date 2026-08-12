@@ -3223,7 +3223,7 @@ class OnboardingJourneyAPI(APIView):
         return enriched
 
     def get(self, request, id):
-        from onboarding.models import OnboardingCall, SurveyResponse, OnboardingTaskList
+        from onboarding.models import OnboardingCall, SurveyResponse, OnboardingTaskList, DocumentEsignTask
         from django.utils import timezone as tz
 
         application = get_object_or_404(JobApplication, id=id)
@@ -3438,6 +3438,26 @@ class OnboardingJourneyAPI(APIView):
                 "cultural_buddy_name": application.cultural_buddy_name,
                 "cultural_buddy_email": application.cultural_buddy_email,
             },
+
+            # ── E-Sign Docs ──────────────────────────────────────────
+            "esign_docs": [
+                {
+                    "id": str(doc.id),
+                    "doc_type": doc.doc_type,
+                    "doc_type_display": doc.get_doc_type_display(),
+                    "status": doc.status,
+                    "status_display": doc.get_status_display(),
+                    "zoho_request_id": doc.zoho_request_id,
+                    "zoho_document_id": doc.zoho_document_id,
+                    "generated_at": doc.generated_at,
+                    "sent_at": doc.sent_at,
+                    "viewed_at": doc.viewed_at,
+                    "signed_at": doc.signed_at,
+                    "completed_at": doc.completed_at,
+                }
+                for doc in DocumentEsignTask.objects.filter(job_application=application).order_by('created_at')
+            ],
+
 
             # ── Milestones ───────────────────────────────────────────
             "milestones": milestones,
