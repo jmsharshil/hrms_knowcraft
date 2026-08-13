@@ -3657,3 +3657,135 @@ class DocumentEsignTaskViewSet(ModelViewSet):
                     item["work_email"] = None
                     item["work_email_exists"] = False
         return response
+
+    # ── bulk upload ───────────────────────────────────────────────────────
+    @action(detail=False, methods=["post"], url_path="bulk-upload")
+    def bulk_upload(self, request, *args, **kwargs):
+        """
+        Upload multiple e-sign source files in a single multipart POST.
+
+        Required field:
+          - job_application  (UUID of the JobApplication)
+
+        For each document, pass a file field named:
+          doc_type__<DOC_TYPE>
+          e.g.  doc_type__SA, doc_type__NDA, doc_type__BOND, doc_type__KRA
+
+        Valid DOC_TYPE codes (see DocumentEsignTask.DOC_TYPE_CHOICES):
+          SA, NDA, BOND, ISMS_1, ISMS_2, FORM_2, NOMINATION_INS, KRA,
+          FORM_F, FORM_11, IT_ASSET
+
+        Response body:
+          {
+            "job_application": "<uuid>",
+            "candidate_name":  "...",
+            "total": 3,
+            "results": [
+              {"doc_type": "SA",  "status": "created", "record_status": "ready", "id": "..."},
+              {"doc_type": "NDA", "status": "updated", "record_status": "ready", "id": "..."},
+              {"doc_type": "XYZ", "error": "..."},
+            ]
+          }
+
+        HTTP 200 when all files succeeded; HTTP 207 when at least one failed.
+        """
+        from django.utils import timezone as tz
+
+        app_id = request.data.get("job_application")
+        if not app_id:
+            return Response(
+                {"error": "job_application is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            application = JobApplication.objects.get(id=app_id)
+        except (JobApplication.DoesNotExist, Exception):
+            return Response(
+                {"error": f"No JobApplication found with id '{app_id}'."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not application.work_email:
+            return Response(
+                {
+                    "error": (
+                        "E-sign document upload is only available after the candidate's "
+                        "work email has been set. Please set the work_email on the "
+                        "job application first."
+                    ),
+                    "work_email_missing": True,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Collect valid doc type codes from the model choices
+        valid_doc_types = {code for code, _ in DocumentEsignTask.DOC_TYPE_CHOICES}
+
+        # Gather all uploaded files whose field name starts with "doc_type__"
+        PREFIX = "doc_type__"
+        uploaded_files = {
+            key[len(PREFIX):].upper(): file_obj
+            for key, file_obj in request.FILES.items()
+            if key.startswith(PREFIX)
+        }
+
+        if not uploaded_files:
+            return Response(
+                {
+                    "error": (
+                        "No files provided. Send each file with a field name prefixed "
+                        "by 'doc_type__', e.g. 'doc_type__SA', 'doc_type__NDA'."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        results = []
+        for doc_type, file_obj in uploaded_files.items():
+            # Validate doc_type code
+            if doc_type not in valid_doc_types:
+                results.append({
+                    "doc_type": doc_type,
+                    "error": (
+                        f"'{doc_type}' is not a valid doc_type. "
+                        f"Valid choices: {sorted(valid_doc_types)}"
+                    ),
+                })
+                continue
+
+            try:
+                instance, created = DocumentEsignTask.objects.get_or_create(
+                    job_application=application,
+                    doc_type=doc_type,
+                )
+                # Replace the source file and mark as ready
+                instance.source_file = file_obj
+                instance.status = "ready"
+                instance.generated_at = tz.now()
+                instance.save(update_fields=["source_file", "status", "generated_at"])
+
+                results.append({
+                    "doc_type": doc_type,
+                    "doc_type_display": instance.get_doc_type_display(),
+                    "status": "created" if created else "updated",
+                    "record_status": instance.status,
+                    "id": str(instance.id),
+                })
+            except Exception as exc:
+                results.append({
+                    "doc_type": doc_type,
+                    "error": str(exc),
+                })
+
+        all_ok = all("error" not in r for r in results)
+        http_status = status.HTTP_200_OK if all_ok else status.HTTP_207_MULTI_STATUS
+        return Response(
+            {
+                "job_application": str(application.id),
+                "candidate_name": application.candidate_name,
+                "total": len(results),
+                "results": results,
+            },
+            status=http_status,
+        )
