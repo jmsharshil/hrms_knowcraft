@@ -216,7 +216,7 @@ class JobApplicationAdmin(admin.ModelAdmin):
             'submitted_by', 'application_link',
         )
 
-    actions = ['send_90_day_survey', 'simulate_onboarding_process', 'initiate_onboarding_process']
+    actions = ['send_90_day_survey', 'simulate_onboarding_process', 'initiate_onboarding_process', 'trigger_automated_onboarding_tasks']
 
     def send_90_day_survey(self, request, queryset):
         """Send 90-day survey form link to selected candidates. Responses saved to SurveyResponse model in DB."""
@@ -250,6 +250,45 @@ class JobApplicationAdmin(admin.ModelAdmin):
                 
         self.message_user(request, f"Successfully initiated onboarding for {count} candidate(s).")
     initiate_onboarding_process.short_description = "Initiate Onboarding Process (Sets to Joining Pending)"
+
+    def trigger_automated_onboarding_tasks(self, request, queryset):
+        """
+        Trigger the automated onboarding tasks flow for selected candidates.
+        Uses the same minutes-since-creation timeline as ONBOARDING_DEBUG_MINUTES = True,
+        so the correct milestone fires immediately based on when the application was created.
+        The live daily_onboarding_check cron is NOT affected.
+        """
+        from onboarding.utils.onboarding_tasks import run_onboarding_check_for_candidate
+
+        skipped = []
+        results = []
+        for application in queryset:
+            if not application.joining_date:
+                skipped.append(application.candidate_name)
+                continue
+            try:
+                days_mapped = run_onboarding_check_for_candidate(application)
+                results.append(f"{application.candidate_name} (mapped day: {days_mapped})")
+            except Exception as e:
+                self.message_user(
+                    request,
+                    f"Error processing {application.candidate_name}: {e}",
+                    level='error'
+                )
+
+        if results:
+            self.message_user(
+                request,
+                f"Automated onboarding tasks triggered for: {', '.join(results)}. "
+                f"Check server logs for full details."
+            )
+        if skipped:
+            self.message_user(
+                request,
+                f"Skipped (no joining date set): {', '.join(skipped)}.",
+                level='warning'
+            )
+    trigger_automated_onboarding_tasks.short_description = "Trigger Automated Onboarding Tasks (Debug-Mode Timeline)"
 
 
     def simulate_onboarding_process(self, request, queryset):
