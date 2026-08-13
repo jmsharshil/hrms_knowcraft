@@ -69,7 +69,7 @@ def send_documents_for_esign(app):
     sent yet. Docs still missing a file are left as 'pending' — the upload task
     created in generate_esign_documents() covers those; nothing to notify yet.
     """
-    ready_docs = app.esign_documents.filter(status="pending").exclude(source_file="")
+    ready_docs = app.esign_documents.filter(status="ready").exclude(source_file="")
     sent_count = 0
 
     for doc in ready_docs:

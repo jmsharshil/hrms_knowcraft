@@ -733,7 +733,7 @@ class JobApplicationUpdateSerializer(serializers.ModelSerializer):
         fields = ['status', 'notes', 'rating', 'candidate_name','candidate_phone','candidate_email',
                   'source','experience_years','relevant_experience_years','location','skill',
                   'education','current_employer','linkedin_url','job',
-                  'work_email',  # required before e-sign document upload is allowed
+                  'work_email',
                   ]
     
     def validate_status(self, value):

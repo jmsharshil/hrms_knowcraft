@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.utils import timezone
 from onboarding.models import OfferDocument
 
-# ZOHO_SIGN_URL = "https://sign.zoho.com/api/v1"
+ZOHO_SIGN_URL = "https://sign.zoho.com/api/v1"
 
 def get_access_token():
     url = "https://accounts.zoho.in/oauth/v2/token"

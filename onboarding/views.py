@@ -3440,7 +3440,7 @@ class OnboardingJourneyAPI(APIView):
                 "cultural_buddy_email": application.cultural_buddy_email,
             },
 
-            # ── E-Sign Docs ──────────────────────────────────────────
+        # ── E-Sign Docs ──────────────────────────────────────────
             "esign_docs": [
                 {
                     "id": str(doc.id),
@@ -3448,6 +3448,10 @@ class OnboardingJourneyAPI(APIView):
                     "doc_type_display": doc.get_doc_type_display(),
                     "status": doc.status,
                     "status_display": doc.get_status_display(),
+                    "source_file_url": (
+                        request.build_absolute_uri(doc.source_file.url)
+                        if doc.source_file else None
+                    ),
                     "zoho_request_id": doc.zoho_request_id,
                     "zoho_document_id": doc.zoho_document_id,
                     "generated_at": doc.generated_at,
@@ -3789,3 +3793,165 @@ class DocumentEsignTaskViewSet(ModelViewSet):
             },
             status=http_status,
         )
+
+    # ── send single doc to Zoho Sign ──────────────────────────────────────
+    @action(detail=True, methods=["post"], url_path="send-to-zoho")
+    def send_to_zoho(self, request, *args, **kwargs):
+        """
+        POST /api/onboarding/esign-docs/<id>/send-to-zoho/
+
+        Sends a single DocumentEsignTask (that is in 'ready' status with a
+        source_file uploaded) to Zoho Sign for the candidate to sign.
+
+        Returns:
+          200  { "message": "...", "doc_type": "...", "zoho_request_id": "..." }
+          400  if no source_file or already sent / not in ready state
+        """
+        from onboarding.utils.zoho_sign import send_document_to_zoho_sign
+
+        instance = self.get_object()
+
+        if not instance.source_file:
+            return Response(
+                {"error": "No source_file uploaded for this document yet."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if instance.status not in ("ready", "pending"):
+            return Response(
+                {
+                    "error": f"Document is already in '{instance.status}' state. "
+                             "Only 'ready' documents can be sent to Zoho Sign."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        result = send_document_to_zoho_sign(instance)
+
+        if result:
+            return Response(
+                {
+                    "message": "Document successfully sent to Zoho Sign.",
+                    "doc_type": instance.doc_type,
+                    "doc_type_display": instance.get_doc_type_display(),
+                    "zoho_request_id": instance.zoho_request_id,
+                    "zoho_document_id": instance.zoho_document_id,
+                    "status": instance.status,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(
+            {"error": "Failed to send document to Zoho Sign. Check server logs for details."},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    # ── send all ready docs for a candidate to Zoho Sign ─────────────────
+    @action(detail=False, methods=["post"], url_path="send-all-to-zoho")
+    def send_all_to_zoho(self, request, *args, **kwargs):
+        """
+        POST /api/onboarding/esign-docs/send-all-to-zoho/
+        Body: { "job_application": "<uuid>" }
+
+        Finds every DocumentEsignTask with status='ready' for the given
+        job_application and sends each one to Zoho Sign.
+
+        Returns:
+          {
+            "job_application": "<uuid>",
+            "candidate_name": "...",
+            "total": 3,
+            "results": [
+              { "doc_type": "SA",  "status": "sent", "zoho_request_id": "..." },
+              { "doc_type": "NDA", "error": "..." },
+              ...
+            ]
+          }
+
+        HTTP 200 — all sent OK
+        HTTP 207 — partial success
+        HTTP 400 — missing job_application or work_email not set
+        HTTP 404 — job_application not found
+        """
+        from onboarding.utils.zoho_sign import send_document_to_zoho_sign
+
+        app_id = request.data.get("job_application")
+        if not app_id:
+            return Response(
+                {"error": "job_application is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            application = JobApplication.objects.get(id=app_id)
+        except (JobApplication.DoesNotExist, Exception):
+            return Response(
+                {"error": f"No JobApplication found with id '{app_id}'."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not application.work_email:
+            return Response(
+                {
+                    "error": "Cannot send e-sign documents — candidate has no work_email set.",
+                    "work_email_missing": True,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ready_docs = DocumentEsignTask.objects.filter(
+            job_application=application,
+            status="ready",
+        ).exclude(source_file="")
+
+        if not ready_docs.exists():
+            return Response(
+                {
+                    "message": "No documents in 'ready' state found for this candidate. "
+                               "Upload files via bulk-upload first.",
+                    "job_application": str(application.id),
+                    "total": 0,
+                    "results": [],
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        results = []
+        for doc in ready_docs:
+            try:
+                result = send_document_to_zoho_sign(doc)
+                if result:
+                    results.append({
+                        "doc_type": doc.doc_type,
+                        "doc_type_display": doc.get_doc_type_display(),
+                        "status": doc.status,
+                        "zoho_request_id": doc.zoho_request_id,
+                        "zoho_document_id": doc.zoho_document_id,
+                        "id": str(doc.id),
+                    })
+                else:
+                    results.append({
+                        "doc_type": doc.doc_type,
+                        "doc_type_display": doc.get_doc_type_display(),
+                        "error": "Zoho Sign returned no data — check server logs.",
+                        "id": str(doc.id),
+                    })
+            except Exception as exc:
+                results.append({
+                    "doc_type": doc.doc_type,
+                    "doc_type_display": doc.get_doc_type_display(),
+                    "error": str(exc),
+                    "id": str(doc.id),
+                })
+
+        all_ok = all("error" not in r for r in results)
+        http_status = status.HTTP_200_OK if all_ok else status.HTTP_207_MULTI_STATUS
+        return Response(
+            {
+                "job_application": str(application.id),
+                "candidate_name": application.candidate_name,
+                "total": len(results),
+                "results": results,
+            },
+            status=http_status,
+        )
