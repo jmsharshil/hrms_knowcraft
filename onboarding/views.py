@@ -3418,6 +3418,7 @@ class OnboardingJourneyAPI(APIView):
                 "name": application.candidate_name,
                 "email": application.candidate_email,
                 "work_email": application.work_email,
+                "work_email_exists": bool(application.work_email),
                 "phone": application.candidate_phone,
                 "status": application.status,
                 "joining_date": joining_date,
@@ -3556,18 +3557,103 @@ class OnboardingTaskViewSet(ModelViewSet):
         return queryset
 
 class DocumentEsignTaskViewSet(ModelViewSet):
+    """
+    CRUD viewset for DocumentEsignTask.
+
+    Important rules:
+    - Create (POST) and file upload via update (PATCH/PUT) are only permitted
+      when the linked job_application has a work_email set.
+    - Filtering: ?job_application_id=<uuid>  and/or  ?status=<status>
+    """
     queryset = DocumentEsignTask.objects.all()
     serializer_class = DocumentEsignTaskSerializer
     permission_classes = [permissions.AllowAny]
- 
+
+    # ── helpers ───────────────────────────────────────────────────────────
+    def _get_application_from_request(self):
+        """Return the JobApplication referenced in the request body or instance."""
+        app_id = self.request.data.get("job_application")
+        if not app_id:
+            return None
+        try:
+            return JobApplication.objects.get(id=app_id)
+        except (JobApplication.DoesNotExist, Exception):
+            return None
+
+    # ── queryset ──────────────────────────────────────────────────────────
     def get_queryset(self):
         queryset = super().get_queryset()
         job_application_id = self.request.query_params.get('job_application_id')
         status_filter = self.request.query_params.get('status')
- 
+
         if job_application_id:
             queryset = queryset.filter(job_application_id=job_application_id)
         if status_filter:
             queryset = queryset.filter(status=status_filter)
- 
+
         return queryset
+
+    # ── create ────────────────────────────────────────────────────────────
+    def create(self, request, *args, **kwargs):
+        """
+        Block creation when the linked job_application has no work_email.
+        """
+        application = self._get_application_from_request()
+        if application is None:
+            return Response(
+                {"error": "A valid job_application ID is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not application.work_email:
+            return Response(
+                {
+                    "error": "E-sign document upload is only available after the candidate's "
+                             "work email has been set. Please set the work_email on the "
+                             "job application first.",
+                    "work_email_missing": True,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().create(request, *args, **kwargs)
+
+    # ── update (PUT / PATCH) ──────────────────────────────────────────────
+    def update(self, request, *args, **kwargs):
+        """
+        Block updates (including source_file uploads) when work_email is absent.
+        """
+        instance = self.get_object()
+        application = instance.job_application
+        if not application.work_email:
+            return Response(
+                {
+                    "error": "E-sign document upload is only available after the candidate's "
+                             "work email has been set. Please set the work_email on the "
+                             "job application first.",
+                    "work_email_missing": True,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().update(request, *args, **kwargs)
+
+    # ── retrieve ──────────────────────────────────────────────────────────
+    def retrieve(self, request, *args, **kwargs):
+        response = super().retrieve(request, *args, **kwargs)
+        instance = self.get_object()
+        response.data["work_email"] = instance.job_application.work_email
+        response.data["work_email_exists"] = bool(instance.job_application.work_email)
+        return response
+
+    # ── list ─────────────────────────────────────────────────────────────
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        results = response.data.get("results") if isinstance(response.data, dict) else response.data
+        if isinstance(results, list):
+            for item in results:
+                try:
+                    app = JobApplication.objects.only("work_email").get(id=item["job_application"])
+                    item["work_email"] = app.work_email
+                    item["work_email_exists"] = bool(app.work_email)
+                except Exception:
+                    item["work_email"] = None
+                    item["work_email_exists"] = False
+        return response

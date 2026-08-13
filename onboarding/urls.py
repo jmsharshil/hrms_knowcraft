@@ -9,7 +9,7 @@ from .views import (
     ResolveEscalationAPI, AssignBuddyAPI, CompleteSurveyAPI, ScheduleD45CallAPI, ScheduleD90CallAPI,
     SearchTeamsUsersAPI, InitiateOnboardingAPI, RevertRejectionAPI, GetSurveyStructureAPI,
     GetManageEngineSitesAPI, GetManageEngineAssetsAPI, GetManageEngineDepartmentsAPI, GetManageEngineDesignationsAPI,
-    OnboardingTaskViewSet, OnboardingTaskListViewSet, OnboardingJourneyAPI
+    OnboardingTaskViewSet, OnboardingTaskListViewSet, OnboardingJourneyAPI, DocumentEsignTaskViewSet
 )
 from .utils.opensign import opensign_webhook
 from .utils.zoho_sign import zoho_sign_webhook
@@ -21,6 +21,7 @@ router = DefaultRouter()
 router.register(r"email-logs", EmailLogViewSet, basename="email-logs")
 router.register(r"task-lists", OnboardingTaskListViewSet, basename="onboarding-task-lists")
 router.register(r"tasks", OnboardingTaskViewSet, basename="onboarding-tasks")
+router.register(r"esign-docs", DocumentEsignTaskViewSet, basename="esign-docs")
 
 urlpatterns = [
     path("application/<str:id>/update-status/",UpdatestatusAPI.as_view(),name="update-application-status"),
