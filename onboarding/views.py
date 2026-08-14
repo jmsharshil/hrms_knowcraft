@@ -3785,16 +3785,36 @@ class DocumentEsignTaskViewSet(ModelViewSet):
         all_ok = all("error" not in r for r in results)
         
         if all_ok:
-            from onboarding.utils.esign_tasks import send_documents_for_esign
-            send_documents_for_esign(application)
-            # Update results with the new status after sending to Zoho Sign
+            from onboarding.utils.zoho_sign import send_document_to_zoho_sign
+            from onboarding.utils.notifications import notify_candidate
+            
+            # Send each newly uploaded document to Zoho Sign immediately
             for result in results:
                 if result.get("status") in ["created", "updated"] and "id" in result:
                     try:
                         doc = DocumentEsignTask.objects.get(id=result["id"])
-                        result["record_status"] = doc.status
-                    except Exception:
-                        pass
+                        
+                        # Ensure file pointer is at the start
+                        if doc.source_file:
+                            try:
+                                doc.source_file.file.seek(0)
+                            except Exception:
+                                pass
+
+                        zoho_res = send_document_to_zoho_sign(doc)
+                        if zoho_res:
+                            doc.refresh_from_db()
+                            result["record_status"] = doc.status
+                            
+                            notify_candidate(
+                                application, "esign_request",
+                                cc=[],
+                                extra_context={"doc_type": doc.get_doc_type_display()},
+                            )
+                        else:
+                            result["error"] = "Failed to dispatch to Zoho Sign. Check logs or zoho credentials."
+                    except Exception as e:
+                        result["error"] = f"Dispatch error: {str(e)}"
 
         http_status = status.HTTP_200_OK if all_ok else status.HTTP_207_MULTI_STATUS
         return Response(
