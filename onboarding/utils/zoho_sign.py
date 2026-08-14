@@ -398,13 +398,12 @@ def zoho_sign_webhook(request):
         from onboarding.models import DocumentEsignTask
         # Prefer matching by document_id, fallback to request_id
         if document_id:
-            doc = OfferDocument.objects.select_related("application").filter(zoho_document_id=document_id).first()
-            if doc:
+            try:
+                doc = OfferDocument.objects.select_related("application").get(zoho_document_id=document_id)
                 doc_type = 'OfferDocument'
-            else:
-                doc = DocumentEsignTask.objects.select_related("job_application").filter(zoho_document_id=document_id).first()
-                if doc:
-                    doc_type = 'DocumentEsignTask'
+            except OfferDocument.DoesNotExist:
+                doc = DocumentEsignTask.objects.select_related("job_application").get(zoho_document_id=document_id)
+                doc_type = 'DocumentEsignTask'
         
         if not doc:
             raise Exception("No document found")
