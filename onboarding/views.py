@@ -3783,6 +3783,19 @@ class DocumentEsignTaskViewSet(ModelViewSet):
                 })
 
         all_ok = all("error" not in r for r in results)
+        
+        if all_ok:
+            from onboarding.utils.esign_tasks import send_documents_for_esign
+            send_documents_for_esign(application)
+            # Update results with the new status after sending to Zoho Sign
+            for result in results:
+                if result.get("status") in ["created", "updated"] and "id" in result:
+                    try:
+                        doc = DocumentEsignTask.objects.get(id=result["id"])
+                        result["record_status"] = doc.status
+                    except Exception:
+                        pass
+
         http_status = status.HTTP_200_OK if all_ok else status.HTTP_207_MULTI_STATUS
         return Response(
             {
