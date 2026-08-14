@@ -7,7 +7,7 @@ from django.db.models import Q
 from django.utils import timezone
 from onboarding.models import OfferDocument
 
-ZOHO_SIGN_URL = "https://sign.zoho.com/api/v1"
+ZOHO_SIGN_URL = "https://sign.zoho.in/api/v1"
 
 def get_access_token():
     url = "https://accounts.zoho.in/oauth/v2/token"
@@ -881,7 +881,7 @@ def send_document_to_zoho_sign(document_task):
     files = {"file": (filename, document_task.source_file.open("rb"), "application/pdf")}
  
     try:
-        response = requests.post(ZOHO_SIGN_URL, headers=headers, data=payload, files=files)
+        response = requests.post(f"{ZOHO_SIGN_URL}/requests", headers=headers, data=payload, files=files)
         data = response.json()
  
         request_id = data["requests"]["request_id"]
