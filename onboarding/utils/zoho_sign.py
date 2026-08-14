@@ -393,19 +393,27 @@ def zoho_sign_webhook(request):
     print(f"Zoho Event: {event_type} | Request: {request_id} | Document: {document_id} | Status: {document_status}")
 
     doc = None
+    doc_type = None
     try:
+        from onboarding.models import DocumentEsignTask
         # Prefer matching by document_id, fallback to request_id
         if document_id:
-            doc = OfferDocument.objects.select_related("application").get(zoho_document_id=document_id)
+            doc = OfferDocument.objects.select_related("application").filter(zoho_document_id=document_id).first()
+            if doc:
+                doc_type = 'OfferDocument'
+            else:
+                doc = DocumentEsignTask.objects.select_related("job_application").filter(zoho_document_id=document_id).first()
+                if doc:
+                    doc_type = 'DocumentEsignTask'
         
         if not doc:
-            raise OfferDocument.DoesNotExist
+            raise Exception("No document found")
             
-    except OfferDocument.DoesNotExist:
-        print(f"Zoho Webhook: no OfferDocument found for document_id={document_id}, request_id={request_id}")
+    except Exception as e:
+        print(f"Zoho Webhook: no document found for document_id={document_id}, request_id={request_id}, Error: {e}")
         return JsonResponse({"status": "not_found"})
 
-    application = doc.application
+    application = doc.application if doc_type == 'OfferDocument' else doc.job_application
 
     # -------------------------
     # EVENT MAPPING
@@ -413,6 +421,8 @@ def zoho_sign_webhook(request):
 
     if event_type == "RequestViewed":
         doc.status = "viewed"
+        if doc_type == 'DocumentEsignTask':
+            doc.viewed_at = timezone.now()
 
     elif event_type == "RequestSigningSuccess":
         doc.status = "signed"
@@ -421,37 +431,43 @@ def zoho_sign_webhook(request):
     elif event_type == "RequestCompleted":
         doc.status = "completed"
         doc.completed_at = timezone.now()
-        application.offer_accepted_date = doc.completed_at.date()
-        application.save()
+        
+        if doc_type == 'OfferDocument':
+            application.offer_accepted_date = doc.completed_at.date()
+            application.save()
 
-        # 🎉 OFFER ACCEPTED
-        ok,reason = automation_engine(application,application.status,'offer_accepted')
-        if ok:
-            doc.save()
-            return JsonResponse({"status": "ok"})
-        else:
-            return JsonResponse({"error":reason})
+            # 🎉 OFFER ACCEPTED
+            ok,reason = automation_engine(application,application.status,'offer_accepted')
+            if ok:
+                doc.save()
+                return JsonResponse({"status": "ok"})
+            else:
+                return JsonResponse({"error":reason})
 
     elif event_type == "RequestRejected":
         doc.status = "declined"
         reason = payload.get("notifications", {}).get("reason")
         print(f"Extracted Reason: {reason}")
-        application.offer_decline_reason = reason
-        application.save(update_fields=['offer_decline_reason'])
         
-        # Save decline reason in the latest ApprovalNote payload
-        from onboarding.models import ApprovalNote
-        latest_note = ApprovalNote.objects.filter(candidate=application).order_by('-created_at').first()
-        if latest_note and isinstance(latest_note.payload, dict):
-            latest_note.payload["offer_decline_reason"] = reason
-            latest_note.save(update_fields=['payload'])
+        if doc_type == 'OfferDocument':
+            application.offer_decline_reason = reason
+            application.save(update_fields=['offer_decline_reason'])
+            
+            # Save decline reason in the latest ApprovalNote payload
+            from onboarding.models import ApprovalNote
+            latest_note = ApprovalNote.objects.filter(candidate=application).order_by('-created_at').first()
+            if latest_note and isinstance(latest_note.payload, dict):
+                latest_note.payload["offer_decline_reason"] = reason
+                latest_note.save(update_fields=['payload'])
 
-        ok,reason = automation_engine(application,application.status,'offer_rejected')
-        if ok:
-            doc.save()
-            return JsonResponse({"status": "ok"})
+            ok,reason = automation_engine(application,application.status,'offer_rejected')
+            if ok:
+                doc.save()
+                return JsonResponse({"status": "ok"})
+            else:
+                return JsonResponse({"error":reason})
         else:
-            return JsonResponse({"error":reason})
+            doc.decline_reason = reason
 
     elif event_type == "RequestExpired":
         doc.status = "expired"
