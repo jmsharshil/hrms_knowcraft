@@ -733,8 +733,48 @@ class JobApplicationUpdateSerializer(serializers.ModelSerializer):
         fields = ['status', 'notes', 'rating', 'candidate_name','candidate_phone','candidate_email',
                   'source','experience_years','relevant_experience_years','location','skill',
                   'education','current_employer','linkedin_url','job',
-                  'work_email',
+                  'work_email', 'resume',
                   ]
+
+    def validate_resume(self, value):
+        if value:
+            # Validate file size (max 10MB)
+            max_size = 10 * 1024 * 1024
+            if value.size > max_size:
+                raise serializers.ValidationError(
+                    f"{value.name}: File size must be less than 10MB"
+                )
+
+            allowed_extensions = [
+                '.pdf', '.doc', '.docx', '.txt', '.rtf',
+                '.jpg', '.jpeg', '.png', '.gif',
+                '.odt', '.pages',
+            ]
+
+            import os
+            ext = os.path.splitext(value.name)[1].lower()
+            if ext not in allowed_extensions:
+                raise serializers.ValidationError(
+                    f"{value.name}: Unsupported file format"
+                )
+        return value
+
+    def update(self, instance, validated_data):
+        has_new_resume = 'resume' in validated_data and validated_data.get('resume') is not None
+        
+        instance = super().update(instance, validated_data)
+        
+        if has_new_resume:
+            from onboarding.utils.task_queue import TASK_QUEUE
+            from .utils import parse_resume_task
+            TASK_QUEUE.enqueue(
+                parse_resume_task,
+                instance,
+                instance.resume.file,
+                instance.job
+            )
+            
+        return instance
     
     def validate_status(self, value):
         instance = self.instance
