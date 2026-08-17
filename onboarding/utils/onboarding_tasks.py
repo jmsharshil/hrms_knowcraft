@@ -40,19 +40,19 @@ def daily_onboarding_check():
 
     for app in candidates:
         if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
-            # Test Mode: Use minutes since creation to simulate the timeline.
-            # Assuming 'Joining' occurs exactly 15 minutes after creation.
-            # Thus:
-            # minute 0 = DOJ - 15
-            # minute 8 = DOJ - 7
-            # minute 13 = DOJ - 2
-            # minute 15 = DOJ (0)
-            # minute 22 = DOJ + 7
-            # minute 45 = DOJ + 30
-            # minute 60 = DOJ + 45
-            # minute 105 = DOJ + 90
+            # Test Mode: Each milestone is exactly 1 minute apart.
+            # minute 0 → DOJ - 15
+            # minute 1 → DOJ -  7
+            # minute 2 → DOJ -  2
+            # minute 3 → DOJ    0
+            # minute 4 → DOJ +  1
+            # minute 5 → DOJ +  7
+            # minute 6 → DOJ + 30
+            # minute 7 → DOJ + 45
+            # minute 8 → DOJ + 90
+            _DEBUG_MINUTE_MAP = {0: 15, 1: 7, 2: 2, 3: 0, 4: -1, 5: -7, 6: -30, 7: -45, 8: -90}
             minutes_since_creation = int((timezone.now() - app.created_at).total_seconds() / 60)
-            days_until_joining = 15 - minutes_since_creation
+            days_until_joining = _DEBUG_MINUTE_MAP.get(minutes_since_creation, 999)
             logger.debug(f"[DEBUG MODE] Candidate {app.candidate_name}: minutes_since_creation={minutes_since_creation}, mapped_days_until_joining={days_until_joining}")
         else:
             days_until_joining = (app.joining_date - today).days
@@ -227,24 +227,25 @@ def run_onboarding_check_for_candidate(app):
     This is intentionally isolated from daily_onboarding_check so that
     calling it from the admin panel never interferes with the live cron job.
 
-    Timeline mapping (same as debug mode):
-        minute  0  →  DOJ - 15
-        minute  8  →  DOJ -  7
-        minute 13  →  DOJ -  2
-        minute 15  →  DOJ  0
-        minute 16  →  DOJ +  1
-        minute 22  →  DOJ +  7
-        minute 45  →  DOJ + 30
-        minute 60  →  DOJ + 45
-        minute 105 →  DOJ + 90
+    Timeline mapping (1 minute per milestone):
+        minute 0  →  DOJ - 15
+        minute 1  →  DOJ -  7
+        minute 2  →  DOJ -  2
+        minute 3  →  DOJ    0
+        minute 4  →  DOJ +  1
+        minute 5  →  DOJ +  7
+        minute 6  →  DOJ + 30
+        minute 7  →  DOJ + 45
+        minute 8  →  DOJ + 90
     """
     logger.info(f"[ADMIN ACTION] Running onboarding check for: {app.candidate_name}")
 
     me_client = ManageEngineClient()
     joining_date = app.joining_date
 
+    _DEBUG_MINUTE_MAP = {0: 15, 1: 7, 2: 2, 3: 0, 4: -1, 5: -7, 6: -30, 7: -45, 8: -90}
     minutes_since_creation = int((timezone.now() - app.created_at).total_seconds() / 60)
-    days_until_joining = 15 - minutes_since_creation
+    days_until_joining = _DEBUG_MINUTE_MAP.get(minutes_since_creation, 999)
     logger.debug(
         f"[ADMIN ACTION] {app.candidate_name}: minutes_since_creation={minutes_since_creation}, "
         f"mapped_days_until_joining={days_until_joining}"
