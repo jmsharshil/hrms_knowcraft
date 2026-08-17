@@ -3231,7 +3231,15 @@ class OnboardingJourneyAPI(APIView):
 
         # ── Days since joining ─────────────────────────────────────────────
         joining_date = application.joining_date
-        days_since_joining = (today - joining_date).days if joining_date else None
+        from django.conf import settings
+        
+        if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
+            # In debug mode, we map minutes since creation to days.
+            # minute 0 -> DOJ - 15, so days_since_joining = -15
+            minutes_since_creation = int((tz.now() - application.created_at).total_seconds() / 60)
+            days_since_joining = minutes_since_creation - 15
+        else:
+            days_since_joining = (today - joining_date).days if joining_date else None
 
         # ── MRF / Requisition details ──────────────────────────────────────
         mrf_data = None
