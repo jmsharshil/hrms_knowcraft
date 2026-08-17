@@ -109,7 +109,6 @@ def daily_onboarding_check():
                 generate_esign_documents(app)
                 app.is_esign_packet_generated = True
                 app.save(update_fields=['is_esign_packet_generated'])
-                create_milestone_tasks(app, "DOJ_0_DOCS", app.joining_date)
 
             # Always attempt sending — catches docs HR uploaded after DOJ 0 fired
             if getattr(app, 'is_esign_packet_generated', False):
@@ -122,7 +121,6 @@ def daily_onboarding_check():
                 send_esign_reminders(app)
                 app.is_esign_reminder_sent = True
                 app.save(update_fields=['is_esign_reminder_sent'])
-                create_milestone_tasks(app, "DOJ_PLUS_1_ESIGN_REMINDER", app.joining_date)
 
         # ── DOJ + 7 Days (Escalation Check) ─────────────────────
         elif days_until_joining == -7:
@@ -151,7 +149,6 @@ def daily_onboarding_check():
             notify_candidate(app, "satisfaction_survey", cc=[])
             app.is_d30_survey_sent = True
             app.save(update_fields=['is_d30_survey_sent'])
-            create_milestone_tasks(app, "DOJ_PLUS_30_SURVEY", app.joining_date)
 
         if days_past >= 30 and not app.is_escalated and not getattr(app, 'is_hod_survey_filled', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending HOD survey reminder.")
@@ -179,7 +176,6 @@ def daily_onboarding_check():
         if days_past >= 45 and not app.is_escalated and not getattr(app, 'is_d45_call_scheduled', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Check-in invite reminder (D45).")
             notify_internal(app, "schedule_checkin_call_reminder")
-            create_milestone_tasks(app, "DOJ_PLUS_45_CHECKIN", app.joining_date)
 
         # ── DOJ + 90 Days ─────────────
         if days_past >= 90 and not app.is_escalated and not getattr(app, 'is_d90_survey_sent', False):
@@ -203,7 +199,6 @@ def daily_onboarding_check():
 
             app.is_d90_survey_sent = True
             app.save(update_fields=['is_d90_survey_sent'])
-            create_milestone_tasks(app, "DOJ_PLUS_90_FINAL", app.joining_date)
 
         if days_past >= 90 and not app.is_escalated and app.it_ticket_ref and not getattr(app, 'it_ticket_closed', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Closing ManageEngine IT ticket.")
