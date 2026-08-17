@@ -318,6 +318,7 @@ class JobApplicationAdmin(admin.ModelAdmin):
           minute 105  →  DOJ + 90  (90-day survey + final review + close IT ticket)
         """
         import datetime as dt
+        import time
         from django.utils import timezone
         from onboarding.utils.engine import automation_engine
         from onboarding.utils.onboarding_tasks import run_onboarding_check_for_candidate
@@ -340,20 +341,30 @@ class JobApplicationAdmin(admin.ModelAdmin):
                 application.save(update_fields=['status'])
                 print(f"[FULL SIM] {application.candidate_name}: {old_status} → joining_pending")
                 automation_engine(application, old_status, 'joining_pending')
+                time.sleep(2)
 
             if application.status == 'joining_pending':
                 application.status = 'joined'
                 application.save(update_fields=['status'])
                 print(f"[FULL SIM] {application.candidate_name}: joining_pending → joined")
                 automation_engine(application, 'joining_pending', 'joined')
+                time.sleep(2)
 
             # Reload fresh from DB so all flag values are current
             application.refresh_from_db()
 
             # ── 2. Walk through every milestone in order ───────────────────
             original_created_at = application.created_at
+            
+            last_minute = 0
 
             for minutes in MILESTONE_MINUTES:
+                # 1 simulated minute = 1 real-world minute (60 seconds)
+                delay_seconds = (minutes - last_minute) * 60
+                if delay_seconds > 0:
+                    print(f"[FULL SIM] Sleeping {delay_seconds} seconds to simulate {minutes - last_minute} minutes...")
+                    time.sleep(delay_seconds)
+
                 # Fake created_at in memory so the function thinks
                 # exactly `minutes` minutes have elapsed since creation.
                 application.created_at = timezone.now() - dt.timedelta(minutes=minutes)
@@ -391,6 +402,8 @@ class JobApplicationAdmin(admin.ModelAdmin):
                 ]:
                     if hasattr(db_app, flag):
                         setattr(application, flag, getattr(db_app, flag))
+                        
+                last_minute = minutes
 
             # Restore real created_at in memory (not saved to DB — was never changed there)
             application.created_at = original_created_at

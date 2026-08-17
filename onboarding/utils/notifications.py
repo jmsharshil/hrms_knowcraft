@@ -893,7 +893,14 @@ def notify_candidate(candidate: Any, stage: str, cc: list = None, feedback_link:
                 except (KeyError, ValueError) as e:
                     logger.warning("Text formatting error for %s: %s", stage, e)
 
-            recipient_email = getattr(candidate, 'work_email', None) or getattr(candidate, 'candidate_email', None)
+            if stage in ['satisfaction_survey', 'd90_survey']:
+                recipient_email = getattr(candidate, 'work_email', None)
+                if not recipient_email:
+                    logger.warning(f"No work_email found for candidate {candidate.id} for stage {stage}. Skipping.")
+                    return False
+            else:
+                recipient_email = getattr(candidate, 'work_email', None) or getattr(candidate, 'candidate_email', None)
+
             if not recipient_email:
                 logger.warning("No email found for candidate")
                 success = False
