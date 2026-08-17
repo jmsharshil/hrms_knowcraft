@@ -3234,10 +3234,12 @@ class OnboardingJourneyAPI(APIView):
         from django.conf import settings
         
         if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
-            # In debug mode, we map minutes since creation to days.
-            # minute 0 -> DOJ - 15, so days_since_joining = -15
+            # Mirror the _DEBUG_MINUTE_MAP from onboarding_tasks.py exactly.
+            # days_until_joining = map[minutes]; days_since_joining = -days_until_joining
+            _DEBUG_MINUTE_MAP = {0: 15, 1: 7, 2: 2, 3: 0, 4: -1, 5: -7, 6: -30, 7: -45, 8: -90}
             minutes_since_creation = int((tz.now() - application.created_at).total_seconds() / 60)
-            days_since_joining = minutes_since_creation - 15
+            days_until_joining = _DEBUG_MINUTE_MAP.get(minutes_since_creation, 999)
+            days_since_joining = -days_until_joining  # positive = past DOJ, negative = pre-DOJ
         else:
             days_since_joining = (today - joining_date).days if joining_date else None
 
@@ -3355,111 +3357,119 @@ class OnboardingJourneyAPI(APIView):
                 "tasks": tasks,
             })
 
+        # ── Resolve actual email addresses for milestone traceability ─────
+        candidate_email_display = application.work_email or application.candidate_email or "—"
+        candidate_personal_email = application.candidate_email or "—"
+        buddy_emails = ", ".join(filter(None, [
+            application.technical_buddy_email,
+            application.cultural_buddy_email,
+        ])) or "Not assigned"
+
         milestones = [
             {
                 "key": "onboarding_initiated",
                 "label": "Event 0 — Offer Accepted & IT Ticket Raised",
                 "completed": bool(application.it_ticket_ref),
                 "detail": f"IT Ticket: {application.it_ticket_ref}" if application.it_ticket_ref else None,
-                "emails_sent": "IT Team, HR (CC)",
+                "emails_sent": "IT Team (internal), HR (CC)",
             },
             {
                 "key": "doj_minus_15",
                 "label": "Day -15 — IT Provisioning Update",
                 "completed": days_since_joining is not None and days_since_joining >= -15,
                 "detail": "VPN/Asset task updated",
-                "emails_sent": "IT Team",
+                "emails_sent": "IT Team (internal)",
             },
             {
                 "key": "doj_minus_7",
                 "label": "Day -7 — HOD / Admin Notification",
                 "completed": days_since_joining is not None and days_since_joining >= -7,
                 "detail": "Desk/ID card task created",
-                "emails_sent": "HOD, Admin Team",
+                "emails_sent": "HOD (internal), Admin Team (internal)",
             },
             {
                 "key": "doj_minus_2",
                 "label": "Day -2 — Welcome Email",
                 "completed": days_since_joining is not None and days_since_joining >= -2,
                 "detail": None,
-                "emails_sent": "Candidate, HR (CC)",
+                "emails_sent": candidate_personal_email,
             },
             {
                 "key": "joined",
                 "label": "Day 0 — Joined & Account Activation",
                 "completed": application.status == "joined",
                 "detail": "Buddy Assigned, Account Activated",
-                "emails_sent": "Candidate, Buddy/Crafter",
+                "emails_sent": f"{candidate_email_display}" + (f", Buddies: {buddy_emails}" if buddy_emails != "Not assigned" else ""),
             },
             {
                 "key": "doj_0_esign",
                 "label": "Day 0 / +1 — E-Sign Documents",
                 "completed": getattr(application, 'is_esign_packet_generated', False),
                 "detail": "Statutory Forms",
-                "emails_sent": "Candidate",
+                "emails_sent": candidate_email_display,
             },
             {
                 "key": "doj_plus_7",
                 "label": "Day +7 — BGV Status Check",
                 "completed": days_since_joining is not None and days_since_joining >= 7,
                 "detail": "Escalated" if application.is_escalated else "Clear",
-                "emails_sent": "HR Team (if unclear)",
+                "emails_sent": "HR Team (internal — only if BGV unclear)",
             },
             {
                 "key": "d30_survey_sent",
                 "label": "Day +30 — Satisfaction Surveys Sent",
                 "completed": application.is_d30_survey_sent,
                 "detail": None,
-                "emails_sent": "Candidate, HOD",
+                "emails_sent": f"Candidate: {candidate_email_display}, HOD (internal)",
             },
             {
                 "key": "d30_survey_filled",
                 "label": "Day +30 — Candidate Survey Filled",
                 "completed": application.is_satisfaction_survey_filled,
                 "detail": None,
-                "emails_sent": "None (Submitted)",
+                "emails_sent": "None (submitted by candidate)",
             },
             {
                 "key": "hod_survey_filled",
                 "label": "Day +30 — HOD Survey Filled",
                 "completed": application.is_hod_survey_filled,
                 "detail": None,
-                "emails_sent": "None (Submitted)",
+                "emails_sent": "None (submitted by HOD)",
             },
             {
                 "key": "d45_call_scheduled",
                 "label": "Day +45 — Check-in Call Scheduled",
                 "completed": application.is_d45_call_scheduled,
                 "detail": str(d45_call.start_time) if d45_call and d45_call.start_time else None,
-                "emails_sent": "Candidate, HR",
+                "emails_sent": f"Candidate: {candidate_email_display}, HR (internal calendar invite)",
             },
             {
                 "key": "d90_survey_sent",
                 "label": "Day +90 — Final Survey Sent",
                 "completed": application.is_d90_survey_sent,
                 "detail": None,
-                "emails_sent": "Candidate",
+                "emails_sent": candidate_email_display,
             },
             {
                 "key": "d90_survey_filled",
                 "label": "Day +90 — Survey Filled",
                 "completed": application.is_d90_survey_filled,
                 "detail": None,
-                "emails_sent": "None (Submitted)",
+                "emails_sent": "None (submitted by candidate)",
             },
             {
                 "key": "d90_call_scheduled",
                 "label": "Day +90 — Final Review Scheduled",
                 "completed": application.is_d90_call_scheduled,
                 "detail": str(d90_call.start_time) if d90_call and d90_call.start_time else None,
-                "emails_sent": "Candidate, HR",
+                "emails_sent": f"Candidate: {candidate_email_display}, HR (internal calendar invite)",
             },
             {
                 "key": "it_ticket_closed",
                 "label": "Day +90 — IT Ticket Closed",
                 "completed": application.it_ticket_closed,
                 "detail": None,
-                "emails_sent": "None",
+                "emails_sent": "None (ME ticket closed automatically)",
             },
         ]
 

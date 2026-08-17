@@ -33,7 +33,8 @@ def daily_onboarding_check():
         is_active=True,
         status__in=active_statuses,
         joining_date__isnull=False,
-        is_escalated=False # Skip candidates actively in escalation
+        # Note: we intentionally do NOT filter out is_escalated=True here.
+        # Escalated candidates must still receive D30/D45/D90 notifications.
     )
 
     me_client = ManageEngineClient()
@@ -126,16 +127,17 @@ def daily_onboarding_check():
         # ── DOJ + 7 Days (Escalation Check) ─────────────────────
         elif days_until_joining == -7:
             logger.info(f"DOJ + 7 for candidate {app.candidate_name}. Checking BGV status.")
-            try:
-                bgv = CandidateBGV.objects.get(candidate=app)
-                if bgv.status not in ['clear', 'verified']:
+            if not app.is_escalated:  # Only raise escalation once; don't re-notify on re-runs
+                try:
+                    bgv = CandidateBGV.objects.get(candidate=app)
+                    if bgv.status not in ['clear', 'verified']:
+                        app.is_escalated = True
+                        app.save(update_fields=['is_escalated'])
+                        notify_internal(app, "bgv_escalation")
+                except CandidateBGV.DoesNotExist:
                     app.is_escalated = True
                     app.save(update_fields=['is_escalated'])
                     notify_internal(app, "bgv_escalation")
-            except CandidateBGV.DoesNotExist:
-                app.is_escalated = True
-                app.save(update_fields=['is_escalated'])
-                notify_internal(app, "bgv_escalation")
 
             create_milestone_tasks(app, "DOJ_PLUS_7_BGV", app.joining_date)
 
@@ -144,14 +146,14 @@ def daily_onboarding_check():
             days_past = abs(days_until_joining)
 
         # ── DOJ + 30 Days ─────────────────────────────────────────
-        if days_past >= 30 and not getattr(app, 'is_d30_survey_sent', False):
+        if days_past >= 30 and not app.is_escalated and not getattr(app, 'is_d30_survey_sent', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending 30-day candidate survey reminder.")
             notify_candidate(app, "satisfaction_survey", cc=[])
             app.is_d30_survey_sent = True
             app.save(update_fields=['is_d30_survey_sent'])
             create_milestone_tasks(app, "DOJ_PLUS_30_SURVEY", app.joining_date)
 
-        if days_past >= 30 and not getattr(app, 'is_hod_survey_filled', False):
+        if days_past >= 30 and not app.is_escalated and not getattr(app, 'is_hod_survey_filled', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending HOD survey reminder.")
             is_senior = False
             try:
@@ -174,13 +176,13 @@ def daily_onboarding_check():
             notify_internal(app, hod_stage)
 
         # ── DOJ + 45 Days ───────────────────────
-        if days_past >= 45 and not getattr(app, 'is_d45_call_scheduled', False):
+        if days_past >= 45 and not app.is_escalated and not getattr(app, 'is_d45_call_scheduled', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Check-in invite reminder (D45).")
             notify_internal(app, "schedule_checkin_call_reminder")
             create_milestone_tasks(app, "DOJ_PLUS_45_CHECKIN", app.joining_date)
 
         # ── DOJ + 90 Days ─────────────
-        if days_past >= 90 and not getattr(app, 'is_d90_survey_sent', False):
+        if days_past >= 90 and not app.is_escalated and not getattr(app, 'is_d90_survey_sent', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending 90-day survey + final review reminder.")
             notify_candidate(app, "d90_survey", cc=[])
             notify_internal(app, "schedule_final_review_reminder")
@@ -203,7 +205,7 @@ def daily_onboarding_check():
             app.save(update_fields=['is_d90_survey_sent'])
             create_milestone_tasks(app, "DOJ_PLUS_90_FINAL", app.joining_date)
 
-        if days_past >= 90 and app.it_ticket_ref and not getattr(app, 'it_ticket_closed', False):
+        if days_past >= 90 and not app.is_escalated and app.it_ticket_ref and not getattr(app, 'it_ticket_closed', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Closing ManageEngine IT ticket.")
             if me_client.close_ticket(app.it_ticket_ref):
                 app.it_ticket_closed = True
