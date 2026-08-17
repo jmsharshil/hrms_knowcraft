@@ -1514,7 +1514,7 @@ Thank you.
                 to=recipient_email,
                 template=template,
                 attachments=[annexure_attachment] if annexure_attachment else None,
-                event="salary_annexure_sent",
+                event="offer_letter_sent",
                 email_type="candidate",
                 candidate=job_application
             )
@@ -1671,7 +1671,7 @@ Thank you.
                 to=recipient_email,
                 template=template,
                 attachments=[resume_attachment] if resume_attachment else None,
-                event="offer_letter_sent",
+                event="salary_annexure_sent",
                 email_type="candidate",
                 candidate=job_application
             )
