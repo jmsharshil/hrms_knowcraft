@@ -292,124 +292,125 @@ class JobApplicationAdmin(admin.ModelAdmin):
 
 
     def simulate_onboarding_process(self, request, queryset):
-        import time
+        """
+        Runs the FULL onboarding timeline for selected candidates in proper sequential
+        flow — milestone by milestone — using the same minute-based clock as the real
+        daily cron (ONBOARDING_DEBUG_MINUTES mode).
+
+        How it works:
+          For each milestone minute-mark (0, 8, 13, 15, 16, 22, 45, 60, 105) it
+          temporarily sets app.created_at in memory so that
+          run_onboarding_check_for_candidate() sees the correct elapsed time,
+          then delegates entirely to that function.  All guard flags
+          (is_d30_survey_sent, is_d45_call_scheduled, etc.) are checked and
+          persisted exactly as they would be in production — no milestone fires
+          twice, and no milestone is skipped.
+
+        Timeline (mirrors ONBOARDING_DEBUG_MINUTES logic):
+          minute   0  →  DOJ - 15  (IT team email + tasks)
+          minute   8  →  DOJ -  7  (HOD/Admin email + tasks)
+          minute  13  →  DOJ -  2  (Welcome email)
+          minute  15  →  DOJ   0   (E-sign docs generated, status must be 'joined')
+          minute  16  →  DOJ +  1  (E-sign reminder)
+          minute  22  →  DOJ +  7  (BGV escalation check)
+          minute  45  →  DOJ + 30  (30-day survey + HOD survey)
+          minute  60  →  DOJ + 45  (45-day check-in reminder + OnboardingCall)
+          minute 105  →  DOJ + 90  (90-day survey + final review + close IT ticket)
+        """
+        import datetime as dt
+        from django.utils import timezone
         from onboarding.utils.engine import automation_engine
-        from onboarding.utils.task_generation import create_milestone_tasks
-        
+        from onboarding.utils.onboarding_tasks import run_onboarding_check_for_candidate
+
+        # Minute marks that map to each onboarding milestone
+        MILESTONE_MINUTES = [0, 8, 13, 15, 16, 22, 45, 60, 105]
+
         count = 0
+        skipped = []
+
         for application in queryset:
-            # First, make sure the candidate is joining_pending
-            if application.status != 'joining_pending':
+            if not application.joining_date:
+                skipped.append(application.candidate_name)
+                continue
+
+            # ── 1. Transition to joining_pending → joined ──────────────────
+            if application.status not in ('joining_pending', 'joined'):
+                old_status = application.status
                 application.status = 'joining_pending'
                 application.save(update_fields=['status'])
-            
-            # Now simulate transitions
-            states_to_simulate = [
-                'joined'
-            ]
-            
-            old_state = 'joining_pending'
-            for new_state in states_to_simulate:
-                print(f"[DEBUG SIMULATION] Moving {application.candidate_name} from {old_state} -> {new_state}")
-                automation_engine(application, old_state, new_state)
-                old_state = new_state
-                time.sleep(2)
-                
-            # Now simulate milestone task generations based on joining_date (if None, use today)
-            joining_date = application.joining_date
-            if not joining_date:
-                from django.utils import timezone
-                joining_date = timezone.now().date()
-            
-            milestones = [
-                "DOJ_MINUS_15",
-                "DOJ_MINUS_7",
-                "DOJ_0_DOCS",
-                "DOJ_PLUS_1_ESIGN_REMINDER",
-                "DOJ_PLUS_7_BGV",
-                "DOJ_PLUS_30_SURVEY",
-                "DOJ_PLUS_45_CHECKIN",
-                "DOJ_PLUS_90_FINAL"
-            ]
-            
-            from onboarding.utils.notifications import notify_candidate, notify_internal
-            
-            for ms in milestones:
-                print(f"[DEBUG SIMULATION] Generating tasks for milestone: {ms}")
-                create_milestone_tasks(application, ms, joining_date)
-                
-                if ms == "DOJ_0_DOCS":
-                    from onboarding.models import DocumentEsignTask
-                    for doc_type in ['SA', 'NDA', 'ISMS_1', 'FORM_2']:
-                        DocumentEsignTask.objects.get_or_create(
-                            job_application=application,
-                            doc_type=doc_type,
-                            defaults={"status": "sent"}
-                        )
-                    notify_candidate(application, "esign_docs")
-                    
-                elif ms == "DOJ_PLUS_30_SURVEY":
-                    notify_candidate(application, "satisfaction_survey", cc=[])
-                    application.is_d30_survey_sent = True
-                    application.save(update_fields=['is_d30_survey_sent'])
-                    
-                    is_senior = False
-                    if application.job and application.job.mrf and application.job.mrf.designation:
-                        designation_name = application.job.mrf.designation.name.lower()
-                        if any(kw in designation_name for kw in ['manager', 'director', 'vp', 'head', 'lead']):
-                            is_senior = True
-                    notify_internal(application, "satisfaction_survey_hod_senior" if is_senior else "satisfaction_survey_hod_junior")
-                
-                elif ms == "DOJ_PLUS_45_CHECKIN":
-                    notify_internal(application, "schedule_checkin_call_reminder")
-                    from onboarding.models import OnboardingCall
-                    from django.utils import timezone
-                    import datetime
-                    
-                    start_dt = timezone.make_aware(datetime.datetime.combine(joining_date + datetime.timedelta(days=45), datetime.time(10, 0)))
-                    OnboardingCall.objects.get_or_create(
-                        job_application=application,
-                        call_type="d45",
-                        defaults={
-                            "organizer_email": "hr@jmstech.co",
-                            "start_time": start_dt,
-                            "end_time": start_dt + datetime.timedelta(hours=1),
-                            "meeting_link": "https://teams.microsoft.com/l/meetup-join/dummy"
-                        }
+                print(f"[FULL SIM] {application.candidate_name}: {old_status} → joining_pending")
+                automation_engine(application, old_status, 'joining_pending')
+
+            if application.status == 'joining_pending':
+                application.status = 'joined'
+                application.save(update_fields=['status'])
+                print(f"[FULL SIM] {application.candidate_name}: joining_pending → joined")
+                automation_engine(application, 'joining_pending', 'joined')
+
+            # Reload fresh from DB so all flag values are current
+            application.refresh_from_db()
+
+            # ── 2. Walk through every milestone in order ───────────────────
+            original_created_at = application.created_at
+
+            for minutes in MILESTONE_MINUTES:
+                # Fake created_at in memory so the function thinks
+                # exactly `minutes` minutes have elapsed since creation.
+                application.created_at = timezone.now() - dt.timedelta(minutes=minutes)
+
+                label = {
+                    0:   "DOJ - 15",
+                    8:   "DOJ -  7",
+                    13:  "DOJ -  2",
+                    15:  "DOJ   0",
+                    16:  "DOJ +  1",
+                    22:  "DOJ +  7",
+                    45:  "DOJ + 30",
+                    60:  "DOJ + 45",
+                    105: "DOJ + 90",
+                }.get(minutes, f"minute {minutes}")
+
+                print(f"[FULL SIM] {application.candidate_name} → {label} (fake created_at = -{minutes}min)")
+
+                try:
+                    run_onboarding_check_for_candidate(application)
+                except Exception as exc:
+                    self.message_user(
+                        request,
+                        f"Error at {label} for {application.candidate_name}: {exc}",
+                        level='error',
                     )
-                    application.is_d45_call_scheduled = True
-                    application.save(update_fields=['is_d45_call_scheduled'])
-                
-                elif ms == "DOJ_PLUS_90_FINAL":
-                    notify_candidate(application, "d90_survey", cc=[])
-                    application.is_d90_survey_sent = True
-                    application.save(update_fields=['is_d90_survey_sent'])
-                    notify_internal(application, "schedule_final_review_reminder")
-                    
-                    from onboarding.models import OnboardingCall
-                    from django.utils import timezone
-                    import datetime
-                    
-                    start_dt = timezone.make_aware(datetime.datetime.combine(joining_date + datetime.timedelta(days=90), datetime.time(10, 0)))
-                    OnboardingCall.objects.get_or_create(
-                        job_application=application,
-                        call_type="d90",
-                        defaults={
-                            "organizer_email": "hr@jmstech.co",
-                            "start_time": start_dt,
-                            "end_time": start_dt + datetime.timedelta(hours=1),
-                            "meeting_link": "https://teams.microsoft.com/l/meetup-join/dummy"
-                        }
-                    )
-                    application.is_d90_call_scheduled = True
-                    application.save(update_fields=['is_d90_call_scheduled'])
-                
-                time.sleep(1)
-                
+
+                # Reload DB flags so the next milestone sees updated guards
+                # but keep our faked created_at (it's not persisted)
+                db_app = application.__class__.objects.get(pk=application.pk)
+                for flag in [
+                    'is_esign_packet_generated', 'is_esign_reminder_sent',
+                    'is_escalated', 'is_d30_survey_sent', 'is_hod_survey_filled',
+                    'is_d45_call_scheduled', 'is_d90_survey_sent', 'it_ticket_closed',
+                ]:
+                    if hasattr(db_app, flag):
+                        setattr(application, flag, getattr(db_app, flag))
+
+            # Restore real created_at in memory (not saved to DB — was never changed there)
+            application.created_at = original_created_at
+
             count += 1
-            
-        self.message_user(request, f"Successfully simulated onboarding process for {count} candidate(s). Check server logs for details.")
-    simulate_onboarding_process.short_description = "Simulate Onboarding Process (Realtime Emails & Tasks)"
+            print(f"[FULL SIM] Completed full timeline for {application.candidate_name}")
+
+        msg_parts = []
+        if count:
+            msg_parts.append(f"Full onboarding flow simulated for {count} candidate(s). Check server logs for details.")
+        if skipped:
+            self.message_user(
+                request,
+                f"Skipped (no joining_date): {', '.join(skipped)}",
+                level='warning',
+            )
+        if msg_parts:
+            self.message_user(request, " ".join(msg_parts))
+
+    simulate_onboarding_process.short_description = "Simulate Full Onboarding Flow (Sequential, All Milestones)"
     
 @admin.register(ReferralApplication)
 class ReferralApplicationAdmin(admin.ModelAdmin):
