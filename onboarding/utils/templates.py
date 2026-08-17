@@ -2051,6 +2051,10 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <p style="margin:0 0 16px 0;">
                                     Please coordinate via Microsoft Teams and mark the check-in as complete in the HRMS dashboard once finished.
                                 </p>
+                                <p style="margin:25px 0 30px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}/onboarding/task-list/{{candidate.id}}"
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">View Candidate in HRMS</a>
+                                </p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
