@@ -693,6 +693,10 @@ class JobApplication(models.Model):
     is_esign_packet_generated = models.BooleanField(default=False)  # True once esign doc rows are created at DOJ 0
     is_esign_reminder_sent = models.BooleanField(default=False)     # True once the DOJ+1 esign reminder is sent
     
+    is_doj_minus_15_triggered = models.BooleanField(default=False)
+    is_doj_minus_7_triggered = models.BooleanField(default=False)
+    is_doj_minus_2_triggered = models.BooleanField(default=False)
+    
     technical_buddy_email = models.EmailField(null=True, blank=True)
     technical_buddy_name = models.CharField(max_length=255, null=True, blank=True)
     cultural_buddy_email = models.EmailField(null=True, blank=True)

@@ -41,25 +41,15 @@ def daily_onboarding_check():
 
     for app in candidates:
         if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
-            # Test Mode: Each milestone is exactly 1 minute apart.
-            # minute 0 → DOJ - 15
-            # minute 1 → DOJ -  7
-            # minute 2 → DOJ -  2
-            # minute 3 → DOJ    0
-            # minute 4 → DOJ +  1
-            # minute 5 → DOJ +  7
-            # minute 6 → DOJ + 30
-            # minute 7 → DOJ + 45
-            # minute 8 → DOJ + 90
             _DEBUG_MINUTE_MAP = {0: 15, 1: 7, 2: 2, 3: 0, 4: -1, 5: -7, 6: -30, 7: -45, 8: -90}
             minutes_since_creation = int((timezone.now() - app.created_at).total_seconds() / 60)
             days_until_joining = _DEBUG_MINUTE_MAP.get(minutes_since_creation, 999)
             logger.debug(f"[DEBUG MODE] Candidate {app.candidate_name}: minutes_since_creation={minutes_since_creation}, mapped_days_until_joining={days_until_joining}")
         else:
-            days_until_joining = (app.joining_date - today).days
+            days_until_joining = (app.joining_date - today).days if app.joining_date else 999
 
         # ── DOJ - 15 Days ───────────────────────────────────────
-        if days_until_joining == 15:
+        if days_until_joining <= 15 and not getattr(app, 'is_doj_minus_15_triggered', False) and app.status != "joined":
             logger.info(f"DOJ - 15 for candidate {app.candidate_name}. Updating ME ticket.")
             if app.it_ticket_ref:
                 update_payload = {} # You can add specific custom fields here for procurement
@@ -71,9 +61,11 @@ def daily_onboarding_check():
             # Send Email to IT Team
             notify_internal(app, "doj_minus_15_it_team")
             create_milestone_tasks(app, "DOJ_MINUS_15", app.joining_date)
+            app.is_doj_minus_15_triggered = True
+            app.save(update_fields=['is_doj_minus_15_triggered'])
 
         # ── DOJ - 7 Days ────────────────────────────────────────
-        elif days_until_joining == 7:
+        if days_until_joining <= 7 and not getattr(app, 'is_doj_minus_7_triggered', False) and app.status != "joined":
             logger.info(f"DOJ - 7 for candidate {app.candidate_name}.")
             if app.job.job_type == 'work_from_office':
                 notify_internal(app, "doj_minus_7_hod")
@@ -84,14 +76,19 @@ def daily_onboarding_check():
                     me_client.update_ticket(app.it_ticket_ref, {}, note=note)
 
             create_milestone_tasks(app, "DOJ_MINUS_7", app.joining_date)
+            app.is_doj_minus_7_triggered = True
+            app.save(update_fields=['is_doj_minus_7_triggered'])
 
         # ── DOJ - 2 Days ────────────────────────────────────────
-        elif days_until_joining == 2:
+        if days_until_joining <= 2 and not getattr(app, 'is_doj_minus_2_triggered', False) and app.status != "joined":
             logger.info(f"DOJ - 2 for candidate {app.candidate_name}. Welcome Email.")
             notify_candidate(app, "welcome_joining", cc=[])
 
             if app.it_ticket_ref and app.job.job_type != 'work_from_office':
                 me_client.update_ticket(app.it_ticket_ref, {}, note="DOJ is in 2 days. Finalize VPN/dispatch tasks.")
+            
+            app.is_doj_minus_2_triggered = True
+            app.save(update_fields=['is_doj_minus_2_triggered'])
 
         # ── DOJ 0 — Statutory docs + Zoho Sign packet ────────────
         # Diagram: released on "report joined". If your "report joined" action is a
@@ -103,7 +100,7 @@ def daily_onboarding_check():
         # source_file. If HR hasn't uploaded anything yet, this fires but sends nothing —
         # it'll pick up uploaded files on a later cron pass since is_esign_packet_generated
         # only gates re-creating the rows, not re-sending.
-        elif days_until_joining == 0:
+        if days_until_joining <= 0:
             if app.status == "joined" and not getattr(app, 'is_esign_packet_generated', False):
                 logger.info(f"DOJ 0 for candidate {app.candidate_name}. Generating esign doc records.")
                 generate_esign_documents(app)
@@ -115,7 +112,7 @@ def daily_onboarding_check():
                 send_documents_for_esign(app)
 
         # ── DOJ + 1 Day — esign reminder (real implementation, was a stub) ─────
-        elif days_until_joining == -1:
+        if days_until_joining <= -1:
             if getattr(app, 'is_esign_packet_generated', False) and not getattr(app, 'is_esign_reminder_sent', False):
                 logger.info(f"DOJ + 1 for candidate {app.candidate_name}. Checking for unsigned esign docs.")
                 send_esign_reminders(app)
@@ -123,9 +120,17 @@ def daily_onboarding_check():
                 app.save(update_fields=['is_esign_reminder_sent'])
 
         # ── DOJ + 7 Days (Escalation Check) ─────────────────────
-        elif days_until_joining == -7:
+        if days_until_joining <= -7:
             logger.info(f"DOJ + 7 for candidate {app.candidate_name}. Checking BGV status.")
-            if not app.is_escalated:  # Only raise escalation once; don't re-notify on re-runs
+            
+            designation_name = app.job.mrf.designation.name.lower() if (
+                hasattr(app, 'job') and app.job and
+                hasattr(app.job, 'mrf') and app.job.mrf and
+                app.job.mrf.designation
+            ) else ""
+            is_intern = 'intern' in designation_name
+            
+            if not app.is_escalated and not is_intern:  # Only raise escalation once; don't re-notify on re-runs
                 try:
                     bgv = CandidateBGV.objects.get(candidate=app)
                     if bgv.status not in ['clear', 'verified']:
@@ -218,38 +223,34 @@ def daily_onboarding_check():
 def run_onboarding_check_for_candidate(app):
     """
     Run the full automated onboarding timeline for a single JobApplication,
-    using the same minutes-since-creation simulation used when
-    ONBOARDING_DEBUG_MINUTES = True.
-
-    This is intentionally isolated from daily_onboarding_check so that
-    calling it from the admin panel never interferes with the live cron job.
-
-    Timeline mapping (1 minute per milestone):
-        minute 0  →  DOJ - 15
-        minute 1  →  DOJ -  7
-        minute 2  →  DOJ -  2
-        minute 3  →  DOJ    0
-        minute 4  →  DOJ +  1
-        minute 5  →  DOJ +  7
-        minute 6  →  DOJ + 30
-        minute 7  →  DOJ + 45
-        minute 8  →  DOJ + 90
+    using their actual days until joining, to manually simulate/run what
+    the cron job would do for them today.
     """
     logger.info(f"[ADMIN ACTION] Running onboarding check for: {app.candidate_name}")
 
     me_client = ManageEngineClient()
     joining_date = app.joining_date
-
-    _DEBUG_MINUTE_MAP = {0: 15, 1: 7, 2: 2, 3: 0, 4: -1, 5: -7, 6: -30, 7: -45, 8: -90}
-    minutes_since_creation = int((timezone.now() - app.created_at).total_seconds() / 60)
-    days_until_joining = _DEBUG_MINUTE_MAP.get(minutes_since_creation, 999)
-    logger.debug(
-        f"[ADMIN ACTION] {app.candidate_name}: minutes_since_creation={minutes_since_creation}, "
-        f"mapped_days_until_joining={days_until_joining}"
-    )
+    if not joining_date:
+        logger.error(f"[ADMIN ACTION] Candidate {app.candidate_name} has no joining date.")
+        return 999
+        
+    today = timezone.now().date()
+    
+    if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
+        _DEBUG_MINUTE_MAP = {0: 15, 1: 7, 2: 2, 3: 0, 4: -1, 5: -7, 6: -30, 7: -45, 8: -90}
+        minutes_since_creation = int((timezone.now() - app.created_at).total_seconds() / 60)
+        days_until_joining = _DEBUG_MINUTE_MAP.get(minutes_since_creation, 999)
+        logger.debug(
+            f"[ADMIN ACTION - DEBUG MODE] {app.candidate_name}: minutes_since_creation={minutes_since_creation}, mapped_days_until_joining={days_until_joining}"
+        )
+    else:
+        days_until_joining = (joining_date - today).days
+        logger.debug(
+            f"[ADMIN ACTION] {app.candidate_name}: days_until_joining={days_until_joining}"
+        )
 
     # ── DOJ - 15 Days ───────────────────────────────────────────────────────
-    if days_until_joining == 15:
+    if days_until_joining <= 15 and not getattr(app, 'is_doj_minus_15_triggered', False) and app.status != "joined":
         logger.info(f"[ADMIN ACTION] DOJ - 15 for {app.candidate_name}. Updating ME ticket.")
         if app.it_ticket_ref:
             note = f"DOJ is in 15 days ({joining_date}). Please procure laptop."
@@ -258,9 +259,11 @@ def run_onboarding_check_for_candidate(app):
             me_client.update_ticket(app.it_ticket_ref, {}, note=note)
         notify_internal(app, "doj_minus_15_it_team")
         create_milestone_tasks(app, "DOJ_MINUS_15", joining_date)
+        app.is_doj_minus_15_triggered = True
+        app.save(update_fields=['is_doj_minus_15_triggered'])
 
     # ── DOJ - 7 Days ────────────────────────────────────────────────────────
-    elif days_until_joining == 7:
+    if days_until_joining <= 7 and not getattr(app, 'is_doj_minus_7_triggered', False) and app.status != "joined":
         logger.info(f"[ADMIN ACTION] DOJ - 7 for {app.candidate_name}.")
         if app.job and app.job.job_type == 'work_from_office':
             notify_internal(app, "doj_minus_7_hod")
@@ -270,16 +273,21 @@ def run_onboarding_check_for_candidate(app):
                 note = f"DOJ is in 7 days ({joining_date}). Remote joiner. Please arrange laptop dispatch."
                 me_client.update_ticket(app.it_ticket_ref, {}, note=note)
         create_milestone_tasks(app, "DOJ_MINUS_7", joining_date)
+        app.is_doj_minus_7_triggered = True
+        app.save(update_fields=['is_doj_minus_7_triggered'])
 
     # ── DOJ - 2 Days ────────────────────────────────────────────────────────
-    elif days_until_joining == 2:
+    if days_until_joining <= 2 and not getattr(app, 'is_doj_minus_2_triggered', False) and app.status != "joined":
         logger.info(f"[ADMIN ACTION] DOJ - 2 for {app.candidate_name}. Welcome email.")
         notify_candidate(app, "welcome_joining", cc=[])
         if app.it_ticket_ref and app.job and app.job.job_type != 'work_from_office':
             me_client.update_ticket(app.it_ticket_ref, {}, note="DOJ is in 2 days. Finalize VPN/dispatch tasks.")
+            
+        app.is_doj_minus_2_triggered = True
+        app.save(update_fields=['is_doj_minus_2_triggered'])
 
     # ── DOJ 0 — Statutory docs + e-sign packet ─────────────────────────────
-    elif days_until_joining == 0:
+    if days_until_joining <= 0:
         if app.status == "joined" and not getattr(app, 'is_esign_packet_generated', False):
             logger.info(f"[ADMIN ACTION] DOJ 0 for {app.candidate_name}. Generating esign doc records.")
             generate_esign_documents(app)
@@ -290,7 +298,7 @@ def run_onboarding_check_for_candidate(app):
             send_documents_for_esign(app)
 
     # ── DOJ + 1 Day — esign reminder ────────────────────────────────────────
-    elif days_until_joining == -1:
+    if days_until_joining <= -1:
         if getattr(app, 'is_esign_packet_generated', False) and not getattr(app, 'is_esign_reminder_sent', False):
             logger.info(f"[ADMIN ACTION] DOJ + 1 for {app.candidate_name}. Checking unsigned esign docs.")
             send_esign_reminders(app)
@@ -299,18 +307,24 @@ def run_onboarding_check_for_candidate(app):
             create_milestone_tasks(app, "DOJ_PLUS_1_ESIGN_REMINDER", joining_date)
 
     # ── DOJ + 7 Days — BGV check ────────────────────────────────────────────
-    elif days_until_joining == -7:
+    if days_until_joining <= -7:
         logger.info(f"[ADMIN ACTION] DOJ + 7 for {app.candidate_name}. Checking BGV status.")
-        try:
-            bgv = CandidateBGV.objects.get(candidate=app)
-            if bgv.status not in ['clear', 'verified']:
+        designation_name = app.job.mrf.designation.name.lower() if (
+            app.job and app.job.mrf and app.job.mrf.designation
+        ) else ""
+        is_intern = 'intern' in designation_name
+        
+        if not app.is_escalated and not is_intern:
+            try:
+                bgv = CandidateBGV.objects.get(candidate=app)
+                if bgv.status not in ['clear', 'verified']:
+                    app.is_escalated = True
+                    app.save(update_fields=['is_escalated'])
+                    notify_internal(app, "bgv_escalation")
+            except CandidateBGV.DoesNotExist:
                 app.is_escalated = True
                 app.save(update_fields=['is_escalated'])
                 notify_internal(app, "bgv_escalation")
-        except CandidateBGV.DoesNotExist:
-            app.is_escalated = True
-            app.save(update_fields=['is_escalated'])
-            notify_internal(app, "bgv_escalation")
         create_milestone_tasks(app, "DOJ_PLUS_7_BGV", joining_date)
 
     days_past = abs(days_until_joining) if days_until_joining < 0 else 0

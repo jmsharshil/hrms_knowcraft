@@ -3239,7 +3239,10 @@ class OnboardingJourneyAPI(APIView):
             _DEBUG_MINUTE_MAP = {0: 15, 1: 7, 2: 2, 3: 0, 4: -1, 5: -7, 6: -30, 7: -45, 8: -90}
             minutes_since_creation = int((tz.now() - application.created_at).total_seconds() / 60)
             days_until_joining = _DEBUG_MINUTE_MAP.get(minutes_since_creation, 999)
-            days_since_joining = -days_until_joining  # positive = past DOJ, negative = pre-DOJ
+            if days_until_joining != 999:
+                days_since_joining = -days_until_joining  # positive = past DOJ, negative = pre-DOJ
+            else:
+                days_since_joining = (today - joining_date).days if joining_date else None
         else:
             days_since_joining = (today - joining_date).days if joining_date else None
 

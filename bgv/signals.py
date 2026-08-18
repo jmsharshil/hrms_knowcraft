@@ -208,6 +208,15 @@ def trigger_bgv_on_offer_accepted(sender, instance, created, **kwargs):
     if instance.status != "offer_accepted":
         return
 
+    # Skip BGV if the designation is intern
+    designation_name = instance.job.mrf.designation.name.lower() if (
+        instance.job and instance.job.mrf and instance.job.mrf.designation
+    ) else ""
+    
+    if "intern" in designation_name:
+        logger.info(f"Skipping BGV for Intern candidate: {instance.candidate_name}")
+        return
+
     # Allow re-initiation only if the previous attempt failed
     existing_bgv = CandidateBGV.objects.filter(candidate=instance).first()
     if existing_bgv and existing_bgv.status not in ("failed",):
