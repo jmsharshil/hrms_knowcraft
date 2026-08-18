@@ -696,6 +696,9 @@ class JobApplication(models.Model):
     is_doj_minus_15_triggered = models.BooleanField(default=False)
     is_doj_minus_7_triggered = models.BooleanField(default=False)
     is_doj_minus_2_triggered = models.BooleanField(default=False)
+    is_doj_0_triggered = models.BooleanField(default=False)
+    is_doj_7_triggered = models.BooleanField(default=False)
+    is_doj_45_triggered = models.BooleanField(default=False)
     
     technical_buddy_email = models.EmailField(null=True, blank=True)
     technical_buddy_name = models.CharField(max_length=255, null=True, blank=True)

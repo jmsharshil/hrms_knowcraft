@@ -3379,42 +3379,59 @@ class OnboardingJourneyAPI(APIView):
             {
                 "key": "doj_minus_15",
                 "label": "Day -15 — IT Provisioning Update",
-                "completed": days_since_joining is not None and days_since_joining >= -15,
+                "completed": bool(application.is_doj_minus_15_triggered),
                 "detail": "VPN/Asset task updated",
                 "emails_sent": "IT Team (internal)",
             },
             {
                 "key": "doj_minus_7",
                 "label": "Day -7 — HOD / Admin Notification",
-                "completed": days_since_joining is not None and days_since_joining >= -7,
-                "detail": "Desk/ID card task created",
+                "completed": bool(application.is_doj_minus_7_triggered),
+                "detail": "HOD notified, Admin tasks created",
                 "emails_sent": "HOD (internal), Admin Team (internal)",
             },
             {
                 "key": "doj_minus_2",
                 "label": "Day -2 — Welcome Email",
-                "completed": days_since_joining is not None and days_since_joining >= -2,
+                "completed": bool(application.is_doj_minus_2_triggered),
                 "detail": None,
                 "emails_sent": candidate_personal_email,
             },
             {
                 "key": "joined",
                 "label": "Day 0 — Joined & Account Activation",
-                "completed": application.status == "joined",
+                "completed": application.status == "joined" or bool(application.is_doj_0_triggered),
                 "detail": "Buddy Assigned, Account Activated",
                 "emails_sent": f"{candidate_email_display}" + (f", Buddies: {buddy_emails}" if buddy_emails != "Not assigned" else ""),
             },
             {
                 "key": "doj_0_esign",
-                "label": "Day 0 / +1 — E-Sign Documents",
+                "label": "Day 0 / +1 — E-Sign Documents Sent",
                 "completed": getattr(application, 'is_esign_packet_generated', False),
-                "detail": "Statutory Forms",
+                "detail": "Statutory Forms dispatched to Zoho Sign",
                 "emails_sent": candidate_email_display,
+            },
+            {
+                "key": "doj_0_esign_signed",
+                "label": "Day 0 / +1 — E-Sign Documents Signed",
+                # True only when all sent docs are actually signed — none stuck in sent/reminded
+                "completed": (
+                    DocumentEsignTask.objects.filter(
+                        job_application=application,
+                        status__in=['sent', 'reminded', 'signed', 'completed']
+                    ).exists()
+                    and not DocumentEsignTask.objects.filter(
+                        job_application=application,
+                        status__in=['sent', 'reminded']
+                    ).exists()
+                ),
+                "detail": "All statutory documents signed",
+                "emails_sent": "None (signed by candidate via Zoho Sign)",
             },
             {
                 "key": "doj_plus_7",
                 "label": "Day +7 — BGV Status Check",
-                "completed": days_since_joining is not None and days_since_joining >= 7,
+                "completed": bool(application.is_doj_7_triggered),
                 "detail": "Escalated" if application.is_escalated else "Clear",
                 "emails_sent": "HR Team (internal — only if BGV unclear)",
             },
@@ -3435,14 +3452,16 @@ class OnboardingJourneyAPI(APIView):
             {
                 "key": "hod_survey_filled",
                 "label": "Day +30 — HOD Survey Filled",
-                "completed": application.is_hod_survey_filled,
+                # True only when the HOD actually submits responses — not just when the email was sent
+                "completed": bool(survey_map.get("hod") and survey_map["hod"].responses),
                 "detail": None,
                 "emails_sent": "None (submitted by HOD)",
             },
             {
                 "key": "d45_call_scheduled",
                 "label": "Day +45 — Check-in Call Scheduled",
-                "completed": application.is_d45_call_scheduled,
+                # True only when HR actually books the call (OnboardingCall record with a start_time)
+                "completed": bool(d45_call and d45_call.start_time),
                 "detail": str(d45_call.start_time) if d45_call and d45_call.start_time else None,
                 "emails_sent": f"Candidate: {candidate_email_display}, HR (internal calendar invite)",
             },
@@ -3463,7 +3482,8 @@ class OnboardingJourneyAPI(APIView):
             {
                 "key": "d90_call_scheduled",
                 "label": "Day +90 — Final Review Scheduled",
-                "completed": application.is_d90_call_scheduled,
+                # True only when HR actually books the call (OnboardingCall record with a start_time)
+                "completed": bool(d90_call and d90_call.start_time),
                 "detail": str(d90_call.start_time) if d90_call and d90_call.start_time else None,
                 "emails_sent": f"Candidate: {candidate_email_display}, HR (internal calendar invite)",
             },

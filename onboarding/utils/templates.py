@@ -1534,11 +1534,42 @@ HTML_TEMPLATES.update({
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
                         <tr>
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
-                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Your Joining Day Is Almost Here!</h2>
-                                <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
-                                <p style="margin:0 0 16px 0;">We are thrilled to welcome you to the Knowcraft Analytics family! Your official Date of Joining is just <strong>2 days away</strong>.</p>
-                                <p style="margin:0 0 16px 0;">Please ensure you carry all <strong>original documents</strong> on your first day. Our HR team will be there to guide you through the formalities.</p>
-                                <p style="margin:0 0 16px 0;">We look forward to seeing you!</p>
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Welcome to Knowcraft!</h2>
+                                <p style="margin:0 0 16px 0;">Hi {{candidate.candidate_name}},</p>
+                                <p style="margin:0 0 16px 0;">We’re excited to have you join our team and look forward to the energy, ideas, and perspective you’ll bring. Your journey with us begins at our Gurugram office — and we’re here to make your first day comfortable, engaging, and meaningful.</p>
+                                
+                                <h3 style="margin:20px 0 10px 0;color:#1f2937;font-size:18px;">Joining Details</h3>
+                                <p style="margin:0 0 8px 0;"><strong>Location:</strong> Gurugram</p>
+                                <p style="margin:0 0 8px 0;"><strong>Office Address:</strong> 07th Floor, Gate No. 04, Ambience Island, NH 48, Gurugram, 122002</p>
+                                <p style="margin:0 0 8px 0;"><strong>DOJ:</strong> {{candidate.joining_date}}</p>
+                                <p style="margin:0 0 16px 0;"><strong>Reporting Time:</strong> 10:30 AM</p>
+                                <p style="margin:0 0 16px 0;"><strong>Point of Contact:</strong> Radhika Mittal</p>
+                                
+                                <h3 style="margin:20px 0 10px 0;color:#1f2937;font-size:18px;">Life at Knowcraft</h3>
+                                <p style="margin:0 0 16px 0;"><strong>What We Value</strong><br>At Knowcraft, our culture is built on:<br>
+                                - <strong>Ownership & Accountability</strong> – We trust you to take charge of your work<br>
+                                - <strong>Continuous Learning</strong> – Curiosity and growth are part of our everyday<br>
+                                - <strong>Collaboration</strong> – Great ideas come from working together<br>
+                                - <strong>Integrity & Respect</strong> – We value transparency and people-first thinking<br>
+                                We believe in creating an environment where you can learn, contribute, and thrive.</p>
+                                
+                                <h3 style="margin:20px 0 10px 0;color:#1f2937;font-size:18px;">What to Expect on Your First Day</h3>
+                                <p style="margin:0 0 16px 0;">Your first day is all about getting you settled in:<br>
+                                - A warm welcome and introduction to the team<br>
+                                - A quick walkthrough of our company, processes, and tools<br>
+                                - Assistance with documentation and formalities<br>
+                                - Setting up your workspace and systems<br>
+                                - An overview of your role and initial expectations<br>
+                                Don’t worry — you won’t be expected to know everything on day one. We’re here to support you every step of the way.</p>
+                                
+                                <h3 style="margin:20px 0 10px 0;color:#1f2937;font-size:18px;">A Few Friendly Tips</h3>
+                                <p style="margin:0 0 16px 0;">- Come with an open mind and questions — curiosity is always welcome<br>
+                                - Take your time to absorb the new environment<br>
+                                - Don’t hesitate to reach out — everyone here is happy to help</p>
+                                
+                                <h3 style="margin:20px 0 10px 0;color:#1f2937;font-size:18px;">A Thought to Start With</h3>
+                                <p style="margin:0 0 16px 0;">“Great journeys begin with a single step — and we’re glad you’re taking that step with us.”</p>
+                                <p style="margin:0 0 16px 0;">If you have any questions before your joining day, feel free to reach out. We’re happy to assist. Looking forward to meeting you and kicking off this exciting journey together!</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
@@ -1816,16 +1847,11 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                         <!-- Content -->
                         <tr>
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
-                                <h2 style="margin:0 0 22px 0;color:#dc2626;font-size:24px;font-weight:600;">
-                                    ESCALATION: BGV Pending
-                                </h2>
-                                <p style="margin:0 0 16px 0;">Dear HR Team,</p>
-                                <p style="margin:0 0 16px 0;">
-                                    This is an automated escalation. The Background Verification (BGV) for candidate <strong>{{candidate.candidate_name}}</strong> is currently not marked as clear, and they have already crossed the 7-day post-joining threshold.
-                                </p>
-                                <p style="margin:0 0 16px 0;">
-                                    Please review their file immediately and resolve this escalation to unblock their onboarding flow.
-                                </p>
+                                <p style="margin:0 0 16px 0;">Hi Team,</p>
+                                <p style="margin:0 0 16px 0;">Kindly find my remarks below.</p>
+                                <p style="margin:0 0 8px 0;"><strong>Name of the crafter:</strong> {{candidate.candidate_name}}</p>
+                                <p style="margin:0 0 8px 0;"><strong>Designation:</strong> {{candidate.job.mrf.designation.name}}</p>
+                                <p style="margin:0 0 16px 0;"><strong>Department:</strong> {{candidate.job.mrf.department.name}}</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
@@ -1906,16 +1932,11 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                         <!-- Content -->
                         <tr>
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
-                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">
-                                    Upcoming Team Member Joining
-                                </h2>
-                                <p style="margin:0 0 16px 0;">Dear HOD,</p>
+                                <p style="margin:0 0 16px 0;">Hi {{candidate.job.mrf.requested_by.first_name|default:'HOD'}},</p>
                                 <p style="margin:0 0 16px 0;">
-                                    This is a reminder that candidate <strong>{{candidate.candidate_name}}</strong> will be joining your department in 7 days.
+                                    Kindly find below the details of the new joiner who will be joining us on {{candidate.joining_date}}, in the {{candidate.job.mrf.department.name}} group. Request you to please update the required information accordingly.
                                 </p>
-                                <p style="margin:0 0 16px 0;">
-                                    We are currently coordinating with the Admin team to prepare their desk and onboarding materials.
-                                </p>
+                                <p style="margin:0 0 16px 0;">Let me know in case of any concerns.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>

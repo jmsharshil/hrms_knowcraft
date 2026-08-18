@@ -296,10 +296,10 @@ def run_onboarding_check_for_candidate(app):
         if app.job and app.job.job_type == 'work_from_office':
             notify_internal(app, "doj_minus_7_hod")
             notify_internal(app, "doj_minus_7_admin")
-        else:
-            if app.it_ticket_ref:
-                note = f"DOJ is in 7 days ({joining_date}). Remote joiner. Please arrange laptop dispatch."
-                me_client.update_ticket(app.it_ticket_ref, {}, note=note)
+        # else:
+            # if app.it_ticket_ref:
+            #     note = f"DOJ is in 7 days ({joining_date}). Remote joiner. Please arrange laptop dispatch."
+            # me_client.update_ticket(app.it_ticket_ref, {}, note=note)
         create_milestone_tasks(app, "DOJ_MINUS_7", joining_date)
         app.is_doj_minus_7_triggered = True
         app.save(update_fields=['is_doj_minus_7_triggered'])
@@ -309,24 +309,26 @@ def run_onboarding_check_for_candidate(app):
     if days_until_joining <= 2 and not getattr(app, 'is_doj_minus_2_triggered', False) and app.status != "joined":
         logger.info(f"[ADMIN ACTION] DOJ - 2 for {app.candidate_name}. Welcome email.")
         notify_candidate(app, "welcome_joining", cc=[])
-        if app.it_ticket_ref and app.job and app.job.job_type != 'work_from_office':
-            me_client.update_ticket(app.it_ticket_ref, {}, note="DOJ is in 2 days. Finalize VPN/dispatch tasks.")
+        # if app.it_ticket_ref and app.job and app.job.job_type != 'work_from_office':
+            # me_client.update_ticket(app.it_ticket_ref, {}, note="DOJ is in 2 days. Finalize VPN/dispatch tasks.")
             
         app.is_doj_minus_2_triggered = True
         app.save(update_fields=['is_doj_minus_2_triggered'])
 
     # ── DOJ 0 — Statutory docs + e-sign packet ─────────────────────────────
-    if days_until_joining <= 0:
+    if days_until_joining <= 0 and not getattr(app, 'is_doj_0_triggered', False):
         is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
         if (app.status == "joined" or is_debug) and not getattr(app, 'is_esign_packet_generated', False):
             logger.info(f"[ADMIN ACTION] DOJ 0 for {app.candidate_name}. Generating esign doc records.")
             generate_esign_documents(app)
-            app.is_esign_packet_generated = True
-            app.save(update_fields=['is_esign_packet_generated'])
-            create_milestone_tasks(app, "DOJ_0_DOCS", joining_date)
-            
+            # app.is_esign_packet_generated = True
+            # app.save(update_fields=['is_esign_packet_generated'])
+            # create_milestone_tasks(app, "DOJ_0_DOCS", joining_date)
+
         if getattr(app, 'is_esign_packet_generated', False) and not is_debug:
             send_documents_for_esign(app)
+        app.is_doj_0_triggered = True
+        app.save(update_fields=['is_doj_0_triggered'])
 
     # ── DOJ + 1 Day — esign reminder ────────────────────────────────────────
     if days_until_joining <= -1:
@@ -341,14 +343,14 @@ def run_onboarding_check_for_candidate(app):
             create_milestone_tasks(app, "DOJ_PLUS_1_ESIGN_REMINDER", joining_date)
 
     # ── DOJ + 7 Days — BGV check ────────────────────────────────────────────
-    if days_until_joining <= -7:
+    if days_until_joining <= -7 and not getattr(app, 'is_doj_7_triggered', False):
         logger.info(f"[ADMIN ACTION] DOJ + 7 for {app.candidate_name}. Checking BGV status.")
         designation_name = app.job.mrf.designation.name.lower() if (
             app.job and app.job.mrf and app.job.mrf.designation
         ) else ""
         is_intern = 'intern' in designation_name
         is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
-        
+
         if not is_debug and not app.is_escalated and not is_intern:
             try:
                 bgv = CandidateBGV.objects.get(candidate=app)
@@ -361,6 +363,8 @@ def run_onboarding_check_for_candidate(app):
                 app.save(update_fields=['is_escalated'])
                 notify_internal(app, "bgv_escalation")
         create_milestone_tasks(app, "DOJ_PLUS_7_BGV", joining_date)
+        app.is_doj_7_triggered = True
+        app.save(update_fields=['is_doj_7_triggered'])
 
     days_past = abs(days_until_joining) if days_until_joining < 0 else 0
 
@@ -370,7 +374,7 @@ def run_onboarding_check_for_candidate(app):
         notify_candidate(app, "satisfaction_survey", cc=[])
         app.is_d30_survey_sent = True
         app.save(update_fields=['is_d30_survey_sent'])
-        create_milestone_tasks(app, "DOJ_PLUS_30_SURVEY", joining_date)
+        # create_milestone_tasks(app, "DOJ_PLUS_30_SURVEY", joining_date)
 
     if days_past >= 30 and not getattr(app, 'is_hod_survey_filled', False):
         logger.info(f"[ADMIN ACTION] DOJ + {days_past} for {app.candidate_name}. Sending HOD survey.")
@@ -390,17 +394,14 @@ def run_onboarding_check_for_candidate(app):
             logger.warning(f"[ADMIN ACTION] Could not determine seniority for {app.candidate_name}: {e}")
         hod_stage = "satisfaction_survey_hod_senior" if is_senior else "satisfaction_survey_hod_junior"
         notify_internal(app, hod_stage)
-        app.is_hod_survey_filled = True
-        app.save(update_fields=['is_hod_survey_filled'])
-
+    
     # ── DOJ + 45 Days ───────────────────────────────────────────────────────
     if days_past >= 45 and not getattr(app, 'is_d45_call_scheduled', False):
         logger.info(f"[ADMIN ACTION] DOJ + {days_past} for {app.candidate_name}. D45 check-in reminder.")
         notify_internal(app, "schedule_checkin_call_reminder")
-        create_milestone_tasks(app, "DOJ_PLUS_45_CHECKIN", joining_date)
-        app.is_d45_call_scheduled = True
-        app.save(update_fields=['is_d45_call_scheduled'])
-
+        app.is_doj_45_triggered = True
+        app.save(update_fields=['is_doj_45_triggered'])
+    
     # ── DOJ + 90 Days ───────────────────────────────────────────────────────
     if days_past >= 90 and not getattr(app, 'is_d90_survey_sent', False):
         logger.info(f"[ADMIN ACTION] DOJ + {days_past} for {app.candidate_name}. Sending 90-day survey.")
