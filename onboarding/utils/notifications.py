@@ -1360,9 +1360,15 @@ Knowcraft Analytics Private Limited""",
     },
     "buddy_assigned": {
         "receivers": ["hr", "department_head"],
-        "subject": "Technical & Cultural Buddy Assigned",
+        "subject": "Buddy Program | New Joiner Buddy Assignment",
         "body": "Buddies have been assigned to {candidate.candidate_name}. Please ensure they connect within first week.",
         "sms": "Buddies assigned for new joiner {candidate.candidate_name}.",
+    },
+    "work_email_reminder": {
+        "receivers": ["hr", "admin", "department_head"],
+        "subject": "Action Required: Work Email Not Set for New Joiner",
+        "body": "The work email for {candidate.candidate_name} has not been configured yet. Please set it up in the HRMS to enable document signing and survey delivery.",
+        "sms": "Work email missing for {candidate.candidate_name}. Please set it up in HRMS.",
     },
     "it_team_ticket_created": {
         "receivers": ["it_team", "admin"],
@@ -1453,9 +1459,14 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
             # =========================
             if role == 'department_head':
                 if mrf:
+                    # Try requested_by first regardless of their system role
                     user = getattr(mrf, "requested_by", None)
-                    if user and user.role == 'department_head':
+                    if user:
                         add_user(user)
+                    # Also try the requested_by_email field if it exists
+                    hod_email = mrf.requested_by.email if getattr(mrf, "requested_by", None) and getattr(mrf.requested_by,"email",None) else None
+                    if hod_email:
+                        add_email(hod_email)
                 continue
 
             # =========================

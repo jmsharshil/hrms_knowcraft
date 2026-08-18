@@ -2321,32 +2321,72 @@ class AssignBuddyAPI(APIView):
         try:
             from onboarding.utils.sender import send_email
             from onboarding.utils.templates import NOTIFY_INTERNAL_HTML_TEMPLATES
-            html_template = NOTIFY_INTERNAL_HTML_TEMPLATES.get('buddy_assigned', '<p>Buddy assigned.</p>')
-            
+
+            buddy_template = NOTIFY_INTERNAL_HTML_TEMPLATES.get('buddy_assigned', '<p>Buddy assigned.</p>')
+            candidate_buddy_template = NOTIFY_INTERNAL_HTML_TEMPLATES.get('candidate_buddy_info', '<p>Buddy info.</p>')
+
+            # ── Email to Technical Buddy ──────────────────────────────────────
             if technical_buddy_email:
                 send_email(
                     to=technical_buddy_email,
-                    subject="You have been assigned as a Technical Buddy",
-                    text="You have been assigned as a Technical Buddy for " + application.candidate_name,
-                    template=html_template.format(candidate=application, reciever_name=technical_buddy_name or "Team"),
+                    subject=f"Buddy Program | You've been assigned as Technical Buddy for {application.candidate_name}",
+                    text=f"You have been assigned as the Technical Buddy for {application.candidate_name}.",
+                    template=buddy_template.format(
+                        candidate=application,
+                        reciever_name=technical_buddy_name or "Team",
+                        buddy_type="Technical",
+                    ),
                     event="buddy_assigned",
                     email_type="internal",
                     candidate=application
                 )
+
+            # ── Email to Cultural Buddy ───────────────────────────────────────
             if cultural_buddy_email:
                 send_email(
                     to=cultural_buddy_email,
-                    subject="You have been assigned as a Cultural Buddy",
-                    text="You have been assigned as a Cultural Buddy for " + application.candidate_name,
-                    template=html_template.format(candidate=application, reciever_name=cultural_buddy_name or "Team"),
+                    subject=f"Buddy Program | You've been assigned as Cultural Buddy for {application.candidate_name}",
+                    text=f"You have been assigned as the Cultural Buddy for {application.candidate_name}.",
+                    template=buddy_template.format(
+                        candidate=application,
+                        reciever_name=cultural_buddy_name or "Team",
+                        buddy_type="Cultural",
+                    ),
                     event="buddy_assigned",
                     email_type="internal",
                     candidate=application
                 )
+
+            # ── Buddy info email to Candidate ─────────────────────────────────
+            candidate_email_addr = application.work_email or application.candidate_email
+            if candidate_email_addr and (technical_buddy_email or cultural_buddy_email):
+                send_email(
+                    to=candidate_email_addr,
+                    subject="Buddy Program | Knowcraft Analytics",
+                    text=f"We are pleased to introduce your buddies who will help you settle in at Knowcraft.",
+                    template=candidate_buddy_template.format(
+                        candidate=application,
+                        technical_buddy_name=application.technical_buddy_name or "—",
+                        technical_buddy_email=application.technical_buddy_email or "—",
+                        cultural_buddy_name=application.cultural_buddy_name or "—",
+                        cultural_buddy_email=application.cultural_buddy_email or "—",
+                    ),
+                    event="buddy_assigned",
+                    email_type="candidate",
+                    candidate=application
+                )
+
+            # ── Work email reminder if not set ────────────────────────────────
+            if not application.work_email:
+                try:
+                    from onboarding.utils.notifications import notify_internal
+                    notify_internal(application, "work_email_reminder")
+                except Exception as we:
+                    logger.warning(f"Could not send work_email_reminder: {we}")
+
         except Exception as e:
-            print("BUDDY ERROR:", e)
-            logger.error(f"Error notifying buddies: {e}")
-        
+            logger.error(f"Error in buddy assignment emails for {application.candidate_name}: {e}")
+
         return Response({"message": "Buddies assigned successfully"}, status=status.HTTP_200_OK)
 
 BINARY_OPTIONS = ["agree", "disagree"]
@@ -3407,23 +3447,17 @@ class OnboardingJourneyAPI(APIView):
             {
                 "key": "doj_0_esign",
                 "label": "Day 0 / +1 — E-Sign Documents Sent",
-                "completed": getattr(application, 'is_esign_packet_generated', False),
+                "completed": DocumentEsignTask.objects.filter(job_application=application).exclude(status='pending').exists(),
                 "detail": "Statutory Forms dispatched to Zoho Sign",
                 "emails_sent": candidate_email_display,
             },
             {
                 "key": "doj_0_esign_signed",
                 "label": "Day 0 / +1 — E-Sign Documents Signed",
-                # True only when all sent docs are actually signed — none stuck in sent/reminded
+                # True if at least one doc is uploaded/sent AND ALL uploaded docs are signed
                 "completed": (
-                    DocumentEsignTask.objects.filter(
-                        job_application=application,
-                        status__in=['sent', 'reminded', 'signed', 'completed']
-                    ).exists()
-                    and not DocumentEsignTask.objects.filter(
-                        job_application=application,
-                        status__in=['sent', 'reminded']
-                    ).exists()
+                    DocumentEsignTask.objects.filter(job_application=application).exclude(status='pending').exists()
+                    and not DocumentEsignTask.objects.filter(job_application=application).exclude(status__in=['pending', 'signed', 'completed']).exists()
                 ),
                 "detail": "All statutory documents signed",
                 "emails_sent": "None (signed by candidate via Zoho Sign)",

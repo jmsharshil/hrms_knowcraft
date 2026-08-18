@@ -2444,10 +2444,19 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
                         <tr>
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
-                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Technical &amp; Cultural Buddy Assigned</h2>
-                                <p style="margin:0 0 16px 0;">Dear {{reciever_name}},</p>
-                                <p style="margin:0 0 16px 0;">You have been assigned as a buddy for the new joiner <strong>{{candidate.candidate_name}}</strong>.</p>
-                                <p style="margin:0 0 16px 0;">Please connect with them during their first week to help them settle in, answer questions, and make them feel welcome at Knowcraft Analytics.</p>
+                                <p style="margin:0 0 16px 0;">Hi {{reciever_name}},</p>
+                                <p style="margin:0 0 16px 0;">You have been assigned as the <strong>{{buddy_type}} Buddy</strong> for our newest team member, <strong>{{candidate.candidate_name}}</strong>. We are excited to have them on board and know you will make their integration seamless and enjoyable.</p>
+                                <p style="margin:0 0 16px 0;">As their {{buddy_type}} Buddy, your role is to be their go-to person for questions, guidance, and support during their initial weeks here.</p>
+                                <p style="margin:0 0 10px 0;"><strong>You can expect to:</strong></p>
+                                <ol style="margin:0 0 16px 0;padding-left:20px;">
+                                    <li style="margin-bottom:6px;">Introduce yourself and schedule an informal meeting during their first week.</li>
+                                    <li style="margin-bottom:6px;">Provide an overview of our company culture, values, and workplace practices.</li>
+                                    <li style="margin-bottom:6px;">Assist them in setting up their workspace, email, and other essential tools.</li>
+                                    <li style="margin-bottom:6px;">Accompany them to team meetings and introduce them to other team members.</li>
+                                    <li style="margin-bottom:6px;">Offer insights into their projects and help them get up to speed with role responsibilities.</li>
+                                    <li style="margin-bottom:6px;">Be available for regular catchups and check-ins to ensure their smooth integration.</li>
+                                </ol>
+                                <p style="margin:0 0 16px 0;">We encourage open communication. If you have any questions or need support during this process, please reach out to HR directly.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
@@ -2456,7 +2465,111 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                         </tr>
                         <tr>
                             <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                                &copy; 2026 Knowcraft Analytics Private Limited &bull; Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """,
+
+    "candidate_buddy_info": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Welcome to the Buddy Program!</h2>
+                                <p style="margin:0 0 16px 0;">Hi {{candidate.candidate_name}},</p>
+                                <p style="margin:0 0 16px 0;">On behalf of the entire team, I would like to extend a warm welcome to you as our newest member. We are excited to have you on board and look forward to making your integration into our company a seamless and enjoyable experience.</p>
+                                <p style="margin:0 0 16px 0;">To help you settle in and get acquainted with our company culture, processes, and your role, we have implemented a <strong>Buddy Program</strong>. The Buddy Program pairs you with experienced colleagues who will be your go-to persons for any questions, guidance, and support during your initial weeks here.</p>
+                                <p style="margin:0 0 10px 0;"><strong>Your Buddies are:</strong></p>
+                                <table border="0" cellpadding="8" cellspacing="0" width="100%" style="border:1px solid #e2e8f0;border-radius:8px;margin-bottom:16px;">
+                                    <tr style="background:#f8fafc;">
+                                        <td style="font-weight:600;color:#1f2937;">Technical Buddy</td>
+                                        <td><strong>{{technical_buddy_name}}</strong><br><a href="mailto:{{technical_buddy_email}}" style="color:#2563eb;">{{technical_buddy_email}}</a></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight:600;color:#1f2937;">Cultural Buddy</td>
+                                        <td><strong>{{cultural_buddy_name}}</strong><br><a href="mailto:{{cultural_buddy_email}}" style="color:#2563eb;">{{cultural_buddy_email}}</a></td>
+                                    </tr>
+                                </table>
+                                <p style="margin:0 0 10px 0;"><strong>You can expect your Buddies to:</strong></p>
+                                <ol style="margin:0 0 16px 0;padding-left:20px;">
+                                    <li style="margin-bottom:6px;">Introduce themselves and schedule an informal meeting during your first week.</li>
+                                    <li style="margin-bottom:6px;">Provide an overview of our company culture, values, and workplace practices.</li>
+                                    <li style="margin-bottom:6px;">Assist you in setting up your workspace, email, and other essential tools.</li>
+                                    <li style="margin-bottom:6px;">Accompany you to team meetings and introduce you to other team members.</li>
+                                    <li style="margin-bottom:6px;">Offer insights into the projects you'll be working on and help you get up to speed with your role responsibilities.</li>
+                                    <li style="margin-bottom:6px;">Be available for regular catchups and check-ins to ensure your smooth integration.</li>
+                                </ol>
+                                <p style="margin:0 0 16px 0;">We encourage open communication. If you have not been contacted by them or have any queries, please reach out to our HR department directly.</p>
+                                <p style="margin:0 0 16px 0;">Once again, we are delighted to have you as part of our team. <strong>Welcome aboard!</strong></p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                &copy; 2026 Knowcraft Analytics Private Limited &bull; Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """,
+
+    "work_email_reminder": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#dc2626;font-size:24px;font-weight:600;">Action Required: Work Email Not Set</h2>
+                                <p style="margin:0 0 16px 0;">Dear {{reciever_name}},</p>
+                                <p style="margin:0 0 16px 0;">The work email for <strong>{{candidate.candidate_name}}</strong> has not been configured in the HRMS system yet.</p>
+                                <p style="margin:0 0 16px 0;">A work email is required to:</p>
+                                <ul style="margin:0 0 16px 0;padding-left:20px;">
+                                    <li style="margin-bottom:6px;">Send statutory e-sign documents via Zoho Sign</li>
+                                    <li style="margin-bottom:6px;">Deliver 30-day and 90-day satisfaction surveys</li>
+                                    <li style="margin-bottom:6px;">Enable onboarding task communications</li>
+                                </ul>
+                                <p style="margin:0 0 16px 0;">Please set the work email in the HRMS at the earliest to avoid delays in the onboarding process.</p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR (Automated)</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                &copy; 2026 Knowcraft Analytics Private Limited &bull; Confidential
                             </td>
                         </tr>
                     </table>
