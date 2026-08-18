@@ -288,6 +288,7 @@ def run_onboarding_check_for_candidate(app):
         create_milestone_tasks(app, "DOJ_MINUS_15", joining_date)
         app.is_doj_minus_15_triggered = True
         app.save(update_fields=['is_doj_minus_15_triggered'])
+        app.refresh_from_db(fields=['is_doj_minus_7_triggered', 'is_doj_minus_2_triggered'])
 
     # ── DOJ - 7 Days ────────────────────────────────────────────────────────
     if days_until_joining <= 7 and not getattr(app, 'is_doj_minus_7_triggered', False) and app.status != "joined":
@@ -302,6 +303,7 @@ def run_onboarding_check_for_candidate(app):
         create_milestone_tasks(app, "DOJ_MINUS_7", joining_date)
         app.is_doj_minus_7_triggered = True
         app.save(update_fields=['is_doj_minus_7_triggered'])
+        app.refresh_from_db(fields=['is_doj_minus_2_triggered'])
 
     # ── DOJ - 2 Days ────────────────────────────────────────────────────────
     if days_until_joining <= 2 and not getattr(app, 'is_doj_minus_2_triggered', False) and app.status != "joined":
@@ -315,18 +317,23 @@ def run_onboarding_check_for_candidate(app):
 
     # ── DOJ 0 — Statutory docs + e-sign packet ─────────────────────────────
     if days_until_joining <= 0:
-        if app.status == "joined" and not getattr(app, 'is_esign_packet_generated', False):
+        is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
+        if (app.status == "joined" or is_debug) and not getattr(app, 'is_esign_packet_generated', False):
             logger.info(f"[ADMIN ACTION] DOJ 0 for {app.candidate_name}. Generating esign doc records.")
             generate_esign_documents(app)
             app.is_esign_packet_generated = True
             app.save(update_fields=['is_esign_packet_generated'])
             create_milestone_tasks(app, "DOJ_0_DOCS", joining_date)
-        if getattr(app, 'is_esign_packet_generated', False):
+            
+        if getattr(app, 'is_esign_packet_generated', False) and not is_debug:
             send_documents_for_esign(app)
 
     # ── DOJ + 1 Day — esign reminder ────────────────────────────────────────
     if days_until_joining <= -1:
-        if getattr(app, 'is_esign_packet_generated', False) and not getattr(app, 'is_esign_reminder_sent', False):
+        is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
+        if is_debug:
+            logger.info(f"[ADMIN ACTION - DEBUG] DOJ + 1 esign reminder step passed for {app.candidate_name}.")
+        elif getattr(app, 'is_esign_packet_generated', False) and not getattr(app, 'is_esign_reminder_sent', False):
             logger.info(f"[ADMIN ACTION] DOJ + 1 for {app.candidate_name}. Checking unsigned esign docs.")
             send_esign_reminders(app)
             app.is_esign_reminder_sent = True
@@ -340,8 +347,9 @@ def run_onboarding_check_for_candidate(app):
             app.job and app.job.mrf and app.job.mrf.designation
         ) else ""
         is_intern = 'intern' in designation_name
+        is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
         
-        if not app.is_escalated and not is_intern:
+        if not is_debug and not app.is_escalated and not is_intern:
             try:
                 bgv = CandidateBGV.objects.get(candidate=app)
                 if bgv.status not in ['clear', 'verified']:
@@ -382,12 +390,16 @@ def run_onboarding_check_for_candidate(app):
             logger.warning(f"[ADMIN ACTION] Could not determine seniority for {app.candidate_name}: {e}")
         hod_stage = "satisfaction_survey_hod_senior" if is_senior else "satisfaction_survey_hod_junior"
         notify_internal(app, hod_stage)
+        app.is_hod_survey_filled = True
+        app.save(update_fields=['is_hod_survey_filled'])
 
     # ── DOJ + 45 Days ───────────────────────────────────────────────────────
     if days_past >= 45 and not getattr(app, 'is_d45_call_scheduled', False):
         logger.info(f"[ADMIN ACTION] DOJ + {days_past} for {app.candidate_name}. D45 check-in reminder.")
         notify_internal(app, "schedule_checkin_call_reminder")
         create_milestone_tasks(app, "DOJ_PLUS_45_CHECKIN", joining_date)
+        app.is_d45_call_scheduled = True
+        app.save(update_fields=['is_d45_call_scheduled'])
 
     # ── DOJ + 90 Days ───────────────────────────────────────────────────────
     if days_past >= 90 and not getattr(app, 'is_d90_survey_sent', False):

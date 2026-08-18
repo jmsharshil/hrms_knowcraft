@@ -339,7 +339,12 @@ class JobApplicationAdmin(admin.ModelAdmin):
             for application in to_process:
                 app_name = application.candidate_name
 
-                # ── 1. Transition to joining_pending → joined ──────────────
+                # ── 1. Transition to joining_pending if not already ────────
+                # We intentionally do NOT advance to 'joined' here.
+                # The simulation milestones (DOJ-15, DOJ-7, DOJ-2) require
+                # status != 'joined' to run. The DOJ 0 esign step uses a
+                # debug-mode bypass in onboarding_tasks.py so it works in
+                # 'joining_pending' status without needing a real join.
                 if application.status not in ('joining_pending', 'joined'):
                     old_status = application.status
                     application.status = 'joining_pending'
@@ -349,16 +354,6 @@ class JobApplicationAdmin(admin.ModelAdmin):
                         automation_engine(application, old_status, 'joining_pending')
                     except Exception as exc:
                         print(f"[FULL SIM] automation_engine error (→joining_pending): {exc}")
-                    time.sleep(2)
-
-                if application.status == 'joining_pending':
-                    application.status = 'joined'
-                    application.save(update_fields=['status'])
-                    print(f"[FULL SIM] {app_name}: joining_pending → joined")
-                    try:
-                        automation_engine(application, 'joining_pending', 'joined')
-                    except Exception as exc:
-                        print(f"[FULL SIM] automation_engine error (→joined): {exc}")
                     time.sleep(2)
 
                 # Reload fresh from DB so all flag values are current
