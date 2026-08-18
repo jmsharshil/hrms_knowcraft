@@ -91,13 +91,17 @@ def send_documents_for_esign(app):
 
 def send_esign_reminders(app):
     """
-    DOJ+1 reminder — only fires if unsigned docs remain (status not in signed/completed).
+    DOJ+1 reminder — only fires for docs that have actually been sent to Zoho Sign
+    (status='sent' or 'reminded') but are still unsigned. Docs that haven't been
+    uploaded yet (status='pending') are skipped; those are HR's responsibility.
     """
-    unsigned = app.esign_documents.exclude(status__in=["signed", "completed"])
-    if not unsigned.exists():
+    # Only remind about docs that HR has uploaded and sent — not ones pending upload
+    unsigned_sent = app.esign_documents.filter(status__in=["sent", "reminded"])
+    if not unsigned_sent.exists():
+        logger.info(f"Esign reminder skipped for {app.candidate_name}: no sent docs found (either none uploaded yet, or all already signed).")
         return
 
-    doc_names = [d.get_doc_type_display() for d in unsigned]
+    doc_names = [d.get_doc_type_display() for d in unsigned_sent]
     notify_candidate(app, "esign_reminder", cc=[], extra_context={"pending_docs": doc_names})
-    unsigned.filter(status="sent").update(status="reminded", reminder_sent_at=timezone.now())
+    unsigned_sent.update(status="reminded", reminder_sent_at=timezone.now())
     logger.info(f"Esign reminder sent to {app.candidate_name} for {len(doc_names)} pending docs")

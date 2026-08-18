@@ -41,6 +41,16 @@ def daily_onboarding_check():
 
     for app in candidates:
         if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
+            # Test Mode: Each milestone is exactly 1 minute apart.
+            # minute 0 → DOJ - 15
+            # minute 1 → DOJ -  7
+            # minute 2 → DOJ -  2
+            # minute 3 → DOJ    0
+            # minute 4 → DOJ +  1
+            # minute 5 → DOJ +  7
+            # minute 6 → DOJ + 30
+            # minute 7 → DOJ + 45
+            # minute 8 → DOJ + 90
             _DEBUG_MINUTE_MAP = {0: 15, 1: 7, 2: 2, 3: 0, 4: -1, 5: -7, 6: -30, 7: -45, 8: -90}
             minutes_since_creation = int((timezone.now() - app.created_at).total_seconds() / 60)
             days_until_joining = _DEBUG_MINUTE_MAP.get(minutes_since_creation, 999)
@@ -63,9 +73,10 @@ def daily_onboarding_check():
             create_milestone_tasks(app, "DOJ_MINUS_15", app.joining_date)
             app.is_doj_minus_15_triggered = True
             app.save(update_fields=['is_doj_minus_15_triggered'])
+            app.refresh_from_db(fields=['is_doj_minus_7_triggered', 'is_doj_minus_2_triggered'])
 
         # ── DOJ - 7 Days ────────────────────────────────────────
-        if days_until_joining <= 7 and not getattr(app, 'is_doj_minus_7_triggered', False) and app.status != "joined":
+        if days_until_joining <= 7 and not app.is_doj_minus_7_triggered and app.status != "joined":
             logger.info(f"DOJ - 7 for candidate {app.candidate_name}.")
             if app.job.job_type == 'work_from_office':
                 notify_internal(app, "doj_minus_7_hod")
@@ -78,9 +89,10 @@ def daily_onboarding_check():
             create_milestone_tasks(app, "DOJ_MINUS_7", app.joining_date)
             app.is_doj_minus_7_triggered = True
             app.save(update_fields=['is_doj_minus_7_triggered'])
+            app.refresh_from_db(fields=['is_doj_minus_2_triggered'])
 
         # ── DOJ - 2 Days ────────────────────────────────────────
-        if days_until_joining <= 2 and not getattr(app, 'is_doj_minus_2_triggered', False) and app.status != "joined":
+        if days_until_joining <= 2 and not app.is_doj_minus_2_triggered and app.status != "joined":
             logger.info(f"DOJ - 2 for candidate {app.candidate_name}. Welcome Email.")
             notify_candidate(app, "welcome_joining", cc=[])
 
@@ -101,19 +113,27 @@ def daily_onboarding_check():
         # it'll pick up uploaded files on a later cron pass since is_esign_packet_generated
         # only gates re-creating the rows, not re-sending.
         if days_until_joining <= 0:
-            if app.status == "joined" and not getattr(app, 'is_esign_packet_generated', False):
+            is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
+            # In debug simulation the status stays 'joining_pending'; bypass the joined gate
+            # so the simulation can proceed past DOJ 0.
+            if (app.status == "joined" or is_debug) and not getattr(app, 'is_esign_packet_generated', False):
                 logger.info(f"DOJ 0 for candidate {app.candidate_name}. Generating esign doc records.")
                 generate_esign_documents(app)
                 app.is_esign_packet_generated = True
                 app.save(update_fields=['is_esign_packet_generated'])
 
-            # Always attempt sending — catches docs HR uploaded after DOJ 0 fired
-            if getattr(app, 'is_esign_packet_generated', False):
+            # Always attempt sending — catches docs HR uploaded after DOJ 0 fired.
+            # In debug mode we skip the real Zoho API call.
+            if getattr(app, 'is_esign_packet_generated', False) and not is_debug:
                 send_documents_for_esign(app)
 
         # ── DOJ + 1 Day — esign reminder (real implementation, was a stub) ─────
         if days_until_joining <= -1:
-            if getattr(app, 'is_esign_packet_generated', False) and not getattr(app, 'is_esign_reminder_sent', False):
+            is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
+            # In debug mode skip the Zoho/esign check so simulation continues
+            if is_debug:
+                logger.info(f"[DEBUG] DOJ + 1 esign reminder step passed for {app.candidate_name}.")
+            elif getattr(app, 'is_esign_packet_generated', False) and not getattr(app, 'is_esign_reminder_sent', False):
                 logger.info(f"DOJ + 1 for candidate {app.candidate_name}. Checking for unsigned esign docs.")
                 send_esign_reminders(app)
                 app.is_esign_reminder_sent = True
@@ -129,8 +149,11 @@ def daily_onboarding_check():
                 app.job.mrf.designation
             ) else ""
             is_intern = 'intern' in designation_name
-            
-            if not app.is_escalated and not is_intern:  # Only raise escalation once; don't re-notify on re-runs
+            is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
+
+            # In debug simulation, skip the real BGV lookup so is_escalated stays False
+            # and downstream D30/D45/D90 milestones are not blocked.
+            if not is_debug and not app.is_escalated and not is_intern:
                 try:
                     bgv = CandidateBGV.objects.get(candidate=app)
                     if bgv.status not in ['clear', 'verified']:
@@ -149,13 +172,13 @@ def daily_onboarding_check():
             days_past = abs(days_until_joining)
 
         # ── DOJ + 30 Days ─────────────────────────────────────────
-        if days_past >= 30 and not app.is_escalated and not getattr(app, 'is_d30_survey_sent', False):
+        if days_past >= 30 and not getattr(app, 'is_d30_survey_sent', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending 30-day candidate survey reminder.")
             notify_candidate(app, "satisfaction_survey", cc=[])
             app.is_d30_survey_sent = True
             app.save(update_fields=['is_d30_survey_sent'])
 
-        if days_past >= 30 and not app.is_escalated and not getattr(app, 'is_hod_survey_filled', False):
+        if days_past >= 30 and not getattr(app, 'is_hod_survey_filled', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending HOD survey reminder.")
             is_senior = False
             try:
@@ -176,14 +199,18 @@ def daily_onboarding_check():
 
             hod_stage = "satisfaction_survey_hod_senior" if is_senior else "satisfaction_survey_hod_junior"
             notify_internal(app, hod_stage)
+            app.is_hod_survey_filled = True
+            app.save(update_fields=['is_hod_survey_filled'])
 
         # ── DOJ + 45 Days ───────────────────────
-        if days_past >= 45 and not app.is_escalated and not getattr(app, 'is_d45_call_scheduled', False):
+        if days_past >= 45 and not getattr(app, 'is_d45_call_scheduled', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Check-in invite reminder (D45).")
             notify_internal(app, "schedule_checkin_call_reminder")
+            app.is_d45_call_scheduled = True
+            app.save(update_fields=['is_d45_call_scheduled'])
 
         # ── DOJ + 90 Days ─────────────
-        if days_past >= 90 and not app.is_escalated and not getattr(app, 'is_d90_survey_sent', False):
+        if days_past >= 90 and not getattr(app, 'is_d90_survey_sent', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending 90-day survey + final review reminder.")
             notify_candidate(app, "d90_survey", cc=[])
             notify_internal(app, "schedule_final_review_reminder")
@@ -205,7 +232,7 @@ def daily_onboarding_check():
             app.is_d90_survey_sent = True
             app.save(update_fields=['is_d90_survey_sent'])
 
-        if days_past >= 90 and not app.is_escalated and app.it_ticket_ref and not getattr(app, 'it_ticket_closed', False):
+        if days_past >= 90 and app.it_ticket_ref and not getattr(app, 'it_ticket_closed', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Closing ManageEngine IT ticket.")
             if me_client.close_ticket(app.it_ticket_ref):
                 app.it_ticket_closed = True
