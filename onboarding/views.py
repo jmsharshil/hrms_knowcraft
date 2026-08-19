@@ -3780,6 +3780,39 @@ class GetManageEngineDesignationsAPI(APIView):
         designations = client.get_designations()
         return Response({"designations": designations}, status=status.HTTP_200_OK)
 
+class ManageEngineRequestersAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        from .utils.zoho_manageengine import ManageEngineClient
+        client = ManageEngineClient()
+        requesters = client.get_requesters()
+        return Response({"requesters": requesters}, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        from .utils.zoho_manageengine import ManageEngineClient
+        
+        requester_data = request.data.get("requester", {})
+        first_name = requester_data.get("first_name")
+        email_id = requester_data.get("email_id")
+        
+        if not first_name or not email_id:
+            return Response(
+                {"error": "requester object with first_name and email_id is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        client = ManageEngineClient()
+        requester = client.create_requester(first_name=first_name, email_id=email_id)
+        
+        if requester:
+            return Response({"requester": requester}, status=status.HTTP_201_CREATED)
+        else:
+            return Response(
+                {"error": "Failed to create requester in ManageEngine"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 class OnboardingTaskListViewSet(ModelViewSet):
     queryset = OnboardingTaskList.objects.all()
     serializer_class = OnboardingTaskListSerializer
