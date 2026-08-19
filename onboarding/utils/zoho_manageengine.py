@@ -434,6 +434,8 @@ class ManageEngineClient:
         
         try:
             response = requests.post(url, headers=headers, data=payload)
+            if response.status_code != 201 and response.status_code != 200:
+                logger.error(f"ME API Error ({response.status_code}): {response.text}")
             response.raise_for_status()
             data = response.json()
             if 'requester' in data and 'id' in data['requester']:
@@ -444,6 +446,7 @@ class ManageEngineClient:
                 return None
         except Exception as e:
             logger.exception(f"Error creating ManageEngine requester: {e}")
+            # If it's a requests HTTPError, it already logged the URL, but the response text is more useful
             return None
 
     def get_requesters(self):
