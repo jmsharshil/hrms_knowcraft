@@ -206,14 +206,28 @@ def daily_onboarding_check():
         if days_past >= 45 and not getattr(app, 'is_d45_call_scheduled', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Check-in invite reminder (D45).")
             notify_internal(app, "schedule_checkin_call_reminder")
-            app.is_d45_call_scheduled = True
-            app.save(update_fields=['is_d45_call_scheduled'])
+            app.d45_reminder_count = getattr(app, 'd45_reminder_count', 0) + 1
+            save_fields = ['d45_reminder_count']
+            if app.d45_reminder_count >= 5 and not getattr(app, 'is_d45_call_escalated', False):
+                logger.warning(f"D45 escalation for {app.candidate_name}: {app.d45_reminder_count} reminders sent, call not scheduled.")
+                notify_internal(app, "d45_call_not_scheduled_escalation")
+                app.is_d45_call_escalated = True
+                save_fields.append('is_d45_call_escalated')
+            app.save(update_fields=save_fields)
 
         # ── DOJ + 90 Days ─────────────
         if days_past >= 90 and not getattr(app, 'is_d90_survey_sent', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending 90-day survey + final review reminder.")
             notify_candidate(app, "d90_survey", cc=[])
             notify_internal(app, "schedule_final_review_reminder")
+            app.d90_reminder_count = getattr(app, 'd90_reminder_count', 0) + 1
+            d90_save_fields = ['d90_reminder_count']
+            if app.d90_reminder_count >= 5 and not getattr(app, 'is_d90_call_escalated', False):
+                logger.warning(f"D90 escalation for {app.candidate_name}: {app.d90_reminder_count} reminders sent, call not scheduled.")
+                notify_internal(app, "d90_call_not_scheduled_escalation")
+                app.is_d90_call_escalated = True
+                d90_save_fields.append('is_d90_call_escalated')
+            app.save(update_fields=d90_save_fields)
 
             try:
                 from onboarding.models import SurveyResponse
@@ -308,7 +322,19 @@ def run_onboarding_check_for_candidate(app):
     # ── DOJ - 2 Days ────────────────────────────────────────────────────────
     if days_until_joining <= 2 and not getattr(app, 'is_doj_minus_2_triggered', False) and app.status != "joined":
         logger.info(f"[ADMIN ACTION] DOJ - 2 for {app.candidate_name}. Welcome email.")
-        notify_candidate(app, "welcome_joining", cc=[])
+        
+        location = "Gurugram"
+        try:
+            from onboarding.models import ApprovalNote
+            an = ApprovalNote.objects.filter(candidate=app, status='approved').last()
+            if an and an.payload.get('mrf', {}).get('location'):
+                location = an.payload['mrf']['location']
+            elif app.job and hasattr(app.job, 'mrf') and app.job.mrf.location:
+                location = app.job.mrf.location
+        except Exception as e:
+            logger.error(f"Failed to fetch location for welcome email: {e}")
+            
+        notify_candidate(app, "welcome_joining", cc=[], extra_context={'location': location})
         # if app.it_ticket_ref and app.job and app.job.job_type != 'work_from_office':
             # me_client.update_ticket(app.it_ticket_ref, {}, note="DOJ is in 2 days. Finalize VPN/dispatch tasks.")
             

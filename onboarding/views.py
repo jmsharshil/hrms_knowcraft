@@ -2317,53 +2317,23 @@ class AssignBuddyAPI(APIView):
         if update_fields:
             application.save(update_fields=update_fields)
         
-        # Send buddy emails
+        # Send buddy emails — one combined email to candidate, buddies CC'd
         try:
             from onboarding.utils.sender import send_email
             from onboarding.utils.templates import NOTIFY_INTERNAL_HTML_TEMPLATES
 
-            buddy_template = NOTIFY_INTERNAL_HTML_TEMPLATES.get('buddy_assigned', '<p>Buddy assigned.</p>')
             candidate_buddy_template = NOTIFY_INTERNAL_HTML_TEMPLATES.get('candidate_buddy_info', '<p>Buddy info.</p>')
 
-            # ── Email to Technical Buddy ──────────────────────────────────────
-            if technical_buddy_email:
-                send_email(
-                    to=technical_buddy_email,
-                    subject=f"Buddy Program | You've been assigned as Technical Buddy for {application.candidate_name}",
-                    text=f"You have been assigned as the Technical Buddy for {application.candidate_name}.",
-                    template=buddy_template.format(
-                        candidate=application,
-                        reciever_name=technical_buddy_name or "Team",
-                        buddy_type="Technical",
-                    ),
-                    event="buddy_assigned",
-                    email_type="internal",
-                    candidate=application
-                )
+            # Build CC list from both assigned buddies
+            buddy_cc = [e for e in [technical_buddy_email, cultural_buddy_email] if e]
 
-            # ── Email to Cultural Buddy ───────────────────────────────────────
-            if cultural_buddy_email:
-                send_email(
-                    to=cultural_buddy_email,
-                    subject=f"Buddy Program | You've been assigned as Cultural Buddy for {application.candidate_name}",
-                    text=f"You have been assigned as the Cultural Buddy for {application.candidate_name}.",
-                    template=buddy_template.format(
-                        candidate=application,
-                        reciever_name=cultural_buddy_name or "Team",
-                        buddy_type="Cultural",
-                    ),
-                    event="buddy_assigned",
-                    email_type="internal",
-                    candidate=application
-                )
-
-            # ── Buddy info email to Candidate ─────────────────────────────────
+            # ── Single email to Candidate, both buddies in CC ─────────────────
             candidate_email_addr = application.work_email or application.candidate_email
-            if candidate_email_addr and (technical_buddy_email or cultural_buddy_email):
+            if candidate_email_addr and buddy_cc:
                 send_email(
                     to=candidate_email_addr,
                     subject="Buddy Program | Knowcraft Analytics",
-                    text=f"We are pleased to introduce your buddies who will help you settle in at Knowcraft.",
+                    text="We are pleased to introduce your buddies who will help you settle in at Knowcraft.",
                     template=candidate_buddy_template.format(
                         candidate=application,
                         technical_buddy_name=application.technical_buddy_name or "—",
@@ -2371,6 +2341,7 @@ class AssignBuddyAPI(APIView):
                         cultural_buddy_name=application.cultural_buddy_name or "—",
                         cultural_buddy_email=application.cultural_buddy_email or "—",
                     ),
+                    cc=buddy_cc,
                     event="buddy_assigned",
                     email_type="candidate",
                     candidate=application
@@ -2849,6 +2820,48 @@ HOD_SURVEY_STRUCTURE_SENIOR = {
     }
 }
 
+def _get_survey_structure(application, survey_type):
+    from onboarding.models import SurveyStructure
+    lookup_type = survey_type
+    if survey_type == 'hod':
+        is_senior = False
+        if hasattr(application.job, 'mrf') and application.job.mrf and application.job.mrf.designation:
+            designation_name = application.job.mrf.designation.name.lower()
+            higher_keywords = [
+                'assistant manager', 'associate manager', 'manager', 
+                'senior manager', 'associate vice president', 
+                'director', 'vp', 'vice president', 'president', 
+                'head', 'chief', 'lead', 'principal', 'avp'
+            ]
+            for kw in higher_keywords:
+                if kw in designation_name:
+                    is_senior = True
+                    break
+        lookup_type = 'hod_senior' if is_senior else 'hod_junior'
+
+    custom_structure = SurveyStructure.objects.filter(survey_type=lookup_type).first()
+    if custom_structure and custom_structure.structure:
+        return custom_structure.structure
+
+    # Fallback to hardcoded constants and auto-create in DB for future
+    default_structure = None
+    if lookup_type == '30_day_candidate':
+        default_structure = CANDIDATE_SURVEY_STRUCTURE
+    elif lookup_type == 'hod_senior':
+        default_structure = HOD_SURVEY_STRUCTURE_SENIOR
+    elif lookup_type == 'hod_junior':
+        default_structure = HOD_SURVEY_STRUCTURE_JUNIOR
+    else:
+        default_structure = SURVEY_90_DAY_STRUCTURE
+
+    if default_structure:
+        SurveyStructure.objects.update_or_create(
+            survey_type=lookup_type,
+            defaults={'structure': default_structure}
+        )
+        
+    return default_structure
+
 class GetSurveyStructureAPI(APIView):
     """Returns the full survey form structure for the frontend to render."""
     permission_classes = [permissions.AllowAny]
@@ -2864,30 +2877,7 @@ class GetSurveyStructureAPI(APIView):
             survey_type=survey_type
         ).first()
 
-        # Choose correct structure
-        if survey_type == '30_day_candidate':
-            structure = CANDIDATE_SURVEY_STRUCTURE
-        elif survey_type == 'hod':
-            is_senior = False
-            if hasattr(application.job, 'mrf') and application.job.mrf and application.job.mrf.designation:
-                designation_name = application.job.mrf.designation.name.lower()
-                higher_keywords = [
-                    'assistant manager', 'associate manager', 'manager', 
-                    'senior manager', 'associate vice president', 
-                    'director', 'vp', 'vice president', 'president', 
-                    'head', 'chief', 'lead', 'principal', 'avp'
-                ]
-                for kw in higher_keywords:
-                    if kw in designation_name:
-                        is_senior = True
-                        break
-            
-            if is_senior:
-                structure = HOD_SURVEY_STRUCTURE_SENIOR
-            else:
-                structure = HOD_SURVEY_STRUCTURE_JUNIOR
-        else:
-            structure = SURVEY_90_DAY_STRUCTURE
+        structure = _get_survey_structure(application, survey_type)
 
         return Response({
             "survey_type": survey_type,
@@ -2899,6 +2889,86 @@ class GetSurveyStructureAPI(APIView):
             "submitted_at": existing.submitted_at if (existing and bool(existing.responses)) else None,
             "structure": structure,
         })
+
+class SurveyStructureManagerAPI(APIView):
+    """API to view or update the customizable survey structures."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from onboarding.models import SurveyStructure
+        
+        # Ensure default structures exist
+        defaults = {
+            '30_day_candidate': CANDIDATE_SURVEY_STRUCTURE,
+            'hod_senior': HOD_SURVEY_STRUCTURE_SENIOR,
+            'hod_junior': HOD_SURVEY_STRUCTURE_JUNIOR,
+            '90_day_candidate': SURVEY_90_DAY_STRUCTURE
+        }
+        
+        for s_type, s_data in defaults.items():
+            if not SurveyStructure.objects.filter(survey_type=s_type).exists():
+                SurveyStructure.objects.create(survey_type=s_type, structure=s_data)
+                
+        structures = SurveyStructure.objects.all()
+        return Response({
+            s.survey_type: s.structure for s in structures
+        })
+
+    def patch(self, request):
+        from onboarding.models import SurveyStructure
+        survey_type = request.data.get('survey_type')
+        structure_data = request.data.get('structure')
+        
+        if not survey_type or not structure_data:
+            return Response({"error": "survey_type and structure are required."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        obj, created = SurveyStructure.objects.update_or_create(
+            survey_type=survey_type,
+            defaults={'structure': structure_data}
+        )
+        return Response({"message": f"Structure for {survey_type} updated successfully."}, status=status.HTTP_200_OK)
+
+class BulkSurveyDataAPI(APIView):
+    """API to get survey data for all candidates in a specific time range."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from onboarding.models import SurveyResponse
+        from django.utils.dateparse import parse_date
+        
+        start_date_str = request.query_params.get('start_date')
+        end_date_str = request.query_params.get('end_date')
+        survey_type = request.query_params.get('survey_type')
+        
+        queryset = SurveyResponse.objects.select_related('job_application').all()
+        
+        if start_date_str:
+            start_date = parse_date(start_date_str)
+            if start_date:
+                queryset = queryset.filter(submitted_at__date__gte=start_date)
+                
+        if end_date_str:
+            end_date = parse_date(end_date_str)
+            if end_date:
+                queryset = queryset.filter(submitted_at__date__lte=end_date)
+                
+        if survey_type:
+            queryset = queryset.filter(survey_type=survey_type)
+            
+        data = []
+        for response in queryset:
+            data.append({
+                "id": str(response.id),
+                "candidate_name": response.job_application.candidate_name,
+                "candidate_email": response.job_application.candidate_email,
+                "survey_type": response.survey_type,
+                "respondent_name": response.respondent_name,
+                "respondent_email": response.respondent_email,
+                "submitted_at": response.submitted_at,
+                "responses": response.responses
+            })
+            
+        return Response({"count": len(data), "results": data}, status=status.HTTP_200_OK)
 
 class CompleteSurveyAPI(APIView):
     permission_classes = [permissions.AllowAny]
@@ -3027,7 +3097,7 @@ class CompleteSurveyAPI(APIView):
             )
 
         # ── Persist ─────────────────────────────────────────────────────────
-        SurveyResponse.objects.update_or_create(
+        survey_response, _ = SurveyResponse.objects.update_or_create(
             job_application=application,
             survey_type=survey_type,
             defaults={
@@ -3049,7 +3119,61 @@ class CompleteSurveyAPI(APIView):
             application.is_satisfaction_survey_filled = True
             application.save(update_fields=['is_satisfaction_survey_filled'])
 
+        # ── Generate PDF & Send Email to Responsible Person ───────────────────
+        try:
+            from onboarding.utils.pdf_maker import generate_survey_pdf
+            from onboarding.utils.sender import send_email
+            
+            structure = _get_survey_structure(application, survey_type)
+            pdf_filename, pdf_bytes, pdf_mime = generate_survey_pdf(survey_response, structure)
+            
+            hr_email = "talent@knowcraft.in"
+            subject = f"Survey Completed: {survey_response.get_survey_type_display()} - {application.candidate_name}"
+            body = f"The {survey_response.get_survey_type_display()} has been filled out for {application.candidate_name}.\n\nPlease find the detailed responses attached."
+            
+            send_email(
+                to=hr_email,
+                subject=subject,
+                text=body,
+                attachments=[(pdf_filename, pdf_bytes, pdf_mime)],
+                event="survey_filled",
+                email_type="internal",
+                candidate=application
+            )
+        except Exception as e:
+            logger.error(f"Failed to send survey completion email for {application.candidate_name}: {e}")
+
         return Response({"message": "Survey submitted successfully."}, status=status.HTTP_200_OK)
+
+class DownloadSurveyAPI(APIView):
+    """API to download a specific survey response as PDF."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+        survey_type = request.query_params.get('survey_type', '30_day_candidate')
+        
+        from onboarding.models import SurveyResponse
+        survey_response = get_object_or_404(
+            SurveyResponse, 
+            job_application=application, 
+            survey_type=survey_type
+        )
+        
+        try:
+            from onboarding.utils.pdf_maker import generate_survey_pdf
+            from django.http import HttpResponse
+            
+            structure = _get_survey_structure(application, survey_type)
+            pdf_filename, pdf_bytes, pdf_mime = generate_survey_pdf(survey_response, structure)
+            
+            response = HttpResponse(pdf_bytes, content_type=pdf_mime)
+            response['Content-Disposition'] = f'attachment; filename="{pdf_filename}"'
+            return response
+        except Exception as e:
+            logger.error(f"Failed to generate PDF for {application.candidate_name}: {e}")
+            return Response({"error": "Failed to generate PDF"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class ScheduleD45CallAPI(APIView):
     permission_classes = [permissions.AllowAny]
@@ -3126,6 +3250,10 @@ class ScheduleD45CallAPI(APIView):
                         "meeting_link": meeting_link,
                     }
                 )
+                
+                # Send candidate reminder for the D45 call
+                from onboarding.utils.notifications import notify_candidate
+                notify_candidate(application, "d45_call_candidate_reminder")
                 
             except Exception as e:
                 import logging
@@ -3212,6 +3340,10 @@ class ScheduleD90CallAPI(APIView):
                         "meeting_link": meeting_link,
                     }
                 )
+                
+                # Send candidate reminder for the D90 call
+                from onboarding.utils.notifications import notify_candidate
+                notify_candidate(application, "d90_call_candidate_reminder")
                 
             except Exception as e:
                 import logging
@@ -4106,4 +4238,4 @@ class DocumentEsignTaskViewSet(ModelViewSet):
                 "results": results,
             },
             status=http_status,
-        )
+        )

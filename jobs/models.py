@@ -699,6 +699,12 @@ class JobApplication(models.Model):
     is_doj_0_triggered = models.BooleanField(default=False)
     is_doj_7_triggered = models.BooleanField(default=False)
     is_doj_45_triggered = models.BooleanField(default=False)
+
+    # Tracks how many daily reminders have been sent to HR for un-scheduled calls
+    d45_reminder_count = models.PositiveIntegerField(default=0)
+    d90_reminder_count = models.PositiveIntegerField(default=0)
+    is_d45_call_escalated = models.BooleanField(default=False)
+    is_d90_call_escalated = models.BooleanField(default=False)
     
     technical_buddy_email = models.EmailField(null=True, blank=True)
     technical_buddy_name = models.CharField(max_length=255, null=True, blank=True)

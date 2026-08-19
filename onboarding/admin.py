@@ -339,3 +339,20 @@ class DocumentEsignTaskAdmin(admin.ModelAdmin):
     search_fields = ('job_application__candidate_name', 'doc_type')
     list_filter = ('status', 'doc_type', 'created_at')
     readonly_fields = ('id', 'created_at')
+
+from .models import SurveyStructure
+
+@admin.register(SurveyStructure)
+class SurveyStructureAdmin(admin.ModelAdmin):
+    list_display = ('id', 'survey_type', 'updated_at')
+    search_fields = ('survey_type',)
+    list_filter = ('survey_type', 'updated_at')
+    readonly_fields = ('id', 'updated_at')
+    fieldsets = (
+        ('Info', {
+            'fields': ('id', 'survey_type', 'updated_at')
+        }),
+        ('Structure (JSON)', {
+            'fields': ('structure',)
+        }),
+    )

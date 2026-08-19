@@ -697,6 +697,22 @@ Knowcraft Analytics Private Limited""",
         ),
         "log": "Pre-joining welcome sent to {candidate.candidate_email}",
     },
+    "d45_call_candidate_reminder": {
+        "email": {
+            "subject": "Catch Up call: {candidate.candidate_name}",
+            "text": "This is a gentle reminder to join the catch-up call as per the scheduled time.",
+        },
+        "sms": "Reminder: Join the catch-up call as per the scheduled time.",
+        "log": "D45 call reminder sent to {candidate.candidate_email}",
+    },
+    "d90_call_candidate_reminder": {
+        "email": {
+            "subject": "Catch Up call: {candidate.candidate_name}",
+            "text": "This is a gentle reminder to join the catch-up call as per the scheduled time.",
+        },
+        "sms": "Reminder: Join the catch-up call as per the scheduled time.",
+        "log": "D90 call reminder sent to {candidate.candidate_email}",
+    },
     "login_request_reminder": {
         "email": {
             "subject": "Action Required: Complete Your Joining Documents",
@@ -1357,6 +1373,26 @@ Knowcraft Analytics Private Limited""",
         "subject": "Action Required: Schedule 90-Day Final Review",
         "body": "Please schedule the 90-day final review call with {candidate.candidate_name}. Mark as complete in HRMS to close onboarding.",
         "sms": "Schedule 90-day final review for {candidate.candidate_name}.",
+    },
+    "d45_call_not_scheduled_escalation": {
+        "receivers": ["hr", "admin"],
+        "subject": "Escalation: 45-Day Check-In Call Not Scheduled – {candidate.candidate_name}",
+        "body": (
+            "5 reminders have been sent to HR and HOD to schedule the 45-Day Check-In Call "
+            "for {candidate.candidate_name}, but the call has not been scheduled yet. "
+            "Please take immediate action."
+        ),
+        "sms": "Escalation: D45 call not scheduled after 5 reminders for {candidate.candidate_name}.",
+    },
+    "d90_call_not_scheduled_escalation": {
+        "receivers": ["hr", "admin"],
+        "subject": "Escalation: 90-Day Final Review Call Not Scheduled – {candidate.candidate_name}",
+        "body": (
+            "5 reminders have been sent to HR and HOD to schedule the 90-Day Final Review Call "
+            "for {candidate.candidate_name}, but the call has not been scheduled yet. "
+            "Please take immediate action."
+        ),
+        "sms": "Escalation: D90 call not scheduled after 5 reminders for {candidate.candidate_name}.",
     },
     "buddy_assigned": {
         "receivers": ["hr", "department_head"],

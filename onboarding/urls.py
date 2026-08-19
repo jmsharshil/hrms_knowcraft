@@ -7,9 +7,10 @@ from .views import (
     DownloadJobApplicationDocumentsView, DownloadApprovalNoteAPIView, RevertOfferAPIView,
     EmailLogViewSet,
     ResolveEscalationAPI, AssignBuddyAPI, CompleteSurveyAPI, ScheduleD45CallAPI, ScheduleD90CallAPI,
-    SearchTeamsUsersAPI, InitiateOnboardingAPI, RevertRejectionAPI, GetSurveyStructureAPI,
+    SearchTeamsUsersAPI, InitiateOnboardingAPI, RevertRejectionAPI, GetSurveyStructureAPI, SurveyStructureManagerAPI,
     GetManageEngineSitesAPI, GetManageEngineAssetsAPI, GetManageEngineDepartmentsAPI, GetManageEngineDesignationsAPI,
-    OnboardingTaskViewSet, OnboardingTaskListViewSet, OnboardingJourneyAPI, DocumentEsignTaskViewSet
+    OnboardingTaskViewSet, OnboardingTaskListViewSet, OnboardingJourneyAPI, DocumentEsignTaskViewSet,
+    DownloadSurveyAPI, BulkSurveyDataAPI
 )
 from .utils.opensign import opensign_webhook
 from .utils.zoho_sign import zoho_sign_webhook
@@ -44,6 +45,9 @@ urlpatterns = [
     path('application/<str:id>/assign-buddy/', AssignBuddyAPI.as_view(), name='assign-buddy'),
     path('application/<str:id>/survey-completed/', CompleteSurveyAPI.as_view(), name='survey-completed'),
     path('application/<str:id>/survey-structure/', GetSurveyStructureAPI.as_view(), name='survey-structure'),
+    path('application/<str:id>/survey-download/', DownloadSurveyAPI.as_view(), name='survey-download'),
+    path('survey-structure/manage/', SurveyStructureManagerAPI.as_view(), name='survey-structure-manage'),
+    path('survey-data/bulk/', BulkSurveyDataAPI.as_view(), name='survey-data-bulk'),
     path('application/<str:id>/d45-scheduled/', ScheduleD45CallAPI.as_view(), name='d45-scheduled'),
     path('application/<str:id>/d90-scheduled/', ScheduleD90CallAPI.as_view(), name='d90-scheduled'),
     path('application/<str:id>/journey/', OnboardingJourneyAPI.as_view(), name='onboarding-journey'),

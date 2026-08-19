@@ -705,6 +705,25 @@ class SurveyResponse(models.Model):
     def __str__(self):
         return f"{self.get_survey_type_display()} - {self.job_application.candidate_name}"
 
+
+class SurveyStructure(models.Model):
+    """
+    Stores the customizable survey structures.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    survey_type = models.CharField(max_length=50, unique=True, help_text="e.g. 30_day_candidate, hod_junior, hod_senior, 90_day_candidate")
+    structure = models.JSONField(
+        default=dict,
+        help_text="JSON representation of the survey structure (title, sections, questions, etc.)"
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "survey_structures"
+
+    def __str__(self):
+        return f"Structure for {self.survey_type}"
+
 class OnboardingCall(models.Model):
     CALL_TYPE_CHOICES = (
         ("d45", "Day 45 Check-in"),
