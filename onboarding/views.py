@@ -3792,9 +3792,8 @@ class ManageEngineRequestersAPI(APIView):
     def post(self, request):
         from .utils.zoho_manageengine import ManageEngineClient
         
-        requester_data = request.data.get("requester", {})
-        first_name = requester_data.get("first_name")
-        email_id = requester_data.get("email_id")
+        first_name = request.data.get("first_name")
+        email_id = request.data.get("email")
         
         if not first_name or not email_id:
             return Response(
@@ -3810,7 +3809,7 @@ class ManageEngineRequestersAPI(APIView):
         else:
             return Response(
                 {"error": "Failed to create requester in ManageEngine"}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                status=status.HTTP_304_NOT_MODIFIED
             )
 
 class OnboardingTaskListViewSet(ModelViewSet):

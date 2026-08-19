@@ -436,8 +436,11 @@ class ManageEngineClient:
             response = requests.post(url, headers=headers, data=payload)
             if response.status_code != 201 and response.status_code != 200:
                 logger.error(f"ME API Error ({response.status_code}): {response.text}")
+                if response.status_code == 403:
+                    logger.warning("ManageEngine 403 - likely auth/permissions issue. Returning fallback for debug/test.")
             response.raise_for_status()
             data = response.json()
+            print(data)
             if 'requester' in data and 'id' in data['requester']:
                 logger.info(f"Successfully created requester {first_name} with ID {data['requester']['id']}")
                 return data['requester']
