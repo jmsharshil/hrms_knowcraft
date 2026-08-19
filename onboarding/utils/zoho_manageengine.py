@@ -411,3 +411,56 @@ class ManageEngineClient:
         except Exception as e:
             logger.exception(f"Error fetching Zoho ManageEngine designations: {e}")
             return []
+
+    def create_requester(self, first_name, email_id):
+        """
+        Creates a requester in ManageEngine.
+        """
+        headers = self._get_headers()
+        if not headers:
+            return None
+            
+        url = f"{self.base_url}/requesters"
+        
+        input_data = {
+            "requester": {
+                "first_name": first_name,
+                "email_id": email_id
+            }
+        }
+        
+        import json
+        payload = {'input_data': json.dumps(input_data)}
+        
+        try:
+            response = requests.post(url, headers=headers, data=payload)
+            response.raise_for_status()
+            data = response.json()
+            if 'requester' in data and 'id' in data['requester']:
+                logger.info(f"Successfully created requester {first_name} with ID {data['requester']['id']}")
+                return data['requester']
+            else:
+                logger.error(f"Unexpected response format from ManageEngine when creating requester: {data}")
+                return None
+        except Exception as e:
+            logger.exception(f"Error creating ManageEngine requester: {e}")
+            return None
+
+    def get_requesters(self):
+        """
+        Retrieves a list of requesters from ManageEngine.
+        """
+        headers = self._get_headers()
+        if not headers:
+            return []
+            
+        url = f"{self.base_url}/requesters"
+        
+        try:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            return data.get('requesters', [])
+        except Exception as e:
+            logger.exception(f"Error fetching Zoho ManageEngine requesters: {e}")
+            return []
