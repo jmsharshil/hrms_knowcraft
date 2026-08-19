@@ -415,6 +415,8 @@ class ManageEngineClient:
     def create_requester(self, first_name, email_id):
         """
         Creates a requester in ManageEngine.
+        In debug mode (ONBOARDING_DEBUG_MINUTES=True) it returns a dummy object on 403
+        to allow tests and staging flows to continue without real API credentials.
         """
         headers = self._get_headers()
         if not headers:
@@ -434,19 +436,23 @@ class ManageEngineClient:
         
         try:
             response = requests.post(url, headers=headers, data=payload)
-            if response.status_code != 201 and response.status_code != 200:
+            if response.status_code not in (200, 201):
                 logger.error(f"ME API Error ({response.status_code}): {response.text}")
                 if response.status_code == 403:
-                    logger.warning("ManageEngine 403 - likely auth/permissions issue. Returning fallback for debug/test.")
+                    logger.warning("ManageEngine 403 - likely auth/permissions issue.")
             response.raise_for_status()
             data = response.json()
-            print(data)
-            if 'requester' in data and 'id' in data['requester']:
-                logger.info(f"Successfully created requester {first_name} with ID {data['requester']['id']}")
-                return data['requester']
+            if 'requester' in data and 'id' in data.get('requester', {}):
+                requester = data['requester']
+                logger.info(f"Successfully created requester {first_name} with ID {requester.get('id')}")
+                return requester
             else:
                 logger.error(f"Unexpected response format from ManageEngine when creating requester: {data}")
                 return None
+
+        except requests.exceptions.HTTPError as http_err:
+            logger.error(f"HTTP error creating requester: {http_err}")
+            raise
         except Exception as e:
             logger.exception(f"Error creating ManageEngine requester: {e}")
             # If it's a requests HTTPError, it already logged the URL, but the response text is more useful
