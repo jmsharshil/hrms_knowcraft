@@ -56,7 +56,7 @@ urlpatterns = [
     path('manage-engine/assets/', GetManageEngineAssetsAPI.as_view(), name='manage-engine-assets'),
     # path('manage-engine/departments/', GetManageEngineDepartmentsAPI.as_view(), name='manage-engine-departments'),
     # path('manage-engine/designations/', GetManageEngineDesignationsAPI.as_view(), name='manage-engine-designations'),
-    path('manage-engine/requesters', ManageEngineRequestersAPI.as_view(), name='manage-engine-requesters'),
+    path('manage-engine/requesters/', ManageEngineRequestersAPI.as_view(), name='manage-engine-requesters'),
     path("", include(router.urls)),
     # path("send-offer/<uuid:application_id>/", send_offer_letter_view),
     # path("bulk-send-offers/", bulk_send_offers),
