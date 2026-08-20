@@ -4271,3 +4271,17 @@ class DocumentEsignTaskViewSet(ModelViewSet):
             },
             status=http_status,
         )
+
+class VerifyD5DocumentAPI(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+        if application.is_d5_verification_completed:
+            return Response({'message': 'Verification already completed.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        application.is_d5_verification_completed = True
+        application.save(update_fields=['is_d5_verification_completed', 'updated_at'])
+        
+        return Response({'message': 'Verification completed successfully.'}, status=status.HTTP_200_OK)
+

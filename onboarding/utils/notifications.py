@@ -789,6 +789,21 @@ Knowcraft Analytics Private Limited""",
         ),
         "log": "E-sign reminder sent to {candidate.candidate_email} for pending docs",
     },
+    "d5_document_verification": {
+        "email": {
+            "subject": "Action Required: Verify Your Documents and Details",
+            "text": (
+                "Welcome to Knowcraft Analytics! "
+                "As part of your onboarding process, we request you to please verify the details and documents "
+                "you submitted to ensure accuracy and authenticity. "
+                "Please check your work email and verify your information as soon as possible."
+            ),
+        },
+        "sms": (
+            "Hi {candidate.candidate_name}, please check your work email to verify your documents and details as part of the onboarding process."
+        ),
+        "log": "D5 document verification email sent to {candidate.candidate_email}",
+    },
 }
 
 def notify_candidate(candidate: Any, stage: str, cc: list = None, feedback_link: str = None, extra_context: dict = None) -> bool:
@@ -909,7 +924,7 @@ def notify_candidate(candidate: Any, stage: str, cc: list = None, feedback_link:
                 except (KeyError, ValueError) as e:
                     logger.warning("Text formatting error for %s: %s", stage, e)
 
-            if stage in ['satisfaction_survey', 'd90_survey']:
+            if stage in ['satisfaction_survey', 'd90_survey', 'd5_document_verification']:
                 recipient_email = getattr(candidate, 'work_email', None)
                 if not recipient_email:
                     logger.warning(f"No work_email found for candidate {candidate.id} for stage {stage}. Skipping.")

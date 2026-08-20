@@ -139,6 +139,13 @@ def daily_onboarding_check():
                 app.is_esign_reminder_sent = True
                 app.save(update_fields=['is_esign_reminder_sent'])
 
+        # ── DOJ + 5 Days (Document Verification) ────────────────
+        if days_until_joining <= -5 and not getattr(app, 'is_d5_verification_sent', False):
+            logger.info(f"DOJ + 5 for candidate {app.candidate_name}. Sending document verification email.")
+            notify_candidate(app, "d5_document_verification", cc=[])
+            app.is_d5_verification_sent = True
+            app.save(update_fields=['is_d5_verification_sent'])
+
         # ── DOJ + 7 Days (Escalation Check) ─────────────────────
         if days_until_joining <= -7:
             logger.info(f"DOJ + 7 for candidate {app.candidate_name}. Checking BGV status.")
@@ -367,6 +374,13 @@ def run_onboarding_check_for_candidate(app):
             app.is_esign_reminder_sent = True
             app.save(update_fields=['is_esign_reminder_sent'])
             create_milestone_tasks(app, "DOJ_PLUS_1_ESIGN_REMINDER", joining_date)
+
+    # ── DOJ + 5 Days — Document Verification ────────────────────────────────
+    if days_until_joining <= -5 and not getattr(app, 'is_d5_verification_sent', False):
+        logger.info(f"[ADMIN ACTION] DOJ + 5 for {app.candidate_name}. Sending document verification email.")
+        notify_candidate(app, "d5_document_verification", cc=[])
+        app.is_d5_verification_sent = True
+        app.save(update_fields=['is_d5_verification_sent'])
 
     # ── DOJ + 7 Days — BGV check ────────────────────────────────────────────
     if days_until_joining <= -7 and not getattr(app, 'is_doj_7_triggered', False):

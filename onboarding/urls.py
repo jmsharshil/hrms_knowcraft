@@ -10,7 +10,7 @@ from .views import (
     SearchTeamsUsersAPI, InitiateOnboardingAPI, RevertRejectionAPI, GetSurveyStructureAPI, SurveyStructureManagerAPI,
     GetManageEngineSitesAPI, GetManageEngineAssetsAPI, GetManageEngineDepartmentsAPI, GetManageEngineDesignationsAPI,
     OnboardingTaskViewSet, OnboardingTaskListViewSet, OnboardingJourneyAPI, DocumentEsignTaskViewSet,
-    DownloadSurveyAPI, BulkSurveyDataAPI, ManageEngineRequestersAPI
+    DownloadSurveyAPI, BulkSurveyDataAPI, ManageEngineRequestersAPI, VerifyD5DocumentAPI
 )
 from .utils.opensign import opensign_webhook
 from .utils.zoho_sign import zoho_sign_webhook
@@ -51,6 +51,7 @@ urlpatterns = [
     path('application/<str:id>/d45-scheduled/', ScheduleD45CallAPI.as_view(), name='d45-scheduled'),
     path('application/<str:id>/d90-scheduled/', ScheduleD90CallAPI.as_view(), name='d90-scheduled'),
     path('application/<str:id>/journey/', OnboardingJourneyAPI.as_view(), name='onboarding-journey'),
+    path('application/<str:id>/verify-d5-documents/', VerifyD5DocumentAPI.as_view(), name='verify-d5-documents'),
     path('teams/users/search/', SearchTeamsUsersAPI.as_view(), name='search-teams-users'),
     # path('manage-engine/sites/', GetManageEngineSitesAPI.as_view(), name='manage-engine-sites'),
     path('manage-engine/assets/', GetManageEngineAssetsAPI.as_view(), name='manage-engine-assets'),
