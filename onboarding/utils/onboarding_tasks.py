@@ -387,7 +387,7 @@ def run_onboarding_check_for_candidate(app):
             except CandidateBGV.DoesNotExist:
                 app.is_escalated = True
                 app.save(update_fields=['is_escalated'])
-                notify_internal(app, "bgv_escalation")
+                notify_internal(app, "bgv_escalation",cc=['zafiya.mallick@knowcraft.in'])
         create_milestone_tasks(app, "DOJ_PLUS_7_BGV", joining_date)
         app.is_doj_7_triggered = True
         app.save(update_fields=['is_doj_7_triggered'])
