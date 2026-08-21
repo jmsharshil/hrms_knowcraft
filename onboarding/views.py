@@ -3053,7 +3053,15 @@ class CompleteSurveyAPI(APIView):
                 
                 val = responses_data.get(qid)
                 
-                if val is None or (isinstance(val, str) and str(val).strip() == ""):
+                # Normalize string values to handle casing and spacing (e.g., "Strongly Agree" -> "strongly_agree")
+                if isinstance(val, str):
+                    if qtype != "text":
+                        val = val.lower().strip().replace(" ", "_")
+                    else:
+                        val = val.strip()
+                    responses_data[qid] = val  # Update the data to save the clean version
+                
+                if val is None or (isinstance(val, str) and val == ""):
                     if is_required:
                         errors[qid] = f"Q{qid} is required."
                     continue
