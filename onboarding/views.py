@@ -2959,6 +2959,12 @@ class BulkSurveyDataAPI(APIView):
         all_response_keys = set()
         
         for response in queryset:
+            structure = _get_survey_structure(response.job_application, response.survey_type)
+            qid_to_text = {}
+            for section in structure.get("sections", []):
+                for q in section.get("questions", []):
+                    qid_to_text[str(q.get("id"))] = q.get("text", f"Question {q.get('id')}")
+
             resp_data = {
                 "id": str(response.id),
                 "Candidate Name": response.job_application.candidate_name,
@@ -2970,13 +2976,13 @@ class BulkSurveyDataAPI(APIView):
             }
             if response.responses:
                 for k, v in response.responses.items():
-                    all_response_keys.add(k)
-                    resp_data[k] = v
+                    q_text = qid_to_text.get(k, f"Question {k}")
+                    all_response_keys.add(q_text)
+                    resp_data[q_text] = v
             data.append(resp_data)
             
         import openpyxl
         from django.http import HttpResponse
-        from openpyxl.utils import get_column_letter
 
         wb = openpyxl.Workbook()
         ws = wb.active
@@ -2988,14 +2994,8 @@ class BulkSurveyDataAPI(APIView):
             "Respondent Name", "Respondent Email", "Submitted At"
         ]
         
-        # Sort the response keys dynamically, e.g., numeric sorting if they are just numbers like '1', '2'
-        def sort_key(k):
-            try:
-                return (0, int(k))
-            except ValueError:
-                return (1, str(k))
-
-        dynamic_headers = sorted(list(all_response_keys), key=sort_key)
+        # Sort the response keys alphabetically since they are now question texts
+        dynamic_headers = sorted(list(all_response_keys))
         headers.extend(dynamic_headers)
 
         # Write headers
