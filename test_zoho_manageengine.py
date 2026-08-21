@@ -27,7 +27,7 @@ def test_initiation():
     print("=" * 60)
     
     # Check environment variables
-    required_vars = ['ZOHO_ME_CLIENT_ID', 'ZOHO_ME_CLIENT_SECRET', 'ZOHO_ME_REFRESH_TOKEN']
+    required_vars = ['ZOHO_CLIENT_ID', 'ZOHO_CLIENT_SECRET', 'ZOHO_REFRESH_TOKEN']
     print("📋 Checking environment variables:")
     missing = []
     for var in required_vars:
