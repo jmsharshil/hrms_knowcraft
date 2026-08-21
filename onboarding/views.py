@@ -3809,7 +3809,7 @@ class ManageEngineRequestersAPI(APIView):
         else:
             return Response(
                 {"error": "Failed to create requester in ManageEngine"}, 
-                status=status.HTTP_304_NOT_MODIFIED
+                status=status.HTTP_400_BAD_REQUEST
             )
 
 class OnboardingTaskListViewSet(ModelViewSet):

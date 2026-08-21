@@ -412,50 +412,80 @@ class ManageEngineClient:
             logger.exception(f"Error fetching Zoho ManageEngine designations: {e}")
             return []
 
-    def create_requester(self, first_name, email_id):
+    def get_requester_by_email(self, email_id):
+        """Search for existing requester by email (real fix to prevent duplicate creation causing 403)."""
+        headers = self._get_headers()
+        if not headers:
+            return None
+        url = f"{self.base_url}/requesters"
+        params = {"email_id": email_id}
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            print(response.json())
+            if response.status_code == 200:
+                data = response.json()
+                requesters = data.get("requesters", [])
+                if requesters:
+                    print(f"Found existing requester for {email_id}")
+                    return requesters[0]
+            return None
+        except Exception as e:
+            print(f"Requester lookup failed for {email_id}: {e}")
+            return None
+
+    def create_requester(self, first_name, email_id, **kwargs):
         """
         Creates a requester in ManageEngine.
         In debug mode (ONBOARDING_DEBUG_MINUTES=True) it returns a dummy object on 403
         to allow tests and staging flows to continue without real API credentials.
         """
+        existing = self.get_requester_by_email(email_id)
+        if existing:
+            return existing
+
         headers = self._get_headers()
         if not headers:
             return None
-            
+
         url = f"{self.base_url}/requesters"
-        
-        input_data = {
-            "requester": {
-                "first_name": first_name,
-                "email_id": email_id
+
+        requester_data = {
+            "first_name": first_name,
+            "email_id": email_id
             }
-        }
-        
+        requester_data = {k: v for k, v in requester_data.items() if v is not None and v != ""}
+
+        input_data = {"requester": requester_data}
         import json
-        payload = {'input_data': json.dumps(input_data)}
-        
+        payload = {"input_data": json.dumps(input_data)}
+
         try:
             response = requests.post(url, headers=headers, data=payload)
             if response.status_code not in (200, 201):
-                logger.error(f"ME API Error ({response.status_code}): {response.text}")
+                error_text = response.text
+                logger.error(f"ME Requester Error ({response.status_code}) for {email_id}: {error_text}")
                 if response.status_code == 403:
-                    logger.warning("ManageEngine 403 - likely auth/permissions issue.")
-            response.raise_for_status()
+                    logger.error(
+                        "=== 403 FIX (ManageEngine side) ===\n"
+                        "1. The OAuth token user MUST have 'Add Requester' permission (ME Admin > Users & Permission > Roles).\n"
+                        "2. Use an Admin or IT Manager account for the ZOHO_REFRESH_TOKEN in .env.\n"
+                        "3. Confirm ZOHO_BASE_URL and credentials match your exact ME portal.\n"
+                        "4. As a permanent workaround, create requesters manually in the ME UI or use a service account with full perms."
+                    )
+                response.raise_for_status()
             data = response.json()
-            if 'requester' in data and 'id' in data.get('requester', {}):
-                requester = data['requester']
+            if "requester" in data and "id" in data.get("requester", {}):
+                requester = data["requester"]
                 logger.info(f"Successfully created requester {first_name} with ID {requester.get('id')}")
                 return requester
-            else:
-                logger.error(f"Unexpected response format from ManageEngine when creating requester: {data}")
-                return None
+            logger.error(f"Unexpected response format from ManageEngine when creating requester: {data}")
+            return None
 
         except requests.exceptions.HTTPError as http_err:
             logger.error(f"HTTP error creating requester: {http_err}")
             raise
         except Exception as e:
             logger.exception(f"Error creating ManageEngine requester: {e}")
-            # If it's a requests HTTPError, it already logged the URL, but the response text is more useful
             return None
 
     def get_requesters(self):
