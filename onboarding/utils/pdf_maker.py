@@ -154,6 +154,7 @@ def generate_survey_pdf(survey_response, structure):
 
     # ── Sections HTML ─────────────────────────────────────────────────────────
     sections_html = ""
+    processed_qids = set()
     for s_idx, section in enumerate(sections):
         sections_html += f"""
         <div style="margin-top:22px; page-break-inside:avoid;">
@@ -165,7 +166,49 @@ def generate_survey_pdf(survey_response, structure):
         """
         for q_idx, q in enumerate(section.get('questions', [])):
             qid     = str(q.get('id'))
+            processed_qids.add(qid)
             qtext   = q.get('text', '')
+            raw_ans = responses.get(qid)
+            badge   = answer_badge(raw_ans)
+            row_bg  = "#f8fafc" if q_idx % 2 == 0 else "#ffffff"
+
+            sections_html += f"""
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px; background:{row_bg}; border:1px solid #e2e8f0;">
+                <tr>
+                    <td style="width:6%; padding:12px 2px 12px 10px; color:#64748b; font-size:11px; font-weight:700; vertical-align:top; text-align:right;">
+                        {qid}.
+                    </td>
+                    <td style="width:64%; padding:12px 10px 12px 10px; font-size:12px; color:#334155; vertical-align:top; line-height:16px;">
+                        {qtext}
+                    </td>
+                    <td style="width:30%; padding:12px 12px 12px 0; text-align:right; vertical-align:top;">
+                        {badge}
+                    </td>
+                </tr>
+            </table>
+            """
+        sections_html += "</div>"
+
+    unprocessed_qids = set(responses.keys()) - processed_qids
+    if unprocessed_qids:
+        def sort_key(k):
+            try:
+                return (0, int(k))
+            except ValueError:
+                return (1, str(k))
+        
+        sorted_unprocessed = sorted(list(unprocessed_qids), key=sort_key)
+        
+        sections_html += f"""
+        <div style="margin-top:22px; page-break-inside:avoid;">
+            <div style="background:#1e3a5f; color:#ffffff; padding:9px 16px;
+                        font-size:12px; font-weight:700; letter-spacing:0.4px;
+                        margin-bottom:8px;">
+                Additional Responses
+            </div>
+        """
+        for q_idx, qid in enumerate(sorted_unprocessed):
+            qtext   = f"Question ID: {qid}"
             raw_ans = responses.get(qid)
             badge   = answer_badge(raw_ans)
             row_bg  = "#f8fafc" if q_idx % 2 == 0 else "#ffffff"

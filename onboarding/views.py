@@ -2956,19 +2956,63 @@ class BulkSurveyDataAPI(APIView):
             queryset = queryset.filter(survey_type=survey_type)
             
         data = []
+        all_response_keys = set()
+        
         for response in queryset:
-            data.append({
+            resp_data = {
                 "id": str(response.id),
-                "candidate_name": response.job_application.candidate_name,
-                "candidate_email": response.job_application.candidate_email,
-                "survey_type": response.survey_type,
-                "respondent_name": response.respondent_name,
-                "respondent_email": response.respondent_email,
-                "submitted_at": response.submitted_at,
-                "responses": response.responses
-            })
+                "Candidate Name": response.job_application.candidate_name,
+                "Candidate Email": response.job_application.candidate_email,
+                "Survey Type": response.survey_type,
+                "Respondent Name": response.respondent_name,
+                "Respondent Email": response.respondent_email,
+                "Submitted At": response.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if response.submitted_at else "",
+            }
+            if response.responses:
+                for k, v in response.responses.items():
+                    all_response_keys.add(k)
+                    resp_data[k] = v
+            data.append(resp_data)
             
-        return Response({"count": len(data), "results": data}, status=status.HTTP_200_OK)
+        import openpyxl
+        from django.http import HttpResponse
+        from openpyxl.utils import get_column_letter
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Survey Data"
+
+        # Define standard headers
+        headers = [
+            "id", "Candidate Name", "Candidate Email", "Survey Type",
+            "Respondent Name", "Respondent Email", "Submitted At"
+        ]
+        
+        # Sort the response keys dynamically, e.g., numeric sorting if they are just numbers like '1', '2'
+        def sort_key(k):
+            try:
+                return (0, int(k))
+            except ValueError:
+                return (1, str(k))
+
+        dynamic_headers = sorted(list(all_response_keys), key=sort_key)
+        headers.extend(dynamic_headers)
+
+        # Write headers
+        for col_num, header_title in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_num, value=header_title)
+            cell.font = openpyxl.styles.Font(bold=True)
+
+        # Write data
+        for row_num, row_data in enumerate(data, 2):
+            for col_num, header in enumerate(headers, 1):
+                ws.cell(row=row_num, column=col_num, value=str(row_data.get(header, '')))
+
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="survey_data.xlsx"'
+        wb.save(response)
+        
+        return response
 
 class CompleteSurveyAPI(APIView):
     permission_classes = [permissions.AllowAny]
@@ -2997,84 +3041,31 @@ class CompleteSurveyAPI(APIView):
 
 
         errors = {}
-
-        if survey_type == '30_day_candidate':
-            # ── Validate binary questions (Q1–Q23) ──────────────────────────
-            binary_qids = list(range(1, 24))
-            for qid in binary_qids:
-                key = str(qid)
-                val = responses_data.get(key)
-                if val is None:
-                    errors[key] = f"Q{qid} is required."
-                elif val not in BINARY_OPTIONS:
-                    errors[key] = f"Q{qid}: must be one of {BINARY_OPTIONS}."
-            # ── Text questions (Q24–Q25) are optional ────────────────────────
-            for qid in [24, 25]:
-                key = str(qid)
-                val = responses_data.get(key)
-                if val is not None and not isinstance(val, str):
-                    errors[key] = f"Q{qid}: must be a text string."
+        structure = _get_survey_structure(application, survey_type)
+        sections = structure.get("sections", [])
         
-        elif survey_type == 'hod':
-            # ── Determine if Senior or Junior ────────────────────────────────
-            is_senior = False
-            if hasattr(application.job, 'mrf') and application.job.mrf and application.job.mrf.designation:
-                designation_name = application.job.mrf.designation.name.lower()
-                higher_keywords = [
-                    'assistant manager', 'associate manager', 'manager', 
-                    'senior manager', 'associate vice president', 
-                    'director', 'vp', 'vice president', 'president', 
-                    'head', 'chief', 'lead', 'principal', 'avp'
-                ]
-                for kw in higher_keywords:
-                    if kw in designation_name:
-                        is_senior = True
-                        break
-            
-            binary_count = 20 if is_senior else 18
-            text_start = binary_count + 1
-            text_end = binary_count + 5
-            
-            # ── Validate binary questions ────────────────────────────────────
-            for qid in range(1, binary_count + 1):
-                key = str(qid)
-                val = responses_data.get(key)
-                if val is None:
-                    errors[key] = f"Q{qid} is required."
-                elif val not in BINARY_OPTIONS:
-                    errors[key] = f"Q{qid}: must be one of {BINARY_OPTIONS}."
-                    
-            # ── Text questions are optional ──────────────────────────────────
-            for qid in range(text_start, text_end + 1):
-                key = str(qid)
-                val = responses_data.get(key)
-                if val is not None and not isinstance(val, str):
-                    errors[key] = f"Q{qid}: must be a text string."
-                    
-        else: # 90_day_candidate
-            # ── Validate likert questions (Q1–Q14) ──────────────────────────────
-            likert_qids = list(range(1, 15))
-            for qid in likert_qids:
-                key = str(qid)
-                val = responses_data.get(key)
-                if val is None:
-                    errors[key] = f"Q{qid} is required."
-                elif val not in LIKERT_OPTIONS:
-                    errors[key] = f"Q{qid}: must be one of {LIKERT_OPTIONS}."
-
-            # ── Validate recommend question (Q19) ───────────────────────────────
-            val19 = responses_data.get("19")
-            if val19 is None:
-                errors["19"] = "Q19 is required."
-            elif val19 not in RECOMMEND_OPTIONS:
-                errors["19"] = f"Q19: must be one of {RECOMMEND_OPTIONS}."
-
-            # ── Text questions (Q15–Q18) are optional, just ensure strings ──────
-            for qid in range(15, 19):
-                key = str(qid)
-                val = responses_data.get(key)
-                if val is not None and not isinstance(val, str):
-                    errors[key] = f"Q{qid}: must be a text string."
+        for section in sections:
+            for q in section.get("questions", []):
+                qid = str(q.get("id"))
+                qtype = q.get("type")
+                # Default non-text questions to required, text to optional unless specified
+                is_required = q.get("required", qtype != "text")
+                
+                val = responses_data.get(qid)
+                
+                if val is None or (isinstance(val, str) and str(val).strip() == ""):
+                    if is_required:
+                        errors[qid] = f"Q{qid} is required."
+                    continue
+                
+                if qtype == "binary" and val not in BINARY_OPTIONS:
+                    errors[qid] = f"Q{qid}: must be one of {BINARY_OPTIONS}."
+                elif qtype == "likert" and val not in LIKERT_OPTIONS:
+                    errors[qid] = f"Q{qid}: must be one of {LIKERT_OPTIONS}."
+                elif qtype == "recommend" and val not in RECOMMEND_OPTIONS:
+                    errors[qid] = f"Q{qid}: must be one of {RECOMMEND_OPTIONS}."
+                elif qtype == "text" and not isinstance(val, str):
+                    errors[qid] = f"Q{qid}: must be a text string."
 
         if errors:
             return Response({"error": "Validation failed.", "fields": errors}, status=status.HTTP_400_BAD_REQUEST)
