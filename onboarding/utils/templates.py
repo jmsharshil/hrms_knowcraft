@@ -2672,8 +2672,8 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <p style="margin:0 0 16px 0;">If you have not been contacted by them or have any queries in the meantime, please feel free to reach out to our HR department or me directly.</p>
                                 <p style="margin:0 0 16px 0;">Once again, we are delighted to have you as part of our team, and we look forward to supporting you in your journey with us. Welcome aboard!</p>
                                 <br>
-                                <p style="margin:20px 0 6px 0;color:#555555;">Regards,</p>
-                                <p style="margin:0;font-weight:700;color:#1f2937;">Team-HR</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
                                 <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
