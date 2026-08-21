@@ -2654,33 +2654,26 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Welcome to the Buddy Program!</h2>
                                 <p style="margin:0 0 16px 0;">Hi {{candidate.candidate_name}},</p>
-                                <p style="margin:0 0 16px 0;">On behalf of the entire team, I would like to extend a warm welcome to you as our newest member. We are excited to have you on board and look forward to making your integration into our company a seamless and enjoyable experience.</p>
-                                <p style="margin:0 0 16px 0;">To help you settle in and get acquainted with our company culture, processes, and your role, we have implemented a <strong>Buddy Program</strong>. The Buddy Program pairs you with experienced colleagues who will be your go-to persons for any questions, guidance, and support during your initial weeks here.</p>
-                                <p style="margin:0 0 10px 0;"><strong>Your Buddies are:</strong></p>
-                                <table border="0" cellpadding="8" cellspacing="0" width="100%" style="border:1px solid #e2e8f0;border-radius:8px;margin-bottom:16px;">
-                                    <tr style="background:#f8fafc;">
-                                        <td style="font-weight:600;color:#1f2937;">Technical Buddy</td>
-                                        <td><strong>{{technical_buddy_name}}</strong><br><a href="mailto:{{technical_buddy_email}}" style="color:#2563eb;">{{technical_buddy_email}}</a></td>
-                                    </tr>
-                                    <tr>
-                                        <td style="font-weight:600;color:#1f2937;">Cultural Buddy</td>
-                                        <td><strong>{{cultural_buddy_name}}</strong><br><a href="mailto:{{cultural_buddy_email}}" style="color:#2563eb;">{{cultural_buddy_email}}</a></td>
-                                    </tr>
-                                </table>
-                                <p style="margin:0 0 10px 0;"><strong>You can expect your Buddies to:</strong></p>
+                                <p style="margin:0 0 16px 0;">On behalf of the entire team, I would like to extend a warm welcome to you as our newest member. We are excited to have you on board and look forward to working together and making your integration into our company a seamless and enjoyable experience.</p>
+                                <p style="margin:0 0 16px 0;">To help you settle in and get acquainted with our company culture, processes, and your role, we have implemented a Buddy Program. The Buddy Program pairs you with an experienced colleague, your "Buddy," who will be your go-to person for any questions, guidance, and support during your initial weeks here.</p>
+                                <p style="margin:0 0 16px 0;">Your Technical Buddy, <strong>{{technical_buddy_name}}</strong> is a seasoned team member who is excited to share his/her knowledge and experiences with you. He / She will help you navigate through your onboarding process, introduce you to other team members, and provide insights into the day-to-day workings of the company.</p>
+                                <p style="margin:0 0 16px 0;">Your Cultural Buddy, <strong>{{cultural_buddy_name}}</strong> is a part of HR team who will assist and provide you with an overview on company culture, values, and workplace practices.</p>
+                                <p style="margin:0 0 16px 0;">The primary objective of the Buddy Program is to ensure that you feel comfortable, confident, and connected from day one. Whether you have questions about company policies, team dynamics, or where to find the best coffee in the office, your Buddy is there to help.</p>
+                                <p style="margin:0 0 10px 0;">You can expect your Buddy to:</p>
                                 <ol style="margin:0 0 16px 0;padding-left:20px;">
-                                    <li style="margin-bottom:6px;">Introduce themselves and schedule an informal meeting during your first week.</li>
+                                    <li style="margin-bottom:6px;">Introduce themselves and schedule an informal meeting with you during your first week.</li>
                                     <li style="margin-bottom:6px;">Provide an overview of our company culture, values, and workplace practices.</li>
                                     <li style="margin-bottom:6px;">Assist you in setting up your workspace, email, and other essential tools.</li>
                                     <li style="margin-bottom:6px;">Accompany you to team meetings and introduce you to other team members.</li>
                                     <li style="margin-bottom:6px;">Offer insights into the projects you'll be working on and help you get up to speed with your role responsibilities.</li>
                                     <li style="margin-bottom:6px;">Be available for regular catchups and check-ins to ensure your smooth integration.</li>
                                 </ol>
-                                <p style="margin:0 0 16px 0;">We encourage open communication. If you have not been contacted by them or have any queries, please reach out to our HR department directly.</p>
-                                <p style="margin:0 0 16px 0;">Once again, we are delighted to have you as part of our team. <strong>Welcome aboard!</strong></p>
+                                <p style="margin:0 0 16px 0;">We encourage open communication during this process, and please don't hesitate to ask any questions or express any concerns you may have. We are committed to making your onboarding experience a positive one.</p>
+                                <p style="margin:0 0 16px 0;">If you have not been contacted by them or have any queries in the meantime, please feel free to reach out to our HR department or me directly.</p>
+                                <p style="margin:0 0 16px 0;">Once again, we are delighted to have you as part of our team, and we look forward to supporting you in your journey with us. Welcome aboard!</p>
                                 <br>
-                                <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
-                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team-HR</p>
                                 <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
                             </td>
                         </tr>
