@@ -186,6 +186,40 @@ class EmailLogAdmin(admin.ModelAdmin):
     ordering = ('-sent_at',)
     list_per_page = 50
     list_select_related = ('job_application',)
+    actions = ['approve_and_send_emails']
+
+    def approve_and_send_emails(self, request, queryset):
+        from django.core.mail import EmailMultiAlternatives
+        from django.utils import timezone
+        
+        pending_emails = queryset.filter(status='skipped', error_message='Intercepted for debug approval')
+        count = 0
+        for email_log in pending_emails:
+            try:
+                msg = EmailMultiAlternatives(
+                    subject=email_log.subject,
+                    body=email_log.body_text,
+                    from_email="talent@knowcraft.in",
+                    to=[email_log.recipient_email],
+                    cc=email_log.cc_emails if isinstance(email_log.cc_emails, list) else []
+                )
+                if email_log.body_html:
+                    msg.attach_alternative(email_log.body_html, "text/html")
+                
+                msg.send()
+                email_log.status = 'sent'
+                email_log.sent_at = timezone.now()
+                email_log.error_message = ''
+                email_log.save(update_fields=['status', 'sent_at', 'error_message'])
+                count += 1
+            except Exception as e:
+                email_log.status = 'failed'
+                email_log.error_message = str(e)
+                email_log.save(update_fields=['status', 'error_message'])
+                
+        self.message_user(request, f"Successfully approved and sent {count} emails.")
+    
+    approve_and_send_emails.short_description = "Approve and send selected pending emails"
 
 admin.site.register(EmailLog, EmailLogAdmin)
 
