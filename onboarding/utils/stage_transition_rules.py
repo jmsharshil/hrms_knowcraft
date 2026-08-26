@@ -22,12 +22,12 @@ ALLOWED_TRANSITIONS = {
     "selected": ["approval_pending","rejected", "backed_out"],
     "approval_pending": ["approved", "approval_rejected", "backed_out"],
     # OFFER FLOW
-    "approved": ["docs_pending", "backed_out"],
-    "docs_pending": ["docs_uploaded", "backed_out"],
-    "docs_uploaded":["review_docs", "backed_out"],
-    "review_docs": ["docs_approved", "docs_incomplete","docs_unclear", "backed_out"],
-    "docs_incomplete": ["docs_pending","docs_approved", "backed_out"],  # reupload
-    "docs_unclear": ["docs_pending","docs_approved", "backed_out"],  # reupload
+    "approved": ["docs_pending", "backed_out", "rejected"],
+    "docs_pending": ["docs_uploaded", "backed_out", "rejected"],
+    "docs_uploaded":["review_docs", "backed_out", "rejected"],
+    "review_docs": ["docs_approved", "docs_incomplete","docs_unclear", "backed_out", "rejected"],
+    "docs_incomplete": ["docs_pending","docs_approved", "backed_out", "rejected"],  # reupload
+    "docs_unclear": ["docs_pending","docs_approved", "backed_out", "rejected"],  # reupload
     "docs_approved": ["salary_annexure_prep","offer_pending","salary_annexure_review","offer_sent", "backed_out"],
     # HR prepares salary annexure
     "salary_annexure_prep": ["salary_annexure_review","offer_sent", "backed_out"],
