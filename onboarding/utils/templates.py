@@ -2811,3 +2811,185 @@ HTML_TEMPLATES.update({
     </html>
     """,
 })
+
+NOTIFY_INTERNAL_HTML_TEMPLATES.update({
+    "onboarding_form_submitted": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:680px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Header -->
+                        <tr>
+                            <td align="center" style="background:#0f172a;padding:28px 40px;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:220px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <!-- Title Banner -->
+                        <tr>
+                            <td style="background:#1e40af;padding:18px 40px;">
+                                <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;letter-spacing:0.3px;">
+                                    📋 New Onboarding Form Submitted
+                                </h1>
+                            </td>
+                        </tr>
+                        <!-- Intro -->
+                        <tr>
+                            <td style="padding:28px 40px 10px 40px;color:#374151;font-size:15px;line-height:1.6;">
+                                <p style="margin:0 0 8px 0;">Dear Admin Team,</p>
+                                <p style="margin:0;">
+                                    An onboarding form has been submitted for
+                                    <strong style="color:#1e40af;">{{candidate.candidate_name}}</strong>
+                                    by <strong>{{submitted_by_name}}</strong>.
+                                    All the submitted details are listed below for your records and action.
+                                </p>
+                            </td>
+                        </tr>
+                        <!-- Section: Personal Details -->
+                        <tr>
+                            <td style="padding:20px 40px 6px 40px;">
+                                <p style="margin:0 0 10px 0;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#6b7280;">
+                                    Personal Information
+                                </p>
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;font-size:14px;">
+                                    <tr style="background:#f8fafc;">
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;width:45%;border-bottom:1px solid #e5e7eb;">First Name</td>
+                                        <td style="padding:10px 16px;color:#1f2937;border-bottom:1px solid #e5e7eb;">{{first_name}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb;">Last Name</td>
+                                        <td style="padding:10px 16px;color:#1f2937;border-bottom:1px solid #e5e7eb;">{{last_name}}</td>
+                                    </tr>
+                                    <tr style="background:#f8fafc;">
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb;">Personal Email</td>
+                                        <td style="padding:10px 16px;color:#1f2937;border-bottom:1px solid #e5e7eb;">{{personal_email_id}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;">Contact Number</td>
+                                        <td style="padding:10px 16px;color:#1f2937;">{{contact_number}}</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        <!-- Section: Employment Details -->
+                        <tr>
+                            <td style="padding:20px 40px 6px 40px;">
+                                <p style="margin:0 0 10px 0;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#6b7280;">
+                                    Employment Details
+                                </p>
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;font-size:14px;">
+                                    <tr style="background:#f8fafc;">
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;width:45%;border-bottom:1px solid #e5e7eb;">Joining Date</td>
+                                        <td style="padding:10px 16px;color:#1e40af;font-weight:700;border-bottom:1px solid #e5e7eb;">{{joining_date}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb;">Designation</td>
+                                        <td style="padding:10px 16px;color:#1f2937;border-bottom:1px solid #e5e7eb;">{{designation}}</td>
+                                    </tr>
+                                    <tr style="background:#f8fafc;">
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb;">Department</td>
+                                        <td style="padding:10px 16px;color:#1f2937;border-bottom:1px solid #e5e7eb;">{{department}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb;">Employee Category</td>
+                                        <td style="padding:10px 16px;color:#1f2937;border-bottom:1px solid #e5e7eb;">{{employee_category}}</td>
+                                    </tr>
+                                    <tr style="background:#f8fafc;">
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb;">Crafter ID</td>
+                                        <td style="padding:10px 16px;color:#1f2937;border-bottom:1px solid #e5e7eb;">{{crafter_id}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;">Work From</td>
+                                        <td style="padding:10px 16px;color:#1f2937;">{{work_from}}</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        <!-- Section: Location & IT -->
+                        <tr>
+                            <td style="padding:20px 40px 6px 40px;">
+                                <p style="margin:0 0 10px 0;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#6b7280;">
+                                    Location & IT Setup
+                                </p>
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;font-size:14px;">
+                                    <tr style="background:#f8fafc;">
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;width:45%;border-bottom:1px solid #e5e7eb;">Office Location</td>
+                                        <td style="padding:10px 16px;color:#1f2937;border-bottom:1px solid #e5e7eb;">{{center_office_location}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb;">Asset Collection Mode</td>
+                                        <td style="padding:10px 16px;color:#1f2937;border-bottom:1px solid #e5e7eb;">{{mode_for_collecting_assets}}</td>
+                                    </tr>
+                                    <tr style="background:#f8fafc;">
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb;">Assets Required</td>
+                                        <td style="padding:10px 16px;color:#1f2937;border-bottom:1px solid #e5e7eb;">{{assets}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb;">Site</td>
+                                        <td style="padding:10px 16px;color:#1f2937;border-bottom:1px solid #e5e7eb;">{{site}}</td>
+                                    </tr>
+                                    <tr style="background:#f8fafc;">
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;">Team Manager</td>
+                                        <td style="padding:10px 16px;color:#1f2937;">{{team_manager}}</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        <!-- Section: Additional Info -->
+                        <tr>
+                            <td style="padding:20px 40px 6px 40px;">
+                                <p style="margin:0 0 10px 0;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#6b7280;">
+                                    Additional Information
+                                </p>
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;font-size:14px;">
+                                    <tr style="background:#f8fafc;">
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;width:45%;border-bottom:1px solid #e5e7eb;">Emails to Notify</td>
+                                        <td style="padding:10px 16px;color:#1f2937;border-bottom:1px solid #e5e7eb;">{{emails_to_notify}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb;">Current Address</td>
+                                        <td style="padding:10px 16px;color:#1f2937;border-bottom:1px solid #e5e7eb;">{{current_address}}</td>
+                                    </tr>
+                                    <tr style="background:#f8fafc;">
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;border-bottom:1px solid #e5e7eb;">Description</td>
+                                        <td style="padding:10px 16px;color:#1f2937;border-bottom:1px solid #e5e7eb;">{{description}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding:10px 16px;color:#6b7280;font-weight:600;">Custom Notes</td>
+                                        <td style="padding:10px 16px;color:#1f2937;">{{custom_notes}}</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        <!-- CTA -->
+                        <tr>
+                            <td style="padding:28px 40px 10px 40px;text-align:center;">
+                                <a href="{FRONTEND_URL}/onboarding/task-list/{{candidate.id}}"
+                                   style="background-color:#1e40af;color:#ffffff;padding:13px 30px;text-decoration:none;border-radius:6px;font-weight:600;font-size:15px;display:inline-block;">
+                                    View Candidate in HRMS
+                                </a>
+                            </td>
+                        </tr>
+                        <!-- Closing -->
+                        <tr>
+                            <td style="padding:20px 40px 30px 40px;color:#374151;font-size:15px;line-height:1.6;">
+                                <p style="margin:0 0 4px 0;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR (Automated)</p>
+                                <p style="margin:4px 0 0 0;color:#6b7280;font-weight:600;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                &copy; 2026 Knowcraft Analytics Private Limited &bull; Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """,
+})

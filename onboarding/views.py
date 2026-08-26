@@ -2220,40 +2220,139 @@ class InitiateOnboardingAPI(APIView):
         }
         
         try:
-            from onboarding.utils.zoho_manageengine import ManageEngineClient
             from onboarding.models import OnboardingForm
-            me_client = ManageEngineClient()
-            ticket_id = me_client.create_onboarding_ticket(application, form_data=form_data)
-            
-            if ticket_id:
-                application.it_ticket_ref = ticket_id
-                application.save(update_fields=['it_ticket_ref'])
-                
-                # Persist the onboarding form data
-                OnboardingForm.objects.update_or_create(
-                    job_application=application,
-                    defaults={
-                        'submitted_by': request.user if request.user.is_authenticated else None,
-                        'ticket_ref': ticket_id,
-                        **{k: v for k, v in form_data.items() if k != 'custom_notes'},
-                        'custom_notes': form_data.get('custom_notes', ''),
-                    }
-                )
-                
-                # Notify IT Team
-                from onboarding.utils.notifications import notify_internal
-                notify_internal(application, 'it_team_ticket_created')
-                
-                return Response({
-                    "message": "Onboarding initiated and IT ticket created successfully.",
-                    "ticket_id": ticket_id
-                }, status=status.HTTP_200_OK)
-            else:
-                return Response({"error": "Failed to create IT ticket."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-                
+
+            # ── Zoho ManageEngine integration (commented out — re-enable when ME is configured) ──
+            # from onboarding.utils.zoho_manageengine import ManageEngineClient
+            # me_client = ManageEngineClient()
+            # ticket_id = me_client.create_onboarding_ticket(application, form_data=form_data)
+            #
+            # if ticket_id:
+            #     application.it_ticket_ref = ticket_id
+            #     application.save(update_fields=['it_ticket_ref'])
+            #
+            #     OnboardingForm.objects.update_or_create(
+            #         job_application=application,
+            #         defaults={
+            #             'submitted_by': request.user if request.user.is_authenticated else None,
+            #             'ticket_ref': ticket_id,
+            #             **{k: v for k, v in form_data.items() if k != 'custom_notes'},
+            #             'custom_notes': form_data.get('custom_notes', ''),
+            #         }
+            #     )
+            #
+            #     from onboarding.utils.notifications import notify_internal
+            #     notify_internal(application, 'it_team_ticket_created')
+            #
+            #     return Response({
+            #         "message": "Onboarding initiated and IT ticket created successfully.",
+            #         "ticket_id": ticket_id
+            #     }, status=status.HTTP_200_OK)
+            # else:
+            #     return Response({"error": "Failed to create IT ticket."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # ── End Zoho ManageEngine block ────────────────────────────────────────────────────────
+
+            # Persist the onboarding form data to DB
+            db_fields = {
+                k: v for k, v in form_data.items()
+                if k not in ('attachment_files', 'requester_email_id', 'requester_name', 'requester_id')
+            }
+            onboarding_form, created = OnboardingForm.objects.update_or_create(
+                job_application=application,
+                defaults={
+                    'submitted_by': request.user if request.user.is_authenticated else None,
+                    'ticket_ref': None,  # Will be populated when ManageEngine integration is re-enabled
+                    **db_fields,
+                }
+            )
+
+            # Send admin notification email with full form details
+            try:
+                _send_onboarding_form_admin_email(application, form_data, request.user)
+            except Exception as email_err:
+                logger.warning(f"Admin email failed for onboarding form {application.id}: {email_err}")
+
+            return Response({
+                "message": "Onboarding form saved successfully. Admin team has been notified.",
+                "onboarding_form_id": str(onboarding_form.id),
+            }, status=status.HTTP_200_OK)
+
         except Exception as e:
             logger.error(f"Error initiating onboarding for {application.id}: {e}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+def _send_onboarding_form_admin_email(application, form_data, submitted_by):
+    """
+    Sends a rich HTML summary email to all admin-role users when
+    an onboarding form is submitted. No Zoho ManageEngine dependency.
+    """
+    from accounts.models import User
+    from onboarding.utils.sender import send_email
+    from onboarding.utils.templates import NOTIFY_INTERNAL_HTML_TEMPLATES
+    import logging
+    _logger = logging.getLogger(__name__)
+
+    admin_emails = list(
+        User.objects.filter(role='admin')
+        .exclude(email__isnull=True)
+        .exclude(email='')
+        .values_list('email', flat=True)
+    )
+
+    if not admin_emails:
+        _logger.warning(f"No admin users found to notify for onboarding form of {application.candidate_name}")
+        return
+
+    template_base = NOTIFY_INTERNAL_HTML_TEMPLATES.get('onboarding_form_submitted', '')
+    submitted_by_name = getattr(submitted_by, 'name', None) or getattr(submitted_by, 'email', 'HR Team')
+
+    def _fmt(val):
+        if val is None or val == '':
+            return '—'
+        return str(val)
+
+    template = template_base.format(
+        candidate=application,
+        submitted_by_name=submitted_by_name,
+        first_name=_fmt(form_data.get('first_name')),
+        last_name=_fmt(form_data.get('last_name')),
+        personal_email_id=_fmt(form_data.get('personal_email_id')),
+        contact_number=_fmt(form_data.get('contact_number')),
+        joining_date=_fmt(form_data.get('joining_date')),
+        designation=_fmt(form_data.get('designation')),
+        department=_fmt(form_data.get('department')),
+        employee_category=_fmt(form_data.get('employee_category')),
+        center_office_location=_fmt(form_data.get('center_office_location')),
+        mode_for_collecting_assets=_fmt(form_data.get('mode_for_collecting_assets')),
+        team_manager=_fmt(form_data.get('team_manager')),
+        work_from=_fmt(form_data.get('work_from')),
+        crafter_id=_fmt(form_data.get('crafter_id')),
+        emails_to_notify=_fmt(form_data.get('emails_to_notify')),
+        current_address=_fmt(form_data.get('current_address')),
+        description=_fmt(form_data.get('description')),
+        custom_notes=_fmt(form_data.get('custom_notes')),
+        site=_fmt(form_data.get('site')),
+        assets=_fmt(form_data.get('assets')),
+    )
+
+    subject = f"New Onboarding Form Submitted – {application.candidate_name}"
+    body = (
+        f"Onboarding form submitted for {application.candidate_name} "
+        f"(Joining: {form_data.get('joining_date', 'N/A')})."
+    )
+
+    for email in admin_emails:
+        send_email(
+            to=email,
+            subject=subject,
+            text=body,
+            template=template,
+            use_default_cc=False,
+            event="onboarding_form_submitted",
+            email_type="internal",
+            candidate=application,
+        )
 
 class ResolveEscalationAPI(APIView):
     permission_classes = [permissions.IsAuthenticated]
