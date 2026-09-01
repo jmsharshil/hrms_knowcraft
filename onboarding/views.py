@@ -2193,8 +2193,8 @@ class InitiateOnboardingAPI(APIView):
         
         # Extract full form data as per the ME onboarding form
         form_data = {
-            "assets": request.data.get("assets"),
-            "site": request.data.get("site"),
+            # "assets": request.data.get("assets"),
+            # "site": request.data.get("site"),
             "subject": request.data.get("subject"),
             "first_name": request.data.get("first_name"),
             "last_name": request.data.get("last_name"),
@@ -2215,7 +2215,7 @@ class InitiateOnboardingAPI(APIView):
             "custom_notes": request.data.get("custom_notes", ""),
             "requester_email_id": request.data.get("requester_email_id"),
             "requester_name": request.data.get("requester_name"),
-            "requester_id": request.data.get("requester_id"),
+            # "requester_id": request.data.get("requester_id"),
             "attachment_files": request.FILES.getlist("attachments"),
         }
         

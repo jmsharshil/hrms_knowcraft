@@ -608,11 +608,15 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
 
     def validate_application_token(self, value):
         try:
-            link = JobApplicationLink.objects.get(unique_token=value, is_active=True)
+            link = JobApplicationLink.objects.get(unique_token=value)
 
             # Check if link is expired
             if link.is_expired():
                 raise serializers.ValidationError("This application link has expired")
+
+            # Check if link is active
+            if not link.is_active:
+                raise serializers.ValidationError("This application link is no longer active")
 
             # Check if job is still accepting applications
             if not link.job.is_active:

@@ -7,7 +7,10 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-client = OpenAI(api_key=settings.OPENAI_API_KEY)
+try:
+    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+except Exception:
+    client = None
 
 PAN_REGEX = r"\b[A-Z]{5}[0-9]{4}[A-Z]\b"
 AADHAAR_REGEX = r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}\b"

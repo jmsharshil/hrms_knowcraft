@@ -13,7 +13,10 @@ from onboarding.utils.engine import automation_engine
 
 FRONTEND_URL = getattr(settings,"FRONTEND_URL")
 
-client = OpenAI(api_key=settings.OPENAI_API_KEY)
+try:
+    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+except Exception:
+    client = None
 # def extract_text(file_path):
 #     ext = Path(file_path).suffix.lower()
 

@@ -7,7 +7,10 @@ from django.shortcuts import render
 import os
 import re
 from .utils.engine import retrieve_context
-client = OpenAI(api_key=settings.OPENAI_API_KEY)
+try:
+    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+except Exception:
+    client = None
 
 def load_kb_file(relative_path):
     """
