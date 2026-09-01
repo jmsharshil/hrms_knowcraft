@@ -804,6 +804,70 @@ Knowcraft Analytics Private Limited""",
         ),
         "log": "D5 document verification email sent to {candidate.candidate_email}",
     },
+    "welcome_wfo": {
+        "email": {
+            "subject": "Welcome to Knowcraft Analytics!",
+            "text": "Welcome to Knowcraft Analytics! We are delighted to have you join our team and look forward to the knowledge, skills, and enthusiasm you will bring to the organization.",
+        },
+        "sms": "Welcome to Knowcraft Analytics! We are delighted to have you join our team.",
+        "log": "Welcome WFO email sent to {candidate.candidate_email}",
+    },
+    "welcome_wfh": {
+        "email": {
+            "subject": "Welcome to Knowcraft Analytics!",
+            "text": "A very warm welcome to Knowcraft Analytics! We are excited to have you join our team and look forward to supporting you as you begin your journey with us in a remote work setup.",
+        },
+        "sms": "A very warm welcome to Knowcraft Analytics! We are excited to have you join our team remotely.",
+        "log": "Welcome WFH email sent to {candidate.candidate_email}",
+    },
+    "document_signoff": {
+        "email": {
+            "subject": "Action Required: Complete Onboarding Document Sign-Off",
+            "text": "As part of your onboarding process, we request you to review and complete the sign-off of the onboarding documents shared with you.",
+        },
+        "sms": "Please review and complete the sign-off of your onboarding documents at the earliest.",
+        "log": "Onboarding document sign-off email sent to {candidate.candidate_email}",
+    },
+    "hr_handbook": {
+        "email": {
+            "subject": "HR Handbook",
+            "text": "Welcome to Knowcraft Analytics! Attached to this email is the HR Handbook. Please go through it carefully to familiarize yourself with company policies and benefits.",
+        },
+        "sms": "Welcome to Knowcraft Analytics! Please check your email for the HR Handbook.",
+        "log": "HR Handbook sent to {candidate.candidate_email}",
+    },
+    "culture_values": {
+        "email": {
+            "subject": "Exploring the Culture and Values of Knowcraft",
+            "text": "As we continue to grow together, please review the attached handbook on Knowcraft's Culture and Values.",
+        },
+        "sms": "Please check your email for Knowcraft's Culture and Values Handbook.",
+        "log": "Culture and Values Handbook sent to {candidate.candidate_email}",
+    },
+    "chatbot_manual": {
+        "email": {
+            "subject": "Introducing HR Buddy - MS Teams Chatbot User Manual",
+            "text": "Please find attached the user manual outlining simple steps to install our HR Buddy Chatbot in Microsoft Teams.",
+        },
+        "sms": "Please check your email for the HR Buddy MS Teams Chatbot User Manual.",
+        "log": "Chatbot User Manual sent to {candidate.candidate_email}",
+    },
+    "kai_mascot": {
+        "email": {
+            "subject": "Say Hello to KAI 🤖 Crafter Happiness Mascot!",
+            "text": "A quick reminder to check your Microsoft Teams — KAI (Knowcraft + AI + Intelligence) is waiting to hear from you!",
+        },
+        "sms": "Check Microsoft Teams! KAI Crafter Happiness Mascot is waiting for your weekly check-in.",
+        "log": "KAI Mascot reminder sent to {candidate.candidate_email}",
+    },
+    "posh_policy": {
+        "email": {
+            "subject": "Prevention of Sexual Harassment (POSH) Policy & Guidelines",
+            "text": "Knowcraft Analytics is committed to a safe and inclusive workplace. Attached is our POSH Policy for your review.",
+        },
+        "sms": "Please check your email for Knowcraft's POSH Policy & Guidelines.",
+        "log": "POSH Policy sent to {candidate.candidate_email}",
+    },
 }
 
 def notify_candidate(candidate: Any, stage: str, cc: list = None, feedback_link: str = None, extra_context: dict = None) -> bool:
@@ -848,7 +912,24 @@ def notify_candidate(candidate: Any, stage: str, cc: list = None, feedback_link:
     # ---------- EMAIL ----------
     
     if email_cfg:
+        raw_attachments = extra_context.get("attachments", [])
         attachments = []
+        for att in raw_attachments:
+            if isinstance(att, str) and (att.startswith("http://") or att.startswith("https://")):
+                try:
+                    import urllib.parse
+                    import requests
+                    res = requests.get(att, timeout=30)
+                    filename = urllib.parse.unquote(att.split("/")[-1])
+                    mimetype = res.headers.get("Content-Type", "application/pdf")
+                    if len(res.content) > 15 * 1024 * 1024:
+                        logger.warning("Attachment %s exceeds 15MB (%0.2f MB). Using in-email download link instead to prevent SMTP limits.", filename, len(res.content)/(1024*1024))
+                    else:
+                        attachments.append((filename, res.content, mimetype))
+                except Exception as err:
+                    logger.error("Failed downloading attachment from URL %s: %s", att, err)
+            else:
+                attachments.append(att)
         # attach_factory = email_cfg.get("attachments_factory")
         # if attach_factory:
         #     try:
@@ -924,10 +1005,10 @@ def notify_candidate(candidate: Any, stage: str, cc: list = None, feedback_link:
                 except (KeyError, ValueError) as e:
                     logger.warning("Text formatting error for %s: %s", stage, e)
 
-            if stage in ['satisfaction_survey', 'd90_survey', 'd5_document_verification']:
-                recipient_email = getattr(candidate, 'work_email', None)
+            if stage in ['satisfaction_survey', 'd90_survey', 'd5_document_verification', 'hr_handbook', 'culture_values', 'chatbot_manual', 'kai_mascot', 'posh_policy']:
+                recipient_email = getattr(candidate, 'work_email', None) or getattr(candidate, 'candidate_email', None)
                 if not recipient_email:
-                    logger.warning(f"No work_email found for candidate {candidate.id} for stage {stage}. Skipping.")
+                    logger.warning(f"No email found for candidate {candidate.id} for stage {stage}. Skipping.")
                     return False
             else:
                 recipient_email = getattr(candidate, 'work_email', None) or getattr(candidate, 'candidate_email', None)
@@ -1738,6 +1819,26 @@ def notify_internal(candidate: Any, stage: str, cc: list = None) -> bool:
         logger.exception(f"Failed internal notification: {e}")
         return False
 
+
+def send_welcome_email(candidate: Any, work_type: str = "WFO", reporting_time: str = "09:30 AM", office_address: str = "Knowcraft Analytics Office", hr_contact_details: str = "Team HR (hr@knowcraftanalytics.com)", cc: list = None) -> bool:
+    """
+    Sends Welcome Email to candidate based on work arrangement (WFO vs WFH).
+    """
+    stage = "welcome_wfh" if str(work_type).upper() in ["WFH", "WORK_FROM_HOME", "HOME", "REMOTE"] else "welcome_wfo"
+    extra_context = {
+        "reporting_time": reporting_time,
+        "office_address": office_address,
+        "hr_contact_details": hr_contact_details,
+    }
+    return notify_candidate(candidate=candidate, stage=stage, cc=cc, extra_context=extra_context)
+
+
+def send_document_signoff_email(candidate: Any, cc: list = None) -> bool:
+    """
+    Sends Onboarding Document Review & Sign-Off Email to candidate.
+    """
+    return notify_candidate(candidate=candidate, stage="document_signoff", cc=cc)
+
 def trigger_feedback_email(candidate: Any, feedback_type: str):
     """
     Creates/fetches CandidateExperienceFeedback and sends a separate feedback email.
@@ -1755,3 +1856,79 @@ def trigger_feedback_email(candidate: Any, feedback_type: str):
     except Exception as e:
         logger.exception("Failed to trigger feedback email for %s: %s", candidate.candidate_email, e)
         return False
+
+
+DEFAULT_HANDBOOK_ATTACHMENTS = {
+    "hr_handbook": "https://hireprostorage.blob.core.windows.net/media/4.1 Attachment-Handbook 2026.pdf",
+    "culture_values": "https://hireprostorage.blob.core.windows.net/media/4.2 Attachment-Culture and Values Handbook.pdf",
+    "chatbot_manual": "https://hireprostorage.blob.core.windows.net/media/4.4. Attachment-Knowcraft Chatbot.pdf",
+    "posh_policy": "https://hireprostorage.blob.core.windows.net/media/4.3 Email Body-POSH.jpg",
+}
+
+
+def send_hr_handbook_email(candidate: Any, attachment: Any = None, cc: list = None) -> bool:
+    """
+    Sends HR Handbook Email with attachment to candidate's work email.
+    """
+    attachment = attachment or DEFAULT_HANDBOOK_ATTACHMENTS["hr_handbook"]
+    extra_context = {
+        "attachments": [attachment] if not isinstance(attachment, list) else attachment
+    }
+    return notify_candidate(candidate=candidate, stage="hr_handbook", cc=cc, extra_context=extra_context)
+
+
+def send_culture_values_email(candidate: Any, attachment: Any = None, cc: list = None) -> bool:
+    """
+    Sends Culture and Values Handbook Email with attachment to candidate's work email.
+    """
+    attachment = attachment or DEFAULT_HANDBOOK_ATTACHMENTS["culture_values"]
+    extra_context = {
+        "attachments": [attachment] if not isinstance(attachment, list) else attachment
+    }
+    return notify_candidate(candidate=candidate, stage="culture_values", cc=cc, extra_context=extra_context)
+
+
+def send_chatbot_manual_email(candidate: Any, attachment: Any = None, cc: list = None) -> bool:
+    """
+    Sends HR Buddy Chatbot User Manual Email with attachment to candidate's work email.
+    """
+    attachment = attachment or DEFAULT_HANDBOOK_ATTACHMENTS["chatbot_manual"]
+    extra_context = {
+        "attachments": [attachment] if not isinstance(attachment, list) else attachment
+    }
+    return notify_candidate(candidate=candidate, stage="chatbot_manual", cc=cc, extra_context=extra_context)
+
+
+def send_kai_mascot_email(candidate: Any, cc: list = None) -> bool:
+    """
+    Sends KAI Happiness Mascot check-in notification email to candidate's work email.
+    """
+    return notify_candidate(candidate=candidate, stage="kai_mascot", cc=cc)
+
+
+def send_posh_policy_email(candidate: Any, attachment: Any = None, cc: list = None) -> bool:
+    """
+    Sends POSH Policy Email with attachment to candidate's work email.
+    """
+    attachment = attachment or DEFAULT_HANDBOOK_ATTACHMENTS["posh_policy"]
+    extra_context = {
+        "attachments": [attachment] if not isinstance(attachment, list) else attachment
+    }
+    return notify_candidate(candidate=candidate, stage="posh_policy", cc=cc, extra_context=extra_context)
+
+
+def send_post_welcome_handbooks_and_policies(candidate: Any, attachments_dict: dict = None, cc: list = None) -> dict:
+    """
+    Dispatches all post-welcome email templates (HR Handbook, Culture & Values, Chatbot Manual, KAI Mascot, POSH Policy)
+    to the candidate's work email with their respective attachments.
+    """
+    attachments_dict = attachments_dict or {}
+    results = {}
+    
+    results["hr_handbook"] = send_hr_handbook_email(candidate, attachment=attachments_dict.get("hr_handbook"), cc=cc)
+    results["culture_values"] = send_culture_values_email(candidate, attachment=attachments_dict.get("culture_values"), cc=cc)
+    results["chatbot_manual"] = send_chatbot_manual_email(candidate, attachment=attachments_dict.get("chatbot_manual"), cc=cc)
+    results["kai_mascot"] = send_kai_mascot_email(candidate, cc=cc)
+    results["posh_policy"] = send_posh_policy_email(candidate, attachment=attachments_dict.get("posh_policy"), cc=cc)
+    
+    return results

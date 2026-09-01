@@ -762,6 +762,422 @@ HTML_TEMPLATES = {
     </body>
     </html>
 """
+    ,
+    "welcome_wfo": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                <p style="margin:0 0 16px 0;font-size:18px;font-weight:600;color:#1f2937;">Hi {{{{candidate.candidate_name}}}},</p>
+                                <p style="margin:0 0 16px 0;">Welcome to Knowcraft Analytics! We are delighted to have you join our team and look forward to the knowledge, skills, and enthusiasm you will bring to the organization.</p>
+                                <p style="margin:0 0 20px 0;">As you begin your journey with us, we would like to share a few important details regarding your onboarding and work-from-office arrangement:</p>
+                                
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:0 0 25px 0;padding:20px;">
+                                    <tr>
+                                        <td>
+                                            <ul style="margin:0;padding:0 0 0 20px;color:#334155;font-size:15px;line-height:1.8;">
+                                                <li style="margin-bottom:8px;"><strong>Reporting Date:</strong> {{{{candidate.joining_date}}}}</li>
+                                                <li style="margin-bottom:8px;"><strong>Reporting Time:</strong> {{{{reporting_time}}}}</li>
+                                                <li style="margin-bottom:8px;"><strong>Office Address:</strong> {{{{office_address}}}}</li>
+                                                <li style="margin-bottom:0;"><strong>Contact Person for Assistance:</strong> {{{{hr_contact_details}}}}</li>
+                                            </ul>
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <p style="margin:0 0 16px 0;">We encourage you to make the most of this exciting new chapter, connect with your colleagues, and immerse yourself in our culture and values.</p>
+                                <p style="margin:0 0 24px 0;">Once again, welcome to the Knowcraft family. We wish you a successful and rewarding journey ahead.</p>
+                                <br>
+                                <p style="margin:20px 0 4px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-size:14px;font-weight:600;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+"""
+    ,
+    "welcome_wfh": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                <p style="margin:0 0 16px 0;font-size:18px;font-weight:600;color:#1f2937;">Hi {{{{candidate.candidate_name}}}},</p>
+                                <p style="margin:0 0 16px 0;">A very warm welcome to <strong>Knowcraft Analytics!</strong></p>
+                                <p style="margin:0 0 20px 0;">We are excited to have you join our team and look forward to supporting you as you begin your journey with us in a remote work setup.</p>
+                                <p style="margin:0 0 16px 0;">To help you get started smoothly, please find below some key details:</p>
+                                
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:0 0 25px 0;padding:20px;">
+                                    <tr>
+                                        <td>
+                                            <ul style="margin:0;padding:0 0 0 20px;color:#334155;font-size:15px;line-height:1.8;">
+                                                <li style="margin-bottom:8px;"><strong>Joining Date:</strong> {{{{candidate.joining_date}}}}</li>
+                                                <li style="margin-bottom:8px;"><strong>Reporting Time:</strong> {{{{reporting_time}}}}</li>
+                                                <li style="margin-bottom:0;"><strong>HR Contact for Assistance:</strong> {{{{hr_contact_details}}}}</li>
+                                            </ul>
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <p style="margin:0 0 16px 0;">You will receive information regarding your system access, onboarding sessions, team introductions, and other resources shortly.</p>
+                                <p style="margin:0 0 16px 0;">Although you will be working remotely, we are committed to ensuring you feel connected, supported, and engaged from day one.</p>
+                                <p style="margin:0 0 24px 0;">We look forward to your contributions and wish you great success at Knowcraft Analytics.</p>
+                                <br>
+                                <p style="margin:20px 0 4px 0;color:#555555;">Warm Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-size:14px;font-weight:600;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+"""
+    ,
+    "document_signoff": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                <h2 style="margin:0 0 20px 0;color:#1f2937;font-size:22px;font-weight:600;">Action Required: Complete Onboarding Document Sign-Off</h2>
+                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hello {{{{candidate.candidate_name|default:"Crafter"}}}},</p>
+                                <p style="margin:0 0 16px 0;"><strong>Welcome to Knowcraft Analytics!</strong></p>
+                                <p style="margin:0 0 16px 0;">As part of your onboarding process, we request you to review and complete the sign-off of the onboarding documents shared with you. These documents contain important information related to your employment, company policies, and onboarding formalities.</p>
+                                <p style="margin:0 0 24px 0;">Kindly ensure that all required documents are reviewed and signed at the earliest to facilitate the seamless completion of your onboarding process.</p>
+                                
+                                <p style="margin:30px 0 35px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}/onboarding/task-list/{{candidate.id}}" 
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;box-shadow:0 2px 6px rgba(37,99,235,0.3);">Review & Sign Documents</a>
+                                </p>
+
+                                <p style="margin:0 0 16px 0;">Should you have any questions or require assistance while completing the documentation, please feel free to reach out.</p>
+                                <p style="margin:0 0 24px 0;">We look forward to having you on board and wish you a successful journey with Knowcraft Analytics.</p>
+                                <br>
+                                <p style="margin:20px 0 4px 0;color:#555555;">Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-size:14px;font-weight:600;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+"""
+    ,
+    "hr_handbook": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                <h2 style="margin:0 0 20px 0;color:#1f2937;font-size:22px;font-weight:600;">HR Handbook</h2>
+                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hello {{{{candidate.candidate_name|default:"Crafter"}}}},</p>
+                                <p style="margin:0 0 16px 0;"><strong>Welcome to Knowcraft Analytics!</strong></p>
+                                <p style="margin:0 0 16px 0;">We are delighted to have you join us and look forward to supporting you as you begin your journey with the organization.</p>
+                                
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:0 0 20px 0;padding:20px;">
+                                    <tr>
+                                        <td style="color:#334155;font-size:15px;line-height:1.7;">
+                                            📁 <strong>Attached to this email is the HR Handbook.</strong> We encourage you to go through it carefully and familiarize yourself with the policies, processes, benefits, and other important information that will help you settle in smoothly.
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <p style="margin:0 0 16px 0;">Should you have any questions or require any assistance, please feel free to reach out to <a href="mailto:hr@knowcraft.in" style="color:#2563eb;text-decoration:none;font-weight:600;">hr@knowcraft.in</a>. We are happy to help.</p>
+                                <p style="margin:0 0 24px 0;">Wishing you a successful and rewarding experience with Knowcraft Analytics.</p>
+                                <br>
+                                <p style="margin:20px 0 4px 0;color:#555555;">Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-size:14px;font-weight:600;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+"""
+    ,
+    "culture_values": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                <h2 style="margin:0 0 20px 0;color:#1f2937;font-size:22px;font-weight:600;">Exploring the Culture and Values of Knowcraft</h2>
+                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hello {{{{candidate.candidate_name|default:"Crafter"}}}},</p>
+                                <p style="margin:0 0 16px 0;">Greetings!</p>
+                                <p style="margin:0 0 16px 0;">As we continue to grow and evolve together, it is important that we stay connected to the values and principles that define who we are as an organization.</p>
+                                
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:0 0 20px 0;padding:20px;">
+                                    <tr>
+                                        <td style="color:#334155;font-size:15px;line-height:1.7;">
+                                            📘 <strong>Attached is a handbook on Knowcraft's Culture and Values.</strong> We encourage you to take some time to read through it and familiarize yourself with the ideas and behaviors that shape our workplace and guide our decisions.
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td align="center" style="padding-top:16px;">
+                                            <a href="https://hireprostorage.blob.core.windows.net/media/4.2%20Attachment-Culture%20and%20Values%20Handbook.pdf" target="_blank" style="background-color:#2563eb;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:bold;font-size:14px;display:inline-block;">📥 Download Culture & Values Handbook (PDF)</a>
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <p style="margin:0 0 16px 0;">While this is not a policy document, it serves as our collective moral compass, reflecting the culture we strive to build and uphold every day.</p>
+                                
+                                <div style="margin:20px 0;padding:16px 20px;border-left:4px solid #2563eb;background-color:#eff6ff;border-radius:0 8px 8px 0;font-style:italic;color:#1e40af;font-size:15px;">
+                                    “When our values are clear to us, making choices and decisions become easier.”
+                                </div>
+
+                                <p style="margin:0 0 24px 0;">We hope you find the handbook insightful and inspiring, and we look forward to continuing this journey together.</p>
+                                <br>
+                                <p style="margin:20px 0 4px 0;color:#555555;">Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-size:14px;font-weight:600;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+"""
+    ,
+    "chatbot_manual": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                <h2 style="margin:0 0 20px 0;color:#1f2937;font-size:22px;font-weight:600;">Introducing HR Buddy - MS Teams Chatbot User Manual</h2>
+                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Dear {{{{candidate.candidate_name|default:"Crafter"}}}},</p>
+                                <p style="margin:0 0 16px 0;">Please find attached the user manual, which outlines the simple steps required to install the <strong>Chatbot within Microsoft Teams</strong>.</p>
+                                <p style="margin:0 0 16px 0;">Once installed, you can start using the chatbot just like you would interact with your colleagues — making it quick, easy, and convenient.</p>
+                                
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:0 0 20px 0;padding:20px;">
+                                    <tr>
+                                        <td style="color:#334155;font-size:15px;line-height:1.7;">
+                                            💡 <strong>Kindly note:</strong> This is currently a beta version, and we are continuously working to enhance its intelligence and usefulness. Your feedback will be invaluable in helping us improve the experience.
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <p style="margin:0 0 16px 0;">If you find that any response is not appropriate or your query has not been addressed correctly, please feel free to share the details with us via email or group chat. Your input will help us further refine the chatbot.</p>
+                                <p style="margin:0 0 16px 0;">We encourage everyone to start using this HR Buddy and make the most of this new initiative.</p>
+                                <p style="margin:0 0 24px 0;">Thank you, and happy chatting!</p>
+                                <br>
+                                <p style="margin:20px 0 4px 0;color:#555555;">Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-size:14px;font-weight:600;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+"""
+    ,
+    "kai_mascot": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                <h2 style="margin:0 0 20px 0;color:#1f2937;font-size:22px;font-weight:600;">Say Hello to KAI 🤖 Crafter Happiness Mascot!</h2>
+                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hi {{{{candidate.candidate_name|default:"Crafter"}}}},</p>
+                                <p style="margin:0 0 16px 0;">A quick reminder to check your Microsoft Teams — <strong>KAI (Knowcraft + AI + Intelligence)</strong> is waiting to hear from you!</p>
+                                <p style="margin:0 0 20px 0;">Our Crafters’ Happiness Mascot is reaching out through a simple weekly check-in to understand how your week is going. Whether things are going great or feel a little challenging — your experience matters.</p>
+                                
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:0 0 20px 0;padding:20px;">
+                                    <tr>
+                                        <td>
+                                            <p style="margin:0 0 10px 0;font-weight:700;color:#1f2937;">📅 Check-ins happen:</p>
+                                            <ul style="margin:0;padding:0 0 0 20px;color:#334155;font-size:15px;line-height:1.8;">
+                                                <li style="margin-bottom:6px;"><strong>Monday:</strong> Kickstart check-in</li>
+                                                <li style="margin-bottom:6px;"><strong>Wednesday:</strong> Mid-week pulse</li>
+                                                <li style="margin-bottom:0;"><strong>Friday:</strong> Weekly reflection</li>
+                                            </ul>
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <p style="margin:0 0 16px 0;">It takes less than a minute — no links, no forms, just a quick pop-up and click.</p>
+                                <p style="margin:0 0 16px 0;">Your responses help us understand what’s working well, where support may be needed, and how we can continue making Knowcraft an even better place for all our Crafters.</p>
+                                <p style="margin:0 0 24px 0;">If you haven’t responded yet, please take a moment today and share your update.</p>
+                                <br>
+                                <p style="margin:20px 0 4px 0;color:#555555;">Warm regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-size:14px;font-weight:600;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+"""
+    ,
+    "posh_policy": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                <h2 style="margin:0 0 20px 0;color:#1f2937;font-size:22px;font-weight:600;">Prevention of Sexual Harassment (POSH) Policy</h2>
+                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hello {{{{candidate.candidate_name|default:"Crafter"}}}},</p>
+                                <p style="margin:0 0 16px 0;">Greetings from Knowcraft Analytics!</p>
+                                <p style="margin:0 0 16px 0;">At Knowcraft, we are committed to providing a safe, respectful, and inclusive work environment for all employees.</p>
+                                
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:0 0 20px 0;padding:20px;">
+                                    <tr>
+                                        <td style="color:#334155;font-size:15px;line-height:1.7;">
+                                            🛡️ <strong>Attached to this email is our Prevention of Sexual Harassment (POSH) Policy.</strong> We request you to carefully read through the policy and familiarize yourself with the guidelines, grievance mechanisms, and Internal Committee (IC) details.
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <p style="margin:0 0 16px 0;">We believe in zero tolerance towards any form of harassment and are dedicated to maintaining a professional and secure workplace.</p>
+                                <p style="margin:0 0 24px 0;">If you have any questions, concerns, or need further clarification, please feel free to reach out to the HR team or the POSH Internal Committee.</p>
+                                <br>
+                                <p style="margin:20px 0 4px 0;color:#555555;">Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-size:14px;font-weight:600;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+"""
 }
 
 NOTIFY_INTERNAL_HTML_TEMPLATES = {

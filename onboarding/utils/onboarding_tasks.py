@@ -94,28 +94,31 @@ def daily_onboarding_check():
         # ── DOJ - 2 Days ────────────────────────────────────────
         if days_until_joining <= 2 and not app.is_doj_minus_2_triggered and app.status != "joined":
             logger.info(f"DOJ - 2 for candidate {app.candidate_name}. Welcome Email.")
-            notify_candidate(app, "welcome_joining", cc=[])
+            job_type = getattr(app.job, 'job_type', 'work_from_office') if app.job else 'work_from_office'
+            welcome_stage = "welcome_wfh" if str(job_type).lower() in ['remote', 'work_from_home', 'wfh'] else "welcome_wfo"
+            notify_candidate(app, welcome_stage, cc=[])
 
-            if app.it_ticket_ref and app.job.job_type != 'work_from_office':
+            if app.it_ticket_ref and getattr(app.job, 'job_type', None) != 'work_from_office':
                 me_client.update_ticket(app.it_ticket_ref, {}, note="DOJ is in 2 days. Finalize VPN/dispatch tasks.")
             
             app.is_doj_minus_2_triggered = True
             app.save(update_fields=['is_doj_minus_2_triggered'])
 
-        # ── DOJ 0 — Statutory docs + Zoho Sign packet ────────────
-        # Diagram: released on "report joined". If your "report joined" action is a
-        # separate manual endpoint, call generate_esign_documents()/send_documents_for_esign()
-        # from there instead and drop this block. Left here as a same-day fallback so the
-        # packet still goes out even if that manual step is skipped/delayed.
-        # NOTE: generate_esign_documents() creates the tracking rows + raises "upload file"
-        # tasks for HR; send_documents_for_esign() only sends docs that already have a
-        # source_file. If HR hasn't uploaded anything yet, this fires but sends nothing —
-        # it'll pick up uploaded files on a later cron pass since is_esign_packet_generated
-        # only gates re-creating the rows, not re-sending.
+        # ── DOJ 0 — Statutory docs + Handbooks & Policies + Zoho Sign packet ────────────
         if days_until_joining <= 0:
             is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
-            # In debug simulation the status stays 'joining_pending'; bypass the joined gate
-            # so the simulation can proceed past DOJ 0.
+            
+            # Send post-welcome handbooks & policies (HR Handbook, Culture & Values, Chatbot Manual, KAI Mascot, POSH Policy)
+            if not getattr(app, 'is_post_welcome_docs_sent', False):
+                logger.info(f"DOJ 0 for candidate {app.candidate_name}. Sending post-welcome handbooks & policies emails.")
+                from .notifications import send_post_welcome_handbooks_and_policies
+                send_post_welcome_handbooks_and_policies(app)
+                app.is_post_welcome_docs_sent = True
+                try:
+                    app.save(update_fields=['is_post_welcome_docs_sent'])
+                except Exception:
+                    pass
+
             if (app.status == "joined" or is_debug) and not getattr(app, 'is_esign_packet_generated', False):
                 logger.info(f"DOJ 0 for candidate {app.candidate_name}. Generating esign doc records.")
                 generate_esign_documents(app)
@@ -340,17 +343,31 @@ def run_onboarding_check_for_candidate(app):
                 location = app.job.mrf.location
         except Exception as e:
             logger.error(f"Failed to fetch location for welcome email: {e}")
+
+        job_type = getattr(app.job, 'job_type', 'work_from_office') if app.job else 'work_from_office'
+        welcome_stage = "welcome_wfh" if str(job_type).lower() in ['remote', 'work_from_home', 'wfh'] else "welcome_wfo"
             
-        notify_candidate(app, "welcome_joining", cc=[], extra_context={'location': location})
+        notify_candidate(app, welcome_stage, cc=[], extra_context={'office_address': location})
         # if app.it_ticket_ref and app.job and app.job.job_type != 'work_from_office':
             # me_client.update_ticket(app.it_ticket_ref, {}, note="DOJ is in 2 days. Finalize VPN/dispatch tasks.")
             
         app.is_doj_minus_2_triggered = True
         app.save(update_fields=['is_doj_minus_2_triggered'])
 
-    # ── DOJ 0 — Statutory docs + e-sign packet ─────────────────────────────
+    # ── DOJ 0 — Statutory docs + Handbooks & Policies + e-sign packet ─────────────────────────────
     if days_until_joining <= 0 and not getattr(app, 'is_doj_0_triggered', False):
         is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
+        
+        if not getattr(app, 'is_post_welcome_docs_sent', False):
+            logger.info(f"[ADMIN ACTION] DOJ 0 for {app.candidate_name}. Sending post-welcome handbooks & policies emails.")
+            from .notifications import send_post_welcome_handbooks_and_policies
+            send_post_welcome_handbooks_and_policies(app)
+            app.is_post_welcome_docs_sent = True
+            try:
+                app.save(update_fields=['is_post_welcome_docs_sent'])
+            except Exception:
+                pass
+
         if (app.status == "joined" or is_debug) and not getattr(app, 'is_esign_packet_generated', False):
             logger.info(f"[ADMIN ACTION] DOJ 0 for {app.candidate_name}. Generating esign doc records.")
             generate_esign_documents(app)
