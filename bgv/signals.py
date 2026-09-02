@@ -329,15 +329,42 @@ def sync_bgv_status_to_application(sender, instance, **kwargs):
     """
     app = instance.candidate
     
+    # Map every CandidateBGV status to the corresponding JobApplication/ApprovalNote bgv_status.
+    # Previously only 4 statuses were mapped — expanding to cover all choices so no update is silently dropped.
     status_map = {
-        "initiated": "bgv_initiated",
-        "in_progress": "bgv_in_progress",
-        "completed": "bgv_completed",
-        "insufficient": "bgv_insufficient",
+        # Pending
+        "pending_schedule":          "pending_schedule",
+        # Active / in-flight
+        "initiated":                 "initiated",
+        "pending":                   "pending",
+        "in_progress":               "in_progress",
+        "under_review":              "under_review",
+        "insufficiency_raised":      "insufficiency_raised",
+        "data_insufficient":         "data_insufficient",
+        "awaiting_candidate_input":  "awaiting_candidate_input",
+        "awaiting_employer_response":"awaiting_employer_response",
+        "awaiting_university_response":"awaiting_university_response",
+        "awaiting_court_response":   "awaiting_court_response",
+        # Successful / terminal
+        "clear":                     "clear",
+        "completed":                 "completed",
+        "closed":                    "closed",
+        "verified":                  "verified",
+        "unable_to_verify":          "unable_to_verify",
+        "discrepancy":               "discrepancy",
+        # Failure
+        "failed":                    "failed",
+        "cancelled":                 "cancelled",
+        "rejected":                  "rejected",
+        "expired":                   "expired",
     }
     
     new_status = status_map.get(instance.status)
     if not new_status:
+        logger.warning(
+            "[BGV SIGNAL] Unrecognised CandidateBGV status '%s' for application %s — bgv_status not updated.",
+            instance.status, app.id,
+        )
         return
         
     if app.bgv_status != new_status:

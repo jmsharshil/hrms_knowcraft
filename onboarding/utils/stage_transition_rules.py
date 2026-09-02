@@ -52,9 +52,13 @@ ALLOWED_TRANSITIONS = {
     "interview_rejected_management_client":['selected'],
     "approval_rejected": ["selected","approval_pending"],
     "offer_rejected": ["selected"],
-    "joined": [],
+    "joined": ["terminated_bgv", "terminated_misconduct", "terminated_other"],
     "rejected": ["selected"],
-    "backed_out": ["selected"]
+    "backed_out": ["selected"],
+    # POST-JOINING TERMINATION (terminal — no forward transitions)
+    "terminated_bgv": [],
+    "terminated_misconduct": [],
+    "terminated_other": [],
 }
 
 def validate_transition(old, new):

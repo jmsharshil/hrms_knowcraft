@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Job, JobAssignmentHistory, JobApplication, ReferralApplication, Application
+from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLink, ReferralApplication, Application
 
 @admin.register(Application)
 class ApplicationAdmin(admin.ModelAdmin):
@@ -447,6 +447,33 @@ class ReferralApplicationAdmin(admin.ModelAdmin):
         ('Additional Notes', {
             'fields': (
                 'notes', 'created_at', 'updated_at'
+            )
+        }),
+    )
+
+@admin.register(JobApplicationLink)
+class JobApplicationLinkAdmin(admin.ModelAdmin):
+    list_display = ['id', 'job', 'platform', 'title', 'is_active', 'created_at']
+    list_filter = ['platform', 'is_active', 'created_at']
+    search_fields = ['job__job_title', 'title', 'platform']
+    readonly_fields = ['id']
+    fieldsets = (
+        ('Link Details', {
+            'fields': (
+                'id',
+                'job',
+                'platform',
+                'title',
+                'description',
+                'unique_token',
+                'qr_code',
+                'views_count',
+                'applications_count',
+                'is_active',
+                'expires_at',
+                'created_at',
+                'updated_at',
+                'created_by',
             )
         }),
     )

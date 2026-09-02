@@ -559,6 +559,10 @@ class JobApplication(models.Model):
     ("joining_pending", "Joining Pending"),
     ("joining_poned", "Joining Postponed"),
     ("joined", "Joined"),
+    # POST-JOINING TERMINATION
+    ("terminated_bgv", "Terminated – BGV Failure"),
+    ("terminated_misconduct", "Terminated – Misconduct"),
+    ("terminated_other", "Terminated – Other Reason"),
     # General Rejection (fallback)
     ("rejected", "Rejected"),
     ("backed_out", "Backed Out"),

@@ -1132,46 +1132,13 @@ HTML_TEMPLATES = {
     ,
     "posh_policy": f"""
     <html>
-    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
-        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+    <body style="margin:0;padding:0;background-color:#ffffff;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:650px;margin:0 auto;background-color:#ffffff;">
             <tr>
-                <td align="center" style="padding:30px 15px;">
-                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
-                        <tr>
-                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
-                            </td>
-                        </tr>
-                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
-                        <tr>
-                            <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
-                                <h2 style="margin:0 0 20px 0;color:#1f2937;font-size:22px;font-weight:600;">Prevention of Sexual Harassment (POSH) Policy</h2>
-                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hello {{{{candidate.candidate_name|default:"Crafter"}}}},</p>
-                                <p style="margin:0 0 16px 0;">Greetings from Knowcraft Analytics!</p>
-                                <p style="margin:0 0 16px 0;">At Knowcraft, we are committed to providing a safe, respectful, and inclusive work environment for all employees.</p>
-                                
-                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:0 0 20px 0;padding:20px;">
-                                    <tr>
-                                        <td style="color:#334155;font-size:15px;line-height:1.7;">
-                                            🛡️ <strong>Attached to this email is our Prevention of Sexual Harassment (POSH) Policy.</strong> We request you to carefully read through the policy and familiarize yourself with the guidelines, grievance mechanisms, and Internal Committee (IC) details.
-                                        </td>
-                                    </tr>
-                                </table>
-
-                                <p style="margin:0 0 16px 0;">We believe in zero tolerance towards any form of harassment and are dedicated to maintaining a professional and secure workplace.</p>
-                                <p style="margin:0 0 24px 0;">If you have any questions, concerns, or need further clarification, please feel free to reach out to the HR team or the POSH Internal Committee.</p>
-                                <br>
-                                <p style="margin:20px 0 4px 0;color:#555555;">Regards,</p>
-                                <p style="margin:0;font-weight:700;color:#1f2937;">Team HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-size:14px;font-weight:600;">Knowcraft Analytics Private Limited.</p>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
-                                © 2026 Knowcraft Analytics Private Limited • Confidential
-                            </td>
-                        </tr>
-                    </table>
+                <td align="center" style="padding:0;">
+                    <img src="https://hireprostorage.blob.core.windows.net/media/4.3 Email Body-POSH.jpg"
+                         alt="POSH Policy"
+                         style="width:100%;max-width:650px;height:auto;display:block;border:0;">
                 </td>
             </tr>
         </table>
