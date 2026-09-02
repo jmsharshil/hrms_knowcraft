@@ -156,6 +156,18 @@ def daily_onboarding_check():
             app.is_d5_verification_sent = True
             app.save(update_fields=['is_d5_verification_sent'])
 
+            # Send Undertaking Sign-off Document via Zoho Sign template
+            if not getattr(app, 'is_undertaking_signoff_sent', False):
+                logger.info(f"DOJ 0 for candidate {app.candidate_name}. Sending Undertaking Sign-off Document.")
+                try:
+                    from .zoho_sign import send_undertaking_signoff
+                    result = send_undertaking_signoff(app)
+                    if result:
+                        app.is_undertaking_signoff_sent = True
+                        app.save(update_fields=['is_undertaking_signoff_sent'])
+                except Exception as e:
+                    logger.error(f"Failed to send undertaking sign-off for {app.candidate_name}: {e}")
+
         # ── DOJ + 7 Days (Escalation Check) ─────────────────────
         if days_until_joining <= -7 and not getattr(app, 'is_doj_7_triggered', False):
             logger.info(f"DOJ + 7 for candidate {app.candidate_name}. Checking BGV status.")
@@ -407,6 +419,18 @@ def run_onboarding_check_for_candidate(app):
         notify_candidate(app, "d5_document_verification", cc=[])
         app.is_d5_verification_sent = True
         app.save(update_fields=['is_d5_verification_sent'])
+        
+        # Send Undertaking Sign-off Document via Zoho Sign template
+        if not getattr(app, 'is_undertaking_signoff_sent', False):
+            logger.info(f"[ADMIN ACTION] DOJ 0 for {app.candidate_name}. Sending Undertaking Sign-off Document.")
+            try:
+                from .zoho_sign import send_undertaking_signoff
+                result = send_undertaking_signoff(app)
+                if result:
+                    app.is_undertaking_signoff_sent = True
+                    app.save(update_fields=['is_undertaking_signoff_sent'])
+            except Exception as e:
+                logger.error(f"[ADMIN ACTION] Failed to send undertaking sign-off for {app.candidate_name}: {e}")
 
     # ── DOJ + 7 Days — BGV check ────────────────────────────────────────────
     if days_until_joining <= -7 and not getattr(app, 'is_doj_7_triggered', False):

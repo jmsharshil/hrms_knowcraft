@@ -460,20 +460,9 @@ class JobApplicationLinkAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Link Details', {
             'fields': (
-                'id',
-                'job',
-                'platform',
-                'title',
-                'description',
-                'unique_token',
-                'qr_code',
-                'views_count',
-                'applications_count',
-                'is_active',
-                'expires_at',
-                'created_at',
-                'updated_at',
-                'created_by',
+            'id','job','platform','title','description','unique_token','qr_code',
+            'views_count','applications_count','is_active','expires_at',
+            'created_at','updated_at','created_by',
             )
         }),
     )

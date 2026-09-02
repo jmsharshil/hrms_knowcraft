@@ -921,3 +921,118 @@ def send_document_to_zoho_sign(document_task):
         print(f"Unable to send {document_task.doc_type} to Zoho Sign: {e}")
  
     return None
+
+
+def send_undertaking_signoff(app):
+    """
+    Sends the 'Undertaking Sign-off Document' Zoho Sign template to the candidate.
+    Template fields: Date, Crafter, Crafter Code
+    The template must be pre-created in Zoho Sign with the name
+    'Undertaking Sign-off Document'.
+
+    Uses the template-based approach (createdocument API).
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Template ID from Zoho Sign — set this in settings or hardcode after creation.
+    template_id = getattr(settings, 'ZOHO_UNDERTAKING_TEMPLATE_ID', None)
+    if not template_id:
+        logger.error(
+            f"ZOHO_UNDERTAKING_TEMPLATE_ID not configured in settings. "
+            f"Cannot send undertaking sign-off for {app.candidate_name}."
+        )
+        return None
+
+    # Resolve Crafter name and code from the OnboardingForm
+    crafter_name = app.candidate_name
+    crafter_code = ""
+    try:
+        onboarding_form = app.onboarding_form
+        crafter_name = f"{onboarding_form.first_name or ''} {onboarding_form.last_name or ''}".strip() or app.candidate_name
+        crafter_code = onboarding_form.crafter_id or ""
+    except Exception:
+        logger.warning(f"No onboarding form found for {app.candidate_name}. Using defaults.")
+
+    recipient_email = getattr(app, 'work_email', None) or app.candidate_email
+
+    access_token = get_access_token()
+    url = f"https://sign.zoho.in/api/v1/templates/{template_id}/createdocument"
+    headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
+
+    today_str = timezone.now().strftime('%d-%m-%Y')
+
+    note_message = (
+        f"Hello Crafter,<br>"
+        f"Welcome to Knowcraft Analytics!<br><br>"
+        f"As part of your onboarding process, we request you to review and complete the "
+        f"sign-off of the onboarding documents shared with you. These documents contain "
+        f"important information related to your employment, company policies, and onboarding formalities.<br><br>"
+        f"Kindly ensure that all required documents are reviewed and signed at the earliest "
+        f"to facilitate the seamless completion of your onboarding process.<br><br>"
+        f"Should you have any questions or require assistance while completing the documentation, "
+        f"please feel free to reach out.<br><br>"
+        f"We look forward to having you on board and wish you a successful journey with Knowcraft Analytics.<br><br>"
+        f"Regards,<br>"
+        f"Team HR"
+    )
+
+    prefill = {
+        "field_text_data": {
+            "Date": today_str,
+            "Crafter": crafter_name,
+            "Crafter Code": crafter_code,
+        }
+    }
+
+    payload = {
+        "data": json.dumps({
+            "templates": {
+                "request_name": f"Undertaking Sign-off - {app.candidate_name}",
+                "actions": [
+                    {
+                        "recipient_name": app.candidate_name,
+                        "recipient_email": recipient_email,
+                        "action_type": "SIGN",
+                        "signing_order": 1,
+                    }
+                ],
+                "field_data": prefill,
+                "notes": note_message,
+            }
+        }),
+        "is_quicksend": True,
+    }
+
+    try:
+        resp = requests.post(url, headers=headers, data=payload)
+        resp.raise_for_status()
+        data = resp.json()
+
+        request_id = data["requests"]["request_id"]
+        document_ids = data["requests"].get("document_ids", [])
+        document_id = document_ids[0].get("document_id") if document_ids else None
+
+        # Store as a DocumentEsignTask so the webhook can track signing status
+        from onboarding.models import DocumentEsignTask
+        DocumentEsignTask.objects.create(
+            job_application=app,
+            doc_type="UNDERTAKING",
+            zoho_request_id=request_id,
+            zoho_document_id=document_id,
+            status="sent",
+            sent_at=timezone.now(),
+            raw_response=data,
+        )
+
+        logger.info(f"Undertaking sign-off sent to {app.candidate_name} ({recipient_email})")
+        return data
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Zoho Sign request failed for undertaking sign-off / {app.candidate_name}: {e}")
+    except KeyError:
+        logger.error(f"Unexpected Zoho Sign response for undertaking sign-off: {resp.text}")
+    except Exception as e:
+        logger.error(f"Unable to send undertaking sign-off to Zoho Sign: {e}")
+
+    return None

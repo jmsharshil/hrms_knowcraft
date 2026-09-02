@@ -95,6 +95,7 @@ class RevertRejectionAPI(APIView):
             return Response({"error": "Job Application not found"}, status=404)
 
         old_status = application.status
+        comment = request.data.get("comment", "")  # New optional comment field
         
         # We only allow reverting from terminal rejection states
         from onboarding.utils.stage_transition_rules import ALLOWED_TRANSITIONS
@@ -188,6 +189,10 @@ class RevertRejectionAPI(APIView):
             else:
                 application.slot_link = ""
                 application.inperson_link = ""
+            
+            if comment:
+                application.revert_comment = comment
+            
             application.save()
             return Response({
                 "success": ok,

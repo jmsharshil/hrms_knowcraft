@@ -697,6 +697,8 @@ class JobApplication(models.Model):
     is_d90_survey_filled = models.BooleanField(default=False) # tracks when candidate submits the 90-day survey
     it_ticket_closed = models.BooleanField(default=False)     # Gap 8:  guard ME ticket close (>= day 90)
     is_esign_packet_generated = models.BooleanField(default=False)  # True once esign doc rows are created at DOJ 0
+    is_undertaking_signoff_sent = models.BooleanField(default=False)
+    is_undertaking_signoff_completed = models.BooleanField(default=False)
     is_esign_reminder_sent = models.BooleanField(default=False)     # True once the DOJ+1 esign reminder is sent
     
     is_doj_minus_15_triggered = models.BooleanField(default=False)
@@ -1066,6 +1068,7 @@ class Application(models.Model):
     is_rejected = models.BooleanField(default=False)
     rejected_by = models.ForeignKey("accounts.user",on_delete=models.SET_NULL,null=True,blank=True)
     rejection_reason = models.TextField(null=True,blank=True)
+    revert_comment = models.TextField(null=True,blank=True)
 
     is_touched = models.BooleanField(default=False, help_text="Has the candidate been touched at least once?")
     touched_at = models.DateTimeField(null=True, blank=True, help_text="When was the candidate last touched?")

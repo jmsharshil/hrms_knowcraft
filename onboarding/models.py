@@ -810,6 +810,7 @@ class DocumentEsignTask(models.Model):
         ("FORM_F", "Form F"),
         ("FORM_11", "Form 11"),
         ("IT_ASSET", "IT Asset Handover / Digital Asset Confirmation"),
+        ("UNDERTAKING", "Undertaking Sign-off Document"),
     ]
     STATUS_CHOICES = [
         ("pending", "Pending — File Not Yet Uploaded"),
