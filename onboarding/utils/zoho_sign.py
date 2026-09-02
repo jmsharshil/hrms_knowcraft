@@ -442,6 +442,13 @@ def zoho_sign_webhook(request):
                 return JsonResponse({"status": "ok"})
             else:
                 return JsonResponse({"error":reason})
+        
+        elif doc_type == 'DocumentEsignTask':
+            # Persist undertaking sign-off flag (as per summary)
+            if getattr(doc, 'doc_type', None) == 'UNDERTAKING':
+                application.is_undertaking_signoff_completed = True
+                application.save(update_fields=['is_undertaking_signoff_completed'])
+                print(f"Undertaking signoff completed for {application.candidate_name}")
 
     elif event_type == "RequestRejected":
         doc.status = "declined"
@@ -1035,4 +1042,4 @@ def send_undertaking_signoff(app):
     except Exception as e:
         logger.error(f"Unable to send undertaking sign-off to Zoho Sign: {e}")
 
-    return None
+    return None

@@ -3781,6 +3781,7 @@ class OnboardingJourneyAPI(APIView):
                 "it_ticket_ref": application.it_ticket_ref,
                 "it_ticket_closed": application.it_ticket_closed,
                 "emp_account_active": application.emp_account_active,
+                "is_undertaking_signoff_completed": getattr(application, 'is_undertaking_signoff_completed', False),
             },
 
             # ── MRF / Requisition ────────────────────────────────────
