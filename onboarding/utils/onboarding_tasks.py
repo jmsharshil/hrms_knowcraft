@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.conf import settings
 from jobs.models import JobApplication
 from bgv.models import CandidateBGV
-from .zoho_manageengine import ManageEngineClient
+# from .zoho_manageengine import ManageEngineClient
 from .notifications import notify_candidate, notify_internal
 from .task_generation import create_milestone_tasks, create_task
 from .esign_tasks import generate_esign_documents, send_documents_for_esign, send_esign_reminders
@@ -37,7 +37,7 @@ def daily_onboarding_check():
         # Escalated candidates must still receive D30/D45/D90 notifications.
     )
 
-    me_client = ManageEngineClient()
+    # me_client = ManageEngineClient()
 
     for app in candidates:
         if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
@@ -58,15 +58,22 @@ def daily_onboarding_check():
         else:
             days_until_joining = (app.joining_date - today).days if app.joining_date else 999
 
+        # Gate: The onboarding task milestones will ONLY start after the onboarding initiation form is filled.
+        if not hasattr(app, 'onboarding_form'):
+            logger.info(f"Onboarding form pending for candidate {app.candidate_name}. Sending reminder.")
+            # Send reminder until it is filled
+            notify_internal(app, "onboarding_initiation_reminder")
+            continue
+
         # ── DOJ - 15 Days ───────────────────────────────────────
         if days_until_joining <= 15 and not getattr(app, 'is_doj_minus_15_triggered', False) and app.status != "joined":
             logger.info(f"DOJ - 15 for candidate {app.candidate_name}. Updating ME ticket.")
-            if app.it_ticket_ref:
-                update_payload = {} # You can add specific custom fields here for procurement
-                note = f"DOJ is in 15 days ({app.joining_date}). Please procure laptop."
-                if app.job.job_type != 'work_from_office':
-                    note += " (Remote joiner: VPN setup task required)."
-                me_client.update_ticket(app.it_ticket_ref, update_payload, note=note)
+            # if app.it_ticket_ref:
+            #     update_payload = {} # You can add specific custom fields here for procurement
+            #     note = f"DOJ is in 15 days ({app.joining_date}). Please procure laptop."
+            #     if app.job.job_type != 'work_from_office':
+            #         note += " (Remote joiner: VPN setup task required)."
+            #     me_client.update_ticket(app.it_ticket_ref, update_payload, note=note)
 
             # Send Email to IT Team
             notify_internal(app, "doj_minus_15_it_team")
@@ -81,10 +88,10 @@ def daily_onboarding_check():
             if app.job.job_type == 'work_from_office':
                 notify_internal(app, "doj_minus_7_hod")
                 notify_internal(app, "doj_minus_7_admin")
-            else:
-                if app.it_ticket_ref:
-                    note = f"DOJ is in 7 days ({app.joining_date}). Remote joiner. Please arrange for laptop dispatch."
-                    me_client.update_ticket(app.it_ticket_ref, {}, note=note)
+            # else:
+            #     if app.it_ticket_ref:
+            #         note = f"DOJ is in 7 days ({app.joining_date}). Remote joiner. Please arrange for laptop dispatch."
+            #         me_client.update_ticket(app.it_ticket_ref, {}, note=note)
 
             create_milestone_tasks(app, "DOJ_MINUS_7", app.joining_date)
             app.is_doj_minus_7_triggered = True
@@ -98,21 +105,14 @@ def daily_onboarding_check():
             welcome_stage = "welcome_wfh" if str(job_type).lower() in ['remote', 'work_from_home', 'wfh'] else "welcome_wfo"
             notify_candidate(app, welcome_stage, cc=[])
 
-            if app.it_ticket_ref and getattr(app.job, 'job_type', None) != 'work_from_office':
-                me_client.update_ticket(app.it_ticket_ref, {}, note="DOJ is in 2 days. Finalize VPN/dispatch tasks.")
+            # if app.it_ticket_ref and getattr(app.job, 'job_type', None) != 'work_from_office':
+            #     me_client.update_ticket(app.it_ticket_ref, {}, note="DOJ is in 2 days. Finalize VPN/dispatch tasks.")
             
             app.is_doj_minus_2_triggered = True
             app.save(update_fields=['is_doj_minus_2_triggered'])
 
         # ── DOJ 0 — Statutory docs + Handbooks & Policies + Zoho Sign packet ────────────
-        onboarding_was_tracked = (
-            getattr(app, 'is_doj_minus_15_triggered', False) or
-            getattr(app, 'is_doj_minus_7_triggered', False) or
-            getattr(app, 'is_doj_minus_2_triggered', False) or
-            getattr(app, 'is_doj_0_triggered', False)
-        )
-
-        if days_until_joining <= 0 and onboarding_was_tracked:
+        if days_until_joining <= 0:
             is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
             
             # Send post-welcome handbooks & policies (HR Handbook, Culture & Values, Chatbot Manual, KAI Mascot, POSH Policy)
@@ -138,7 +138,7 @@ def daily_onboarding_check():
                 send_documents_for_esign(app)
 
         # ── DOJ + 1 Day — esign reminder (real implementation, was a stub) ─────
-        if days_until_joining <= -1 and onboarding_was_tracked:
+        if days_until_joining <= -1:
             is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
             # In debug mode skip the Zoho/esign check so simulation continues
             if is_debug:
@@ -150,14 +150,14 @@ def daily_onboarding_check():
                 app.save(update_fields=['is_esign_reminder_sent'])
 
         # ── DOJ + 5 Days (Document Verification) ────────────────
-        if days_until_joining <= -5 and onboarding_was_tracked and not getattr(app, 'is_d5_verification_sent', False):
+        if days_until_joining <= -5 and not getattr(app, 'is_d5_verification_sent', False):
             logger.info(f"DOJ + 5 for candidate {app.candidate_name}. Sending document verification email.")
             notify_candidate(app, "d5_document_verification", cc=[])
             app.is_d5_verification_sent = True
             app.save(update_fields=['is_d5_verification_sent'])
 
         # ── DOJ + 7 Days (Escalation Check) ─────────────────────
-        if days_until_joining <= -7 and onboarding_was_tracked and not getattr(app, 'is_doj_7_triggered', False):
+        if days_until_joining <= -7 and not getattr(app, 'is_doj_7_triggered', False):
             logger.info(f"DOJ + 7 for candidate {app.candidate_name}. Checking BGV status.")
             
             designation_name = app.job.mrf.designation.name.lower() if (
@@ -191,13 +191,13 @@ def daily_onboarding_check():
             days_past = abs(days_until_joining)
 
         # ── DOJ + 30 Days ─────────────────────────────────────────
-        if days_past >= 30 and onboarding_was_tracked and not getattr(app, 'is_d30_survey_sent', False):
+        if days_past >= 30 and not getattr(app, 'is_d30_survey_sent', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending 30-day candidate survey reminder.")
             notify_candidate(app, "satisfaction_survey", cc=[])
             app.is_d30_survey_sent = True
             app.save(update_fields=['is_d30_survey_sent'])
 
-        if days_past >= 30 and onboarding_was_tracked and not getattr(app, 'is_hod_survey_filled', False):
+        if days_past >= 30 and not getattr(app, 'is_hod_survey_filled', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending HOD survey reminder.")
             is_senior = False
             try:
@@ -222,7 +222,7 @@ def daily_onboarding_check():
             app.save(update_fields=['is_hod_survey_filled'])
 
         # ── DOJ + 45 Days ───────────────────────
-        if days_past >= 45 and onboarding_was_tracked and not getattr(app, 'is_d45_call_scheduled', False):
+        if days_past >= 45 and not getattr(app, 'is_d45_call_scheduled', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Check-in invite reminder (D45).")
             notify_internal(app, "schedule_checkin_call_reminder")
             app.d45_reminder_count = getattr(app, 'd45_reminder_count', 0) + 1
@@ -235,7 +235,7 @@ def daily_onboarding_check():
             app.save(update_fields=save_fields)
 
         # ── DOJ + 90 Days ─────────────
-        if days_past >= 90 and onboarding_was_tracked and not getattr(app, 'is_d90_survey_sent', False):
+        if days_past >= 90 and not getattr(app, 'is_d90_survey_sent', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending 90-day survey + final review reminder.")
             notify_candidate(app, "d90_survey", cc=[])
             notify_internal(app, "schedule_final_review_reminder")
@@ -265,11 +265,11 @@ def daily_onboarding_check():
             app.is_d90_survey_sent = True
             app.save(update_fields=['is_d90_survey_sent'])
 
-        if days_past >= 90 and onboarding_was_tracked and app.it_ticket_ref and not getattr(app, 'it_ticket_closed', False):
-            logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Closing ManageEngine IT ticket.")
-            if me_client.close_ticket(app.it_ticket_ref):
-                app.it_ticket_closed = True
-                app.save(update_fields=['it_ticket_closed'])
+        if days_past >= 90 and app.it_ticket_ref and not getattr(app, 'it_ticket_closed', False):
+            logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Requesting IT team to close ticket.")
+            notify_internal(app, "it_ticket_close_request")
+            app.it_ticket_closed = True
+            app.save(update_fields=['it_ticket_closed'])
 
     return True
 
@@ -288,7 +288,7 @@ def run_onboarding_check_for_candidate(app):
     """
     logger.info(f"[ADMIN ACTION] Running onboarding check for: {app.candidate_name}")
 
-    me_client = ManageEngineClient()
+    # me_client = ManageEngineClient()
     joining_date = app.joining_date
     if not joining_date:
         logger.error(f"[ADMIN ACTION] Candidate {app.candidate_name} has no joining date.")
@@ -312,11 +312,11 @@ def run_onboarding_check_for_candidate(app):
     # ── DOJ - 15 Days ───────────────────────────────────────────────────────
     if days_until_joining <= 15 and not getattr(app, 'is_doj_minus_15_triggered', False) and app.status != "joined":
         logger.info(f"[ADMIN ACTION] DOJ - 15 for {app.candidate_name}. Updating ME ticket.")
-        if app.it_ticket_ref:
-            note = f"DOJ is in 15 days ({joining_date}). Please procure laptop."
-            if app.job and app.job.job_type != 'work_from_office':
-                note += " (Remote joiner: VPN setup task required)."
-            me_client.update_ticket(app.it_ticket_ref, {}, note=note)
+        # if app.it_ticket_ref:
+        #     note = f"DOJ is in 15 days ({joining_date}). Please procure laptop."
+        #     if app.job and app.job.job_type != 'work_from_office':
+        #         note += " (Remote joiner: VPN setup task required)."
+        #     me_client.update_ticket(app.it_ticket_ref, {}, note=note)
         notify_internal(app, "doj_minus_15_it_team")
         create_milestone_tasks(app, "DOJ_MINUS_15", joining_date)
         app.is_doj_minus_15_triggered = True
@@ -490,11 +490,11 @@ def run_onboarding_check_for_candidate(app):
         app.save(update_fields=['is_d90_survey_sent'])
         create_milestone_tasks(app, "DOJ_PLUS_90_FINAL", joining_date)
 
-    if days_past >= 90 and app.it_ticket_ref and not getattr(app, 'it_ticket_closed', False):
-        logger.info(f"[ADMIN ACTION] DOJ + {days_past} for {app.candidate_name}. Closing ME IT ticket.")
-        if me_client.close_ticket(app.it_ticket_ref):
-            app.it_ticket_closed = True
-            app.save(update_fields=['it_ticket_closed'])
+    if days_past >= 90 and app.is_d90_survey_filled and app.is_d90_call_scheduled and not getattr(app, 'it_ticket_closed', False):
+        logger.info(f"[ADMIN ACTION] DOJ + {days_past} for {app.candidate_name}. Requesting IT team to close ticket.")
+        notify_internal(app, "it_ticket_close_request")
+        app.it_ticket_closed = True
+        app.save(update_fields=['it_ticket_closed'])
 
     logger.info(f"[ADMIN ACTION] Completed onboarding check for: {app.candidate_name}")
     return days_until_joining

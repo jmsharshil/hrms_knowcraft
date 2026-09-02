@@ -1422,11 +1422,17 @@ Knowcraft Analytics Private Limited""",
     # --------------------------------------------------------------
     # POST-JOINING / ONBOARDING MILESTONE INTERNAL NOTIFICATIONS
     # --------------------------------------------------------------
+    "onboarding_initiation_reminder": {
+        "receivers": ["hr"],
+        "subject": "Action Required: Onboarding Initiation Pending",
+        "body": "The onboarding initiation form for {candidate.candidate_name} is pending. Please fill it immediately to start the onboarding task sequence.",
+        "sms": "Onboarding initiation pending for {candidate.candidate_name}. Please fill it ASAP.",
+    },
     "doj_minus_15_it_team": {
         "receivers": ["it_team", "admin"],
-        "subject": "Upcoming Joiner - IT Procurement Reminder (15 Days)",
-        "body": "Candidate is joining in 15 days. Please ensure laptop procurement and account setup via ManageEngine.",
-        "sms": "Upcoming joiner {candidate.candidate_name} in 15 days - prepare IT assets.",
+        "subject": "Upcoming Joiner - IT Procurement Reminder ({candidate.joining_date})",
+        "body": "Candidate {candidate.candidate_name} is joining on {candidate.joining_date}. Please ensure laptop procurement and account setup via ManageEngine.",
+        "sms": "Upcoming joiner {candidate.candidate_name} on {candidate.joining_date} - prepare IT assets.",
     },
     "doj_minus_7_hod": {
         "receivers": ["department_head"],
@@ -1507,6 +1513,12 @@ Knowcraft Analytics Private Limited""",
         "subject": "New Onboarding IT Ticket Created",
         "body": "IT ticket {candidate.it_ticket_ref} created for onboarding of {candidate.candidate_name}. Please monitor and complete setup.",
         "sms": "New IT onboarding ticket created for {candidate.candidate_name}.",
+    },
+    "it_ticket_close_request": {
+        "receivers": ["it_team"],
+        "subject": "Action Required: Close Onboarding IT Ticket for {candidate.candidate_name}",
+        "body": "The 90-day onboarding period for {candidate.candidate_name} is complete. Please close their onboarding IT ticket.",
+        "sms": "Please close the onboarding IT ticket for {candidate.candidate_name}.",
     },
 }
 
