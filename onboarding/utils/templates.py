@@ -689,12 +689,12 @@ HTML_TEMPLATES = {
                         <tr>
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Action Required: Verify Your Documents and Details</h2>
-                                <p style="margin:0 0 16px 0;">Dear {{{{candidate.candidate_name}}}},</p>
+                                <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
                                 <p style="margin:0 0 16px 0;">Welcome to Knowcraft Analytics!</p>
                                 <p style="margin:0 0 16px 0;">As part of your onboarding process, we request you to please verify the details and documents you submitted to ensure accuracy and authenticity.</p>
                                 
                                 <p style="margin:30px 0 35px 0;text-align:center;">
-                                    <a href="{FRONTEND_URL}/candidate/documents/verify/{{{{candidate.id}}}}" 
+                                    <a href="{FRONTEND_URL}/candidate/documents/verify/{{candidate.id}}" 
                                        style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">Verify Information</a>
                                 </p>
                                 
@@ -732,7 +732,7 @@ HTML_TEMPLATES = {
                         <tr>
                             <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">E-Signature Documents Ready</h2>
-                                <p style="margin:0 0 16px 0;">Dear {{{{candidate.candidate_name}}}},</p>
+                                <p style="margin:0 0 16px 0;">Dear {{candidate.candidate_name}},</p>
                                 <p style="margin:0 0 16px 0;">Welcome to Knowcraft Analytics!</p>
                                 <p style="margin:0 0 16px 0;">As part of your onboarding, we require you to digitally sign your employment documents.</p>
                                 <p style="margin:0 0 16px 0;">We have initiated an e-signature request for your onboarding documents via <b>Flowace</b>. You will receive a separate email from Flowace with a secure link to review and sign your documents.</p>
@@ -778,7 +778,7 @@ HTML_TEMPLATES = {
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
                         <tr>
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
-                                <p style="margin:0 0 16px 0;font-size:18px;font-weight:600;color:#1f2937;">Hi {{{{candidate.candidate_name}}}},</p>
+                                <p style="margin:0 0 16px 0;font-size:18px;font-weight:600;color:#1f2937;">Hi {{candidate.candidate_name}},</p>
                                 <p style="margin:0 0 16px 0;">Welcome to Knowcraft Analytics! We are delighted to have you join our team and look forward to the knowledge, skills, and enthusiasm you will bring to the organization.</p>
                                 <p style="margin:0 0 20px 0;">As you begin your journey with us, we would like to share a few important details regarding your onboarding and work-from-office arrangement:</p>
                                 
@@ -786,10 +786,10 @@ HTML_TEMPLATES = {
                                     <tr>
                                         <td>
                                             <ul style="margin:0;padding:0 0 0 20px;color:#334155;font-size:15px;line-height:1.8;">
-                                                <li style="margin-bottom:8px;"><strong>Reporting Date:</strong> {{{{candidate.joining_date}}}}</li>
-                                                <li style="margin-bottom:8px;"><strong>Reporting Time:</strong> {{{{reporting_time}}}}</li>
-                                                <li style="margin-bottom:8px;"><strong>Office Address:</strong> {{{{office_address}}}}</li>
-                                                <li style="margin-bottom:0;"><strong>Contact Person for Assistance:</strong> {{{{hr_contact_details}}}}</li>
+                                                <li style="margin-bottom:8px;"><strong>Reporting Date:</strong> {{candidate.joining_date}}</li>
+                                                <li style="margin-bottom:8px;"><strong>Reporting Time:</strong> {{reporting_time}}</li>
+                                                <li style="margin-bottom:8px;"><strong>Office Address:</strong> {{office_address}}</li>
+                                                <li style="margin-bottom:0;"><strong>Contact Person for Assistance:</strong> {{hr_contact_details}}</li>
                                             </ul>
                                         </td>
                                     </tr>
@@ -831,7 +831,7 @@ HTML_TEMPLATES = {
                         <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
                         <tr>
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
-                                <p style="margin:0 0 16px 0;font-size:18px;font-weight:600;color:#1f2937;">Hi {{{{candidate.candidate_name}}}},</p>
+                                <p style="margin:0 0 16px 0;font-size:18px;font-weight:600;color:#1f2937;">Hi {{candidate.candidate_name}},</p>
                                 <p style="margin:0 0 16px 0;">A very warm welcome to <strong>Knowcraft Analytics!</strong></p>
                                 <p style="margin:0 0 20px 0;">We are excited to have you join our team and look forward to supporting you as you begin your journey with us in a remote work setup.</p>
                                 <p style="margin:0 0 16px 0;">To help you get started smoothly, please find below some key details:</p>
@@ -840,9 +840,9 @@ HTML_TEMPLATES = {
                                     <tr>
                                         <td>
                                             <ul style="margin:0;padding:0 0 0 20px;color:#334155;font-size:15px;line-height:1.8;">
-                                                <li style="margin-bottom:8px;"><strong>Joining Date:</strong> {{{{candidate.joining_date}}}}</li>
-                                                <li style="margin-bottom:8px;"><strong>Reporting Time:</strong> {{{{reporting_time}}}}</li>
-                                                <li style="margin-bottom:0;"><strong>HR Contact for Assistance:</strong> {{{{hr_contact_details}}}}</li>
+                                                <li style="margin-bottom:8px;"><strong>Joining Date:</strong> {{candidate.joining_date}}</li>
+                                                <li style="margin-bottom:8px;"><strong>Reporting Time:</strong> {{reporting_time}}</li>
+                                                <li style="margin-bottom:0;"><strong>HR Contact for Assistance:</strong> {{hr_contact_details}}</li>
                                             </ul>
                                         </td>
                                     </tr>
@@ -886,7 +886,7 @@ HTML_TEMPLATES = {
                         <tr>
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
                                 <h2 style="margin:0 0 20px 0;color:#1f2937;font-size:22px;font-weight:600;">Action Required: Complete Onboarding Document Sign-Off</h2>
-                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hello {{{{candidate.candidate_name|default:"Crafter"}}}},</p>
+                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hello {{candidate.candidate_name|default:"Crafter"}},</p>
                                 <p style="margin:0 0 16px 0;"><strong>Welcome to Knowcraft Analytics!</strong></p>
                                 <p style="margin:0 0 16px 0;">As part of your onboarding process, we request you to review and complete the sign-off of the onboarding documents shared with you. These documents contain important information related to your employment, company policies, and onboarding formalities.</p>
                                 <p style="margin:0 0 24px 0;">Kindly ensure that all required documents are reviewed and signed at the earliest to facilitate the seamless completion of your onboarding process.</p>
@@ -933,7 +933,7 @@ HTML_TEMPLATES = {
                         <tr>
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
                                 <h2 style="margin:0 0 20px 0;color:#1f2937;font-size:22px;font-weight:600;">HR Handbook</h2>
-                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hello {{{{candidate.candidate_name|default:"Crafter"}}}},</p>
+                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hello {{candidate.candidate_name|default:"Crafter"}},</p>
                                 <p style="margin:0 0 16px 0;"><strong>Welcome to Knowcraft Analytics!</strong></p>
                                 <p style="margin:0 0 16px 0;">We are delighted to have you join us and look forward to supporting you as you begin your journey with the organization.</p>
                                 
@@ -982,7 +982,7 @@ HTML_TEMPLATES = {
                         <tr>
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
                                 <h2 style="margin:0 0 20px 0;color:#1f2937;font-size:22px;font-weight:600;">Exploring the Culture and Values of Knowcraft</h2>
-                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hello {{{{candidate.candidate_name|default:"Crafter"}}}},</p>
+                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hello {{candidate.candidate_name|default:"Crafter"}},</p>
                                 <p style="margin:0 0 16px 0;">Greetings!</p>
                                 <p style="margin:0 0 16px 0;">As we continue to grow and evolve together, it is important that we stay connected to the values and principles that define who we are as an organization.</p>
                                 
@@ -1041,7 +1041,7 @@ HTML_TEMPLATES = {
                         <tr>
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
                                 <h2 style="margin:0 0 20px 0;color:#1f2937;font-size:22px;font-weight:600;">Introducing HR Buddy - MS Teams Chatbot User Manual</h2>
-                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Dear {{{{candidate.candidate_name|default:"Crafter"}}}},</p>
+                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Dear {{candidate.candidate_name|default:"Crafter"}},</p>
                                 <p style="margin:0 0 16px 0;">Please find attached the user manual, which outlines the simple steps required to install the <strong>Chatbot within Microsoft Teams</strong>.</p>
                                 <p style="margin:0 0 16px 0;">Once installed, you can start using the chatbot just like you would interact with your colleagues — making it quick, easy, and convenient.</p>
                                 
@@ -1091,7 +1091,7 @@ HTML_TEMPLATES = {
                         <tr>
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
                                 <h2 style="margin:0 0 20px 0;color:#1f2937;font-size:22px;font-weight:600;">Say Hello to KAI 🤖 Crafter Happiness Mascot!</h2>
-                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hi {{{{candidate.candidate_name|default:"Crafter"}}}},</p>
+                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hi {{candidate.candidate_name|default:"Crafter"}},</p>
                                 <p style="margin:0 0 16px 0;">A quick reminder to check your Microsoft Teams — <strong>KAI (Knowcraft + AI + Intelligence)</strong> is waiting to hear from you!</p>
                                 <p style="margin:0 0 20px 0;">Our Crafters’ Happiness Mascot is reaching out through a simple weekly check-in to understand how your week is going. Whether things are going great or feel a little challenging — your experience matters.</p>
                                 
@@ -2597,14 +2597,14 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <p style="margin:0 0 16px 0;">
                                     <strong>5 reminders</strong> have been sent to HR and the HOD to schedule the
                                     <strong>45-Day Check-In Call</strong> for candidate
-                                    <strong>{{{{candidate.candidate_name}}}}</strong>,
+                                    <strong>{{candidate.candidate_name}}</strong>,
                                     but the call has <span style="color:#dc2626;font-weight:700;">not been scheduled yet</span>.
                                 </p>
                                 <p style="margin:0 0 24px 0;">
                                     Please take immediate action to schedule this call and mark it in the HRMS to close this escalation.
                                 </p>
                                 <p style="margin:0 0 30px 0;text-align:center;">
-                                    <a href="{FRONTEND_URL}/onboarding/task-list/{{{{candidate.id}}}}"
+                                    <a href="{FRONTEND_URL}/onboarding/task-list/{{candidate.id}}"
                                        style="background-color:#dc2626;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">View Candidate in HRMS</a>
                                 </p>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Regards,</p>
@@ -2656,14 +2656,14 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <p style="margin:0 0 16px 0;">
                                     <strong>5 reminders</strong> have been sent to HR and the HOD to schedule the
                                     <strong>90-Day Final Review Call</strong> for candidate
-                                    <strong>{{{{candidate.candidate_name}}}}</strong>,
+                                    <strong>{{candidate.candidate_name}}</strong>,
                                     but the call has <span style="color:#dc2626;font-weight:700;">not been scheduled yet</span>.
                                 </p>
                                 <p style="margin:0 0 24px 0;">
                                     Please take immediate action to schedule this call and mark it in the HRMS to officially close the onboarding pipeline.
                                 </p>
                                 <p style="margin:0 0 30px 0;text-align:center;">
-                                    <a href="{FRONTEND_URL}/onboarding/task-list/{{{{candidate.id}}}}"
+                                    <a href="{FRONTEND_URL}/onboarding/task-list/{{candidate.id}}"
                                        style="background-color:#dc2626;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">View Candidate in HRMS</a>
                                 </p>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Regards,</p>
