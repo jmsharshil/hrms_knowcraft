@@ -998,6 +998,7 @@ def send_undertaking_signoff(app):
                 "request_name": f"Undertaking Sign-off - {app.candidate_name}",
                 "actions": [
                     {
+                        "role": "Candidate",
                         "recipient_name": app.candidate_name,
                         "recipient_email": recipient_email,
                         "action_type": "SIGN",
