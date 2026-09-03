@@ -672,6 +672,8 @@ class OnboardingForm(models.Model):
         return f"Onboarding Form: {self.job_application.candidate_name}"
 
 
+
+
 class SurveyResponse(models.Model):
     """
     Stores the actual survey answers for both Candidate Satisfaction

@@ -17,13 +17,22 @@ def store_old_job(sender, instance, **kwargs):
     """
     if not instance.pk:
         instance._old_job_id = None
+        instance._old_status = None
+        instance._old_joining_date = None
+        instance._old_crafter_id = None
         return
 
     try:
         old_instance = JobApplication.objects.get(pk=instance.pk)
         instance._old_job_id = old_instance.job_id
+        instance._old_status = old_instance.status
+        instance._old_joining_date = old_instance.joining_date
+        instance._old_crafter_id = old_instance.crafter_id
     except JobApplication.DoesNotExist:
         instance._old_job_id = None
+        instance._old_status = None
+        instance._old_joining_date = None
+        instance._old_crafter_id = None
 
 @receiver(post_save, sender=JobApplication)
 def update_approval_note_status(sender, instance, created, **kwargs):
@@ -285,4 +294,77 @@ def update_candidate_slot_link(candidate):
         candidate.inperson_link = ""
 
     candidate.save(update_fields=["slot_link","inperson_link","round_name"])
+
+
+@receiver(post_save, sender=JobApplication)
+def handle_job_application_advanced_logic(sender, instance, created, **kwargs):
+    """
+    Handles crafter_id syncing to OnboardingForm and reverting to joining_pending
+    if the joining_date is moved to a future date while status is 'joined'.
+    """
+    if created:
+        return
+    
+    old_status = getattr(instance, '_old_status', None)
+    old_joining_date = getattr(instance, '_old_joining_date', None)
+    old_crafter_id = getattr(instance, '_old_crafter_id', None)
+
+    # 1. Auto-sync crafter_id to OnboardingForm
+    if old_crafter_id != instance.crafter_id:
+        try:
+            if hasattr(instance, 'onboarding_form') and instance.onboarding_form:
+                from onboarding.models import OnboardingForm
+                OnboardingForm.objects.filter(pk=instance.onboarding_form.pk).update(crafter_id=instance.crafter_id)
+        except Exception:
+            pass
+
+    # 2. Revert joining_pending logic
+    from datetime import date
+    if old_status == 'joined' and old_joining_date != instance.joining_date and (instance.joining_date is None or instance.joining_date > date.today()):
+        if instance.status == 'joined':
+            job = instance.job
+            if job:
+                other_joined = job.applications.filter(status='joined').exclude(pk=instance.pk).count()
+                job.positions_filled = other_joined
+                if job.positions_filled < job.no_of_positions:
+                    job.status = 'joining_pending'
+                job.save(update_fields=['positions_filled', 'status'])
+                
+                if hasattr(job, 'mrf') and job.mrf:
+                    try:
+                        if job.mrf.status == 'filled' and job.positions_filled < job.no_of_positions:
+                            job.mrf.status = 'joining_pending'
+                            job.mrf.save(update_fields=['status'])
+                    except Exception:
+                        pass
+            
+            # Revert candidate status
+            JobApplication.objects.filter(pk=instance.pk).update(status='joining_pending', updated_at=timezone.now())
+            ApprovalNote.objects.filter(candidate=instance.pk).update(status='joining_pending', updated_at=timezone.now())
+
+
+from onboarding.models import OnboardingForm
+
+@receiver(pre_save, sender=OnboardingForm)
+def store_old_onboarding_form(sender, instance, **kwargs):
+    if not instance.pk:
+        instance._old_crafter_id = None
+        return
+    
+    try:
+        old_instance = OnboardingForm.objects.get(pk=instance.pk)
+        instance._old_crafter_id = old_instance.crafter_id
+    except OnboardingForm.DoesNotExist:
+        instance._old_crafter_id = None
+
+@receiver(post_save, sender=OnboardingForm)
+def sync_onboarding_form_crafter_id(sender, instance, created, **kwargs):
+    """
+    Auto-sync crafter_id back to JobApplication if changed from OnboardingForm
+    """
+    old_crafter_id = getattr(instance, '_old_crafter_id', None)
+    
+    if old_crafter_id != instance.crafter_id and instance.job_application_id:
+        JobApplication.objects.filter(pk=instance.job_application_id).update(crafter_id=instance.crafter_id)
+
 
