@@ -967,10 +967,25 @@ def send_undertaking_signoff(app):
         return None
 
     access_token = get_access_token()
-    url = f"https://sign.zoho.in/api/v1/templates/{template_id}/createdocument"
     headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
 
-    today_str = timezone.now().strftime('%d-%m-%Y')
+    # ── Fetch template to get the action_id (required by createdocument API) ──
+    try:
+        tpl_resp = requests.get(f"https://sign.zoho.in/api/v1/templates/{template_id}", headers=headers)
+        tpl_resp.raise_for_status()
+        tpl_data = tpl_resp.json().get("templates", {})
+        tpl_actions = tpl_data.get("actions", [])
+        action_id = tpl_actions[0].get("action_id") if tpl_actions else None
+        if not action_id:
+            logger.error(f"No action_id found in template {template_id} for {app.candidate_name}.")
+            return None
+        logger.info(f"Fetched action_id={action_id} from template {template_id}")
+    except Exception as e:
+        logger.error(f"Failed to fetch Zoho Sign template {template_id}: {e}")
+        return None
+
+    url = f"https://sign.zoho.in/api/v1/templates/{template_id}/createdocument"
+    today_str = timezone.now().strftime("%b %d %Y")
 
     note_message = (
         f"Hello Crafter,<br>"
@@ -987,20 +1002,13 @@ def send_undertaking_signoff(app):
         f"Team HR"
     )
 
-    prefill = {
-        "field_text_data": {
-            "Date": today_str,
-            "Crafter": crafter_name,
-            "Crafter Code": crafter_code,
-        }
-    }
-
     payload = {
         "data": json.dumps({
             "templates": {
                 "request_name": f"Undertaking Sign-off - {app.candidate_name}",
                 "actions": [
                     {
+                        "action_id": action_id,
                         "role": "candidate",
                         "recipient_name": app.candidate_name,
                         "recipient_email": recipient_email,
@@ -1008,7 +1016,15 @@ def send_undertaking_signoff(app):
                         "signing_order": 1,
                     }
                 ],
-                "field_data": prefill,
+                "field_data": {
+                    "field_text_data": {
+                        "Crafter": crafter_name,
+                        "Crafter Code": crafter_code,
+                    },
+                    "field_date_data": {
+                        "Date": today_str,
+                    }
+                },
                 "notes": note_message,
             }
         }),
@@ -1016,8 +1032,14 @@ def send_undertaking_signoff(app):
     }
 
     try:
+        logger.info(f"Sending undertaking sign-off for {app.candidate_name} to {recipient_email}. Template: {template_id}")
         resp = requests.post(url, headers=headers, data=payload)
-        resp.raise_for_status()
+        if resp.status_code >= 400:
+            logger.error(
+                f"Zoho Sign createdocument failed for {app.candidate_name}: "
+                f"status={resp.status_code}, body={resp.text[:1000]}"
+            )
+            return None
         data = resp.json()
 
         request_id = data["requests"]["request_id"]
@@ -1042,8 +1064,127 @@ def send_undertaking_signoff(app):
     except requests.exceptions.RequestException as e:
         logger.error(f"Zoho Sign request failed for undertaking sign-off / {app.candidate_name}: {e}")
     except KeyError:
-        logger.error(f"Unexpected Zoho Sign response for undertaking sign-off: {resp.text}")
+        logger.error(f"Unexpected Zoho Sign response for undertaking sign-off: {resp.text[:1000]}")
     except Exception as e:
         logger.error(f"Unable to send undertaking sign-off to Zoho Sign: {e}")
 
     return None
+
+def test_undertaking_signoff(email="zeelsh820@gmail.com", name="Zeelsh Sonagara"):
+    """
+    Standalone test for the Zoho Sign undertaking sign-off template.
+    Run from Django shell:
+        from onboarding.utils.zoho_sign import test_undertaking_signoff
+        test_undertaking_signoff()
+    Or with custom values:
+        test_undertaking_signoff(email="test@example.com", name="Test User")
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    template_id = getattr(settings, 'ZOHO_UNDERTAKING_TEMPLATE_ID', None)
+    if not template_id:
+        print("ERROR: ZOHO_UNDERTAKING_TEMPLATE_ID not set in settings.")
+        return
+
+    print(f"Template ID: {template_id}")
+    print(f"Recipient: {name} <{email}>")
+
+    access_token = get_access_token()
+    if not access_token:
+        print("ERROR: Could not get Zoho access token.")
+        return
+
+    print(f"Access token: {access_token[:20]}...")
+
+    # ── Step 1: Fetch template details to see roles & fields ──────────
+    detail_url = f"https://sign.zoho.in/api/v1/templates/{template_id}"
+    headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
+
+    print("\n── Fetching template details ──")
+    action_id = None
+    try:
+        detail_resp = requests.get(detail_url, headers=headers)
+        print(f"Status: {detail_resp.status_code}")
+        if detail_resp.status_code < 300:
+            raw_json = detail_resp.json()
+            tpl = raw_json.get("templates", {})
+
+            # Print full raw actions for debugging
+            actions = tpl.get("actions", [])
+            print(f"\nTemplate name: {tpl.get('template_name')}")
+            print(f"\nFull actions JSON:")
+            print(json.dumps(actions, indent=2))
+
+            # Try to extract action_id
+            if actions:
+                action_id = actions[0].get('action_id')
+                print(f"\nExtracted action_id: {action_id}")
+
+            # Show field names
+            doc_fields = tpl.get("document_fields", [])
+            for doc in doc_fields:
+                fields = doc.get("fields", [])
+                print(f"Document fields: {[f.get('field_label') or f.get('field_name') for f in fields]}")
+
+            # Also print all top-level keys in the template response
+            print(f"\nTop-level keys in template: {list(tpl.keys())}")
+        else:
+            print(f"Could not fetch template: {detail_resp.text[:500]}")
+    except Exception as e:
+        print(f"Error fetching template details: {e}")
+
+    if not action_id:
+        print("ERROR: Could not fetch action_id from template. Cannot proceed.")
+        return None
+
+    # ── Step 2: Attempt createdocument ────────────────────────────────
+    print("\n── Sending createdocument request ──")
+    url = f"https://sign.zoho.in/api/v1/templates/{template_id}/createdocument"
+    today_str = timezone.now().strftime("%b %d %Y")
+
+    payload = {
+        "data": json.dumps({
+            "templates": {
+                "request_name": f"TEST - Undertaking Sign-off - {name}",
+                "actions": [
+                    {
+                        "action_id": action_id,
+                        "role": "candidate",
+                        "recipient_name": name,
+                        "recipient_email": email,
+                        "action_type": "SIGN",
+                        "signing_order": 1,
+                    }
+                ],
+                "field_data": {
+                    "field_text_data": {
+                        "Crafter": name,
+                        "Crafter Code": "TEST-001",
+                    },
+                    "field_date_data": {
+                        "Date": today_str,
+                    }
+                },
+                "notes": "Test undertaking sign-off from Django shell.",
+            }
+        }),
+        "is_quicksend": True,
+    }
+
+    print(f"Payload: {json.dumps(json.loads(payload['data']), indent=2)}")
+
+    try:
+        resp = requests.post(url, headers=headers, data=payload)
+        print(f"\nResponse status: {resp.status_code}")
+        print(f"Response body:\n{resp.text[:2000]}")
+
+        if resp.status_code < 300:
+            print("\n✅ SUCCESS — Document sent for signing!")
+            return resp.json()
+        else:
+            print("\n❌ FAILED — See response body above for Zoho's error details.")
+            return None
+    except Exception as e:
+        print(f"Request error: {e}")
+        return None
