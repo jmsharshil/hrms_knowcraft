@@ -10,6 +10,7 @@ from .views import (
     ConsultancyAnalyticsAPIView,
     RecruitmentCostViewSet,
     CandidateExperienceFeedbackSubmitView,
+    DashboardExportAPIView,
 )
 
 router = DefaultRouter()
@@ -21,6 +22,9 @@ urlpatterns = [
 
     # Comprehensive analytics endpoint (dispatcher)
     path('analytics/', AnalyticsAPIView.as_view(), name='analytics'),
+
+    # Export dashboard CVs breakdown
+    path('export/', DashboardExportAPIView.as_view(), name='dashboard-export'),
 
     # Role-specific analytics endpoints
     path('analytics/admin/', AdminAnalyticsAPIView.as_view(), name='analytics-admin'),
