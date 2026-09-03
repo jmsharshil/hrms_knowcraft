@@ -7,7 +7,7 @@ from django.conf import settings
 from jobs.models import JobApplication
 from bgv.models import CandidateBGV
 # from .zoho_manageengine import ManageEngineClient
-from .notifications import notify_candidate, notify_internal
+from .notifications import notify_candidate, notify_internal, send_welcome_email
 from .task_generation import create_milestone_tasks, create_task
 from .esign_tasks import generate_esign_documents, send_documents_for_esign, send_esign_reminders
 
@@ -101,9 +101,20 @@ def daily_onboarding_check():
         # ── DOJ - 2 Days ────────────────────────────────────────
         if days_until_joining <= 2 and not app.is_doj_minus_2_triggered and app.status != "joined":
             logger.info(f"DOJ - 2 for candidate {app.candidate_name}. Welcome Email.")
+            location = "Gurugram"
+            try:
+                from onboarding.models import ApprovalNote
+                an = ApprovalNote.objects.filter(candidate=app, status='approved').last()
+                if hasattr(app, 'onboarding_form') and app.onboarding_form.center_office_location:
+                    location = app.onboarding_form.center_office_location
+                elif an and an.payload.get('mrf', {}).get('location'):
+                    location = an.payload['mrf']['location']
+                elif app.job and hasattr(app.job, 'mrf') and app.job.mrf.location:
+                    location = app.job.mrf.location
+            except Exception as e:
+                logger.error(f"Failed to fetch location for welcome email: {e}")
             job_type = getattr(app.job, 'job_type', 'work_from_office') if app.job else 'work_from_office'
-            welcome_stage = "welcome_wfh" if str(job_type).lower() in ['remote', 'work_from_home', 'wfh'] else "welcome_wfo"
-            notify_candidate(app, welcome_stage, cc=[])
+            send_welcome_email(app, work_type=job_type, reporting_time="10:30 AM", office_address=location, hr_contact_details="Team HR (hr@knowcraft.in)", cc=[])
 
             # if app.it_ticket_ref and getattr(app.job, 'job_type', None) != 'work_from_office':
             #     me_client.update_ticket(app.it_ticket_ref, {}, note="DOJ is in 2 days. Finalize VPN/dispatch tasks.")
@@ -113,18 +124,23 @@ def daily_onboarding_check():
 
         # ── DOJ 0 — Statutory docs + Handbooks & Policies + Zoho Sign packet ────────────
         if days_until_joining <= 0:
+            if not getattr(app, 'work_email', None):
+                logger.info(f"Work email missing for {app.candidate_name}. Sending reminder and skipping post-joining tasks.")
+                notify_internal(app, "missing_work_email_reminder")
+                continue
             is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
             
             # Send post-welcome handbooks & policies (HR Handbook, Culture & Values, Chatbot Manual, KAI Mascot, POSH Policy)
             if not getattr(app, 'is_post_welcome_docs_sent', False):
                 logger.info(f"DOJ 0 for candidate {app.candidate_name}. Sending post-welcome handbooks & policies emails.")
                 from .notifications import send_post_welcome_handbooks_and_policies
-                send_post_welcome_handbooks_and_policies(app)
-                app.is_post_welcome_docs_sent = True
-                try:
-                    app.save(update_fields=['is_post_welcome_docs_sent'])
-                except Exception:
-                    pass
+                res = send_post_welcome_handbooks_and_policies(app)
+                if res and any(res.values()):
+                    app.is_post_welcome_docs_sent = True
+                    try:
+                        app.save(update_fields=['is_post_welcome_docs_sent'])
+                    except Exception:
+                        pass
 
             if (app.status == "joined" or is_debug) and not getattr(app, 'is_esign_packet_generated', False):
                 logger.info(f"DOJ 0 for candidate {app.candidate_name}. Generating esign doc records.")
@@ -152,9 +168,9 @@ def daily_onboarding_check():
         # ── DOJ + 5 Days (Document Verification) ────────────────
         if days_until_joining <= -5 and not getattr(app, 'is_d5_verification_sent', False):
             logger.info(f"DOJ + 5 for candidate {app.candidate_name}. Sending document verification email.")
-            notify_candidate(app, "d5_document_verification", cc=[])
-            app.is_d5_verification_sent = True
-            app.save(update_fields=['is_d5_verification_sent'])
+            if notify_candidate(app, "d5_document_verification", cc=[]):
+                app.is_d5_verification_sent = True
+                app.save(update_fields=['is_d5_verification_sent'])
 
             # Send Undertaking Sign-off Document via Zoho Sign template
             if not getattr(app, 'is_undertaking_signoff_sent', False):
@@ -205,9 +221,9 @@ def daily_onboarding_check():
         # ── DOJ + 30 Days ─────────────────────────────────────────
         if days_past >= 30 and not getattr(app, 'is_d30_survey_sent', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending 30-day candidate survey reminder.")
-            notify_candidate(app, "satisfaction_survey", cc=[])
-            app.is_d30_survey_sent = True
-            app.save(update_fields=['is_d30_survey_sent'])
+            if notify_candidate(app, "satisfaction_survey", cc=[]):
+                app.is_d30_survey_sent = True
+                app.save(update_fields=['is_d30_survey_sent'])
 
         if days_past >= 30 and not getattr(app, 'is_hod_survey_filled', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending HOD survey reminder.")
@@ -249,7 +265,10 @@ def daily_onboarding_check():
         # ── DOJ + 90 Days ─────────────
         if days_past >= 90 and not getattr(app, 'is_d90_survey_sent', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Sending 90-day survey + final review reminder.")
-            notify_candidate(app, "d90_survey", cc=[])
+            success_candidate = notify_candidate(app, "d90_survey", cc=[])
+            if success_candidate:
+                app.is_d90_survey_sent = True
+                app.save(update_fields=['is_d90_survey_sent'])
             notify_internal(app, "schedule_final_review_reminder")
             app.d90_reminder_count = getattr(app, 'd90_reminder_count', 0) + 1
             d90_save_fields = ['d90_reminder_count']
@@ -273,9 +292,6 @@ def daily_onboarding_check():
                 )
             except Exception as survey_err:
                 logger.warning(f"Could not create 90-day SurveyResponse record for {app.candidate_name}: {survey_err}")
-
-            app.is_d90_survey_sent = True
-            app.save(update_fields=['is_d90_survey_sent'])
 
         if days_past >= 90 and app.it_ticket_ref and not getattr(app, 'it_ticket_closed', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Requesting IT team to close ticket.")
@@ -358,7 +374,9 @@ def run_onboarding_check_for_candidate(app):
         try:
             from onboarding.models import ApprovalNote
             an = ApprovalNote.objects.filter(candidate=app, status='approved').last()
-            if an and an.payload.get('mrf', {}).get('location'):
+            if hasattr(app, 'onboarding_form') and app.onboarding_form.center_office_location:
+                location = app.onboarding_form.center_office_location
+            elif an and an.payload.get('mrf', {}).get('location'):
                 location = an.payload['mrf']['location']
             elif app.job and hasattr(app.job, 'mrf') and app.job.mrf.location:
                 location = app.job.mrf.location
@@ -366,9 +384,7 @@ def run_onboarding_check_for_candidate(app):
             logger.error(f"Failed to fetch location for welcome email: {e}")
 
         job_type = getattr(app.job, 'job_type', 'work_from_office') if app.job else 'work_from_office'
-        welcome_stage = "welcome_wfh" if str(job_type).lower() in ['remote', 'work_from_home', 'wfh'] else "welcome_wfo"
-            
-        notify_candidate(app, welcome_stage, cc=[], extra_context={'office_address': location})
+        send_welcome_email(app, work_type=job_type, reporting_time="10:30 AM", office_address=location, hr_contact_details="Team HR (hr@knowcraft.in)", cc=[])
         # if app.it_ticket_ref and app.job and app.job.job_type != 'work_from_office':
             # me_client.update_ticket(app.it_ticket_ref, {}, note="DOJ is in 2 days. Finalize VPN/dispatch tasks.")
             
@@ -377,17 +393,22 @@ def run_onboarding_check_for_candidate(app):
 
     # ── DOJ 0 — Statutory docs + Handbooks & Policies + e-sign packet ─────────────────────────────
     if days_until_joining <= 0 and not getattr(app, 'is_doj_0_triggered', False):
+        if not getattr(app, 'work_email', None):
+            logger.info(f"[ADMIN ACTION] Work email missing for {app.candidate_name}. Sending reminder and skipping post-joining tasks.")
+            notify_internal(app, "missing_work_email_reminder")
+            return days_until_joining
         is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
         
         if not getattr(app, 'is_post_welcome_docs_sent', False):
             logger.info(f"[ADMIN ACTION] DOJ 0 for {app.candidate_name}. Sending post-welcome handbooks & policies emails.")
             from .notifications import send_post_welcome_handbooks_and_policies
-            send_post_welcome_handbooks_and_policies(app)
-            app.is_post_welcome_docs_sent = True
-            try:
-                app.save(update_fields=['is_post_welcome_docs_sent'])
-            except Exception:
-                pass
+            res = send_post_welcome_handbooks_and_policies(app)
+            if res and any(res.values()):
+                app.is_post_welcome_docs_sent = True
+                try:
+                    app.save(update_fields=['is_post_welcome_docs_sent'])
+                except Exception:
+                    pass
 
         if (app.status == "joined" or is_debug) and not getattr(app, 'is_esign_packet_generated', False):
             logger.info(f"[ADMIN ACTION] DOJ 0 for {app.candidate_name}. Generating esign doc records.")
@@ -416,9 +437,9 @@ def run_onboarding_check_for_candidate(app):
     # ── DOJ + 5 Days — Document Verification ────────────────────────────────
     if days_until_joining <= -5 and not getattr(app, 'is_d5_verification_sent', False):
         logger.info(f"[ADMIN ACTION] DOJ + 5 for {app.candidate_name}. Sending document verification email.")
-        notify_candidate(app, "d5_document_verification", cc=[])
-        app.is_d5_verification_sent = True
-        app.save(update_fields=['is_d5_verification_sent'])
+        if notify_candidate(app, "d5_document_verification", cc=[]):
+            app.is_d5_verification_sent = True
+            app.save(update_fields=['is_d5_verification_sent'])
         
         # Send Undertaking Sign-off Document via Zoho Sign template
         if not getattr(app, 'is_undertaking_signoff_sent', False):

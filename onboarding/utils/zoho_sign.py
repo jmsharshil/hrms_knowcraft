@@ -883,7 +883,7 @@ def send_document_to_zoho_sign(document_task):
     actions = [
         {
             "recipient_name": app.candidate_name,
-            "recipient_email": app.work_email or app.candidate_email,
+            "recipient_email": app.work_email,
             "action_type": "SIGN",
             "signing_order": 1,
         }
@@ -961,7 +961,10 @@ def send_undertaking_signoff(app):
     except Exception:
         logger.warning(f"No onboarding form found for {app.candidate_name}. Using defaults.")
 
-    recipient_email = getattr(app, 'work_email', None) or app.candidate_email
+    recipient_email = getattr(app, 'work_email', None)
+    if not recipient_email:
+        logger.warning(f"No work_email for {app.candidate_name}. Skipping undertaking sign-off.")
+        return None
 
     access_token = get_access_token()
     url = f"https://sign.zoho.in/api/v1/templates/{template_id}/createdocument"
@@ -998,7 +1001,7 @@ def send_undertaking_signoff(app):
                 "request_name": f"Undertaking Sign-off - {app.candidate_name}",
                 "actions": [
                     {
-                        "role": "Candidate",
+                        "role": "candidate",
                         "recipient_name": app.candidate_name,
                         "recipient_email": recipient_email,
                         "action_type": "SIGN",

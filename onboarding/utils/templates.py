@@ -886,7 +886,7 @@ HTML_TEMPLATES = {
                         <tr>
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
                                 <h2 style="margin:0 0 20px 0;color:#1f2937;font-size:22px;font-weight:600;">Action Required: Complete Onboarding Document Sign-Off</h2>
-                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hello {{candidate.candidate_name|default:"Crafter"}},</p>
+                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hello {{candidate.candidate_name}},</p>
                                 <p style="margin:0 0 16px 0;"><strong>Welcome to Knowcraft Analytics!</strong></p>
                                 <p style="margin:0 0 16px 0;">As part of your onboarding process, we request you to review and complete the sign-off of the onboarding documents shared with you. These documents contain important information related to your employment, company policies, and onboarding formalities.</p>
                                 <p style="margin:0 0 24px 0;">Kindly ensure that all required documents are reviewed and signed at the earliest to facilitate the seamless completion of your onboarding process.</p>
@@ -933,7 +933,7 @@ HTML_TEMPLATES = {
                         <tr>
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
                                 <h2 style="margin:0 0 20px 0;color:#1f2937;font-size:22px;font-weight:600;">HR Handbook</h2>
-                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hello {{candidate.candidate_name|default:"Crafter"}},</p>
+                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hello {{candidate.candidate_name}},</p>
                                 <p style="margin:0 0 16px 0;"><strong>Welcome to Knowcraft Analytics!</strong></p>
                                 <p style="margin:0 0 16px 0;">We are delighted to have you join us and look forward to supporting you as you begin your journey with the organization.</p>
                                 
@@ -982,7 +982,7 @@ HTML_TEMPLATES = {
                         <tr>
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
                                 <h2 style="margin:0 0 20px 0;color:#1f2937;font-size:22px;font-weight:600;">Exploring the Culture and Values of Knowcraft</h2>
-                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hello {{candidate.candidate_name|default:"Crafter"}},</p>
+                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hello {{candidate.candidate_name}},</p>
                                 <p style="margin:0 0 16px 0;">Greetings!</p>
                                 <p style="margin:0 0 16px 0;">As we continue to grow and evolve together, it is important that we stay connected to the values and principles that define who we are as an organization.</p>
                                 
@@ -1041,7 +1041,7 @@ HTML_TEMPLATES = {
                         <tr>
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
                                 <h2 style="margin:0 0 20px 0;color:#1f2937;font-size:22px;font-weight:600;">Introducing HR Buddy - MS Teams Chatbot User Manual</h2>
-                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Dear {{candidate.candidate_name|default:"Crafter"}},</p>
+                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Dear {{candidate.candidate_name}},</p>
                                 <p style="margin:0 0 16px 0;">Please find attached the user manual, which outlines the simple steps required to install the <strong>Chatbot within Microsoft Teams</strong>.</p>
                                 <p style="margin:0 0 16px 0;">Once installed, you can start using the chatbot just like you would interact with your colleagues — making it quick, easy, and convenient.</p>
                                 
@@ -1091,7 +1091,7 @@ HTML_TEMPLATES = {
                         <tr>
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;line-height:1.6;">
                                 <h2 style="margin:0 0 20px 0;color:#1f2937;font-size:22px;font-weight:600;">Say Hello to KAI 🤖 Crafter Happiness Mascot!</h2>
-                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hi {{candidate.candidate_name|default:"Crafter"}},</p>
+                                <p style="margin:0 0 16px 0;font-size:17px;font-weight:600;color:#1f2937;">Hi {{candidate.candidate_name}},</p>
                                 <p style="margin:0 0 16px 0;">A quick reminder to check your Microsoft Teams — <strong>KAI (Knowcraft + AI + Intelligence)</strong> is waiting to hear from you!</p>
                                 <p style="margin:0 0 20px 0;">Our Crafters’ Happiness Mascot is reaching out through a simple weekly check-in to understand how your week is going. Whether things are going great or feel a little challenging — your experience matters.</p>
                                 
@@ -2403,7 +2403,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 </h2>
                                 <p style="margin:0 0 16px 0;">Dear Admin,</p>
                                 <p style="margin:0 0 16px 0;">
-                                    Candidate <strong>{{candidate.candidate_name}}</strong> is scheduled to join us in 7 days as an office joiner.
+                                    Candidate <strong>{{candidate.candidate_name}}</strong> is scheduled to join us on {{candidate.joining_date}} as an office joiner.
                                 </p>
                                 <p style="margin:0 0 16px 0;">
                                     Please proceed with allocating their seating arrangement and generating the necessary access ID cards before their start date.
@@ -2790,7 +2790,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Upcoming Team Member Joining (7 Days)</h2>
                                 <p style="margin:0 0 16px 0;">Dear HOD,</p>
-                                <p style="margin:0 0 16px 0;"><strong>{{candidate.candidate_name}}</strong> is joining your department in <strong>7 days</strong>.</p>
+                                <p style="margin:0 0 16px 0;"><strong>{{candidate.candidate_name}}</strong> is joining your department on <strong>{{candidate.joining_date}}</strong>.</p>
                                 <p style="margin:0 0 16px 0;">Please prepare for their onboarding — assign a buddy, schedule an orientation session, and ensure their workspace is ready.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
@@ -2828,7 +2828,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">New Office Joiner Preparations (7 Days)</h2>
                                 <p style="margin:0 0 16px 0;">Dear Admin Team,</p>
-                                <p style="margin:0 0 16px 0;"><strong>{{candidate.candidate_name}}</strong> is arriving at the office in <strong>7 days</strong>.</p>
+                                <p style="margin:0 0 16px 0;"><strong>{{candidate.candidate_name}}</strong> is arriving at the office on <strong>{{candidate.joining_date}}</strong>.</p>
                                 <p style="margin:0 0 16px 0;">Please arrange seating, access card issuance, and any other office-entry logistics in advance of their joining date.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>

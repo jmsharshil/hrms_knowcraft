@@ -1006,9 +1006,9 @@ def notify_candidate(candidate: Any, stage: str, cc: list = None, feedback_link:
                     logger.warning("Text formatting error for %s: %s", stage, e)
 
             if stage in ['satisfaction_survey', 'd90_survey', 'd5_document_verification', 'hr_handbook', 'culture_values', 'chatbot_manual', 'kai_mascot', 'posh_policy']:
-                recipient_email = getattr(candidate, 'work_email', None) or getattr(candidate, 'candidate_email', None)
+                recipient_email = getattr(candidate, 'work_email', None)
                 if not recipient_email:
-                    logger.warning(f"No email found for candidate {candidate.id} for stage {stage}. Skipping.")
+                    logger.warning(f"No work_email found for candidate {candidate.id} for stage {stage}. Skipping.")
                     return False
             else:
                 recipient_email = getattr(candidate, 'work_email', None) or getattr(candidate, 'candidate_email', None)
@@ -1427,6 +1427,12 @@ Knowcraft Analytics Private Limited""",
         "subject": "Action Required: Onboarding Initiation Pending",
         "body": "The onboarding initiation form for {candidate.candidate_name} is pending. Please fill it immediately to start the onboarding task sequence.",
         "sms": "Onboarding initiation pending for {candidate.candidate_name}. Please fill it ASAP.",
+    },
+    "missing_work_email_reminder": {
+        "receivers": ["hr", "it_team"],
+        "subject": "Action Required: Work Email Missing for Joiner",
+        "body": "The work email for {candidate.candidate_name} has not been updated in the system yet. Post-joining emails and onboarding tasks are currently halted. Please update the work email immediately.",
+        "sms": "Work email missing for {candidate.candidate_name}. Post-joining emails halted. Please update ASAP.",
     },
     "doj_minus_15_it_team": {
         "receivers": ["it_team", "admin"],
