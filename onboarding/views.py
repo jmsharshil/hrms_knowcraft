@@ -7,11 +7,11 @@ from rest_framework import status,permissions
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.template import Template, Context
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from .models import JobApplicationDocument,ApprovalNote,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog, OnboardingTask, OnboardingTaskList, DocumentEsignTask
 from onboarding.utils.engine import automation_engine
 from .utils.sender import send_email,send_text,send_document
-from .serializers import JobApplicationDocumentSerializer,SalaryAnnexureSerializer,SalaryAnnexureHistorySerializer,EmailLogSerializer, OnboardingTaskSerializer, OnboardingTaskListSerializer, DocumentEsignTaskSerializer
+from .serializers import JobApplicationDocumentSerializer,SalaryAnnexureSerializer,SalaryAnnexureHistorySerializer,EmailLogSerializer
 import logging
 from jobs.models import JobApplication, Job
 from rest_framework.viewsets import ModelViewSet,ReadOnlyModelViewSet
@@ -616,7 +616,12 @@ class SendApprovalNoteAPIView(APIView):
                 Q(created_by__email__icontains=search)
             )
 
-        approval_notes = approval_notes.select_related("candidate").distinct()
+        onboarding_form_exists = JobApplicationDocument.objects.filter(
+            job_application_id=OuterRef("candidate_id")
+        )
+        approval_notes = approval_notes.select_related("candidate").annotate(
+            onboarding_initiation_form_exists=Exists(onboarding_form_exists)
+        ).distinct()
 
         results = []
 
@@ -639,6 +644,7 @@ class SendApprovalNoteAPIView(APIView):
                 "joining_date": note.candidate.joining_date,
                 "created_at": note.created_at,
                 "data": note.payload,
+                "onboarding_initiation_form_exists": note.onboarding_initiation_form_exists,
                 "is_private": note.candidate.job.is_private,
                 "document_upload_link": f"{FRONTEND_URL}/api/application/documents/upload/{note.candidate.id}",
                 "candidate_experience_link": f"{FRONTEND_URL}/candidate/feedback/{note.candidate.id}",
