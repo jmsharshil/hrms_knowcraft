@@ -11,7 +11,14 @@ from django.db.models import Exists, OuterRef, Q
 from .models import JobApplicationDocument,ApprovalNote,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog, OnboardingTask, OnboardingTaskList, DocumentEsignTask
 from onboarding.utils.engine import automation_engine
 from .utils.sender import send_email,send_text,send_document
-from .serializers import JobApplicationDocumentSerializer,SalaryAnnexureSerializer,SalaryAnnexureHistorySerializer,EmailLogSerializer
+from .serializers import (
+    JobApplicationDocumentSerializer,
+    SalaryAnnexureSerializer,
+    SalaryAnnexureHistorySerializer,
+    EmailLogSerializer,
+    OnboardingTaskListSerializer,
+    OnboardingTaskSerializer
+)
 import logging
 from jobs.models import JobApplication, Job
 from rest_framework.viewsets import ModelViewSet,ReadOnlyModelViewSet
