@@ -40,6 +40,7 @@ class UpdatestatusAPI(APIView):
 
         new_status = request.data.get("status") or request.POST.get("status")
         rejection_reason = request.data.get("rejection_reason") or request.POST.get("rejection_reason") or ""
+        bgv_termination_reason = request.data.get("bgv_termination_reason") or request.POST.get("bgv_termination_reason") or ""
 
         try:
             application = JobApplication.objects.get(id=id)
@@ -89,6 +90,8 @@ class UpdatestatusAPI(APIView):
                 application.inperson_link = ""
             if application.status in ["rejected", "backed_out"] and rejection_reason:
                 application.rejection_reason = rejection_reason
+            if application.status in ["terminated_bgv"] and bgv_termination_reason:
+                application.bgv_termination_reason = bgv_termination_reason
             application.save()
             return Response({"success": ok,"status":application.status})
         else:
