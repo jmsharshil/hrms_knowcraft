@@ -2212,8 +2212,8 @@ class InitiateOnboardingAPI(APIView):
         
         # Extract full form data as per the ME onboarding form
         form_data = {
-            # "assets": request.data.get("assets"),
-            # "site": request.data.get("site"),
+            "assets": request.data.get("assets"),
+            "site": request.data.get("site"),
             "subject": request.data.get("subject"),
             "first_name": request.data.get("first_name"),
             "last_name": request.data.get("last_name"),
@@ -3512,7 +3512,7 @@ class OnboardingJourneyAPI(APIView):
         return enriched
 
     def get(self, request, id):
-        from onboarding.models import OnboardingCall, SurveyResponse, OnboardingTaskList, DocumentEsignTask
+        from onboarding.models import OnboardingCall, SurveyResponse, OnboardingTaskList, DocumentEsignTask, OnboardingForm
         from django.utils import timezone as tz
 
         application = get_object_or_404(JobApplication, id=id)
@@ -3657,12 +3657,15 @@ class OnboardingJourneyAPI(APIView):
             application.cultural_buddy_email,
         ])) or "Not assigned"
 
+        onboarding_form_exists = OnboardingForm.objects.filter(job_application=application).exists()
+        is_onboarding_initiated = bool(application.it_ticket_ref) or onboarding_form_exists
+
         milestones = [
             {
                 "key": "onboarding_initiated",
                 "label": "Event 0 — Offer Accepted & IT Ticket Raised",
-                "completed": bool(application.it_ticket_ref),
-                "detail": f"IT Ticket: {application.it_ticket_ref}" if application.it_ticket_ref else None,
+                "completed": is_onboarding_initiated,
+                "detail": f"IT Ticket: {application.it_ticket_ref}" if application.it_ticket_ref else ("Form Submitted" if onboarding_form_exists else None),
                 "emails_sent": "IT Team (internal), HR (CC)",
             },
             {
@@ -3793,6 +3796,8 @@ class OnboardingJourneyAPI(APIView):
                 "days_since_joining": days_since_joining,
                 "is_escalated": application.is_escalated,
                 "it_ticket_ref": application.it_ticket_ref,
+                "it_ticket_raised": is_onboarding_initiated,
+                "onboarding_initiation_form_filled": onboarding_form_exists,
                 "it_ticket_closed": application.it_ticket_closed,
                 "emp_account_active": application.emp_account_active,
                 "is_undertaking_signoff_completed": getattr(application, 'is_undertaking_signoff_completed', False),
