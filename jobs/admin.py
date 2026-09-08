@@ -150,7 +150,7 @@ class JobApplicationAdmin(admin.ModelAdmin):
                 'is_selected', 'is_approved', 'is_rejected',
                 'joining_date', 'offer_accepted_date',
                 'rejection_reason', 'offer_decline_reason',
-                'slot_link', 'inperson_link',
+                'slot_link', 'inperson_link', 'bgv_termination_reason'
             )
         }),
         # ── 3.5. Post Joining & Onboarding ────────────────────────────
