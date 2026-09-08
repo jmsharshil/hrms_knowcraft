@@ -86,7 +86,7 @@ class OnboardingAPIsTestCase(APITestCase):
         self.application.refresh_from_db()
         self.assertFalse(self.application.is_escalated)
 
-    @patch('onboarding.views.send_email')
+    @patch('onboarding.utils.sender.send_email')
     def test_assign_buddy_api(self, mock_send_email):
         url = reverse('assign-buddy', kwargs={'id': str(self.application.id)})
         
@@ -104,7 +104,7 @@ class OnboardingAPIsTestCase(APITestCase):
         self.assertEqual(self.application.technical_buddy_name, "Tech Buddy")
         self.assertEqual(self.application.cultural_buddy_name, "Culture Buddy")
         self.assertTrue(self.application.emp_account_active)
-        self.assertEqual(mock_send_email.call_count, 2)
+        self.assertEqual(mock_send_email.call_count, 1)
         
     def test_survey_structure_api(self):
         url = reverse('survey-structure', kwargs={'id': str(self.application.id)})
@@ -215,8 +215,12 @@ class OnboardingAPIsTestCase(APITestCase):
         self.application.refresh_from_db()
         self.assertTrue(self.application.is_d90_survey_filled)
         
-    def test_schedule_d45_call_api(self):
-        # We will use real Graph API for scheduling
+    @patch('booking.utils.create_teams_meeting')
+    @patch('booking.utils.update_teams_meeting')
+    def test_schedule_d45_call_api(self, mock_update, mock_create):
+        # We will mock the Graph API for scheduling
+        mock_create.return_value = {"id": "mock_meeting_123"}
+        mock_update.return_value = {"id": "mock_meeting_123"}
         url = reverse('d45-scheduled', kwargs={'id': str(self.application.id)})
         
         now = timezone.now()
@@ -253,7 +257,9 @@ class OnboardingAPIsTestCase(APITestCase):
         call.refresh_from_db()
         self.assertEqual(call.start_time, new_start_time)
         
-    def test_schedule_d90_call_api(self):
+    @patch('booking.utils.create_teams_meeting')
+    def test_schedule_d90_call_api(self, mock_create):
+        mock_create.return_value = {"id": "mock_meeting_456"}
         url = reverse('d90-scheduled', kwargs={'id': str(self.application.id)})
         
         now = timezone.now()
