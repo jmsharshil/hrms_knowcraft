@@ -3288,6 +3288,57 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
     </html>
     """,
 
+    "missing_work_email_reminder": """
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Logo -->
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <!-- Separator -->
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                <h2 style="margin:0 0 22px 0;color:#b91c1c;font-size:22px;font-weight:700;">⚠️ Action Required: Work Email Missing</h2>
+                                <p style="margin:0 0 16px 0;">Dear HR / IT Team,</p>
+                                <p style="margin:0 0 16px 0;">This is an automated reminder that the <strong>work email</strong> for the following joiner has <strong>not yet been updated</strong> in the HRMS system:</p>
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#fef2f2;border:1px solid #fecaca;border-radius:8px;margin:16px 0 24px 0;">
+                                    <tr>
+                                        <td style="padding:16px 20px;color:#1f2937;font-size:15px;">
+                                            <strong>Candidate:</strong> {candidate.candidate_name}<br>
+                                            <strong>Joining Date:</strong> {candidate.joining_date}
+                                        </td>
+                                    </tr>
+                                </table>
+                                <p style="margin:0 0 16px 0;">All post-joining automated emails (E-Sign documents, handbooks, surveys) are currently <strong>on hold</strong> until the work email is set.</p>
+                                <p style="margin:0 0 24px 0;">Please update the work email in the HRMS at the earliest to resume the onboarding journey.</p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">HRMS Automation</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • System Generated
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """,
+
     "onboarding_form_submitted": f"""
     <html>
     <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
@@ -3295,23 +3346,20 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
             <tr>
                 <td align="center" style="padding:30px 15px;">
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
-                        <!-- Header -->
+                        <!-- Logo -->
                         <tr>
-                            <td align="center" style="background:#0f172a;padding:28px 40px;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:220px;height:auto;display:block;margin:0 auto;">
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
-                        <!-- Title Banner -->
-                        <tr>
-                            <td style="background:#1e40af;padding:18px 40px;">
-                                <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;letter-spacing:0.3px;">
-                                    📋 New Onboarding Form Submitted
-                                </h1>
-                            </td>
-                        </tr>
+                        <!-- Separator -->
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
                         <!-- Intro -->
                         <tr>
                             <td style="padding:28px 40px 10px 40px;color:#374151;font-size:15px;line-height:1.6;">
+                                <h2 style="margin:0 0 24px 0;color:#1f2937;font-size:26px;font-weight:600;">
+                                    New Onboarding Form Submitted
+                                </h2>
                                 <p style="margin:0 0 8px 0;">Dear Admin Team,</p>
                                 <p style="margin:0;">
                                     An onboarding form has been submitted for

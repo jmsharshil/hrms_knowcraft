@@ -2234,7 +2234,7 @@ class InitiateOnboardingAPI(APIView):
             "custom_notes": request.data.get("custom_notes", ""),
             "requester_email_id": request.data.get("requester_email_id"),
             "requester_name": request.data.get("requester_name"),
-            # "requester_id": request.data.get("requester_id"),
+            "requester_id": request.data.get("requester_id"),
             "attachment_files": request.FILES.getlist("attachments"),
         }
         
@@ -2312,16 +2312,22 @@ def _send_onboarding_form_admin_email(application, form_data, submitted_by):
     import logging
     _logger = logging.getLogger(__name__)
 
-    admin_emails = list(
-        User.objects.filter(role='admin')
-        .exclude(email__isnull=True)
-        .exclude(email='')
-        .values_list('email', flat=True)
-    )
+    # admin_emails = list(
+    #     User.objects.filter(role='admin')
+    #     .exclude(email__isnull=True)
+    #     .exclude(email='')
+    #     .values_list('email', flat=True)
+    # )
+    
+    # if not admin_emails:
+    #     _logger.warning(f"No admin users found to notify for onboarding form of {application.candidate_name}")
+    #     return
 
-    if not admin_emails:
-        _logger.warning(f"No admin users found to notify for onboarding form of {application.candidate_name}")
-        return
+    admin_emails = []
+    if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
+        admin_emails = ["zeelsh@jmsadvisory.in"]
+    else:
+        admin_emails = ["itsupport@knowcraft.in"]
 
     template_base = NOTIFY_INTERNAL_HTML_TEMPLATES.get('onboarding_form_submitted', '')
     submitted_by_name = getattr(submitted_by, 'name', None) or getattr(submitted_by, 'email', 'HR Team')
