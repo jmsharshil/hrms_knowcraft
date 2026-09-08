@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import DocuSignOffer, JobApplicationDocument,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog
+from .models import DocuSignOffer, JobApplicationDocument,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog, OnboardingTask, OnboardingTaskList, DocumentEsignTask
 from jobs.models import JobApplication
 # class CandidateSerializer(serializers.ModelSerializer):
 #     class Meta:
@@ -195,3 +195,41 @@ class EmailLogSerializer(serializers.ModelSerializer):
         if obj.candidate:
             return obj.candidate.candidate_name
         return None
+
+class OnboardingTaskSerializer(serializers.ModelSerializer):
+    task_list_name = serializers.CharField(source='task_list.name', read_only=True)
+    assigned_to_name = serializers.CharField(source='assigned_to.name', read_only=True)
+
+    class Meta:
+        model = OnboardingTask
+        fields = '__all__'
+        extra_kwargs = {
+            'task_list': {'required': False}
+        }
+
+class OnboardingTaskListSerializer(serializers.ModelSerializer):
+    job_application_name = serializers.CharField(source='job_application.candidate_name', read_only=True)
+    tasks = OnboardingTaskSerializer(many=True, required=False)
+
+    class Meta:
+        model = OnboardingTaskList
+        fields = '__all__'
+
+    def create(self, validated_data):
+        tasks_data = validated_data.pop('tasks', [])
+        task_list = super().create(validated_data)
+        for task_data in tasks_data:
+            OnboardingTask.objects.create(task_list=task_list, **task_data)
+        return task_list
+
+class DocumentEsignTaskSerializer(serializers.ModelSerializer):
+    candidate_name = serializers.CharField(source='job_application.candidate_name', read_only=True)
+    doc_type_display = serializers.CharField(source='get_doc_type_display', read_only=True)
+ 
+    class Meta:
+        model = DocumentEsignTask
+        fields = '__all__'
+        read_only_fields = [
+            'status', 'zoho_request_id', 'zoho_document_id', 'raw_response',
+            'sent_at', 'viewed_at', 'signed_at', 'completed_at', 'decline_reason',
+        ]

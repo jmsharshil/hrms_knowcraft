@@ -263,8 +263,13 @@ class ApprovalNote(models.Model):
     ("joining_pending", "Joining Pending"),
     ("joining_poned", "Joining Postponed"),
     ("joined", "Joined"),
+    # POST-JOINING TERMINATION
+    ("terminated_bgv", "Terminated – BGV Failure"),
+    ("terminated_misconduct", "Terminated – Misconduct"),
+    ("terminated_other", "Terminated – Other Reason"),
     # General Rejection (fallback)
     ("rejected", "Rejected"),
+    ("backed_out", "Backed Out"),
 ]
     
     BGV_STATUS_CHOICES = [
@@ -611,3 +616,245 @@ class EmailLog(models.Model):
 
     def __str__(self):
         return f"{self.subject} → {self.recipient_email} ({self.event})"
+
+
+class OnboardingForm(models.Model):
+    """
+    Stores the full onboarding initiation form submitted by HR
+    when creating the Zoho ManageEngine IT ticket.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    job_application = models.OneToOneField(
+        JobApplication,
+        on_delete=models.CASCADE,
+        related_name="onboarding_form"
+    )
+    submitted_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="submitted_onboarding_forms"
+    )
+
+    # ManageEngine ticket reference
+    ticket_ref = models.CharField(max_length=255, null=True, blank=True)
+
+    # Form fields matching the ME onboarding form
+    assets = models.CharField(max_length=255, null=True, blank=True)
+    site = models.CharField(max_length=255, null=True, blank=True)
+    subject = models.CharField(max_length=500, null=True, blank=True)
+    first_name = models.CharField(max_length=255, null=True, blank=True)
+    last_name = models.CharField(max_length=255, null=True, blank=True)
+    personal_email_id = models.EmailField(null=True, blank=True)
+    contact_number = models.CharField(max_length=20, null=True, blank=True)
+    joining_date = models.DateField(null=True, blank=True)
+    designation = models.CharField(max_length=255, null=True, blank=True)
+    department = models.CharField(max_length=255, null=True, blank=True)
+    employee_category = models.CharField(max_length=100, null=True, blank=True)
+    center_office_location = models.CharField(max_length=255, null=True, blank=True)
+    mode_for_collecting_assets = models.CharField(max_length=100, null=True, blank=True)
+    team_manager = models.CharField(max_length=255, null=True, blank=True)
+    work_from = models.CharField(max_length=100, null=True, blank=True)
+    crafter_id = models.CharField(max_length=100, null=True, blank=True)
+    emails_to_notify = models.TextField(null=True, blank=True)
+    current_address = models.TextField(null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
+    custom_notes = models.TextField(null=True, blank=True)
+
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "onboarding_forms"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Onboarding Form: {self.job_application.candidate_name}"
+
+
+
+
+class SurveyResponse(models.Model):
+    """
+    Stores the actual survey answers for both Candidate Satisfaction
+    and HOD surveys at the DOJ+30 milestone.
+    """
+    SURVEY_TYPE_CHOICES = [
+        ("30_day_candidate", "30-Day Candidate Satisfaction Survey"),
+        ("hod", "30-Day HOD Satisfaction Survey"),
+        ("90_day_candidate", "90-Day Candidate Survey"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    job_application = models.ForeignKey(
+        JobApplication,
+        on_delete=models.CASCADE,
+        related_name="survey_responses"
+    )
+    survey_type = models.CharField(max_length=20, choices=SURVEY_TYPE_CHOICES)
+    respondent_name = models.CharField(max_length=255, null=True, blank=True)
+    respondent_email = models.EmailField(null=True, blank=True)
+
+    # Flexible JSON to hold all survey answers
+    responses = models.JSONField(
+        default=dict,
+        help_text="JSON dict of question-answer pairs, e.g. {'overall_rating': 4, 'comments': '...'}"
+    )
+
+    submitted_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "survey_responses"
+        ordering = ["-submitted_at"]
+        unique_together = [("job_application", "survey_type")]
+
+    def __str__(self):
+        return f"{self.get_survey_type_display()} - {self.job_application.candidate_name}"
+
+
+class SurveyStructure(models.Model):
+    """
+    Stores the customizable survey structures.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    survey_type = models.CharField(max_length=50, unique=True, help_text="e.g. 30_day_candidate, hod_junior, hod_senior, 90_day_candidate")
+    structure = models.JSONField(
+        default=dict,
+        help_text="JSON representation of the survey structure (title, sections, questions, etc.)"
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "survey_structures"
+
+    def __str__(self):
+        return f"Structure for {self.survey_type}"
+
+class OnboardingCall(models.Model):
+    CALL_TYPE_CHOICES = (
+        ("d45", "Day 45 Check-in"),
+        ("d90", "Day 90 Final Review"),
+    )
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    job_application = models.ForeignKey(JobApplication, on_delete=models.CASCADE, related_name="onboarding_calls")
+    call_type = models.CharField(max_length=10, choices=CALL_TYPE_CHOICES)
+    
+    organizer_email = models.EmailField(null=True, blank=True)
+    start_time = models.DateTimeField(null=True, blank=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+    
+    meeting_id = models.CharField(max_length=512, blank=True, null=True)
+    meeting_link = models.TextField(blank=True, null=True)
+    
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "onboarding_calls"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.get_call_type_display()} - {self.job_application.candidate_name}"
+
+class OnboardingTaskList(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    job_application = models.ForeignKey('jobs.JobApplication', on_delete=models.CASCADE, related_name='onboarding_task_lists')
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "onboarding_task_lists"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.name} - {self.job_application.candidate_name}"
+
+class OnboardingTask(models.Model):
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("in_progress", "In Progress"),
+        ("completed", "Completed"),
+        ("overdue", "Overdue")
+    ]
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    task_list = models.ForeignKey(OnboardingTaskList, on_delete=models.CASCADE, related_name='tasks')
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default="pending")
+    assigned_to = models.ForeignKey('accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_onboarding_tasks')
+    due_date = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "onboarding_tasks"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.title} - {self.task_list.name}"
+
+class DocumentEsignTask(models.Model):
+    """
+    One row per statutory document per candidate. Sent to Zoho Sign for signature —
+    mirrors OfferDocument's zoho_document_id / status / raw_response shape, scoped to
+    onboarding docs instead of the offer letter.
+    """
+    DOC_TYPE_CHOICES = [
+        ("SA", "Service Agreement"),
+        ("NDA", "NDA"),
+        ("BOND", "Employment Bond"),                 # only created if job_application.bond_required
+        ("ISMS_1", "ISMS Policy Part 1"),
+        ("ISMS_2", "ISMS Policy Part 2"),
+        ("FORM_2", "Form 2"),
+        ("NOMINATION_INS", "Nomination-Insurance Form"),
+        ("KRA", "KRA (Key Result Areas)"),
+        ("FORM_F", "Form F"),
+        ("FORM_11", "Form 11"),
+        ("IT_ASSET", "IT Asset Handover / Digital Asset Confirmation"),
+        ("UNDERTAKING", "Undertaking Sign-off Document"),
+    ]
+    STATUS_CHOICES = [
+        ("pending", "Pending — File Not Yet Uploaded"),
+        ("ready", "File Uploaded, Not Yet Sent"),
+        ("sent", "Sent to Zoho Sign"),
+        ("viewed", "Viewed by Candidate"),
+        ("signed", "Signed"),
+        ("completed", "Completed"),
+        ("declined", "Declined"),
+        ("expired", "Expired"),
+        ("reminded", "Reminder Sent"),
+    ]
+ 
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    job_application = models.ForeignKey(
+        JobApplication, on_delete=models.CASCADE, related_name="esign_documents"
+    )
+    doc_type = models.CharField(max_length=20, choices=DOC_TYPE_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+ 
+    source_file = models.FileField(upload_to="onboarding/esign_source/", null=True, blank=True)
+ 
+    # Zoho Sign — same shape as OfferDocument
+    zoho_request_id = models.CharField(max_length=255, null=True, blank=True)
+    zoho_document_id = models.CharField(max_length=255, null=True, blank=True)
+    raw_response = models.JSONField(null=True, blank=True)
+ 
+    generated_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    viewed_at = models.DateTimeField(null=True, blank=True)
+    signed_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    reminder_sent_at = models.DateTimeField(null=True, blank=True)
+    decline_reason = models.TextField(null=True, blank=True)
+ 
+    source_meta = models.JSONField(default=dict, blank=True)  # e.g. IT asset model/serial from ME ticket
+    created_at = models.DateTimeField(default=timezone.now)
+ 
+    class Meta:
+        db_table = "onboarding_document_esign_tasks"
+        ordering = ["-created_at"]
+        unique_together = [("job_application", "doc_type")]
+ 
+    def __str__(self):
+        return f"{self.get_doc_type_display()} - {self.job_application.candidate_name} ({self.status})"

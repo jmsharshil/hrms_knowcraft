@@ -649,6 +649,26 @@ Team – HR
 Knowcraft Analytics Private Limited""",
         "log": "Final rejection sent to {candidate.candidate_email}",
     },
+    
+    # --------------------------------------------------------------
+    # ONBOARDING SURVEYS (CANDIDATE)
+    # --------------------------------------------------------------
+    "satisfaction_survey": {
+        "email": {
+            "subject": "30-Day Check-in Survey",
+            "text": "Please take a moment to fill out your 30-day onboarding satisfaction survey: {FRONTEND_URL}/candidate/satisfaction-survey/{candidate.id}",
+        },
+        "sms": "Please check your email or visit {FRONTEND_URL}/candidate/satisfaction-survey/{candidate.id} for your 30-day survey.",
+        "log": "30-Day satisfaction survey sent to {candidate.candidate_email}",
+    },
+    "d90_survey": {
+        "email": {
+            "subject": "90-Day Check-in Survey",
+            "text": "Please take a moment to fill out your 90-day onboarding survey: {FRONTEND_URL}/candidate/90-day-survey/{candidate.id}",
+        },
+        "sms": "Please check your email or visit {FRONTEND_URL}/candidate/90-day-survey/{candidate.id} for your 90-day survey.",
+        "log": "90-Day survey sent to {candidate.candidate_email}",
+    },
     "candidate_feedback": {
         "email": {
             "subject": "Candidate Experience Feedback - Knowcraft Analytics",
@@ -657,9 +677,200 @@ Knowcraft Analytics Private Limited""",
         "sms": "Dear {candidate.candidate_name},\n\nThank you for your time during our recruitment process. We'd love to hear about your experience.\nPlease fill the feedback form:\n {FRONTEND_URL}/candidate/feedback/{candidate.id}",
         "log": "Feedback request sent to {candidate.candidate_email}",
     },
+
+    # --------------------------------------------------------------
+    # POST-JOINING STAGES (Triggered by onboarding_tasks.py cron)
+    # --------------------------------------------------------------
+    "welcome_joining": {
+        "email": {
+            "subject": "Welcome to the Knowcraft Family! Your Joining Day is Almost Here.",
+            "text": (
+                "We are thrilled to welcome you to Knowcraft Analytics! "
+                "Your joining date is just around the corner. "
+                "Please ensure you have all your original documents ready. "
+                "Our team will be there to assist you throughout the day."
+            ),
+        },
+        "sms": (
+            "Dear {candidate.candidate_name}, your joining date at Knowcraft Analytics is just 2 days away! "
+            "Please carry all original documents. We look forward to seeing you."
+        ),
+        "log": "Pre-joining welcome sent to {candidate.candidate_email}",
+    },
+    "d45_call_candidate_reminder": {
+        "email": {
+            "subject": "Catch Up call: {candidate.candidate_name}",
+            "text": "This is a gentle reminder to join the catch-up call as per the scheduled time.",
+        },
+        "sms": "Reminder: Join the catch-up call as per the scheduled time.",
+        "log": "D45 call reminder sent to {candidate.candidate_email}",
+    },
+    "d90_call_candidate_reminder": {
+        "email": {
+            "subject": "Catch Up call: {candidate.candidate_name}",
+            "text": "This is a gentle reminder to join the catch-up call as per the scheduled time.",
+        },
+        "sms": "Reminder: Join the catch-up call as per the scheduled time.",
+        "log": "D90 call reminder sent to {candidate.candidate_email}",
+    },
+    "login_request_reminder": {
+        "email": {
+            "subject": "Action Required: Complete Your Joining Documents",
+            "text": (
+                "Welcome aboard! We noticed that your joining documents are still pending. "
+                "Please complete the document upload process at the earliest to ensure your account activation and payroll onboarding are not delayed."
+            ),
+        },
+        "sms": (
+            "Dear {candidate.candidate_name}, your joining documents are still pending. "
+            "Please upload them at the earliest to avoid delays in your account setup."
+        ),
+        "log": "Login/doc reminder sent to {candidate.candidate_email}",
+    },
+    "satisfaction_survey": {
+        "email": {
+            "subject": "30-Day Check-In: We'd Love Your Feedback!",
+            "text": (
+                "Congratulations on completing your first 30 days at Knowcraft Analytics! "
+                "We hope your journey has been smooth and fulfilling. "
+                "Please take a moment to fill in our short Satisfaction Survey — "
+                "your feedback helps us continuously improve the onboarding experience for everyone."
+            ),
+        },
+        "sms": (
+            "Hi {candidate.candidate_name}, you've completed 30 days at Knowcraft Analytics! "
+            "Please fill our quick satisfaction survey. Your feedback matters to us."
+        ),
+        "log": "30-day satisfaction survey sent to {candidate.candidate_email}",
+    },
+    "d90_survey": {
+        "email": {
+            "subject": "90-Day Onboarding Survey - Your Feedback is Valuable",
+            "text": (
+                "Congratulations on reaching your 90-day milestone at Knowcraft Analytics! "
+                "We'd like to hear about your full onboarding experience, role clarity, support received, "
+                "and any suggestions for improvement. Please complete our 90-Day Survey using the link below. "
+                "Your responses are saved directly to our database and help shape future improvements."
+            ),
+        },
+        "sms": (
+            "Hi {candidate.candidate_name}, it's your 90-day mark at Knowcraft! "
+            "Please complete the 90 day survey form. Link in email. Your input is saved in our DB."
+        ),
+        "log": "90-day survey form sent to {candidate.candidate_email}",
+    },
+    # --------------------------------------------------------------
+    # ESIGN / ZOHO SIGN FLOW (for statutory documents)
+    # --------------------------------------------------------------
+    "esign_request": {
+        "email": {
+            "subject": "Action Required: Sign Your Onboarding Documents",
+            "text": (
+                "Your statutory onboarding documents have been sent for e-signature via Zoho Sign. "
+                "Please review and digitally sign them promptly using the secure link in the Zoho Sign email."
+            ),
+        },
+        "sms": (
+            "Dear {candidate.candidate_name}, your onboarding documents (SA, NDA, KRA etc.) have been "
+            "sent for e-signature. Check your email (incl. spam) for the Zoho Sign link and sign ASAP."
+        ),
+        "log": "E-sign request sent to {candidate.candidate_email}",
+    },
+    "esign_reminder": {
+        "email": {
+            "subject": "Reminder: Pending E-Signature Documents",
+            "text": (
+                "This is a reminder that you still have pending documents requiring your e-signature: "
+                "{pending_docs}. Please complete them using the Zoho Sign link from our previous email."
+            ),
+        },
+        "sms": (
+            "Reminder: Pending e-sign docs ({pending_docs}). Please sign them via Zoho Sign link sent earlier."
+        ),
+        "log": "E-sign reminder sent to {candidate.candidate_email} for pending docs",
+    },
+    "d5_document_verification": {
+        "email": {
+            "subject": "Action Required: Verify Your Documents and Details",
+            "text": (
+                "Welcome to Knowcraft Analytics! "
+                "As part of your onboarding process, we request you to please verify the details and documents "
+                "you submitted to ensure accuracy and authenticity. "
+                "Please check your work email and verify your information as soon as possible."
+            ),
+        },
+        "sms": (
+            "Hi {candidate.candidate_name}, please check your work email to verify your documents and details as part of the onboarding process."
+        ),
+        "log": "D5 document verification email sent to {candidate.candidate_email}",
+    },
+    "welcome_wfo": {
+        "email": {
+            "subject": "Welcome to Knowcraft Analytics!",
+            "text": "Welcome to Knowcraft Analytics! We are delighted to have you join our team and look forward to the knowledge, skills, and enthusiasm you will bring to the organization.",
+        },
+        "sms": "Welcome to Knowcraft Analytics! We are delighted to have you join our team.",
+        "log": "Welcome WFO email sent to {candidate.candidate_email}",
+    },
+    "welcome_wfh": {
+        "email": {
+            "subject": "Welcome to Knowcraft Analytics!",
+            "text": "A very warm welcome to Knowcraft Analytics! We are excited to have you join our team and look forward to supporting you as you begin your journey with us in a remote work setup.",
+        },
+        "sms": "A very warm welcome to Knowcraft Analytics! We are excited to have you join our team remotely.",
+        "log": "Welcome WFH email sent to {candidate.candidate_email}",
+    },
+    "document_signoff": {
+        "email": {
+            "subject": "Action Required: Complete Onboarding Document Sign-Off",
+            "text": "As part of your onboarding process, we request you to review and complete the sign-off of the onboarding documents shared with you.",
+        },
+        "sms": "Please review and complete the sign-off of your onboarding documents at the earliest.",
+        "log": "Onboarding document sign-off email sent to {candidate.candidate_email}",
+    },
+    "hr_handbook": {
+        "email": {
+            "subject": "HR Handbook",
+            "text": "Welcome to Knowcraft Analytics! Attached to this email is the HR Handbook. Please go through it carefully to familiarize yourself with company policies and benefits.",
+        },
+        "sms": "Welcome to Knowcraft Analytics! Please check your email for the HR Handbook.",
+        "log": "HR Handbook sent to {candidate.candidate_email}",
+    },
+    "culture_values": {
+        "email": {
+            "subject": "Exploring the Culture and Values of Knowcraft",
+            "text": "As we continue to grow together, please review the attached handbook on Knowcraft's Culture and Values.",
+        },
+        "sms": "Please check your email for Knowcraft's Culture and Values Handbook.",
+        "log": "Culture and Values Handbook sent to {candidate.candidate_email}",
+    },
+    "chatbot_manual": {
+        "email": {
+            "subject": "Introducing HR Buddy - MS Teams Chatbot User Manual",
+            "text": "Please find attached the user manual outlining simple steps to install our HR Buddy Chatbot in Microsoft Teams.",
+        },
+        "sms": "Please check your email for the HR Buddy MS Teams Chatbot User Manual.",
+        "log": "Chatbot User Manual sent to {candidate.candidate_email}",
+    },
+    "kai_mascot": {
+        "email": {
+            "subject": "Say Hello to KAI 🤖 Crafter Happiness Mascot!",
+            "text": "A quick reminder to check your Microsoft Teams — KAI (Knowcraft + AI + Intelligence) is waiting to hear from you!",
+        },
+        "sms": "Check Microsoft Teams! KAI Crafter Happiness Mascot is waiting for your weekly check-in.",
+        "log": "KAI Mascot reminder sent to {candidate.candidate_email}",
+    },
+    "posh_policy": {
+        "email": {
+            "subject": "Prevention of Sexual Harassment (POSH) Policy & Guidelines",
+            "text": "Knowcraft Analytics is committed to a safe and inclusive workplace. Attached is our POSH Policy for your review.",
+        },
+        "sms": "Please check your email for Knowcraft's POSH Policy & Guidelines.",
+        "log": "POSH Policy sent to {candidate.candidate_email}",
+    },
 }
 
-def notify_candidate(candidate: Any, stage: str,cc:list, feedback_link: str = None) -> bool:
+def notify_candidate(candidate: Any, stage: str, cc: list = None, feedback_link: str = None, extra_context: dict = None) -> bool:
     """
     Unified notification dispatcher.
 
@@ -689,14 +900,36 @@ def notify_candidate(candidate: Any, stage: str,cc:list, feedback_link: str = No
         logger.warning("No notification config for stage '%s'", stage)
         return False
 
+    if cc is None:
+        cc = []
+
     success = True
 
     email_cfg = cfg.get("email")
     sms_text = cfg.get("sms")
+    extra_context = extra_context or {}
+
     # ---------- EMAIL ----------
     
     if email_cfg:
+        raw_attachments = extra_context.get("attachments", [])
         attachments = []
+        for att in raw_attachments:
+            if isinstance(att, str) and (att.startswith("http://") or att.startswith("https://")):
+                try:
+                    import urllib.parse
+                    import requests
+                    res = requests.get(att, timeout=30)
+                    filename = urllib.parse.unquote(att.split("/")[-1])
+                    mimetype = res.headers.get("Content-Type", "application/pdf")
+                    if len(res.content) > 15 * 1024 * 1024:
+                        logger.warning("Attachment %s exceeds 15MB (%0.2f MB). Using in-email download link instead to prevent SMTP limits.", filename, len(res.content)/(1024*1024))
+                    else:
+                        attachments.append((filename, res.content, mimetype))
+                except Exception as err:
+                    logger.error("Failed downloading attachment from URL %s: %s", att, err)
+            else:
+                attachments.append(att)
         # attach_factory = email_cfg.get("attachments_factory")
         # if attach_factory:
         #     try:
@@ -709,8 +942,6 @@ def notify_candidate(candidate: Any, stage: str,cc:list, feedback_link: str = No
         pending_docs_html = None
         if cfg.get("opensign"):
             try:
-                # filename, pdf_bytes, mimetype = generate_offer_letter(candidate)
-
                 # Call OpenSign API
                 sign_url,form_id = send_to_opensign_and_get_link(candidate=candidate)
                 from django.core.cache import cache
@@ -751,46 +982,61 @@ def notify_candidate(candidate: Any, stage: str,cc:list, feedback_link: str = No
                         f"{FRONTEND_URL}/api/slots/available/"
                         f"?candidate_id={candidate.id}&interviewer_id={interviewer_id}"
                     )
-                email_cfg["text"] = email_cfg["text"].format(schedule_link=schedule_link)
-                sms_text.format(schedule_link=schedule_link)
+                email_cfg["text"] = email_cfg.get("text", "").format(schedule_link=schedule_link)
+                if sms_text:
+                    sms_text = sms_text.format(schedule_link=schedule_link)
             except Exception as e:
-                print(e)
+                logger.warning("Schedule link generation failed: %s", e)
         try:
-            html_template = HTML_TEMPLATES[stage]
-            # if stage == "salary_docs_pending":
-            #     link = f"{FRONTEND_URL}/api/application/documents/upload/salary-bank/{candidate.id}"
-            #     email_cfg["text"].format(link=link)
-            #     sms_text.format(link=link)
-            # if stage == 'docs_pending':
-            #     link = f"{FRONTEND_URL}/api/application/documents/upload/docs/{candidate.id}"
-            #     email_cfg["text"].format(link=link)
-            #     sms_text.format(link=link)
-            # if stage == "resignation_pending":
-            #     link = f"{FRONTEND_URL}/api/application/documents/upload/resignation/{candidate.id}"
-            #     email_cfg["text"].format(link=link)
-            #     sms_text.format(link=link)
-            # if stage in ['docs_unclear','docs_incomplete','']:
-            #     from onboarding.utils.docs_reupload import get_pending_documents
-            #     pending_docs = get_pending_documents(candidate.documents)
-            #     pending_docs_html = "<ul>" + "".join(f"<li>{doc}</li>" for doc in pending_docs) + "</ul>"
-            send_email(
-                to=candidate.candidate_email,
-                subject=email_cfg["subject"],
-                text=email_cfg["text"],
-                cc= cc,
-                template=html_template.format(
-                    candidate=candidate,
-                    sign_url=sign_url,
-                    schedule_link=schedule_link,
-                    feedback_link=feedback_link
-                ),
-                attachments=attachments,
-                event="onboarding_stage_update",
-                email_type="candidate",
-                candidate=candidate
-            )
+            html_template = HTML_TEMPLATES.get(stage)
+            if not html_template:
+                logger.warning("No HTML template for stage %s", stage)
+                html_template = "<p>{text}</p>"
+
+            formatted_text = email_cfg.get("text", "")
+            format_dict = {
+                "FRONTEND_URL": FRONTEND_URL,
+                "candidate": candidate,
+                **extra_context
+            }
+            if "{" in formatted_text:
+                try:
+                    formatted_text = formatted_text.format(**format_dict)
+                except (KeyError, ValueError) as e:
+                    logger.warning("Text formatting error for %s: %s", stage, e)
+
+            if stage in ['satisfaction_survey', 'd90_survey', 'd5_document_verification', 'hr_handbook', 'culture_values', 'chatbot_manual', 'kai_mascot', 'posh_policy']:
+                recipient_email = getattr(candidate, 'work_email', None)
+                if not recipient_email:
+                    logger.warning(f"No work_email found for candidate {candidate.id} for stage {stage}. Skipping.")
+                    return False
+            else:
+                recipient_email = getattr(candidate, 'work_email', None) or getattr(candidate, 'candidate_email', None)
+
+            if not recipient_email:
+                logger.warning("No email found for candidate")
+                success = False
+            else:
+                template_context = {
+                    "candidate": candidate,
+                    "sign_url": sign_url,
+                    "schedule_link": schedule_link,
+                    "feedback_link": feedback_link,
+                    **extra_context
+                }
+                send_email(
+                    to=recipient_email,
+                    subject=email_cfg["subject"],
+                    text=formatted_text,
+                    cc=cc,
+                    template=html_template.format(**template_context),
+                    attachments=attachments,
+                    event="onboarding_stage_update",
+                    email_type="candidate",
+                    candidate=candidate
+                )
         except Exception as exc:
-            logger.exception("Email failed for %s (stage=%s): %s", candidate.candidate_email, stage, exc)
+            logger.exception("Email failed for %s (stage=%s): %s", getattr(candidate, 'candidate_email', 'unknown'), stage, exc)
             success = False
 
     # ---------- SMS ----------
@@ -1172,6 +1418,114 @@ Warm Regards,
 Team – HR
 Knowcraft Analytics Private Limited""",
     },
+
+    # --------------------------------------------------------------
+    # POST-JOINING / ONBOARDING MILESTONE INTERNAL NOTIFICATIONS
+    # --------------------------------------------------------------
+    "onboarding_initiation_reminder": {
+        "receivers": ["hr"],
+        "subject": "Action Required: Onboarding Initiation Pending",
+        "body": "The onboarding initiation form for {candidate.candidate_name} is pending. Please fill it immediately to start the onboarding task sequence.",
+        "sms": "Onboarding initiation pending for {candidate.candidate_name}. Please fill it ASAP.",
+    },
+    "missing_work_email_reminder": {
+        "receivers": ["hr", "it_team"],
+        "subject": "Action Required: Work Email Missing for Joiner",
+        "body": "The work email for {candidate.candidate_name} has not been updated in the system yet. Post-joining emails and onboarding tasks are currently halted. Please update the work email immediately.",
+        "sms": "Work email missing for {candidate.candidate_name}. Post-joining emails halted. Please update ASAP.",
+    },
+    "doj_minus_15_it_team": {
+        "receivers": ["it_team", "admin"],
+        "subject": "Upcoming Joiner - IT Procurement Reminder ({candidate.joining_date})",
+        "body": "Candidate {candidate.candidate_name} is joining on {candidate.joining_date}. Please ensure laptop procurement and account setup via ManageEngine.",
+        "sms": "Upcoming joiner {candidate.candidate_name} on {candidate.joining_date} - prepare IT assets.",
+    },
+    "doj_minus_7_hod": {
+        "receivers": ["department_head"],
+        "subject": "Upcoming Team Member Joining (7 Days)",
+        "body": "New team member {candidate.candidate_name} joining your department in 7 days. Please prepare for onboarding.",
+        "sms": "New joiner {candidate.candidate_name} for your team in 7 days.",
+    },
+    "doj_minus_7_admin": {
+        "receivers": ["admin"],
+        "subject": "New Office Joiner Preparations (7 Days)",
+        "body": "Candidate {candidate.candidate_name} (office joiner) arriving in 7 days. Please arrange seating and access card.",
+        "sms": "Office joiner preparations required for {candidate.candidate_name}.",
+    },
+    "bgv_escalation": {
+        "receivers": ["hr", "admin"],
+        "subject": "ESCALATION: BGV Pending Beyond 7 Days",
+        "body": "BGV for candidate {candidate.candidate_name} is still pending 7+ days post-joining. Please review and resolve immediately.",
+        "sms": "BGV ESCALATION for {candidate.candidate_name} - action required.",
+    },
+    "satisfaction_survey_hod_junior": {
+        "receivers": ["department_head"],
+        "subject": "30-Day HOD Satisfaction Survey – Action Required",
+        "body": "Please complete the 30-day HOD satisfaction survey for {candidate.candidate_name} using the link in your email.",
+        "sms": "Please complete the 30-day HOD survey for new joiner {candidate.candidate_name}.",
+    },
+    "satisfaction_survey_hod_senior": {
+        "receivers": ["department_head"],
+        "subject": "30-Day HOD Satisfaction Survey (Senior) – Action Required",
+        "body": "Please complete the 30-day HOD satisfaction survey (senior level) for {candidate.candidate_name} using the link in your email.",
+        "sms": "Please complete the 30-day HOD senior survey for new joiner {candidate.candidate_name}.",
+    },
+    "schedule_checkin_call_reminder": {
+        "receivers": ["hr", "department_head"],
+        "subject": "Action Required: Schedule 45-Day Check-In Call",
+        "body": "Please schedule the 45-day check-in call with {candidate.candidate_name} via Microsoft Teams and update the HRMS flag.",
+        "sms": "Schedule 45-day check-in for {candidate.candidate_name}.",
+    },
+    "schedule_final_review_reminder": {
+        "receivers": ["hr", "department_head"],
+        "subject": "Action Required: Schedule 90-Day Final Review",
+        "body": "Please schedule the 90-day final review call with {candidate.candidate_name}. Mark as complete in HRMS to close onboarding.",
+        "sms": "Schedule 90-day final review for {candidate.candidate_name}.",
+    },
+    "d45_call_not_scheduled_escalation": {
+        "receivers": ["hr", "admin"],
+        "subject": "Escalation: 45-Day Check-In Call Not Scheduled – {candidate.candidate_name}",
+        "body": (
+            "5 reminders have been sent to HR and HOD to schedule the 45-Day Check-In Call "
+            "for {candidate.candidate_name}, but the call has not been scheduled yet. "
+            "Please take immediate action."
+        ),
+        "sms": "Escalation: D45 call not scheduled after 5 reminders for {candidate.candidate_name}.",
+    },
+    "d90_call_not_scheduled_escalation": {
+        "receivers": ["hr", "admin"],
+        "subject": "Escalation: 90-Day Final Review Call Not Scheduled – {candidate.candidate_name}",
+        "body": (
+            "5 reminders have been sent to HR and HOD to schedule the 90-Day Final Review Call "
+            "for {candidate.candidate_name}, but the call has not been scheduled yet. "
+            "Please take immediate action."
+        ),
+        "sms": "Escalation: D90 call not scheduled after 5 reminders for {candidate.candidate_name}.",
+    },
+    "buddy_assigned": {
+        "receivers": ["hr", "department_head"],
+        "subject": "Buddy Program | New Joiner Buddy Assignment",
+        "body": "Buddies have been assigned to {candidate.candidate_name}. Please ensure they connect within first week.",
+        "sms": "Buddies assigned for new joiner {candidate.candidate_name}.",
+    },
+    "work_email_reminder": {
+        "receivers": ["hr", "admin", "department_head"],
+        "subject": "Action Required: Work Email Not Set for New Joiner",
+        "body": "The work email for {candidate.candidate_name} has not been configured yet. Please set it up in the HRMS to enable document signing and survey delivery.",
+        "sms": "Work email missing for {candidate.candidate_name}. Please set it up in HRMS.",
+    },
+    "it_team_ticket_created": {
+        "receivers": ["it_team", "admin"],
+        "subject": "New Onboarding IT Ticket Created",
+        "body": "IT ticket {candidate.it_ticket_ref} created for onboarding of {candidate.candidate_name}. Please monitor and complete setup.",
+        "sms": "New IT onboarding ticket created for {candidate.candidate_name}.",
+    },
+    "it_ticket_close_request": {
+        "receivers": ["it_team"],
+        "subject": "Action Required: Close Onboarding IT Ticket for {candidate.candidate_name}",
+        "body": "The 90-day onboarding period for {candidate.candidate_name} is complete. Please close their onboarding IT ticket.",
+        "sms": "Please close the onboarding IT ticket for {candidate.candidate_name}.",
+    },
 }
 
 def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
@@ -1255,9 +1609,14 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
             # =========================
             if role == 'department_head':
                 if mrf:
+                    # Try requested_by first regardless of their system role
                     user = getattr(mrf, "requested_by", None)
-                    if user and user.role == 'department_head':
+                    if user:
                         add_user(user)
+                    # Also try the requested_by_email field if it exists
+                    hod_email = mrf.requested_by.email if getattr(mrf, "requested_by", None) and getattr(mrf.requested_by,"email",None) else None
+                    if hod_email:
+                        add_email(hod_email)
                 continue
 
             # =========================
@@ -1389,7 +1748,9 @@ def resolve_internal_phones(candidate, receivers: list[str]) -> list[str]:
         logger.exception(f"Error finding phones to send: {e}")
         return []
 
-def notify_internal(candidate: Any, stage: str, cc: list) -> bool:
+def notify_internal(candidate: Any, stage: str, cc: list = None) -> bool:
+    if cc is None:
+        cc = []
     # Private Job Check: No automated communications for private records
     try:
         if hasattr(candidate, 'job') and candidate.job and candidate.job.is_private:
@@ -1476,6 +1837,26 @@ def notify_internal(candidate: Any, stage: str, cc: list) -> bool:
         logger.exception(f"Failed internal notification: {e}")
         return False
 
+
+def send_welcome_email(candidate: Any, work_type: str = "WFO", reporting_time: str = "09:30 AM", office_address: str = "Knowcraft Analytics Office", hr_contact_details: str = "Team HR (hr@knowcraftanalytics.com)", cc: list = None) -> bool:
+    """
+    Sends Welcome Email to candidate based on work arrangement (WFO vs WFH).
+    """
+    stage = "welcome_wfh" if str(work_type).upper() in ["WFH", "WORK_FROM_HOME", "HOME", "REMOTE"] else "welcome_wfo"
+    extra_context = {
+        "reporting_time": reporting_time,
+        "office_address": office_address,
+        "hr_contact_details": hr_contact_details,
+    }
+    return notify_candidate(candidate=candidate, stage=stage, cc=cc, extra_context=extra_context)
+
+
+def send_document_signoff_email(candidate: Any, cc: list = None) -> bool:
+    """
+    Sends Onboarding Document Review & Sign-Off Email to candidate.
+    """
+    return notify_candidate(candidate=candidate, stage="document_signoff", cc=cc)
+
 def trigger_feedback_email(candidate: Any, feedback_type: str):
     """
     Creates/fetches CandidateExperienceFeedback and sends a separate feedback email.
@@ -1493,3 +1874,79 @@ def trigger_feedback_email(candidate: Any, feedback_type: str):
     except Exception as e:
         logger.exception("Failed to trigger feedback email for %s: %s", candidate.candidate_email, e)
         return False
+
+
+DEFAULT_HANDBOOK_ATTACHMENTS = {
+    "hr_handbook": "https://hireprostorage.blob.core.windows.net/media/4.1 Attachment-Handbook 2026.pdf",
+    "culture_values": "https://hireprostorage.blob.core.windows.net/media/4.2 Attachment-Culture and Values Handbook.pdf",
+    "chatbot_manual": "https://hireprostorage.blob.core.windows.net/media/4.4. Attachment-Knowcraft Chatbot.pdf",
+    "posh_policy": "https://hireprostorage.blob.core.windows.net/media/4.3 Email Body-POSH.jpg",
+}
+
+
+def send_hr_handbook_email(candidate: Any, attachment: Any = None, cc: list = None) -> bool:
+    """
+    Sends HR Handbook Email with attachment to candidate's work email.
+    """
+    attachment = attachment or DEFAULT_HANDBOOK_ATTACHMENTS["hr_handbook"]
+    extra_context = {
+        "attachments": [attachment] if not isinstance(attachment, list) else attachment
+    }
+    return notify_candidate(candidate=candidate, stage="hr_handbook", cc=cc, extra_context=extra_context)
+
+
+def send_culture_values_email(candidate: Any, attachment: Any = None, cc: list = None) -> bool:
+    """
+    Sends Culture and Values Handbook Email with attachment to candidate's work email.
+    """
+    attachment = attachment or DEFAULT_HANDBOOK_ATTACHMENTS["culture_values"]
+    extra_context = {
+        "attachments": [attachment] if not isinstance(attachment, list) else attachment
+    }
+    return notify_candidate(candidate=candidate, stage="culture_values", cc=cc, extra_context=extra_context)
+
+
+def send_chatbot_manual_email(candidate: Any, attachment: Any = None, cc: list = None) -> bool:
+    """
+    Sends HR Buddy Chatbot User Manual Email with attachment to candidate's work email.
+    """
+    attachment = attachment or DEFAULT_HANDBOOK_ATTACHMENTS["chatbot_manual"]
+    extra_context = {
+        "attachments": [attachment] if not isinstance(attachment, list) else attachment
+    }
+    return notify_candidate(candidate=candidate, stage="chatbot_manual", cc=cc, extra_context=extra_context)
+
+
+def send_kai_mascot_email(candidate: Any, cc: list = None) -> bool:
+    """
+    Sends KAI Happiness Mascot check-in notification email to candidate's work email.
+    """
+    return notify_candidate(candidate=candidate, stage="kai_mascot", cc=cc)
+
+
+def send_posh_policy_email(candidate: Any, attachment: Any = None, cc: list = None) -> bool:
+    """
+    Sends POSH Policy Email with attachment to candidate's work email.
+    """
+    attachment = attachment or DEFAULT_HANDBOOK_ATTACHMENTS["posh_policy"]
+    extra_context = {
+        "attachments": [attachment] if not isinstance(attachment, list) else attachment
+    }
+    return notify_candidate(candidate=candidate, stage="posh_policy", cc=cc, extra_context=extra_context)
+
+
+def send_post_welcome_handbooks_and_policies(candidate: Any, attachments_dict: dict = None, cc: list = None) -> dict:
+    """
+    Dispatches all post-welcome email templates (HR Handbook, Culture & Values, Chatbot Manual, KAI Mascot, POSH Policy)
+    to the candidate's work email with their respective attachments.
+    """
+    attachments_dict = attachments_dict or {}
+    results = {}
+    
+    results["hr_handbook"] = send_hr_handbook_email(candidate, attachment=attachments_dict.get("hr_handbook"), cc=cc)
+    results["culture_values"] = send_culture_values_email(candidate, attachment=attachments_dict.get("culture_values"), cc=cc)
+    results["chatbot_manual"] = send_chatbot_manual_email(candidate, attachment=attachments_dict.get("chatbot_manual"), cc=cc)
+    results["kai_mascot"] = send_kai_mascot_email(candidate, cc=cc)
+    results["posh_policy"] = send_posh_policy_email(candidate, attachment=attachments_dict.get("posh_policy"), cc=cc)
+    
+    return results

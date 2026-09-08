@@ -216,9 +216,12 @@ class Job(models.Model):
         
         # Check if expected_closure_date is changing
         old_closure_date = None
+        old_status = None
         if self.pk:
             try:
-                old_closure_date = Job.objects.get(pk=self.pk).expected_closure_date
+                old_job = Job.objects.get(pk=self.pk)
+                old_closure_date = old_job.expected_closure_date
+                old_status = old_job.status
             except Job.DoesNotExist:
                 pass
         
@@ -232,6 +235,10 @@ class Job(models.Model):
             
             # Use update() to propagate to all related links efficiently
             self.application_links.update(expires_at=expiry_dt)
+            
+        # Deactivate all application links if position is filled
+        if old_status != 'filled' and self.status == 'filled':
+            self.application_links.update(is_active=False)
 
     def __str__(self):
         return f"{self.job_title} - {self.department.name if self.department else 'N/A'}"
@@ -552,8 +559,13 @@ class JobApplication(models.Model):
     ("joining_pending", "Joining Pending"),
     ("joining_poned", "Joining Postponed"),
     ("joined", "Joined"),
+    # POST-JOINING TERMINATION
+    ("terminated_bgv", "Terminated – BGV Failure"),
+    ("terminated_misconduct", "Terminated – Misconduct"),
+    ("terminated_other", "Terminated – Other Reason"),
     # General Rejection (fallback)
     ("rejected", "Rejected"),
+    ("backed_out", "Backed Out"),
 ]
 
     
@@ -669,6 +681,45 @@ class JobApplication(models.Model):
         default='pending_schedule'
     )
     
+    # Onboarding & Post Joining Fields
+    it_ticket_ref = models.CharField(max_length=255, null=True, blank=True)
+    emp_account_active = models.BooleanField(default=False)
+    work_email = models.EmailField(null=True, blank=True)
+    crafter_id = models.CharField(max_length=255, null=True, blank=True)
+    is_escalated = models.BooleanField(default=False)
+    is_satisfaction_survey_filled = models.BooleanField(default=False)
+    is_hod_survey_filled = models.BooleanField(default=False)
+    is_d45_call_scheduled = models.BooleanField(default=False)
+    is_d90_call_scheduled = models.BooleanField(default=False)
+    is_d30_survey_sent = models.BooleanField(default=False)
+    is_d5_verification_sent = models.BooleanField(default=False)
+    is_d5_verification_completed = models.BooleanField(default=False)
+    is_d90_survey_sent = models.BooleanField(default=False)   # Gap 10: track survey send separately from call
+    is_d90_survey_filled = models.BooleanField(default=False) # tracks when candidate submits the 90-day survey
+    it_ticket_closed = models.BooleanField(default=False)     # Gap 8:  guard ME ticket close (>= day 90)
+    is_esign_packet_generated = models.BooleanField(default=False)  # True once esign doc rows are created at DOJ 0
+    is_undertaking_signoff_sent = models.BooleanField(default=False)
+    is_undertaking_signoff_completed = models.BooleanField(default=False)
+    is_esign_reminder_sent = models.BooleanField(default=False)     # True once the DOJ+1 esign reminder is sent
+    
+    is_doj_minus_15_triggered = models.BooleanField(default=False)
+    is_doj_minus_7_triggered = models.BooleanField(default=False)
+    is_doj_minus_2_triggered = models.BooleanField(default=False)
+    is_doj_0_triggered = models.BooleanField(default=False)
+    is_doj_7_triggered = models.BooleanField(default=False)
+    is_doj_45_triggered = models.BooleanField(default=False)
+
+    # Tracks how many daily reminders have been sent to HR for un-scheduled calls
+    d45_reminder_count = models.PositiveIntegerField(default=0)
+    d90_reminder_count = models.PositiveIntegerField(default=0)
+    is_d45_call_escalated = models.BooleanField(default=False)
+    is_d90_call_escalated = models.BooleanField(default=False)
+    
+    technical_buddy_email = models.EmailField(null=True, blank=True)
+    technical_buddy_name = models.CharField(max_length=255, null=True, blank=True)
+    cultural_buddy_email = models.EmailField(null=True, blank=True)
+    cultural_buddy_name = models.CharField(max_length=255, null=True, blank=True)
+    
     # Additional Info
     notes = models.TextField(blank=True)
     experience_years = models.DecimalField(
@@ -754,6 +805,9 @@ class JobApplication(models.Model):
             models.Index(fields=['status']),
             models.Index(fields=['source']),
             models.Index(fields=['application_link']),
+            models.Index(fields=['match_score', 'status', 'created_at']),
+            models.Index(fields=['candidate_name', 'candidate_email']),
+            models.Index(fields=['job_id', 'is_active'])
         ]
 
     def __init__(self, *args, **kwargs):
@@ -790,47 +844,23 @@ class JobApplication(models.Model):
             # Trigger engine for manual status jump to joined
             automation_engine(self, old_status, 'joined')
         
-        # If joining_date was previously in the past (which may have auto-transitioned
-        # the candidate to 'joined') and is now moved to a future date, revert the
-        # candidate back to 'joining_pending' and adjust Job/MRF counts/status.
-        try:
-            from datetime import date
-            from django.utils import timezone as _tz
+        # The joining_date revert logic has been moved to onboarding/signals.py
 
-            if (not is_new) and old_status == 'joined' and old_joining_date != self.joining_date and (self.joining_date is None or self.joining_date > date.today()):
-                # Only act if candidate is currently marked as joined
-                if self.status == 'joined':
-                    job = self.job
-                    if job:
-                        # Recompute positions_filled based on other joined candidates
-                        other_joined = job.applications.filter(status='joined').exclude(pk=self.pk).count()
-                        job.positions_filled = other_joined
-                        # If positions filled are now less than required, set job->joining_pending
-                        if job.positions_filled < job.no_of_positions:
-                            job.status = 'joining_pending'
-                        # Persist job changes
-                        job.save(update_fields=['positions_filled', 'status'])
+        # ── Auto-sync is_rejected based on current status ────────────────────
+        REJECTION_STATUSES = {
+            'duplicate_rejected', 'interview_rejected_1', 'interview_rejected_2',
+            'interview_rejected_3', 'interview_rejected_final',
+            'interview_rejected_management_client', 'approval_rejected',
+            'offer_rejected', 'rejected',
+        }
+        should_be_rejected = self.status in REJECTION_STATUSES
+        if self.is_rejected != should_be_rejected:
+            self.is_rejected = should_be_rejected
+            JobApplication.objects.filter(pk=self.pk).update(is_rejected=should_be_rejected)
 
-                        # Sync MRF status if needed
-                        if hasattr(job, 'mrf') and job.mrf:
-                            try:
-                                if job.mrf.status == 'filled' and job.positions_filled < job.no_of_positions:
-                                    job.mrf.status = 'joining_pending'
-                                    job.mrf.save(update_fields=['status'])
-                            except Exception:
-                                pass
+        # ── Auto-sync crafter_id to OnboardingForm if changed ────────────────────
+        # Moved to onboarding/signals.py
 
-                    # Revert candidate status in DB directly to avoid recursive engine triggers
-                    JobApplication.objects.filter(pk=self.pk).update(status='joining_pending', updated_at=_tz.now())
-                    from onboarding.models import ApprovalNote
-                    ApprovalNote.objects.filter(candidate=self.id).update(status='joining_pending', updated_at=_tz.now())
-                    # Keep in-memory instance in sync
-                    self.status = 'joining_pending'
-        except Exception as e:
-            # Non-fatal — don't block save on revert failures
-            import logging
-            logging.getLogger(__name__).error(f"Failed to revert joining status for {self.pk}: {e}", exc_info=True)
-            
     def get_platform_name(self):
         """Get the platform name from application link"""
         if self.application_link:
@@ -1003,6 +1033,7 @@ class Application(models.Model):
     is_rejected = models.BooleanField(default=False)
     rejected_by = models.ForeignKey("accounts.user",on_delete=models.SET_NULL,null=True,blank=True)
     rejection_reason = models.TextField(null=True,blank=True)
+    revert_comment = models.TextField(null=True,blank=True)
 
     is_touched = models.BooleanField(default=False, help_text="Has the candidate been touched at least once?")
     touched_at = models.DateTimeField(null=True, blank=True, help_text="When was the candidate last touched?")

@@ -227,7 +227,7 @@ def get_verification_codes(candidate):
     Returns the list of verification codes based on the candidate's experience.
     """
     # codes = ["PANV", "CCRV", "PAV", "LAV", "EDUV", "GDC"]
-    codes = ["PANV", "CCRV", "PAV", "PAPV", "EDUV", "GDC"]
+    codes = ["PANV", "CCRV", "PAPV", "EDUV", "GDC"]
     if not is_fresher(candidate):
         codes.append("EMPV")
     return codes
@@ -617,7 +617,7 @@ def _build_payload(candidate, extra_data=None):
         # "uid": str(candidate.id)  # safer idempotency
     }
 
-    raw_phone = str(candidate.candidate_phone or "")
+    raw_phone = str(candidate.candidate_phone or "") or extra.get("phone")
 
     # Strip country code if present and set separately
     if raw_phone.startswith("+91"):

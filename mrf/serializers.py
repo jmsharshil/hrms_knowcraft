@@ -594,8 +594,9 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
                 previous_data=previous_data
             )
         
-        # Don't allow workflow_template or is_private change after creation
-        validated_data.pop('workflow_template', None)
+        # Don't allow workflow_template or is_private change if it's already submitted/approved
+        if instance.status not in ['draft', 'revision_required']:
+            validated_data.pop('workflow_template', None)
         validated_data.pop('is_private', None)
         validated_data.pop('private_approval_levels', None)
         

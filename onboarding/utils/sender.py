@@ -18,6 +18,12 @@ def send_email(to, subject, cc=[], text="", template=None, attachments=None, use
     if use_default_cc:
         cc_list.append("talent@knowcraft.in")
 
+    is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
+    if is_debug:
+        logger.info(f"[DEBUG MODE] Intercepting email to {to}: {subject}. Marking as skipped (pending approval).")
+        _log_email(to, cc_list, subject, text, template, event, email_type, candidate, status="skipped", error="Intercepted for debug approval")
+        return
+
     try:
         msg = EmailMultiAlternatives(subject, text, "talent@knowcraft.in", to=[to], cc=cc_list)
         if template:

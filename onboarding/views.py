@@ -7,11 +7,19 @@ from rest_framework import status,permissions
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.template import Template, Context
-from django.db.models import Q
-from .models import JobApplicationDocument,ApprovalNote,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog
+from django.db.models import Exists, OuterRef, Q
+from .models import JobApplicationDocument,ApprovalNote,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog, OnboardingTask, OnboardingTaskList, DocumentEsignTask
 from onboarding.utils.engine import automation_engine
 from .utils.sender import send_email,send_text,send_document
-from .serializers import JobApplicationDocumentSerializer,SalaryAnnexureSerializer,SalaryAnnexureHistorySerializer,EmailLogSerializer
+from .serializers import (
+    JobApplicationDocumentSerializer,
+    SalaryAnnexureSerializer,
+    SalaryAnnexureHistorySerializer,
+    EmailLogSerializer,
+    OnboardingTaskListSerializer,
+    OnboardingTaskSerializer,
+    DocumentEsignTaskSerializer
+)
 import logging
 from jobs.models import JobApplication, Job
 from rest_framework.viewsets import ModelViewSet,ReadOnlyModelViewSet
@@ -31,6 +39,7 @@ class UpdatestatusAPI(APIView):
     def post(self, request, id):
 
         new_status = request.data.get("status") or request.POST.get("status")
+        rejection_reason = request.data.get("rejection_reason") or request.POST.get("rejection_reason") or ""
 
         try:
             application = JobApplication.objects.get(id=id)
@@ -78,10 +87,131 @@ class UpdatestatusAPI(APIView):
                 interviewer_id = None
                 application.slot_link = ""
                 application.inperson_link = ""
+            if application.status in ["rejected", "backed_out"] and rejection_reason:
+                application.rejection_reason = rejection_reason
             application.save()
             return Response({"success": ok,"status":application.status})
         else:
-            return Response({"Error:",reason})
+            return Response({"error": reason}, status=400)
+
+class RevertRejectionAPI(APIView):
+    permission_classes = [permissions.AllowAny] 
+    def post(self, request, id):
+        try:
+            application = JobApplication.objects.get(id=id)
+        except JobApplication.DoesNotExist:
+            return Response({"error": "Job Application not found"}, status=404)
+
+        old_status = application.status
+        comment = request.data.get("comment", "")  # New optional comment field
+        
+        # We only allow reverting from terminal rejection states
+        from onboarding.utils.stage_transition_rules import ALLOWED_TRANSITIONS
+        
+        rejection_states = [
+            "duplicate_rejected", "interview_rejected_1", "interview_rejected_2", 
+            "interview_rejected_3", "interview_rejected_final", 
+            "interview_rejected_management_client", "approval_rejected", 
+            "offer_rejected", "rejected"
+        ]
+        
+        if old_status not in rejection_states:
+            return Response({"error": f"Candidate is in '{old_status}', which is not a revertible rejected state."}, status=400)
+        
+        allowed_next = ALLOWED_TRANSITIONS.get(old_status, [])
+        if not allowed_next:
+            return Response({"error": f"No revert status defined for '{old_status}'."}, status=400)
+            
+        # ── Smart next-round detection ────────────────────────────────────────
+        # For interview rejections, determine the correct next stage by checking
+        # which rounds are actually configured in the MRF (i.e. have an interviewer).
+        mrf = application.job.mrf
+        new_status = allowed_next[0]  # safe default
+
+        if old_status == "interview_rejected_1":
+            # Rejected after HR round → try Technical, then Case Study, then Final
+            if mrf.interviewer_email_2:
+                new_status = "interview_next_2"
+            elif mrf.interviewer_email_3:
+                new_status = "interview_next_3"
+            elif mrf.interviewer_email_final:
+                new_status = "interview_next_final"
+            else:
+                new_status = "selected"
+
+        elif old_status == "interview_rejected_2":
+            # Rejected after Technical round → check Case Study, then Final
+            if mrf.interviewer_email_3:
+                new_status = "interview_next_3"        # case study is configured
+            elif mrf.interviewer_email_final:
+                new_status = "interview_next_final"    # skip straight to final
+            else:
+                new_status = "selected"
+
+        elif old_status == "interview_rejected_3":
+            # Rejected after Case Study round → check Final round
+            if mrf.interviewer_email_final:
+                new_status = "interview_next_final"
+            else:
+                new_status = "selected"
+
+        elif old_status in ("interview_rejected_final", "interview_rejected_management_client"):
+            # No further interview round after Final / Management-Client
+            new_status = "selected"
+        # ─────────────────────────────────────────────────────────────────────
+
+        logger.info(f"[Revert Rejection] {application.candidate_name}: {old_status} → {new_status}")
+
+        ok, reason = automation_engine(application, old_status, new_status)
+        if ok:
+            from slots.models import Interviewer
+            interviewer_email, interviewer = None, None
+
+            # Resolve the interviewer for the new stage
+            stage_email_map = {
+                "shortlisted":                      (mrf.interviewer_email_1 or mrf.interviewer_email_2
+                                                     or mrf.interviewer_email_3 or mrf.interviewer_email_final),
+                "interview_next_2":                 mrf.interviewer_email_2,
+                "interview_next_3":                 mrf.interviewer_email_3,
+                "interview_next_final":             mrf.interviewer_email_final,
+                "interview_next_management_client": mrf.interviewer_email_management_client,
+            }
+            interviewer_email = stage_email_map.get(application.status)
+
+            if interviewer_email:
+                name = interviewer_email.split("@")[0].replace(".", " ").title()
+                interviewer, _ = Interviewer.objects.get_or_create(
+                    email=interviewer_email,
+                    defaults={"name": name}
+                )
+            if interviewer:
+                interviewer_id = interviewer.id
+                application.slot_link = (
+                    f"{FRONTEND_URL}/api/slots/available/"
+                    f"?candidate_id={application.id}&interviewer_id={interviewer_id}"
+                )
+                application.inperson_link = (
+                    f"{FRONTEND_URL}/api/inperson/interview/"
+                    f"?candidate_id={application.id}&interviewer_id={interviewer_id}"
+                )
+            else:
+                application.slot_link = ""
+                application.inperson_link = ""
+            
+            if comment:
+                application.revert_comment = comment
+            
+            application.save()
+            return Response({
+                "success": ok,
+                "status": application.status,
+                "slot_link": application.slot_link or None,
+                "inperson_link": application.inperson_link or None,
+                "book_interview_link": application.slot_link or None,
+            })
+        else:
+            return Response({"error": reason}, status=400)
+
 
 # class JobCreateAPIView(APIView):
 #     permission_classes = [permissions.AllowAny] 
@@ -494,7 +624,12 @@ class SendApprovalNoteAPIView(APIView):
                 Q(created_by__email__icontains=search)
             )
 
-        approval_notes = approval_notes.select_related("candidate").distinct()
+        onboarding_form_exists = JobApplicationDocument.objects.filter(
+            job_application_id=OuterRef("candidate_id")
+        )
+        approval_notes = approval_notes.select_related("candidate").annotate(
+            onboarding_initiation_form_exists=Exists(onboarding_form_exists)
+        ).distinct()
 
         results = []
 
@@ -517,6 +652,7 @@ class SendApprovalNoteAPIView(APIView):
                 "joining_date": note.candidate.joining_date,
                 "created_at": note.created_at,
                 "data": note.payload,
+                "onboarding_initiation_form_exists": note.onboarding_initiation_form_exists,
                 "is_private": note.candidate.job.is_private,
                 "document_upload_link": f"{FRONTEND_URL}/api/application/documents/upload/{note.candidate.id}",
                 "candidate_experience_link": f"{FRONTEND_URL}/candidate/feedback/{note.candidate.id}",
@@ -901,7 +1037,13 @@ Knowcraft Analytics Private Limited
         # Update payload
         approval_note.payload = current_payload
         approval_note.updated_at = timezone.now()
-        approval_note.save()
+        # Save only the payload and updated_at to prevent overwriting status changes
+        # that were applied in the JobApplication.save() method.
+        approval_note.save(update_fields=['payload', 'updated_at'])
+        
+        # Refresh from db so that the in-memory object reflects the new status 
+        # (e.g., 'joining_pending' if it was reverted)
+        approval_note.refresh_from_db()
 
         return Response(
             {
@@ -1391,7 +1533,7 @@ Thank you.
                 to=recipient_email,
                 template=template,
                 attachments=[annexure_attachment] if annexure_attachment else None,
-                event="salary_annexure_sent",
+                event="offer_letter_sent",
                 email_type="candidate",
                 candidate=job_application
             )
@@ -1548,7 +1690,7 @@ Thank you.
                 to=recipient_email,
                 template=template,
                 attachments=[resume_attachment] if resume_attachment else None,
-                event="offer_letter_sent",
+                event="salary_annexure_sent",
                 email_type="candidate",
                 candidate=job_application
             )
@@ -2059,3 +2201,2216 @@ class EmailLogViewSet(ReadOnlyModelViewSet):
             qs = qs.filter(candidate_id=candidate_id)
 
         return qs
+
+# --- Onboarding Post-Joining APIs ---
+
+class InitiateOnboardingAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+        
+        # Extract full form data as per the ME onboarding form
+        form_data = {
+            "assets": request.data.get("assets"),
+            "site": request.data.get("site"),
+            "subject": request.data.get("subject"),
+            "first_name": request.data.get("first_name"),
+            "last_name": request.data.get("last_name"),
+            "personal_email_id": request.data.get("personal_email_id"),
+            "contact_number": request.data.get("contact_number"),
+            "joining_date": request.data.get("joining_date"),
+            "designation": request.data.get("designation"),
+            "department": request.data.get("department"),
+            "employee_category": request.data.get("employee_category"),
+            "center_office_location": request.data.get("center_office_location"),
+            "mode_for_collecting_assets": request.data.get("mode_for_collecting_assets"),
+            "team_manager": request.data.get("team_manager"),
+            "work_from": request.data.get("work_from"),
+            "crafter_id": request.data.get("crafter_id"),
+            "emails_to_notify": request.data.get("emails_to_notify"),
+            "current_address": request.data.get("current_address"),
+            "description": request.data.get("description"),
+            "custom_notes": request.data.get("custom_notes", ""),
+            "requester_email_id": request.data.get("requester_email_id"),
+            "requester_name": request.data.get("requester_name"),
+            "requester_id": request.data.get("requester_id"),
+            "attachment_files": request.FILES.getlist("attachments"),
+        }
+        
+        try:
+            from onboarding.models import OnboardingForm
+
+            # ── Zoho ManageEngine integration (commented out — re-enable when ME is configured) ──
+            # from onboarding.utils.zoho_manageengine import ManageEngineClient
+            # me_client = ManageEngineClient()
+            # ticket_id = me_client.create_onboarding_ticket(application, form_data=form_data)
+            #
+            # if ticket_id:
+            #     application.it_ticket_ref = ticket_id
+            #     application.save(update_fields=['it_ticket_ref'])
+            #
+            #     OnboardingForm.objects.update_or_create(
+            #         job_application=application,
+            #         defaults={
+            #             'submitted_by': request.user if request.user.is_authenticated else None,
+            #             'ticket_ref': ticket_id,
+            #             **{k: v for k, v in form_data.items() if k != 'custom_notes'},
+            #             'custom_notes': form_data.get('custom_notes', ''),
+            #         }
+            #     )
+            #
+            #     from onboarding.utils.notifications import notify_internal
+            #     notify_internal(application, 'it_team_ticket_created')
+            #
+            #     return Response({
+            #         "message": "Onboarding initiated and IT ticket created successfully.",
+            #         "ticket_id": ticket_id
+            #     }, status=status.HTTP_200_OK)
+            # else:
+            #     return Response({"error": "Failed to create IT ticket."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # ── End Zoho ManageEngine block ────────────────────────────────────────────────────────
+
+            # Persist the onboarding form data to DB
+            db_fields = {
+                k: v for k, v in form_data.items()
+                if k not in ('attachment_files', 'requester_email_id', 'requester_name', 'requester_id')
+            }
+            onboarding_form, created = OnboardingForm.objects.update_or_create(
+                job_application=application,
+                defaults={
+                    'submitted_by': request.user if request.user.is_authenticated else None,
+                    'ticket_ref': None,  # Will be populated when ManageEngine integration is re-enabled
+                    **db_fields,
+                }
+            )
+
+            # Send admin notification email with full form details
+            try:
+                _send_onboarding_form_admin_email(application, form_data, request.user)
+            except Exception as email_err:
+                logger.warning(f"Admin email failed for onboarding form {application.id}: {email_err}")
+
+            return Response({
+                "message": "Onboarding form saved successfully. Admin team has been notified.",
+                "onboarding_form_id": str(onboarding_form.id),
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"Error initiating onboarding for {application.id}: {e}")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+def _send_onboarding_form_admin_email(application, form_data, submitted_by):
+    """
+    Sends a rich HTML summary email to all admin-role users when
+    an onboarding form is submitted. No Zoho ManageEngine dependency.
+    """
+    from accounts.models import User
+    from onboarding.utils.sender import send_email
+    from onboarding.utils.templates import NOTIFY_INTERNAL_HTML_TEMPLATES
+    import logging
+    _logger = logging.getLogger(__name__)
+
+    # admin_emails = list(
+    #     User.objects.filter(role='admin')
+    #     .exclude(email__isnull=True)
+    #     .exclude(email='')
+    #     .values_list('email', flat=True)
+    # )
+    
+    # if not admin_emails:
+    #     _logger.warning(f"No admin users found to notify for onboarding form of {application.candidate_name}")
+    #     return
+
+    admin_emails = []
+    if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
+        admin_emails = ["zeelsh@jmsadvisory.in"]
+    else:
+        admin_emails = ["itsupport@knowcraft.in"]
+
+    template_base = NOTIFY_INTERNAL_HTML_TEMPLATES.get('onboarding_form_submitted', '')
+    submitted_by_name = getattr(submitted_by, 'name', None) or getattr(submitted_by, 'email', 'HR Team')
+
+    def _fmt(val):
+        if val is None or val == '':
+            return '—'
+        return str(val)
+
+    template = template_base.format(
+        candidate=application,
+        submitted_by_name=submitted_by_name,
+        first_name=_fmt(form_data.get('first_name')),
+        last_name=_fmt(form_data.get('last_name')),
+        personal_email_id=_fmt(form_data.get('personal_email_id')),
+        contact_number=_fmt(form_data.get('contact_number')),
+        joining_date=_fmt(form_data.get('joining_date')),
+        designation=_fmt(form_data.get('designation')),
+        department=_fmt(form_data.get('department')),
+        employee_category=_fmt(form_data.get('employee_category')),
+        center_office_location=_fmt(form_data.get('center_office_location')),
+        mode_for_collecting_assets=_fmt(form_data.get('mode_for_collecting_assets')),
+        team_manager=_fmt(form_data.get('team_manager')),
+        work_from=_fmt(form_data.get('work_from')),
+        crafter_id=_fmt(form_data.get('crafter_id')),
+        emails_to_notify=_fmt(form_data.get('emails_to_notify')),
+        current_address=_fmt(form_data.get('current_address')),
+        description=_fmt(form_data.get('description')),
+        custom_notes=_fmt(form_data.get('custom_notes')),
+        site=_fmt(form_data.get('site')),
+        assets=_fmt(form_data.get('assets')),
+    )
+
+    subject = f"New Onboarding Form Submitted – {application.candidate_name}"
+    body = (
+        f"Onboarding form submitted for {application.candidate_name} "
+        f"(Joining: {form_data.get('joining_date', 'N/A')})."
+    )
+
+    for email in admin_emails:
+        send_email(
+            to=email,
+            subject=subject,
+            text=body,
+            template=template,
+            use_default_cc=False,
+            event="onboarding_form_submitted",
+            email_type="internal",
+            candidate=application,
+        )
+
+class ResolveEscalationAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def patch(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+        application.is_escalated = False
+        application.save(update_fields=['is_escalated'])
+        return Response({"message": "Escalation resolved successfully"}, status=status.HTTP_200_OK)
+
+class SearchTeamsUsersAPI(APIView):
+    permission_classes = [permissions.AllowAny]
+    
+    def get(self, request):
+        query = request.query_params.get("query", "")
+        try:
+            from slots.graph import get_graph_token
+            import requests
+            token = get_graph_token()
+            url = "https://graph.microsoft.com/v1.0/users"
+            headers = {"Authorization": f"Bearer {token}"}
+            params = {
+                "$select": "id,displayName,mail,userPrincipalName",
+                "$top": "50"
+            }
+            if query:
+                params["$filter"] = f"startswith(displayName,'{query}') or startswith(mail,'{query}')"
+                
+            r = requests.get(url, headers=headers, params=params)
+            if not r.ok:
+                return Response({"error": "Failed to fetch users from MS Graph", "details": r.text}, status=r.status_code)
+                
+            return Response(r.json().get("value", []), status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AssignBuddyAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def patch(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+        
+        technical_buddy_email = request.data.get('technical_buddy_email')
+        technical_buddy_name = request.data.get('technical_buddy_name')
+        cultural_buddy_email = request.data.get('cultural_buddy_email')
+        cultural_buddy_name = request.data.get('cultural_buddy_name')
+        
+        update_fields = []
+        if technical_buddy_email and technical_buddy_name:
+            application.technical_buddy_email = technical_buddy_email
+            application.technical_buddy_name = technical_buddy_name
+            update_fields.extend(['technical_buddy_email', 'technical_buddy_name'])
+        
+        if cultural_buddy_email and cultural_buddy_name:
+            application.cultural_buddy_email = cultural_buddy_email
+            application.cultural_buddy_name = cultural_buddy_name
+            update_fields.extend(['cultural_buddy_email', 'cultural_buddy_name'])
+            
+        application.emp_account_active = True
+        if 'emp_account_active' not in update_fields:
+            update_fields.append('emp_account_active')
+            
+        if update_fields:
+            application.save(update_fields=update_fields)
+        
+        # Send buddy emails — one combined email to candidate, buddies CC'd
+        try:
+            from onboarding.utils.sender import send_email
+            from onboarding.utils.templates import NOTIFY_INTERNAL_HTML_TEMPLATES
+
+            candidate_buddy_template = NOTIFY_INTERNAL_HTML_TEMPLATES.get('candidate_buddy_info', '<p>Buddy info.</p>')
+
+            # Build CC list from both assigned buddies
+            buddy_cc = [e for e in [technical_buddy_email, cultural_buddy_email] if e]
+
+            # ── Single email to Candidate, both buddies in CC ─────────────────
+            candidate_email_addr = application.work_email or application.candidate_email
+            if candidate_email_addr and buddy_cc:
+                send_email(
+                    to=candidate_email_addr,
+                    subject="Buddy Program | Knowcraft Analytics",
+                    text="We are pleased to introduce your buddies who will help you settle in at Knowcraft.",
+                    template=candidate_buddy_template.format(
+                        candidate=application,
+                        technical_buddy_name=application.technical_buddy_name or "—",
+                        technical_buddy_email=application.technical_buddy_email or "—",
+                        cultural_buddy_name=application.cultural_buddy_name or "—",
+                        cultural_buddy_email=application.cultural_buddy_email or "—",
+                    ),
+                    cc=buddy_cc,
+                    event="buddy_assigned",
+                    email_type="candidate",
+                    candidate=application
+                )
+
+            # ── Work email reminder if not set ────────────────────────────────
+            if not application.work_email:
+                try:
+                    from onboarding.utils.notifications import notify_internal
+                    notify_internal(application, "work_email_reminder")
+                except Exception as we:
+                    logger.warning(f"Could not send work_email_reminder: {we}")
+
+        except Exception as e:
+            logger.error(f"Error in buddy assignment emails for {application.candidate_name}: {e}")
+
+        return Response({"message": "Buddies assigned successfully"}, status=status.HTTP_200_OK)
+
+BINARY_OPTIONS = ["agree", "disagree"]
+LIKERT_OPTIONS = ["strongly_agree", "agree", "neutral", "disagree", "strongly_disagree"]
+RECOMMEND_OPTIONS = ["yes", "no", "not_sure"]
+
+CANDIDATE_SURVEY_STRUCTURE = {
+    "title": "30-Day Onboarding Experience Survey",
+    "purpose": "To understand Crafter's onboarding experience and identify opportunities to improve the new hire journey.",
+    "rating_info": "Each statement can be rated as: Agree or Disagree.",
+    "sections": [
+        {
+            "id": 1,
+            "title": "Section 1: Pre-Joining Experience",
+            "questions": [
+                {"id": 1, "type": "binary", "text": "The communication provided before my joining date was timely and clear."},
+                {"id": 2, "type": "binary", "text": "I received all necessary information before my first day."},
+                {"id": 3, "type": "binary", "text": "HR was responsive to my queries during the pre-joining process."},
+            ]
+        },
+        {
+            "id": 2,
+            "title": "Section 2: Joining Day Experience",
+            "questions": [
+                {"id": 4, "type": "binary", "text": "My first day was well-organized and welcoming."},
+                {"id": 5, "type": "binary", "text": "I had access to the required assets and resources on time."},
+                {"id": 6, "type": "binary", "text": "The joining formalities and documentation process were smooth."},
+            ]
+        },
+        {
+            "id": 3,
+            "title": "Section 3: Role & Expectations",
+            "questions": [
+                {"id": 7, "type": "binary", "text": "My role and responsibilities were clearly explained."},
+                {"id": 8, "type": "binary", "text": "I understand how my work contributes to the team's goals."},
+            ]
+        },
+        {
+            "id": 4,
+            "title": "Section 4: Training & Support",
+            "questions": [
+                {"id": 9,  "type": "binary", "text": "The onboarding and training sessions were useful."},
+                {"id": 10, "type": "binary", "text": "The training provided was adequate for me to perform my job effectively."},
+                {"id": 11, "type": "binary", "text": "I know whom to approach when I need support or guidance."},
+                {"id": 12, "type": "binary", "text": "The onboarding materials and resources were helpful."},
+            ]
+        },
+        {
+            "id": 5,
+            "title": "Section 5: Manager & Team Integration",
+            "questions": [
+                {"id": 13, "type": "binary", "text": "My manager / Trainers has been available and supportive during my onboarding and training period."},
+                {"id": 14, "type": "binary", "text": "I receive regular guidance and feedback from my manager."},
+                {"id": 15, "type": "binary", "text": "My team has been welcoming and supportive."},
+                {"id": 16, "type": "binary", "text": "I feel comfortable asking questions and seeking help when needed."},
+            ]
+        },
+        {
+            "id": 6,
+            "title": "Section 6: Culture & Work Environment",
+            "questions": [
+                {"id": 17, "type": "binary", "text": "I have gained a good understanding of the company's culture and values."},
+                {"id": 18, "type": "binary", "text": "I feel included and connected with my team."},
+                {"id": 19, "type": "binary", "text": "The work environment supports my learning and growth."},
+            ]
+        },
+        {
+            "id": 7,
+            "title": "Section 7: Overall Experience",
+            "questions": [
+                {"id": 20, "type": "binary", "text": "Overall, I am satisfied with my onboarding experience."},
+                {"id": 21, "type": "binary", "text": "The organization has helped me settle into my role effectively."},
+                {"id": 22, "type": "binary", "text": "I can see myself building a successful career here."},
+                {"id": 23, "type": "binary", "text": "I would recommend this organization to prospective employees."},
+            ]
+        },
+        {
+            "id": 8,
+            "title": "Open-Ended Questions",
+            "questions": [
+                {"id": 24, "type": "text", "text": "What could we have done differently to improve your onboarding experience?"},
+                {"id": 25, "type": "text", "text": "Any other comments or suggestions?"},
+            ]
+        },
+    ],
+    "options": {
+        "binary": BINARY_OPTIONS,
+    }
+}
+
+SURVEY_90_DAY_STRUCTURE = {
+    "title": "90-Day Onboarding Survey",
+    "sections": [
+        {
+            "id": 1,
+            "title": "Role Clarity & Expectations",
+            "questions": [
+                {"id": 1, "type": "likert", "text": "I clearly understand my role and key responsibilities."},
+                {"id": 2, "type": "likert", "text": "My goals and performance expectations were clearly communicated."},
+                {"id": 3, "type": "likert", "text": "I understand how my role contributes to the team and organization's objectives."},
+            ]
+        },
+        {
+            "id": 2,
+            "title": "Training & Resources",
+            "questions": [
+                {"id": 4, "type": "likert", "text": "The onboarding training prepared me to perform my role effectively."},
+                {"id": 5, "type": "likert", "text": "I received timely access to the required tools, systems, and resources."},
+                {"id": 6, "type": "likert", "text": "The learning materials and documentation were useful and accessible."},
+            ]
+        },
+        {
+            "id": 3,
+            "title": "Manager & Team Support",
+            "questions": [
+                {"id": 7, "type": "likert", "text": "My manager provided adequate guidance and support during my first 90 days."},
+                {"id": 8, "type": "likert", "text": "Regular check-ins and feedback helped me adjust to my role."},
+                {"id": 9, "type": "likert", "text": "My team has been welcoming, collaborative, and supportive."},
+            ]
+        },
+        {
+            "id": 4,
+            "title": "Culture & Engagement",
+            "questions": [
+                {"id": 10, "type": "likert", "text": "I feel welcomed and included in the organization."},
+                {"id": 11, "type": "likert", "text": "I understand and align with the company's values and culture."},
+                {"id": 12, "type": "likert", "text": "I feel comfortable sharing ideas or asking questions."},
+            ]
+        },
+        {
+            "id": 5,
+            "title": "Overall Experience",
+            "questions": [
+                {"id": 13, "type": "likert", "text": "Overall, my onboarding experience met my expectations."},
+                {"id": 14, "type": "likert", "text": "I feel confident in my ability to succeed in my role going forward."},
+            ]
+        },
+        {
+            "id": 6,
+            "title": "Feedback",
+            "questions": [
+                {"id": 15, "type": "text", "text": "What aspects of the onboarding process worked well for you?"},
+                {"id": 16, "type": "text", "text": "What challenges did you face during your first 90 days?"},
+                {"id": 17, "type": "text", "text": "What improvements would you suggest for future onboarding programs?"},
+                {"id": 18, "type": "text", "text": "Is there any additional support or training you feel would help you perform better?"},
+            ]
+        },
+        {
+            "id": 7,
+            "title": "Final Question",
+            "questions": [
+                {"id": 19, "type": "recommend", "text": "Would you recommend this organization as a good place to work based on your onboarding experience?"},
+            ]
+        },
+    ],
+    "options": {
+        "likert": LIKERT_OPTIONS,
+        "recommend": RECOMMEND_OPTIONS,
+    }
+}
+
+
+HOD_SURVEY_STRUCTURE_JUNIOR = {
+    "title": "HOD Survey (Below Assistant Manager)",
+    "sections": [
+        {
+            "id": 1,
+            "title": "Core Assessment",
+            "questions": [
+                {
+                    "id": 1,
+                    "type": "binary",
+                    "text": "The Crafter has adapted well to the team and work environment."
+                },
+                {
+                    "id": 2,
+                    "type": "binary",
+                    "text": "The Crafter demonstrates a positive attitude and willingness to learn."
+                },
+                {
+                    "id": 3,
+                    "type": "binary",
+                    "text": "The Crafter understands their role and responsibilities."
+                },
+                {
+                    "id": 4,
+                    "type": "binary",
+                    "text": "The Crafter completes assigned tasks effectively and on time."
+                },
+                {
+                    "id": 5,
+                    "type": "binary",
+                    "text": "The Crafter communicates effectively with colleagues and stakeholders."
+                },
+                {
+                    "id": 6,
+                    "type": "binary",
+                    "text": "The Crafter collaborates well within the team."
+                },
+                {
+                    "id": 7,
+                    "type": "binary",
+                    "text": "The onboarding process adequately prepared the Crafter for their role."
+                },
+                {
+                    "id": 8,
+                    "type": "binary",
+                    "text": "The Crafter aligns with the organization's values and culture."
+                },
+                {
+                    "id": 9,
+                    "type": "binary",
+                    "text": "Overall, I am satisfied with the Crafter's progress during the initial period."
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "title": "Additional Questions for Junior Crafters",
+            "questions": [
+                {
+                    "id": 10,
+                    "type": "binary",
+                    "text": "The Crafter actively seeks feedback and applies it to improve performance."
+                },
+                {
+                    "id": 11,
+                    "type": "binary",
+                    "text": "The Crafter demonstrates eagerness to learn new skills and processes."
+                },
+                {
+                    "id": 12,
+                    "type": "binary",
+                    "text": "The Crafter asks relevant questions when clarification is needed."
+                },
+                {
+                    "id": 13,
+                    "type": "binary",
+                    "text": "The Crafter shows the ability to work independently on basic tasks."
+                },
+                {
+                    "id": 14,
+                    "type": "binary",
+                    "text": "The Crafter effectively follows established processes and guidelines."
+                },
+                {
+                    "id": 15,
+                    "type": "binary",
+                    "text": "The Crafter demonstrates growth in knowledge and capability since joining."
+                },
+                {
+                    "id": 16,
+                    "type": "binary",
+                    "text": "The Crafter is open to coaching and mentoring."
+                },
+                {
+                    "id": 17,
+                    "type": "binary",
+                    "text": "The Crafter takes ownership of assigned work and follows through on commitments."
+                },
+                {
+                    "id": 18,
+                    "type": "binary",
+                    "text": "The Crafter demonstrates the required foundational technical/professional skills for the role."
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "title": "Open-Ended Questions",
+            "questions": [
+                {
+                    "id": 19,
+                    "type": "text",
+                    "text": "What are the Crafter's key strengths?"
+                },
+                {
+                    "id": 20,
+                    "type": "text",
+                    "text": "What areas require further development?"
+                },
+                {
+                    "id": 21,
+                    "type": "text",
+                    "text": "What support or training would help the Crafter succeed?"
+                },
+                {
+                    "id": 22,
+                    "type": "text",
+                    "text": "Are there any concerns regarding the Crafter's performance or behavior?"
+                },
+                {
+                    "id": 23,
+                    "type": "text",
+                    "text": "Additional comments or recommendations."
+                }
+            ]
+        }
+    ],
+    "options": {
+        "binary": [
+            "agree",
+            "disagree"
+        ]
+    }
+}
+
+HOD_SURVEY_STRUCTURE_SENIOR = {
+    "title": "HOD Survey (Assistant Manager and Above)",
+    "sections": [
+        {
+            "id": 1,
+            "title": "Core Assessment",
+            "questions": [
+                {
+                    "id": 1,
+                    "type": "binary",
+                    "text": "The Crafter has adapted well to the team and work environment."
+                },
+                {
+                    "id": 2,
+                    "type": "binary",
+                    "text": "The Crafter demonstrates a positive attitude and willingness to learn."
+                },
+                {
+                    "id": 3,
+                    "type": "binary",
+                    "text": "The Crafter understands their role and responsibilities."
+                },
+                {
+                    "id": 4,
+                    "type": "binary",
+                    "text": "The Crafter completes assigned tasks effectively and on time."
+                },
+                {
+                    "id": 5,
+                    "type": "binary",
+                    "text": "The Crafter communicates effectively with colleagues and stakeholders."
+                },
+                {
+                    "id": 6,
+                    "type": "binary",
+                    "text": "The Crafter collaborates well within the team."
+                },
+                {
+                    "id": 7,
+                    "type": "binary",
+                    "text": "The onboarding process adequately prepared the Crafter for their role."
+                },
+                {
+                    "id": 8,
+                    "type": "binary",
+                    "text": "The Crafter aligns with the organization's values and culture."
+                },
+                {
+                    "id": 9,
+                    "type": "binary",
+                    "text": "Overall, I am satisfied with the Crafter's progress during the initial period."
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "title": "Additional Questions for Senior Crafters",
+            "questions": [
+                {
+                    "id": 10,
+                    "type": "binary",
+                    "text": "The Crafter demonstrates strong leadership and accountability."
+                },
+                {
+                    "id": 11,
+                    "type": "binary",
+                    "text": "The Crafter effectively mentors and supports team members."
+                },
+                {
+                    "id": 12,
+                    "type": "binary",
+                    "text": "The Crafter takes initiative in identifying and solving problems."
+                },
+                {
+                    "id": 13,
+                    "type": "binary",
+                    "text": "The Crafter contributes to strategic discussions and decision-making."
+                },
+                {
+                    "id": 14,
+                    "type": "binary",
+                    "text": "The Crafter effectively manages stakeholder expectations."
+                },
+                {
+                    "id": 15,
+                    "type": "binary",
+                    "text": "The Crafter drives collaboration across teams and functions."
+                },
+                {
+                    "id": 16,
+                    "type": "binary",
+                    "text": "The Crafter demonstrates expertise in their technical/professional domain."
+                },
+                {
+                    "id": 17,
+                    "type": "binary",
+                    "text": "The Crafter identifies opportunities for process improvement and innovation."
+                },
+                {
+                    "id": 18,
+                    "type": "binary",
+                    "text": "The Crafter makes sound decisions with minimal supervision."
+                },
+                {
+                    "id": 19,
+                    "type": "binary",
+                    "text": "The Crafter positively influences team performance and culture."
+                },
+                {
+                    "id": 20,
+                    "type": "binary",
+                    "text": "The Crafter effectively balances operational responsibilities with long-term objectives."
+                }
+            ]
+        },
+        {
+            "id": 3,
+            "title": "Open-Ended Questions",
+            "questions": [
+                {
+                    "id": 21,
+                    "type": "text",
+                    "text": "What are the Crafter's key strengths?"
+                },
+                {
+                    "id": 22,
+                    "type": "text",
+                    "text": "What areas require further development?"
+                },
+                {
+                    "id": 23,
+                    "type": "text",
+                    "text": "What support or training would help the Crafter succeed?"
+                },
+                {
+                    "id": 24,
+                    "type": "text",
+                    "text": "Are there any concerns regarding the Crafter's performance or behavior?"
+                },
+                {
+                    "id": 25,
+                    "type": "text",
+                    "text": "Additional comments or recommendations."
+                }
+            ]
+        }
+    ],
+    "options": {
+        "binary": [
+            "agree",
+            "disagree"
+        ]
+    }
+}
+
+def _get_survey_structure(application, survey_type):
+    from onboarding.models import SurveyStructure
+    lookup_type = survey_type
+    if survey_type == 'hod':
+        is_senior = False
+        if hasattr(application.job, 'mrf') and application.job.mrf and application.job.mrf.designation:
+            designation_name = application.job.mrf.designation.name.lower()
+            higher_keywords = [
+                'assistant manager', 'associate manager', 'manager', 
+                'senior manager', 'associate vice president', 
+                'director', 'vp', 'vice president', 'president', 
+                'head', 'chief', 'lead', 'principal', 'avp'
+            ]
+            for kw in higher_keywords:
+                if kw in designation_name:
+                    is_senior = True
+                    break
+        lookup_type = 'hod_senior' if is_senior else 'hod_junior'
+
+    custom_structure = SurveyStructure.objects.filter(survey_type=lookup_type).first()
+    if custom_structure and custom_structure.structure:
+        return custom_structure.structure
+
+    # Fallback to hardcoded constants and auto-create in DB for future
+    default_structure = None
+    if lookup_type == '30_day_candidate':
+        default_structure = CANDIDATE_SURVEY_STRUCTURE
+    elif lookup_type == 'hod_senior':
+        default_structure = HOD_SURVEY_STRUCTURE_SENIOR
+    elif lookup_type == 'hod_junior':
+        default_structure = HOD_SURVEY_STRUCTURE_JUNIOR
+    else:
+        default_structure = SURVEY_90_DAY_STRUCTURE
+
+    if default_structure:
+        SurveyStructure.objects.update_or_create(
+            survey_type=lookup_type,
+            defaults={'structure': default_structure}
+        )
+        
+    return default_structure
+
+class GetSurveyStructureAPI(APIView):
+    """Returns the full survey form structure for the frontend to render."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+        survey_type = request.query_params.get('survey_type', '30_day_candidate')
+
+        # Check if already submitted
+        from onboarding.models import SurveyResponse
+        existing = SurveyResponse.objects.filter(
+            job_application=application,
+            survey_type=survey_type
+        ).first()
+
+        structure = _get_survey_structure(application, survey_type)
+
+        return Response({
+            "survey_type": survey_type,
+            "candidate_name": application.candidate_name,
+            "role": application.job.mrf.designation.name if hasattr(application.job, 'mrf') and application.job.mrf else "",
+            "department": application.job.mrf.department.name if hasattr(application.job, 'mrf') and application.job.mrf else "",
+            "date_of_joining": application.joining_date,
+            "already_submitted": existing is not None and bool(existing.responses),
+            "submitted_at": existing.submitted_at if (existing and bool(existing.responses)) else None,
+            "structure": structure,
+        })
+
+class SurveyStructureManagerAPI(APIView):
+    """API to view or update the customizable survey structures."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from onboarding.models import SurveyStructure
+        
+        # Ensure default structures exist
+        defaults = {
+            '30_day_candidate': CANDIDATE_SURVEY_STRUCTURE,
+            'hod_senior': HOD_SURVEY_STRUCTURE_SENIOR,
+            'hod_junior': HOD_SURVEY_STRUCTURE_JUNIOR,
+            '90_day_candidate': SURVEY_90_DAY_STRUCTURE
+        }
+        
+        for s_type, s_data in defaults.items():
+            if not SurveyStructure.objects.filter(survey_type=s_type).exists():
+                SurveyStructure.objects.create(survey_type=s_type, structure=s_data)
+                
+        structures = SurveyStructure.objects.all()
+        return Response({
+            s.survey_type: s.structure for s in structures
+        })
+
+    def patch(self, request):
+        from onboarding.models import SurveyStructure
+        survey_type = request.data.get('survey_type')
+        structure_data = request.data.get('structure')
+        
+        if not survey_type or not structure_data:
+            return Response({"error": "survey_type and structure are required."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        obj, created = SurveyStructure.objects.update_or_create(
+            survey_type=survey_type,
+            defaults={'structure': structure_data}
+        )
+        return Response({"message": f"Structure for {survey_type} updated successfully."}, status=status.HTTP_200_OK)
+
+class BulkSurveyDataAPI(APIView):
+    """API to get survey data for all candidates in a specific time range."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from onboarding.models import SurveyResponse
+        from django.utils.dateparse import parse_date
+        
+        start_date_str = request.query_params.get('start_date')
+        end_date_str = request.query_params.get('end_date')
+        survey_type = request.query_params.get('survey_type')
+        
+        queryset = SurveyResponse.objects.select_related('job_application').all()
+        
+        if start_date_str:
+            start_date = parse_date(start_date_str)
+            if start_date:
+                queryset = queryset.filter(submitted_at__date__gte=start_date)
+                
+        if end_date_str:
+            end_date = parse_date(end_date_str)
+            if end_date:
+                queryset = queryset.filter(submitted_at__date__lte=end_date)
+                
+        if survey_type:
+            queryset = queryset.filter(survey_type=survey_type)
+            
+        data = []
+        all_response_keys = set()
+        
+        for response in queryset:
+            structure = _get_survey_structure(response.job_application, response.survey_type)
+            qid_to_text = {}
+            for section in structure.get("sections", []):
+                for q in section.get("questions", []):
+                    qid_to_text[str(q.get("id"))] = q.get("text", f"Question {q.get('id')}")
+
+            resp_data = {
+                "id": str(response.id),
+                "Candidate Name": response.job_application.candidate_name,
+                "Candidate Email": response.job_application.candidate_email,
+                "Survey Type": response.survey_type,
+                "Respondent Name": response.respondent_name,
+                "Respondent Email": response.respondent_email,
+                "Submitted At": response.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if response.submitted_at else "",
+            }
+            if response.responses:
+                for k, v in response.responses.items():
+                    q_text = qid_to_text.get(k, f"Question {k}")
+                    all_response_keys.add(q_text)
+                    resp_data[q_text] = v
+            data.append(resp_data)
+            
+        import openpyxl
+        from django.http import HttpResponse
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Survey Data"
+
+        # Define standard headers
+        headers = [
+            "id", "Candidate Name", "Candidate Email", "Survey Type",
+            "Respondent Name", "Respondent Email", "Submitted At"
+        ]
+        
+        # Sort the response keys alphabetically since they are now question texts
+        dynamic_headers = sorted(list(all_response_keys))
+        headers.extend(dynamic_headers)
+
+        # Write headers
+        for col_num, header_title in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_num, value=header_title)
+            cell.font = openpyxl.styles.Font(bold=True)
+
+        # Write data
+        for row_num, row_data in enumerate(data, 2):
+            for col_num, header in enumerate(headers, 1):
+                ws.cell(row=row_num, column=col_num, value=str(row_data.get(header, '')))
+
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="survey_data.xlsx"'
+        wb.save(response)
+        
+        return response
+
+class CompleteSurveyAPI(APIView):
+    permission_classes = [permissions.AllowAny]
+    def patch(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+        survey_type = request.data.get('survey_type', '30_day_candidate')
+
+        responses_data = request.data.get('responses', {})
+
+        # ── Respondent: auto-fill from DB for candidate surveys; require for HOD ──
+        if survey_type in ('30_day_candidate', '90_day_candidate'):
+            respondent_name = application.candidate_name or ''
+            respondent_email = getattr(application, 'work_email', None) or application.candidate_email or ''
+        else:
+            # HOD survey — must be supplied in the request body
+            respondent_name = request.data.get('respondent_name', '').strip()
+            respondent_email = request.data.get('respondent_email', '').strip()
+            if not respondent_name or not respondent_email:
+                return Response(
+                    {"error": "respondent_name and respondent_email are required for HOD surveys."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        if not isinstance(responses_data, dict):
+            return Response({"error": "'responses' must be a JSON object."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+        errors = {}
+        structure = _get_survey_structure(application, survey_type)
+        sections = structure.get("sections", [])
+        
+        for section in sections:
+            for q in section.get("questions", []):
+                qid = str(q.get("id"))
+                qtype = q.get("type")
+                # Default non-text questions to required, text to optional unless specified
+                is_required = q.get("required", qtype != "text")
+                
+                val = responses_data.get(qid)
+                
+                # Normalize string values to handle casing and spacing (e.g., "Strongly Agree" -> "strongly_agree")
+                if isinstance(val, str):
+                    if qtype != "text":
+                        val = val.lower().strip().replace(" ", "_")
+                    else:
+                        val = val.strip()
+                    responses_data[qid] = val  # Update the data to save the clean version
+                
+                if val is None or (isinstance(val, str) and val == ""):
+                    if is_required:
+                        errors[qid] = f"Q{qid} is required."
+                    continue
+                
+                if qtype == "binary" and val not in BINARY_OPTIONS:
+                    errors[qid] = f"Q{qid}: must be one of {BINARY_OPTIONS}."
+                elif qtype == "likert" and val not in LIKERT_OPTIONS:
+                    errors[qid] = f"Q{qid}: must be one of {LIKERT_OPTIONS}."
+                elif qtype == "recommend" and val not in RECOMMEND_OPTIONS:
+                    errors[qid] = f"Q{qid}: must be one of {RECOMMEND_OPTIONS}."
+                elif qtype == "text" and not isinstance(val, str):
+                    errors[qid] = f"Q{qid}: must be a text string."
+
+        if errors:
+            return Response({"error": "Validation failed.", "fields": errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ── Uniqueness guard: block re-submissions ────────────────────────────
+        from onboarding.models import SurveyResponse
+        existing = SurveyResponse.objects.filter(
+            job_application=application,
+            survey_type=survey_type
+        ).first()
+
+        if existing and existing.responses:
+            return Response(
+                {
+                    "error": "Survey already submitted.",
+                    "already_submitted": True,
+                    "submitted_at": existing.submitted_at,
+                },
+                status=status.HTTP_409_CONFLICT
+            )
+
+        # ── Persist ─────────────────────────────────────────────────────────
+        survey_response, _ = SurveyResponse.objects.update_or_create(
+            job_application=application,
+            survey_type=survey_type,
+            defaults={
+                'respondent_name': respondent_name,
+                'respondent_email': respondent_email,
+                'responses': responses_data,
+            }
+        )
+
+        # ── Update completion flag based on survey type ───────────────────────
+        if survey_type == 'hod':
+            application.is_hod_survey_filled = True
+            application.save(update_fields=['is_hod_survey_filled'])
+        elif survey_type == '90_day_candidate':
+            application.is_d90_survey_filled = True
+            application.save(update_fields=['is_d90_survey_filled'])
+        else:
+            # Default: 30-day candidate survey
+            application.is_satisfaction_survey_filled = True
+            application.save(update_fields=['is_satisfaction_survey_filled'])
+
+        # ── Generate PDF & Send Email to Responsible Person ───────────────────
+        try:
+            from onboarding.utils.pdf_maker import generate_survey_pdf
+            from onboarding.utils.sender import send_email
+            
+            structure = _get_survey_structure(application, survey_type)
+            pdf_filename, pdf_bytes, pdf_mime = generate_survey_pdf(survey_response, structure)
+            
+            hr_email = "talent@knowcraft.in"
+            subject = f"Survey Completed: {survey_response.get_survey_type_display()} - {application.candidate_name}"
+            body = f"The {survey_response.get_survey_type_display()} has been filled out for {application.candidate_name}.\n\nPlease find the detailed responses attached."
+            
+            send_email(
+                to=hr_email,
+                subject=subject,
+                text=body,
+                attachments=[(pdf_filename, pdf_bytes, pdf_mime)],
+                event="survey_filled",
+                email_type="internal",
+                candidate=application
+            )
+        except Exception as e:
+            logger.error(f"Failed to send survey completion email for {application.candidate_name}: {e}")
+
+        return Response({"message": "Survey submitted successfully."}, status=status.HTTP_200_OK)
+
+class DownloadSurveyAPI(APIView):
+    """API to download a specific survey response as PDF."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+        survey_type = request.query_params.get('survey_type', '30_day_candidate')
+        
+        from onboarding.models import SurveyResponse
+        survey_response = get_object_or_404(
+            SurveyResponse, 
+            job_application=application, 
+            survey_type=survey_type
+        )
+        
+        try:
+            from onboarding.utils.pdf_maker import generate_survey_pdf
+            from django.http import HttpResponse
+            
+            structure = _get_survey_structure(application, survey_type)
+            pdf_filename, pdf_bytes, pdf_mime = generate_survey_pdf(survey_response, structure)
+            
+            response = HttpResponse(pdf_bytes, content_type=pdf_mime)
+            response['Content-Disposition'] = f'attachment; filename="{pdf_filename}"'
+            return response
+        except Exception as e:
+            logger.error(f"Failed to generate PDF for {application.candidate_name}: {e}")
+            return Response({"error": "Failed to generate PDF"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ScheduleD45CallAPI(APIView):
+    permission_classes = [permissions.AllowAny]
+    def patch(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+        
+        organizer_email = request.data.get('organizer_email')
+        start_time_str = request.data.get('start_time')
+        end_time_str = request.data.get('end_time')
+        # Extra attendees beyond the candidate (e.g. HR, HOD)
+        attendee_emails = request.data.get('attendee_emails', [])
+        if isinstance(attendee_emails, str):
+            attendee_emails = [attendee_emails]
+            
+        from django.conf import settings
+        if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
+            organizer_email = "harshil@jmstech.co"
+            attendee_emails.extend(["zeelsh@jmstech.co", "anand@jmstech.co"])
+        
+        if organizer_email and start_time_str and end_time_str:
+            try:
+                from dateutil.parser import parse
+                from booking.utils import create_teams_meeting, update_teams_meeting
+                from onboarding.models import OnboardingCall
+                
+                start_dt = parse(start_time_str)
+                end_dt = parse(end_time_str)
+                candidate_email = application.work_email or application.candidate_email
+                subject = f"Day 45 Check-in Call: {application.candidate_name}"
+                
+                # Build deduplicated attendee list: candidate first, then extras
+                all_attendees = [candidate_email] + [
+                    e for e in attendee_emails if e and e != candidate_email
+                ]
+                
+                # Check if a meeting already exists for this candidate
+                existing_call = OnboardingCall.objects.filter(
+                    job_application=application, call_type="d45"
+                ).first()
+                
+                if existing_call and existing_call.meeting_id:
+                    # ── UPDATE the existing Teams calendar event (no duplicate created) ──
+                    event = update_teams_meeting(
+                        organizer_email=organizer_email,
+                        event_id=existing_call.meeting_id,
+                        start_dt=start_dt,
+                        end_dt=end_dt,
+                        subject=subject,
+                    )
+                    meeting_id = existing_call.meeting_id
+                    meeting_link = existing_call.meeting_link  # link stays the same
+                else:
+                    # ── CREATE a fresh Teams meeting ──
+                    event = create_teams_meeting(
+                        organizer_email, all_attendees, start_dt, end_dt, subject
+                    )
+                    meeting_id = event.get("id") if event else None
+                    meeting_link = (
+                        (event.get("onlineMeeting") or {}).get("joinUrl")
+                        or event.get("onlineMeetingUrl")
+                        or (event.get("onlineMeeting") or {}).get("joinWebUrl")
+                        or None
+                    ) if event else None
+                
+                # Persist / update the DB record
+                OnboardingCall.objects.update_or_create(
+                    job_application=application,
+                    call_type="d45",
+                    defaults={
+                        "organizer_email": organizer_email,
+                        "start_time": start_dt,
+                        "end_time": end_dt,
+                        "meeting_id": meeting_id,
+                        "meeting_link": meeting_link,
+                    }
+                )
+                
+                # Send candidate reminder for the D45 call
+                from onboarding.utils.notifications import notify_candidate
+                notify_candidate(application, "d45_call_candidate_reminder")
+                
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error creating/updating Teams meeting for D45: {e}")
+                return Response({"error": f"Failed to book MS Teams meeting: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+                
+        application.is_d45_call_scheduled = True
+        application.save(update_fields=['is_d45_call_scheduled'])     
+        return Response({"message": "Day 45 check-in call booked and marked as scheduled"}, status=status.HTTP_200_OK)
+
+class ScheduleD90CallAPI(APIView):
+    permission_classes = [permissions.AllowAny]
+    def patch(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+        
+        organizer_email = request.data.get('organizer_email')
+        start_time_str = request.data.get('start_time')
+        end_time_str = request.data.get('end_time')
+        # Extra attendees beyond the candidate (e.g. HR, HOD)
+        attendee_emails = request.data.get('attendee_emails', [])
+        if isinstance(attendee_emails, str):
+            attendee_emails = [attendee_emails]
+            
+        from django.conf import settings
+        if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
+            organizer_email = "harshil@jmstech.co"
+            attendee_emails.extend(["zeelsh@jmstech.co", "anand@jmstech.co"])
+        
+        if organizer_email and start_time_str and end_time_str:
+            try:
+                from dateutil.parser import parse
+                from booking.utils import create_teams_meeting, update_teams_meeting
+                from onboarding.models import OnboardingCall
+                
+                start_dt = parse(start_time_str)
+                end_dt = parse(end_time_str)
+                candidate_email = application.work_email or application.candidate_email
+                subject = f"Day 90 Final Review Call: {application.candidate_name}"
+                
+                # Build deduplicated attendee list: candidate first, then extras
+                all_attendees = [candidate_email] + [
+                    e for e in attendee_emails if e and e != candidate_email
+                ]
+                
+                # Check if a meeting already exists for this candidate
+                existing_call = OnboardingCall.objects.filter(
+                    job_application=application, call_type="d90"
+                ).first()
+                
+                if existing_call and existing_call.meeting_id:
+                    # ── UPDATE the existing Teams calendar event (no duplicate created) ──
+                    event = update_teams_meeting(
+                        organizer_email=organizer_email,
+                        event_id=existing_call.meeting_id,
+                        start_dt=start_dt,
+                        end_dt=end_dt,
+                        subject=subject,
+                    )
+                    meeting_id = existing_call.meeting_id
+                    meeting_link = existing_call.meeting_link  # link stays the same
+                else:
+                    # ── CREATE a fresh Teams meeting ──
+                    event = create_teams_meeting(
+                        organizer_email, all_attendees, start_dt, end_dt, subject
+                    )
+                    meeting_id = event.get("id") if event else None
+                    meeting_link = (
+                        (event.get("onlineMeeting") or {}).get("joinUrl")
+                        or event.get("onlineMeetingUrl")
+                        or (event.get("onlineMeeting") or {}).get("joinWebUrl")
+                        or None
+                    ) if event else None
+                
+                # Persist / update the DB record
+                OnboardingCall.objects.update_or_create(
+                    job_application=application,
+                    call_type="d90",
+                    defaults={
+                        "organizer_email": organizer_email,
+                        "start_time": start_dt,
+                        "end_time": end_dt,
+                        "meeting_id": meeting_id,
+                        "meeting_link": meeting_link,
+                    }
+                )
+                
+                # Send candidate reminder for the D90 call
+                from onboarding.utils.notifications import notify_candidate
+                notify_candidate(application, "d90_call_candidate_reminder")
+                
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error creating/updating Teams meeting for D90: {e}")
+                return Response({"error": f"Failed to book MS Teams meeting: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        application.is_d90_call_scheduled = True
+        application.save(update_fields=['is_d90_call_scheduled'])
+        return Response({"message": "Day 90 final review call booked and marked as scheduled"}, status=status.HTTP_200_OK)
+
+class OnboardingJourneyAPI(APIView):
+    """
+    GET /api/onboarding/application/<id>/journey/
+
+    Returns a consolidated snapshot of the candidate's end-to-end onboarding
+    journey — from initialization through to Day 90 — including:
+      • Candidate & role details
+      • MRF / Requisition details
+      • Key milestone dates and completion flags
+      • D45 / D90 call schedule data
+      • All survey responses enriched with question text
+      • Onboarding task lists and their tasks
+      • IT ticket and buddy info
+    """
+    permission_classes = [permissions.AllowAny]
+
+    @staticmethod
+    def _build_question_map(structure):
+        """Flatten survey structure sections into {str(qid): (section_title, question_text)}."""
+        qmap = {}
+        for section in structure.get("sections", []):
+            section_title = section.get("title", "")
+            for q in section.get("questions", []):
+                qmap[str(q["id"])] = (section_title, q["text"])
+        return qmap
+
+    @staticmethod
+    def _enrich_responses(raw_responses, question_map):
+        """Convert {str(id): answer} to [{question_id, section, question, answer}] in survey order."""
+        enriched = []
+        for qid, (section_title, question_text) in question_map.items():
+            enriched.append({
+                "question_id": int(qid),
+                "section": section_title,
+                "question": question_text,
+                "answer": raw_responses.get(qid),
+            })
+        return enriched
+
+    def get(self, request, id):
+        from onboarding.models import OnboardingCall, SurveyResponse, OnboardingTaskList, DocumentEsignTask, OnboardingForm
+        from django.utils import timezone as tz
+
+        application = get_object_or_404(JobApplication, id=id)
+        today = tz.now().date()
+
+        # ── Days since joining ─────────────────────────────────────────────
+        joining_date = application.joining_date
+        from django.conf import settings
+        
+        if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
+            # Mirror the _DEBUG_MINUTE_MAP from onboarding_tasks.py exactly.
+            # days_until_joining = map[minutes]; days_since_joining = -days_until_joining
+            _DEBUG_MINUTE_MAP = {0: 15, 1: 7, 2: 2, 3: 0, 4: -1, 5: -7, 6: -30, 7: -45, 8: -90}
+            minutes_since_creation = int((tz.now() - application.created_at).total_seconds() / 60)
+            days_until_joining = _DEBUG_MINUTE_MAP.get(minutes_since_creation, 999)
+            if days_until_joining != 999:
+                days_since_joining = -days_until_joining  # positive = past DOJ, negative = pre-DOJ
+            else:
+                days_since_joining = (today - joining_date).days if joining_date else None
+        else:
+            days_since_joining = (today - joining_date).days if joining_date else None
+
+        # ── MRF / Requisition details ──────────────────────────────────────
+        mrf_data = None
+        is_senior = False
+        try:
+            if application.job and application.job.mrf:
+                mrf = application.job.mrf
+                designation_name = mrf.designation.name if mrf.designation else ""
+                higher_keywords = [
+                    'assistant manager', 'associate manager', 'manager',
+                    'senior manager', 'associate vice president',
+                    'director', 'vp', 'vice president', 'president',
+                    'head', 'chief', 'lead', 'principal', 'avp'
+                ]
+                is_senior = any(kw in designation_name.lower() for kw in higher_keywords)
+                mrf_data = {
+                    "id": str(mrf.id),
+                    "requisition_no": mrf.requisition_no,
+                    "mrf_name": mrf.mrf_name,
+                    "designation": designation_name,
+                    "department": mrf.department.name if mrf.department else "",
+                    "position_department": mrf.position_department.name if mrf.position_department else "",
+                    "team": mrf.team,
+                    "location": mrf.location,
+                    "job_type": mrf.job_type,
+                    "no_of_vacancies": mrf.no_of_vacancies,
+                    "experience_range": mrf.experience_range,
+                    "salary_range": mrf.salary_range,
+                    "status": mrf.status,
+                    "priority": mrf.priority,
+                    "requested_by_name": mrf.requested_by_name,
+                    "requested_by_designation": mrf.requested_by_designation,
+                    "date_of_request": mrf.date_of_request,
+                    "expected_date_of_joining": mrf.expected_date_of_joining,
+                }
+        except Exception:
+            pass
+
+        # ── Onboarding calls ───────────────────────────────────────────────
+        def serialize_call(call):
+            if not call:
+                return None
+            return {
+                "id": str(call.id),
+                "organizer_email": call.organizer_email,
+                "start_time": call.start_time,
+                "end_time": call.end_time,
+                "meeting_id": call.meeting_id,
+                "meeting_link": call.meeting_link,
+                "created_at": call.created_at,
+            }
+
+        d45_call = OnboardingCall.objects.filter(
+            job_application=application, call_type="d45"
+        ).first()
+        d90_call = OnboardingCall.objects.filter(
+            job_application=application, call_type="d90"
+        ).first()
+
+        # ── Survey enrichment ──────────────────────────────────────────────
+        hod_structure = HOD_SURVEY_STRUCTURE_SENIOR if is_senior else HOD_SURVEY_STRUCTURE_JUNIOR
+        structure_map = {
+            "30_day_candidate": CANDIDATE_SURVEY_STRUCTURE,
+            "hod":              hod_structure,
+            "90_day_candidate": SURVEY_90_DAY_STRUCTURE,
+        }
+
+        def serialize_survey(survey, survey_type):
+            if not survey:
+                return None
+            raw = survey.responses or {}
+            structure = structure_map.get(survey_type, {})
+            qmap = self._build_question_map(structure)
+            enriched = self._enrich_responses(raw, qmap) if raw else []
+            return {
+                "id": str(survey.id),
+                "survey_type": survey_type,
+                "survey_title": structure.get("title", ""),
+                "respondent_name": survey.respondent_name,
+                "respondent_email": survey.respondent_email,
+                "is_submitted": bool(raw),
+                "submitted_at": survey.submitted_at,
+                "responses": enriched,
+            }
+
+        surveys_qs = SurveyResponse.objects.filter(job_application=application)
+        survey_map = {s.survey_type: s for s in surveys_qs}
+
+        # ── Task lists & tasks ─────────────────────────────────────────────
+        task_lists = OnboardingTaskList.objects.filter(
+            job_application=application
+        ).prefetch_related("tasks")
+
+        task_data = []
+        for tl in task_lists:
+            tasks = []
+            for t in tl.tasks.all():
+                tasks.append({
+                    "id": str(t.id),
+                    "title": t.title,
+                    "description": t.description,
+                    "status": t.status,
+                    "assigned_to": t.assigned_to.get_full_name() if t.assigned_to else None,
+                    "due_date": t.due_date,
+                    "created_at": t.created_at,
+                    "updated_at": t.updated_at,
+                })
+            task_data.append({
+                "id": str(tl.id),
+                "name": tl.name,
+                "description": tl.description,
+                "created_at": tl.created_at,
+                "tasks": tasks,
+            })
+
+        # ── Resolve actual email addresses for milestone traceability ─────
+        candidate_email_display = application.work_email or application.candidate_email or "—"
+        candidate_personal_email = application.candidate_email or "—"
+        buddy_emails = ", ".join(filter(None, [
+            application.technical_buddy_email,
+            application.cultural_buddy_email,
+        ])) or "Not assigned"
+
+        onboarding_form_exists = OnboardingForm.objects.filter(job_application=application).exists()
+        is_onboarding_initiated = bool(application.it_ticket_ref) or onboarding_form_exists
+
+        milestones = [
+            {
+                "key": "onboarding_initiated",
+                "label": "Event 0 — Offer Accepted & IT Ticket Raised",
+                "completed": is_onboarding_initiated,
+                "detail": f"IT Ticket: {application.it_ticket_ref}" if application.it_ticket_ref else ("Form Submitted" if onboarding_form_exists else None),
+                "emails_sent": "IT Team (internal), HR (CC)",
+            },
+            {
+                "key": "doj_minus_15",
+                "label": "Day -15 — IT Provisioning Update",
+                "completed": bool(application.is_doj_minus_15_triggered),
+                "detail": "VPN/Asset task updated",
+                "emails_sent": "IT Team (internal)",
+            },
+            {
+                "key": "doj_minus_7",
+                "label": "Day -7 — HOD / Admin Notification",
+                "completed": bool(application.is_doj_minus_7_triggered),
+                "detail": "HOD notified, Admin tasks created",
+                "emails_sent": "HOD (internal), Admin Team (internal)",
+            },
+            {
+                "key": "doj_minus_2",
+                "label": "Day -2 — Welcome Email",
+                "completed": bool(application.is_doj_minus_2_triggered),
+                "detail": None,
+                "emails_sent": candidate_personal_email,
+            },
+            {
+                "key": "joined",
+                "label": "Day 0 — Joined & Account Activation",
+                "completed": application.status == "joined" or bool(application.is_doj_0_triggered),
+                "detail": "Buddy Assigned, Account Activated",
+                "emails_sent": f"{candidate_email_display}" + (f", Buddies: {buddy_emails}" if buddy_emails != "Not assigned" else ""),
+            },
+            {
+                "key": "doj_0_esign",
+                "label": "Day 0 / +1 — E-Sign Documents Sent",
+                "completed": DocumentEsignTask.objects.filter(job_application=application).exclude(status='pending').exists(),
+                "detail": "Statutory Forms dispatched to Zoho Sign",
+                "emails_sent": candidate_email_display,
+            },
+            {
+                "key": "doj_0_esign_signed",
+                "label": "Day 0 / +1 — E-Sign Documents Signed",
+                # True if at least one doc is uploaded/sent AND ALL uploaded docs are signed
+                "completed": (
+                    DocumentEsignTask.objects.filter(job_application=application).exclude(status='pending').exists()
+                    and not DocumentEsignTask.objects.filter(job_application=application).exclude(status__in=['pending', 'signed', 'completed']).exists()
+                ),
+                "detail": "All statutory documents signed",
+                "emails_sent": "None (signed by candidate via Zoho Sign)",
+            },
+            {
+                "key": "doj_plus_7",
+                "label": "Day +7 — BGV Status Check",
+                "completed": bool(application.is_doj_7_triggered),
+                "detail": "Escalated" if application.is_escalated else "Clear",
+                "emails_sent": "HR Team (internal — only if BGV unclear)",
+            },
+            {
+                "key": "d30_survey_sent",
+                "label": "Day +30 — Satisfaction Surveys Sent",
+                "completed": application.is_d30_survey_sent,
+                "detail": None,
+                "emails_sent": f"Candidate: {candidate_email_display}, HOD (internal)",
+            },
+            {
+                "key": "d30_survey_filled",
+                "label": "Day +30 — Candidate Survey Filled",
+                "completed": application.is_satisfaction_survey_filled,
+                "detail": None,
+                "emails_sent": "None (submitted by candidate)",
+            },
+            {
+                "key": "hod_survey_filled",
+                "label": "Day +30 — HOD Survey Filled",
+                # True only when the HOD actually submits responses — not just when the email was sent
+                "completed": bool(survey_map.get("hod") and survey_map["hod"].responses),
+                "detail": None,
+                "emails_sent": "None (submitted by HOD)",
+            },
+            {
+                "key": "d45_call_scheduled",
+                "label": "Day +45 — Check-in Call Scheduled",
+                # True only when HR actually books the call (OnboardingCall record with a start_time)
+                "completed": bool(d45_call and d45_call.start_time),
+                "detail": str(d45_call.start_time) if d45_call and d45_call.start_time else None,
+                "emails_sent": f"Candidate: {candidate_email_display}, HR (internal calendar invite)",
+            },
+            {
+                "key": "d90_survey_sent",
+                "label": "Day +90 — Final Survey Sent",
+                "completed": application.is_d90_survey_sent,
+                "detail": None,
+                "emails_sent": candidate_email_display,
+            },
+            {
+                "key": "d90_survey_filled",
+                "label": "Day +90 — Survey Filled",
+                "completed": application.is_d90_survey_filled,
+                "detail": None,
+                "emails_sent": "None (submitted by candidate)",
+            },
+            {
+                "key": "d90_call_scheduled",
+                "label": "Day +90 — Final Review Scheduled",
+                # True only when HR actually books the call (OnboardingCall record with a start_time)
+                "completed": bool(d90_call and d90_call.start_time),
+                "detail": str(d90_call.start_time) if d90_call and d90_call.start_time else None,
+                "emails_sent": f"Candidate: {candidate_email_display}, HR (internal calendar invite)",
+            },
+            {
+                "key": "it_ticket_closed",
+                "label": "Day +90 — IT Ticket Closed",
+                "completed": application.it_ticket_closed,
+                "detail": None,
+                "emails_sent": "None (ME ticket closed automatically)",
+            },
+        ]
+
+        data = {
+            # ── Candidate ────────────────────────────────────────────
+            "candidate": {
+                "id": str(application.id),
+                "name": application.candidate_name,
+                "email": application.candidate_email,
+                "work_email": application.work_email,
+                "work_email_exists": bool(application.work_email),
+                "phone": application.candidate_phone,
+                "status": application.status,
+                "joining_date": joining_date,
+                "days_since_joining": days_since_joining,
+                "is_escalated": application.is_escalated,
+                "it_ticket_ref": application.it_ticket_ref,
+                "it_ticket_raised": is_onboarding_initiated,
+                "onboarding_initiation_form_filled": onboarding_form_exists,
+                "it_ticket_closed": application.it_ticket_closed,
+                "emp_account_active": application.emp_account_active,
+                "is_undertaking_signoff_completed": getattr(application, 'is_undertaking_signoff_completed', False),
+            },
+
+            # ── MRF / Requisition ────────────────────────────────────
+            "mrf": mrf_data,
+
+            # ── Buddies ──────────────────────────────────────────────
+            "buddies": {
+                "technical_buddy_name": application.technical_buddy_name,
+                "technical_buddy_email": application.technical_buddy_email,
+                "cultural_buddy_name": application.cultural_buddy_name,
+                "cultural_buddy_email": application.cultural_buddy_email,
+            },
+
+        # ── E-Sign Docs ──────────────────────────────────────────
+            "esign_docs": [
+                {
+                    "id": str(doc.id),
+                    "doc_type": doc.doc_type,
+                    "doc_type_display": doc.get_doc_type_display(),
+                    "status": doc.status,
+                    "status_display": doc.get_status_display(),
+                    "source_file_url": (
+                        request.build_absolute_uri(doc.source_file.url)
+                        if doc.source_file else None
+                    ),
+                    "zoho_request_id": doc.zoho_request_id,
+                    "zoho_document_id": doc.zoho_document_id,
+                    "generated_at": doc.generated_at,
+                    "sent_at": doc.sent_at,
+                    "viewed_at": doc.viewed_at,
+                    "signed_at": doc.signed_at,
+                    "completed_at": doc.completed_at,
+                }
+                for doc in DocumentEsignTask.objects.filter(job_application=application).order_by('created_at')
+            ],
+
+
+            # ── Milestones ───────────────────────────────────────────
+            "milestones": milestones,
+
+            # ── Calls ────────────────────────────────────────────────
+            "calls": {
+                "d45": serialize_call(d45_call),
+                "d90": serialize_call(d90_call),
+            },
+
+            # ── Surveys (enriched Q&A) ───────────────────────────────
+            "surveys": {
+                "30_day_candidate": serialize_survey(
+                    survey_map.get("30_day_candidate"), "30_day_candidate"
+                ),
+                "hod": serialize_survey(
+                    survey_map.get("hod"), "hod"
+                ),
+                "90_day_candidate": serialize_survey(
+                    survey_map.get("90_day_candidate"), "90_day_candidate"
+                ),
+            },
+
+            # ── Tasks ────────────────────────────────────────────────
+            "task_lists": task_data,
+        }
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class GetManageEngineSitesAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        from .utils.zoho_manageengine import ManageEngineClient
+        client = ManageEngineClient()
+        sites = client.get_sites()
+        return Response({"sites": sites}, status=status.HTTP_200_OK)
+
+class GetManageEngineAssetsAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        from .utils.zoho_manageengine import ManageEngineClient
+        client = ManageEngineClient()
+        assets = client.get_assets()
+        return Response({"assets": assets}, status=status.HTTP_200_OK)
+
+class GetManageEngineDepartmentsAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        from .utils.zoho_manageengine import ManageEngineClient
+        client = ManageEngineClient()
+        departments = client.get_departments()
+        return Response({"departments": departments}, status=status.HTTP_200_OK)
+
+class GetManageEngineDesignationsAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        from .utils.zoho_manageengine import ManageEngineClient
+        client = ManageEngineClient()
+        designations = client.get_designations()
+        return Response({"designations": designations}, status=status.HTTP_200_OK)
+
+class ManageEngineRequestersAPI(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        from .utils.zoho_manageengine import ManageEngineClient
+        client = ManageEngineClient()
+        requesters = client.get_requesters()
+        return Response({"requesters": requesters}, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        from .utils.zoho_manageengine import ManageEngineClient
+        
+        first_name = request.data.get("first_name")
+        email_id = request.data.get("email")
+        
+        if not first_name or not email_id:
+            return Response(
+                {"error": "requester object with first_name and email_id is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        client = ManageEngineClient()
+        requester = client.create_requester(first_name=first_name, email_id=email_id)
+        
+        if requester:
+            return Response({"requester": requester}, status=status.HTTP_201_CREATED)
+        else:
+            return Response(
+                {"error": "Failed to create requester in ManageEngine"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+class OnboardingTaskListViewSet(ModelViewSet):
+    queryset = OnboardingTaskList.objects.all()
+    serializer_class = OnboardingTaskListSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        job_application_id = self.request.query_params.get('job_application_id')
+        
+        if job_application_id:
+            queryset = queryset.filter(job_application_id=job_application_id)
+            
+        return queryset
+
+class OnboardingTaskViewSet(ModelViewSet):
+    queryset = OnboardingTask.objects.all()
+    serializer_class = OnboardingTaskSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        task_list_id = self.request.query_params.get('task_list_id')
+        assigned_to_id = self.request.query_params.get('assigned_to_id')
+        
+        if task_list_id:
+            queryset = queryset.filter(task_list_id=task_list_id)
+        if assigned_to_id:
+            queryset = queryset.filter(assigned_to_id=assigned_to_id)
+            
+        return queryset
+
+class DocumentEsignTaskViewSet(ModelViewSet):
+    """
+    CRUD viewset for DocumentEsignTask.
+
+    Important rules:
+    - Create (POST) and file upload via update (PATCH/PUT) are only permitted
+      when the linked job_application has a work_email set.
+    - Filtering: ?job_application_id=<uuid>  and/or  ?status=<status>
+    """
+    queryset = DocumentEsignTask.objects.all()
+    serializer_class = DocumentEsignTaskSerializer
+    permission_classes = [permissions.AllowAny]
+
+    # ── helpers ───────────────────────────────────────────────────────────
+    def _get_application_from_request(self):
+        """Return the JobApplication referenced in the request body or instance."""
+        app_id = self.request.data.get("job_application")
+        if not app_id:
+            return None
+        try:
+            return JobApplication.objects.get(id=app_id)
+        except (JobApplication.DoesNotExist, Exception):
+            return None
+
+    # ── queryset ──────────────────────────────────────────────────────────
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        job_application_id = self.request.query_params.get('job_application_id')
+        status_filter = self.request.query_params.get('status')
+
+        if job_application_id:
+            queryset = queryset.filter(job_application_id=job_application_id)
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
+        return queryset
+
+    # ── create ────────────────────────────────────────────────────────────
+    def create(self, request, *args, **kwargs):
+        """
+        Block creation when the linked job_application has no work_email.
+        """
+        application = self._get_application_from_request()
+        if application is None:
+            return Response(
+                {"error": "A valid job_application ID is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not application.work_email:
+            return Response(
+                {
+                    "error": "E-sign document upload is only available after the candidate's "
+                             "work email has been set. Please set the work_email on the "
+                             "job application first.",
+                    "work_email_missing": True,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().create(request, *args, **kwargs)
+
+    # ── update (PUT / PATCH) ──────────────────────────────────────────────
+    def update(self, request, *args, **kwargs):
+        """
+        Block updates (including source_file uploads) when work_email is absent.
+        """
+        instance = self.get_object()
+        application = instance.job_application
+        if not application.work_email:
+            return Response(
+                {
+                    "error": "E-sign document upload is only available after the candidate's "
+                             "work email has been set. Please set the work_email on the "
+                             "job application first.",
+                    "work_email_missing": True,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().update(request, *args, **kwargs)
+
+    # ── retrieve ──────────────────────────────────────────────────────────
+    def retrieve(self, request, *args, **kwargs):
+        response = super().retrieve(request, *args, **kwargs)
+        instance = self.get_object()
+        response.data["work_email"] = instance.job_application.work_email
+        response.data["work_email_exists"] = bool(instance.job_application.work_email)
+        return response
+
+    # ── list ─────────────────────────────────────────────────────────────
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        results = response.data.get("results") if isinstance(response.data, dict) else response.data
+        if isinstance(results, list):
+            for item in results:
+                try:
+                    app = JobApplication.objects.only("work_email").get(id=item["job_application"])
+                    item["work_email"] = app.work_email
+                    item["work_email_exists"] = bool(app.work_email)
+                except Exception:
+                    item["work_email"] = None
+                    item["work_email_exists"] = False
+        return response
+
+    # ── bulk upload ───────────────────────────────────────────────────────
+    @action(detail=False, methods=["post"], url_path="bulk-upload")
+    def bulk_upload(self, request, *args, **kwargs):
+        """
+        Upload multiple e-sign source files in a single multipart POST.
+
+        Required field:
+          - job_application  (UUID of the JobApplication)
+
+        For each document, pass a file field named:
+          doc_type__<DOC_TYPE>
+          e.g.  doc_type__SA, doc_type__NDA, doc_type__BOND, doc_type__KRA
+
+        Valid DOC_TYPE codes (see DocumentEsignTask.DOC_TYPE_CHOICES):
+          SA, NDA, BOND, ISMS_1, ISMS_2, FORM_2, NOMINATION_INS, KRA,
+          FORM_F, FORM_11, IT_ASSET
+
+        Response body:
+          {
+            "job_application": "<uuid>",
+            "candidate_name":  "...",
+            "total": 3,
+            "results": [
+              {"doc_type": "SA",  "status": "created", "record_status": "ready", "id": "..."},
+              {"doc_type": "NDA", "status": "updated", "record_status": "ready", "id": "..."},
+              {"doc_type": "XYZ", "error": "..."},
+            ]
+          }
+
+        HTTP 200 when all files succeeded; HTTP 207 when at least one failed.
+        """
+        from django.utils import timezone as tz
+
+        app_id = request.data.get("job_application")
+        if not app_id:
+            return Response(
+                {"error": "job_application is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            application = JobApplication.objects.get(id=app_id)
+        except (JobApplication.DoesNotExist, Exception):
+            return Response(
+                {"error": f"No JobApplication found with id '{app_id}'."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not application.work_email:
+            return Response(
+                {
+                    "error": (
+                        "E-sign document upload is only available after the candidate's "
+                        "work email has been set. Please set the work_email on the "
+                        "job application first."
+                    ),
+                    "work_email_missing": True,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Collect valid doc type codes from the model choices
+        valid_doc_types = {code for code, _ in DocumentEsignTask.DOC_TYPE_CHOICES}
+
+        # Gather all uploaded files whose field name starts with "doc_type__"
+        PREFIX = "doc_type__"
+        uploaded_files = {
+            key[len(PREFIX):].upper(): file_obj
+            for key, file_obj in request.FILES.items()
+            if key.startswith(PREFIX)
+        }
+
+        if not uploaded_files:
+            return Response(
+                {
+                    "error": (
+                        "No files provided. Send each file with a field name prefixed "
+                        "by 'doc_type__', e.g. 'doc_type__SA', 'doc_type__NDA'."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        results = []
+        for doc_type, file_obj in uploaded_files.items():
+            # Validate doc_type code
+            if doc_type not in valid_doc_types:
+                results.append({
+                    "doc_type": doc_type,
+                    "error": (
+                        f"'{doc_type}' is not a valid doc_type. "
+                        f"Valid choices: {sorted(valid_doc_types)}"
+                    ),
+                })
+                continue
+
+            try:
+                instance, created = DocumentEsignTask.objects.get_or_create(
+                    job_application=application,
+                    doc_type=doc_type,
+                )
+                # Replace the source file and mark as ready
+                instance.source_file = file_obj
+                instance.status = "ready"
+                instance.generated_at = tz.now()
+                instance.save(update_fields=["source_file", "status", "generated_at"])
+
+                results.append({
+                    "doc_type": doc_type,
+                    "doc_type_display": instance.get_doc_type_display(),
+                    "status": "created" if created else "updated",
+                    "record_status": instance.status,
+                    "id": str(instance.id),
+                })
+            except Exception as exc:
+                results.append({
+                    "doc_type": doc_type,
+                    "error": str(exc),
+                })
+
+        all_ok = all("error" not in r for r in results)
+        
+        if all_ok:
+            from onboarding.utils.zoho_sign import send_document_to_zoho_sign
+            from onboarding.utils.notifications import notify_candidate
+            
+            # Send each newly uploaded document to Zoho Sign immediately
+            for result in results:
+                if result.get("status") in ["created", "updated"] and "id" in result:
+                    try:
+                        doc = DocumentEsignTask.objects.get(id=result["id"])
+                        
+                        # Ensure file pointer is at the start
+                        if doc.source_file:
+                            try:
+                                doc.source_file.file.seek(0)
+                            except Exception:
+                                pass
+
+                        zoho_res = send_document_to_zoho_sign(doc)
+                        if zoho_res:
+                            doc.refresh_from_db()
+                            result["record_status"] = doc.status
+                            
+                            notify_candidate(
+                                application, "esign_request",
+                                cc=[],
+                                extra_context={"doc_type": doc.get_doc_type_display()},
+                            )
+                        else:
+                            result["error"] = "Failed to dispatch to Zoho Sign. Check logs or zoho credentials."
+                    except Exception as e:
+                        result["error"] = f"Dispatch error: {str(e)}"
+
+        http_status = status.HTTP_200_OK if all_ok else status.HTTP_207_MULTI_STATUS
+        return Response(
+            {
+                "job_application": str(application.id),
+                "candidate_name": application.candidate_name,
+                "total": len(results),
+                "results": results,
+            },
+            status=http_status,
+        )
+
+    # ── send single doc to Zoho Sign ──────────────────────────────────────
+    @action(detail=True, methods=["post"], url_path="send-to-zoho")
+    def send_to_zoho(self, request, *args, **kwargs):
+        """
+        POST /api/onboarding/esign-docs/<id>/send-to-zoho/
+
+        Sends a single DocumentEsignTask (that is in 'ready' status with a
+        source_file uploaded) to Zoho Sign for the candidate to sign.
+
+        Returns:
+          200  { "message": "...", "doc_type": "...", "zoho_request_id": "..." }
+          400  if no source_file or already sent / not in ready state
+        """
+        from onboarding.utils.zoho_sign import send_document_to_zoho_sign
+
+        instance = self.get_object()
+
+        if not instance.source_file:
+            return Response(
+                {"error": "No source_file uploaded for this document yet."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if instance.status not in ("ready", "pending"):
+            return Response(
+                {
+                    "error": f"Document is already in '{instance.status}' state. "
+                             "Only 'ready' documents can be sent to Zoho Sign."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        result = send_document_to_zoho_sign(instance)
+
+        if result:
+            return Response(
+                {
+                    "message": "Document successfully sent to Zoho Sign.",
+                    "doc_type": instance.doc_type,
+                    "doc_type_display": instance.get_doc_type_display(),
+                    "zoho_request_id": instance.zoho_request_id,
+                    "zoho_document_id": instance.zoho_document_id,
+                    "status": instance.status,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(
+            {"error": "Failed to send document to Zoho Sign. Check server logs for details."},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    # ── send all ready docs for a candidate to Zoho Sign ─────────────────
+    @action(detail=False, methods=["post"], url_path="send-all-to-zoho")
+    def send_all_to_zoho(self, request, *args, **kwargs):
+        """
+        POST /api/onboarding/esign-docs/send-all-to-zoho/
+        Body: { "job_application": "<uuid>" }
+
+        Finds every DocumentEsignTask with status='ready' for the given
+        job_application and sends each one to Zoho Sign.
+
+        Returns:
+          {
+            "job_application": "<uuid>",
+            "candidate_name": "...",
+            "total": 3,
+            "results": [
+              { "doc_type": "SA",  "status": "sent", "zoho_request_id": "..." },
+              { "doc_type": "NDA", "error": "..." },
+              ...
+            ]
+          }
+
+        HTTP 200 — all sent OK
+        HTTP 207 — partial success
+        HTTP 400 — missing job_application or work_email not set
+        HTTP 404 — job_application not found
+        """
+        from onboarding.utils.zoho_sign import send_document_to_zoho_sign
+
+        app_id = request.data.get("job_application")
+        if not app_id:
+            return Response(
+                {"error": "job_application is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            application = JobApplication.objects.get(id=app_id)
+        except (JobApplication.DoesNotExist, Exception):
+            return Response(
+                {"error": f"No JobApplication found with id '{app_id}'."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not application.work_email:
+            return Response(
+                {
+                    "error": "Cannot send e-sign documents — candidate has no work_email set.",
+                    "work_email_missing": True,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ready_docs = DocumentEsignTask.objects.filter(
+            job_application=application,
+            status="ready",
+        ).exclude(source_file="")
+
+        if not ready_docs.exists():
+            return Response(
+                {
+                    "message": "No documents in 'ready' state found for this candidate. "
+                               "Upload files via bulk-upload first.",
+                    "job_application": str(application.id),
+                    "total": 0,
+                    "results": [],
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        results = []
+        for doc in ready_docs:
+            try:
+                result = send_document_to_zoho_sign(doc)
+                if result:
+                    results.append({
+                        "doc_type": doc.doc_type,
+                        "doc_type_display": doc.get_doc_type_display(),
+                        "status": doc.status,
+                        "zoho_request_id": doc.zoho_request_id,
+                        "zoho_document_id": doc.zoho_document_id,
+                        "id": str(doc.id),
+                    })
+                else:
+                    results.append({
+                        "doc_type": doc.doc_type,
+                        "doc_type_display": doc.get_doc_type_display(),
+                        "error": "Zoho Sign returned no data — check server logs.",
+                        "id": str(doc.id),
+                    })
+            except Exception as exc:
+                results.append({
+                    "doc_type": doc.doc_type,
+                    "doc_type_display": doc.get_doc_type_display(),
+                    "error": str(exc),
+                    "id": str(doc.id),
+                })
+
+        all_ok = all("error" not in r for r in results)
+        http_status = status.HTTP_200_OK if all_ok else status.HTTP_207_MULTI_STATUS
+        return Response(
+            {
+                "job_application": str(application.id),
+                "candidate_name": application.candidate_name,
+                "total": len(results),
+                "results": results,
+            },
+            status=http_status,
+        )
+
+class VerifyD5DocumentAPI(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, id):
+        application = get_object_or_404(JobApplication, id=id)
+        if application.is_d5_verification_completed:
+            return Response({'message': 'Verification already completed.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        application.is_d5_verification_completed = True
+        application.save(update_fields=['is_d5_verification_completed', 'updated_at'])
+        
+        return Response({'message': 'Verification completed successfully.'}, status=status.HTTP_200_OK)
+

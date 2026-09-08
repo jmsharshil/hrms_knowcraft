@@ -42,7 +42,7 @@ class FeedbackReminderTaskTests(TestCase):
         self.assertFalse(result)
 
     @patch("onboarding.utils.interview_feedback_reminder.InterviewFeedback.objects.filter")
-    @patch("onboarding.utils.interview_feedback_reminder.TaskScheduler.cancel")
+    @patch("scheduler.services.TaskScheduler.cancel")
     def test_feedback_already_submitted(self, mock_cancel, mock_filter):
         mock_filter.return_value.exists.return_value = True
         result = interview_feedback_reminder_task(self.booking_id)
@@ -51,21 +51,21 @@ class FeedbackReminderTaskTests(TestCase):
         self.assertFalse(result)
 
     @patch("onboarding.utils.interview_feedback_reminder.InterviewFeedback.objects.filter")
-    @patch("onboarding.utils.interview_feedback_reminder.TaskScheduler.cancel")
+    @patch("scheduler.services.TaskScheduler.cancel")
     def test_candidate_status_not_pending(self, mock_cancel, mock_filter):
         mock_filter.return_value.exists.return_value = False
         
         # Status mapped to round_name but not in ROUND_PENDING_STATUS for the reminder
         # Wait, if status is interview_done_1, it will resolve to no round_name from the dictionary.
         # Let's pass round_name explicitly, but candidate status is interview_done_1
-        self.mock_booking.candidate.status = "interview_done_1"
+        self.mock_booking.candidate.status = "interview_next_2"
         result = interview_feedback_reminder_task(self.booking_id, round_name="hr_round")
         
         mock_cancel.assert_called_once()
         self.assertFalse(result)
 
     @patch("onboarding.utils.interview_feedback_reminder.InterviewFeedback.objects.filter")
-    @patch("onboarding.utils.interview_feedback_reminder.TaskScheduler.schedule")
+    @patch("scheduler.services.TaskScheduler.schedule")
     def test_interview_not_over_yet(self, mock_schedule, mock_filter):
         mock_filter.return_value.exists.return_value = False
         

@@ -874,9 +874,12 @@ from openai import OpenAI
 from django.conf import settings
 import json
 
-client = OpenAI(
-    api_key=settings.OPENAI_API_KEY
-)
+try:
+    client = OpenAI(
+        api_key=settings.OPENAI_API_KEY
+    )
+except Exception:
+    client = None
 
 def parse_expirience(text):
     prompt = f"""

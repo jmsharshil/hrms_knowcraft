@@ -471,7 +471,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
         model = JobApplication
         fields = [
             'id', 'job', 'job_title', 'department_name', 'candidate_name','designation_name',
-            'candidate_email', 'candidate_phone', 'resume', 'resume_url',
+            'candidate_email', 'candidate_phone', 'resume', 'resume_url', 'joining_date',
             'original_filename', 'file_size', 'file_size_mb', 'cover_letter',"rejection_reason",
             'experience_years','relevant_experience_years', 'current_ctc', 'expected_ctc', 'notice_period',
             'linkedin_url', 'portfolio_url','skill','education','location','current_employer','match_score', 'status', 'status_display',
@@ -517,9 +517,19 @@ class JobApplicationSerializer(serializers.ModelSerializer):
         return MRFListSerializer(obj.job.mrf).data
 
     def get_attendees_details(self, obj):
-        latest_booking = obj.bookings.order_by('-created_at').first()
+        bookings = getattr(obj, 'prefetched_bookings', None)
+        if bookings:
+            latest_booking = bookings[0] if bookings else None
+        else:
+            latest_booking = obj.bookings.order_by('-created_at').first()
         if latest_booking:
-            return [{"id": a.id, "name": a.name, "email": a.email} for a in latest_booking.attendees.all()]
+            attendees = getattr(latest_booking, 'attendees', None)
+            if attendees is not None and not isinstance(attendees, list):  # if not prefetched queryset
+                attendees = attendees.all()
+            return [
+                {"id": a.id, "name": getattr(a, 'name', ''), "email": a.email}
+                for a in (attendees or [])
+            ]
         return []
 
 
@@ -598,11 +608,15 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
 
     def validate_application_token(self, value):
         try:
-            link = JobApplicationLink.objects.get(unique_token=value, is_active=True)
+            link = JobApplicationLink.objects.get(unique_token=value)
 
             # Check if link is expired
             if link.is_expired():
                 raise serializers.ValidationError("This application link has expired")
+
+            # Check if link is active
+            if not link.is_active:
+                raise serializers.ValidationError("This application link is no longer active")
 
             # Check if job is still accepting applications
             if not link.job.is_active:
@@ -722,8 +736,49 @@ class JobApplicationUpdateSerializer(serializers.ModelSerializer):
         model = JobApplication
         fields = ['status', 'notes', 'rating', 'candidate_name','candidate_phone','candidate_email',
                   'source','experience_years','relevant_experience_years','location','skill',
-                  'education','current_employer','linkedin_url','job'
+                  'education','current_employer','linkedin_url','job',
+                  'work_email', 'resume', 'crafter_id'
                   ]
+
+    def validate_resume(self, value):
+        if value:
+            # Validate file size (max 10MB)
+            max_size = 10 * 1024 * 1024
+            if value.size > max_size:
+                raise serializers.ValidationError(
+                    f"{value.name}: File size must be less than 10MB"
+                )
+
+            allowed_extensions = [
+                '.pdf', '.doc', '.docx', '.txt', '.rtf',
+                '.jpg', '.jpeg', '.png', '.gif',
+                '.odt', '.pages',
+            ]
+
+            import os
+            ext = os.path.splitext(value.name)[1].lower()
+            if ext not in allowed_extensions:
+                raise serializers.ValidationError(
+                    f"{value.name}: Unsupported file format"
+                )
+        return value
+
+    def update(self, instance, validated_data):
+        has_new_resume = 'resume' in validated_data and validated_data.get('resume') is not None
+        
+        instance = super().update(instance, validated_data)
+        
+        if has_new_resume:
+            from onboarding.utils.task_queue import TASK_QUEUE
+            from .utils import parse_resume_task
+            TASK_QUEUE.enqueue(
+                parse_resume_task,
+                instance,
+                instance.resume.file,
+                instance.job
+            )
+            
+        return instance
     
     def validate_status(self, value):
         instance = self.instance
