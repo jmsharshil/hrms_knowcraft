@@ -471,7 +471,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
         model = JobApplication
         fields = [
             'id', 'job', 'job_title', 'department_name', 'candidate_name','designation_name',
-            'candidate_email', 'candidate_phone', 'resume', 'resume_url',
+            'candidate_email', 'candidate_phone', 'resume', 'resume_url', 'joining_date',
             'original_filename', 'file_size', 'file_size_mb', 'cover_letter',"rejection_reason",
             'experience_years','relevant_experience_years', 'current_ctc', 'expected_ctc', 'notice_period',
             'linkedin_url', 'portfolio_url','skill','education','location','current_employer','match_score', 'status', 'status_display',

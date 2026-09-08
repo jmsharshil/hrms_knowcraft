@@ -54,6 +54,7 @@ def test_full_onboarding():
         job=job,
         candidate_name="Test Onboarding Candidate",
         candidate_email="test_onboarding@example.com",
+        work_email="test_onboarding@knowcraft.in",
         status="offer_accepted",
         is_active=True,
         joining_date=timezone.now().date(),
@@ -66,6 +67,16 @@ def test_full_onboarding():
     CandidateBGV.objects.create(
         candidate=candidate,
         status="clear"
+    )
+    
+    # Create the onboarding initiation form to unblock onboarding tasks
+    from onboarding.models import OnboardingForm
+    OnboardingForm.objects.create(
+        job_application=candidate,
+        first_name="Test",
+        last_name="Onboarding Candidate",
+        personal_email_id="test_onboarding@example.com",
+        center_office_location="Gurugram"
     )
     
     print(f"Created candidate: {candidate.candidate_name} (ID: {candidate.id})")
@@ -131,15 +142,9 @@ def test_full_onboarding():
                 candidate.is_d90_call_scheduled = True
                 candidate.save(update_fields=['is_d90_call_scheduled'])
                 
-            # Run the cron job manually with ManageEngineClient mocked
+            # Run the cron job manually
             try:
-                with patch('onboarding.utils.onboarding_tasks.ManageEngineClient') as MockClient:
-                    # Setup the mock so close_ticket returns True and create_ticket returns a fake ID
-                    mock_instance = MockClient.return_value
-                    mock_instance.create_ticket.return_value = {"request": {"id": "MOCK-TICKET-12345"}}
-                    mock_instance.close_ticket.return_value = True
-                    
-                    daily_onboarding_check()
+                daily_onboarding_check()
             except Exception as e:
                 print(f"Error during cron execution: {e}")
             
