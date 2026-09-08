@@ -17,7 +17,8 @@ from .serializers import (
     SalaryAnnexureHistorySerializer,
     EmailLogSerializer,
     OnboardingTaskListSerializer,
-    OnboardingTaskSerializer
+    OnboardingTaskSerializer,
+    DocumentEsignTaskSerializer
 )
 import logging
 from jobs.models import JobApplication, Job
