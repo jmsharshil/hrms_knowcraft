@@ -368,6 +368,9 @@ class JobApplicationAdmin(admin.ModelAdmin):
                     if minutes > 0:
                         time.sleep(60)  # 1 real minute between each milestone
 
+                    # Always reload fresh candidate data from DB so external changes (e.g. work_email added by HR) are reflected
+                    application.refresh_from_db()
+
                     # Fake created_at so run_onboarding_check_for_candidate
                     # sees exactly `minutes` elapsed minutes.
                     application.created_at = timezone.now() - dt.timedelta(minutes=minutes)
@@ -383,9 +386,12 @@ class JobApplicationAdmin(admin.ModelAdmin):
                     # Sync guard flags from DB so the next milestone respects them
                     db_app = application.__class__.objects.get(pk=application.pk)
                     for flag in [
-                        'is_esign_packet_generated', 'is_esign_reminder_sent',
-                        'is_escalated', 'is_d30_survey_sent', 'is_hod_survey_filled',
-                        'is_d45_call_scheduled', 'is_d90_survey_sent', 'it_ticket_closed',
+                        'work_email', 'status', 'is_doj_minus_15_triggered', 'is_doj_minus_7_triggered',
+                        'is_doj_minus_2_triggered', 'is_doj_0_triggered', 'is_post_welcome_docs_sent',
+                        'is_esign_packet_generated', 'is_esign_reminder_sent', 'is_d5_verification_sent',
+                        'is_undertaking_signoff_sent', 'is_doj_7_triggered', 'is_escalated',
+                        'is_d30_survey_sent', 'is_hod_survey_filled', 'is_d45_call_scheduled',
+                        'is_doj_45_triggered', 'is_d90_survey_sent', 'it_ticket_closed',
                     ]:
                         if hasattr(db_app, flag):
                             setattr(application, flag, getattr(db_app, flag))

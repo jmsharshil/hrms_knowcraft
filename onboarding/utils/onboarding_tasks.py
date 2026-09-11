@@ -123,11 +123,21 @@ def daily_onboarding_check():
             app.save(update_fields=['is_doj_minus_2_triggered'])
 
         # ── DOJ 0 — Statutory docs + Handbooks & Policies + Zoho Sign packet ────────────
-        if days_until_joining <= 0:
-            if not getattr(app, 'work_email', None):
+        if days_until_joining <= 0 and not getattr(app, 'is_doj_0_triggered', False):
+            work_email = (getattr(app, 'work_email', None) or '').strip()
+            if not work_email and hasattr(app, 'refresh_from_db'):
+                try:
+                    app.refresh_from_db(fields=['work_email'])
+                    work_email = (getattr(app, 'work_email', None) or '').strip()
+                except Exception:
+                    pass
+
+            if not work_email:
                 logger.info(f"Work email missing for {app.candidate_name}. Sending reminder and skipping post-joining tasks.")
                 notify_internal(app, "missing_work_email_reminder")
                 continue
+
+            app.work_email = work_email
             is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
             
             # Send post-welcome handbooks & policies (HR Handbook, Culture & Values, Chatbot Manual, KAI Mascot, POSH Policy)
@@ -145,13 +155,16 @@ def daily_onboarding_check():
             if (app.status == "joined" or is_debug) and not getattr(app, 'is_esign_packet_generated', False):
                 logger.info(f"DOJ 0 for candidate {app.candidate_name}. Generating esign doc records.")
                 generate_esign_documents(app)
-                app.is_esign_packet_generated = True
-                app.save(update_fields=['is_esign_packet_generated'])
+                # app.is_esign_packet_generated = True
+                # app.save(update_fields=['is_esign_packet_generated'])
 
             # Always attempt sending — catches docs HR uploaded after DOJ 0 fired.
             # In debug mode we skip the real Zoho API call.
             if getattr(app, 'is_esign_packet_generated', False) and not is_debug:
                 send_documents_for_esign(app)
+
+            app.is_doj_0_triggered = True
+            app.save(update_fields=['is_doj_0_triggered'])
 
         # ── DOJ + 1 Day — esign reminder (real implementation, was a stub) ─────
         if days_until_joining <= -1:
@@ -293,7 +306,7 @@ def daily_onboarding_check():
             except Exception as survey_err:
                 logger.warning(f"Could not create 90-day SurveyResponse record for {app.candidate_name}: {survey_err}")
 
-        if days_past >= 90 and app.it_ticket_ref and not getattr(app, 'it_ticket_closed', False):
+        if days_past >= 90 and app.is_d90_survey_filled and app.is_d90_call_scheduled and not getattr(app, 'it_ticket_closed', False):
             logger.info(f"DOJ + {days_past} for candidate {app.candidate_name}. Requesting IT team to close ticket.")
             notify_internal(app, "it_ticket_close_request")
             app.it_ticket_closed = True
@@ -314,6 +327,15 @@ def run_onboarding_check_for_candidate(app):
     using their actual days until joining, to manually simulate/run what
     the cron job would do for them today.
     """
+    faked_created_at = getattr(app, 'created_at', None)
+    try:
+        app.refresh_from_db()
+    except Exception as e:
+        logger.warning(f"Could not refresh candidate {getattr(app, 'pk', None)} from DB: {e}")
+    finally:
+        if faked_created_at:
+            app.created_at = faked_created_at
+
     logger.info(f"[ADMIN ACTION] Running onboarding check for: {app.candidate_name}")
 
     # me_client = ManageEngineClient()
@@ -393,10 +415,20 @@ def run_onboarding_check_for_candidate(app):
 
     # ── DOJ 0 — Statutory docs + Handbooks & Policies + e-sign packet ─────────────────────────────
     if days_until_joining <= 0 and not getattr(app, 'is_doj_0_triggered', False):
-        if not getattr(app, 'work_email', None):
+        work_email = (getattr(app, 'work_email', None) or '').strip()
+        if not work_email and hasattr(app, 'refresh_from_db'):
+            try:
+                app.refresh_from_db(fields=['work_email'])
+                work_email = (getattr(app, 'work_email', None) or '').strip()
+            except Exception:
+                pass
+
+        if not work_email:
             logger.info(f"[ADMIN ACTION] Work email missing for {app.candidate_name}. Sending reminder and skipping post-joining tasks.")
             notify_internal(app, "missing_work_email_reminder")
             return days_until_joining
+
+        app.work_email = work_email
         is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
         
         if not getattr(app, 'is_post_welcome_docs_sent', False):

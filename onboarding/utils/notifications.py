@@ -1006,12 +1006,18 @@ def notify_candidate(candidate: Any, stage: str, cc: list = None, feedback_link:
                     logger.warning("Text formatting error for %s: %s", stage, e)
 
             if stage in ['satisfaction_survey', 'd90_survey', 'd5_document_verification', 'hr_handbook', 'culture_values', 'chatbot_manual', 'kai_mascot', 'posh_policy']:
-                recipient_email = getattr(candidate, 'work_email', None)
+                recipient_email = (getattr(candidate, 'work_email', None) or '').strip()
+                if not recipient_email and hasattr(candidate, 'refresh_from_db'):
+                    try:
+                        candidate.refresh_from_db(fields=['work_email'])
+                        recipient_email = (getattr(candidate, 'work_email', None) or '').strip()
+                    except Exception:
+                        pass
                 if not recipient_email:
-                    logger.warning(f"No work_email found for candidate {candidate.id} for stage {stage}. Skipping.")
+                    logger.warning(f"No work_email found for candidate {getattr(candidate, 'id', 'unknown')} for stage {stage}. Skipping.")
                     return False
             else:
-                recipient_email = getattr(candidate, 'work_email', None) or getattr(candidate, 'candidate_email', None)
+                recipient_email = (getattr(candidate, 'work_email', None) or getattr(candidate, 'candidate_email', None) or '').strip()
 
             if not recipient_email:
                 logger.warning("No email found for candidate")
@@ -1624,8 +1630,13 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
             # =========================
             if role == 'hr_manager':
                 user = getattr(job, "assigned_by", None)
-                if user and user.role == 'hr_manager':
+                if user and getattr(user, "role", None) == 'hr_manager':
                     add_user(user)
+                else:
+                    hr_managers = User.objects.filter(role='hr_manager', is_active=True) \
+                        .exclude(email__isnull=True) \
+                        .exclude(email="")
+                    add_users(hr_managers)
                 continue
 
             # =========================
@@ -1651,6 +1662,17 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
             if role == "internal_team":
                 # Future logic
                 continue
+
+        # Fallback: if no recipients resolved, fall back to active users with role hr_manager
+        if not emails:
+            logger.info("No internal email recipients resolved for receivers %s. Falling back to active hr_manager users.", receivers)
+            user = getattr(job, "assigned_by", None)
+            if user and getattr(user, "role", None) == 'hr_manager':
+                add_user(user)
+            hr_managers = User.objects.filter(role='hr_manager', is_active=True) \
+                .exclude(email__isnull=True) \
+                .exclude(email="")
+            add_users(hr_managers)
 
         return list(emails)
 
@@ -1721,8 +1743,13 @@ def resolve_internal_phones(candidate, receivers: list[str]) -> list[str]:
             # =========================
             if role == 'hr_manager':
                 user = getattr(job, "assigned_by", None)
-                if user and user.role == 'hr_manager':
+                if user and getattr(user, "role", None) == 'hr_manager':
                     add_user(user)
+                else:
+                    hr_managers = User.objects.filter(role='hr_manager', is_active=True) \
+                        .exclude(phone__isnull=True) \
+                        .exclude(phone="")
+                    add_users(hr_managers)
                 continue
 
             # =========================
@@ -1741,6 +1768,15 @@ def resolve_internal_phones(candidate, receivers: list[str]) -> list[str]:
             if role == "referrer":
                 add_phone(getattr(candidate, "referral_phone", None))
                 continue
+
+        if not phones:
+            user = getattr(job, "assigned_by", None)
+            if user and getattr(user, "role", None) == 'hr_manager':
+                add_user(user)
+            hr_managers = User.objects.filter(role='hr_manager', is_active=True) \
+                .exclude(phone__isnull=True) \
+                .exclude(phone="")
+            add_users(hr_managers)
 
         return list(phones)
 
@@ -1771,6 +1807,21 @@ def notify_internal(candidate: Any, stage: str, cc: list = None) -> bool:
 
     to_emails = resolve_internal_emails(candidate, recievers)
     to_phones = resolve_internal_phones(candidate, recievers)
+
+    if not to_emails:
+        logger.info(f"No internal email recipients resolved for stage {stage}. Falling back to active hr_manager users.")
+        try:
+            from accounts.models import User
+            hr_managers = User.objects.filter(role='hr_manager', is_active=True) \
+                .exclude(email__isnull=True) \
+                .exclude(email="")
+            to_emails = list({u.email for u in hr_managers if u.email})
+            user = getattr(getattr(candidate, "job", None), "assigned_by", None)
+            if user and getattr(user, "role", None) == 'hr_manager' and getattr(user, "email", None):
+                if user.email not in to_emails:
+                    to_emails.append(user.email)
+        except Exception as err:
+            logger.error(f"Error fetching hr_manager fallback in notify_internal: {err}")
 
     if not to_emails:
         logger.warning(f"No internal email recipients found for stage {stage}")
