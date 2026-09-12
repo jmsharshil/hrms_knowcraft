@@ -2278,6 +2278,10 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <p style="margin:0 0 8px 0;"><strong>Name of the crafter:</strong> {{candidate.candidate_name}}</p>
                                 <p style="margin:0 0 8px 0;"><strong>Designation:</strong> {{candidate.job.mrf.designation.name}}</p>
                                 <p style="margin:0 0 16px 0;"><strong>Department:</strong> {{candidate.job.mrf.department.name}}</p>
+                                <p style="margin:24px 0 30px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}/onboarding/task-list/{{candidate.id}}"
+                                       style="background-color:#dc2626;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">Resolve Escalation</a>
+                                </p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
@@ -2363,6 +2367,10 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                     Kindly find below the details of the new joiner who will be joining us on {{candidate.joining_date}}, in the {{candidate.job.mrf.department.name}} group. Request you to please update the required information accordingly.
                                 </p>
                                 <p style="margin:0 0 16px 0;">Let me know in case of any concerns.</p>
+                                <p style="margin:24px 0 30px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}/onboarding/task-list/{{candidate.id}}"
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">View in HRMS</a>
+                                </p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
@@ -2407,6 +2415,10 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 </p>
                                 <p style="margin:0 0 16px 0;">
                                     Please proceed with allocating their seating arrangement and generating the necessary access ID cards before their start date.
+                                </p>
+                                <p style="margin:24px 0 30px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}/onboarding/task-list/{{candidate.id}}"
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">View in HRMS</a>
                                 </p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
@@ -2546,6 +2558,10 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 </p>
                                 <p style="margin:0 0 16px 0;">
                                     Please hold the meeting and mark the 90-day milestone as complete in the HRMS to officially close out their onboarding pipeline.
+                                </p>
+                                <p style="margin:24px 0 30px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}/onboarding/task-list/{{candidate.id}}"
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">Schedule Call</a>
                                 </p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
@@ -2792,6 +2808,10 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <p style="margin:0 0 16px 0;">Dear HOD,</p>
                                 <p style="margin:0 0 16px 0;"><strong>{{candidate.candidate_name}}</strong> is joining your department on <strong>{{candidate.joining_date}}</strong>.</p>
                                 <p style="margin:0 0 16px 0;">Please prepare for their onboarding — assign a buddy, schedule an orientation session, and ensure their workspace is ready.</p>
+                                <p style="margin:24px 0 30px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}/onboarding/task-list/{{candidate.id}}"
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">View in HRMS</a>
+                                </p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
@@ -2868,6 +2888,10 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <p style="margin:0 0 16px 0;">Dear HR / Admin Team,</p>
                                 <p style="margin:0 0 16px 0;">The Background Verification (BGV) for candidate <strong>{{candidate.candidate_name}}</strong> has been pending for more than <strong>7 days post-joining</strong> and requires immediate attention.</p>
                                 <p style="margin:0 0 16px 0;">Please review the current BGV status in the HRMS and take the necessary action to resolve or escalate further.</p>
+                                <p style="margin:24px 0 30px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}/onboarding/task-list/{{candidate.id}}"
+                                       style="background-color:#dc2626;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">Resolve Escalation</a>
+                                </p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
@@ -3224,6 +3248,10 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <p style="margin:0 0 24px 0;">
                                     This form must be submitted through the portal to initiate the candidate's onboarding task sequence (including emails, surveys, and IT ticket generation). Please complete it at your earliest convenience to avoid delays in their joining process.
                                 </p>
+                                <p style="margin:24px 0 30px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}/onboarding/task-list/{candidate.id}"
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">Initiate Onboarding</a>
+                                </p>
                                 <br>
                                 <p style="margin:0 0 4px 0;color:#555555;">Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">HRMS Automation</p>
@@ -3319,6 +3347,10 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 </table>
                                 <p style="margin:0 0 16px 0;">All post-joining automated emails (E-Sign documents, handbooks, surveys) are currently <strong>on hold</strong> until the work email is set.</p>
                                 <p style="margin:0 0 24px 0;">Please update the work email in the HRMS at the earliest to resume the onboarding journey.</p>
+                                <p style="margin:24px 0 30px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}/onboarding/task-list/{candidate.id}"
+                                       style="background-color:#b91c1c;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">Add Work Email</a>
+                                </p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">HRMS Automation</p>
