@@ -1796,6 +1796,12 @@ def notify_internal(candidate: Any, stage: str, cc: list = None) -> bool:
     except Exception as e:
         logger.error("Error checking privacy status in notify_internal: %s", e)
 
+    # For candidates who have already joined, onboarding initiation reminder should not be sent
+    if stage == "onboarding_initiation_reminder" and (getattr(candidate, 'status', None) or '').strip().lower() == "joined":
+        logger.info("Skipping onboarding_initiation_reminder for joined candidate %s",
+                    getattr(candidate, 'candidate_name', candidate))
+        return False
+
     recievers = NOTIFY_INTERNAL_MAP[stage]['receivers']
     subject = NOTIFY_INTERNAL_MAP[stage]['subject']
     body = NOTIFY_INTERNAL_MAP[stage]['body']

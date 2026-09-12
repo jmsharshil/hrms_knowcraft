@@ -59,11 +59,15 @@ def daily_onboarding_check():
             days_until_joining = (app.joining_date - today).days if app.joining_date else 999
 
         # Gate: The onboarding task milestones will ONLY start after the onboarding initiation form is filled.
+        # For candidates who have already joined, the initiation reminder email should NOT be sent.
         if not hasattr(app, 'onboarding_form'):
-            logger.info(f"Onboarding form pending for candidate {app.candidate_name}. Sending reminder.")
-            # Send reminder until it is filled
-            notify_internal(app, "onboarding_initiation_reminder")
-            continue
+            if (getattr(app, 'status', None) or '').strip().lower() == "joined":
+                logger.debug(f"Candidate {app.candidate_name} is already joined. Skipping onboarding initiation reminder.")
+            else:
+                logger.info(f"Onboarding form pending for candidate {app.candidate_name}. Sending reminder.")
+                # Send reminder until it is filled
+                notify_internal(app, "onboarding_initiation_reminder")
+                continue
 
         # ── DOJ - 15 Days ───────────────────────────────────────
         if days_until_joining <= 15 and not getattr(app, 'is_doj_minus_15_triggered', False) and app.status != "joined":
