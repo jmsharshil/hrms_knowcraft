@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated,AllowAny
+from rest_framework.pagination import PageNumberPagination
 from django.utils import timezone
 from django.db.models import Q, Case, When, Value, IntegerField
 from django.db import transaction,IntegrityError
@@ -250,9 +251,16 @@ class ApprovalWorkflowViewSet(viewsets.ModelViewSet):
         else:
             serializer.save()
 
+class MRFPagination(PageNumberPagination):
+    page_size = 30
+    page_size_query_param = 'page_size'
+    max_page_size = 200
+
 class MRFViewSet(viewsets.ModelViewSet):
     """ViewSet for managing MRFs"""
     queryset = MRF.objects.all()
+    serializer_class = MRFListSerializer
+    pagination_class = MRFPagination
     permission_classes = [IsAuthenticated]
     
     def get_serializer_class(self):
@@ -279,7 +287,7 @@ class MRFViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated(), CanSubmitMRF()]
         elif self.action == 'approve_reject':
             return [IsAuthenticated(), CanApproveMRF()]
-        elif self.action in ['hold', 'unhold','duplicate']:
+        elif self.action in ['hold', 'unhold','duplicate', 'mark_revision_required', 'request_revision']:
             return [IsAuthenticated(), CanEditMRF()]
         return [IsAuthenticated(), CanViewMRF()]
     
@@ -426,6 +434,15 @@ class MRFViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(is_active=is_active_param.lower() == 'true')
         else:
             queryset = queryset.filter(is_active=True)
+
+        # Requisition number search filter
+        requisition_no_filter = (
+            self.request.query_params.get('requisition_no') or
+            self.request.query_params.get('mrf_requisition_no') or
+            self.request.query_params.get('mrf_reqisition_no')
+        )
+        if requisition_no_filter:
+            queryset = queryset.filter(requisition_no__icontains=requisition_no_filter.strip())
 
         # Annotate with priority to push joining_pending and filled to the end
         queryset = queryset.annotate(
@@ -685,6 +702,7 @@ class MRFViewSet(viewsets.ModelViewSet):
                     message = f'MRF fully approved. Requisition No: {mrf.requisition_no}'
         
         else:  # reject
+            now = timezone.now()
             # Create rejection record (audit trail for both private and standard)
             MRFApproval.objects.create(
                 mrf=mrf,
@@ -695,7 +713,8 @@ class MRFViewSet(viewsets.ModelViewSet):
                 rejection_reason=rejection_reason
             )
             
-            mrf.status = 'revision_required'
+            mrf.status = 'rejected'
+            mrf.rejected_at = now
             mrf.current_approval_level = 0
             mrf.save()
             
@@ -718,13 +737,81 @@ class MRFViewSet(viewsets.ModelViewSet):
                 if mrf.requested_by.phone:
                     send_text(to=mrf.requested_by.phone, text=text)
             
-            message = 'MRF rejected. Department head can revise and resubmit.'
+            message = 'MRF rejected.'
         
         serializer = MRFDetailSerializer(mrf, context={'request': request})
         return Response({
             'message': message,
             'data': serializer.data
         }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def mark_revision_required(self, request, pk=None):
+        """
+        Move a rejected MRF to 'revision_required' status so that the user
+        can edit and resubmit it. Sends notification email.
+        """
+        mrf = self.get_object()
+
+        if mrf.company != getattr(request.user, 'company', None):
+            return Response(
+                {'error': 'You cannot modify MRFs from another company.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        user = request.user
+        can_change = (
+            user == mrf.requested_by or
+            user.role in ['admin', 'hr_manager', 'hr', 'department_head']
+        )
+        if not can_change:
+            return Response(
+                {'error': 'You do not have permission to request revision for this MRF.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if mrf.status != 'rejected':
+            return Response(
+                {'error': f'Only rejected MRFs can be moved to revision required. Current status: {mrf.status}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        mrf.status = 'revision_required'
+        mrf.save(update_fields=['status', 'updated_at'])
+
+        # Send email notification
+        if not mrf.is_private and mrf.requested_by and mrf.requested_by.email:
+            desig_name = mrf.designation.name if mrf.designation else mrf.mrf_name
+            subject = f"MRF Marked for Revision – {desig_name}"
+            template = email_templates['mrf_revision_required'].format(
+                manager_name=mrf.requested_by.name,
+                designation=desig_name
+            )
+            text = alt_text['mrf_revision_required'].format(
+                manager_name=mrf.requested_by.name,
+                designation=desig_name
+            )
+            send_email(
+                to=mrf.requested_by.email,
+                subject=subject,
+                template=template,
+                text=text,
+                event="mrf_revision_required",
+                email_type="internal"
+            )
+            if mrf.requested_by.phone:
+                send_text(to=mrf.requested_by.phone, text=text)
+
+        serializer = MRFDetailSerializer(mrf, context={'request': request})
+        return Response({
+            'message': 'MRF status changed to revision required. It can now be revised and resubmitted.',
+            'data': serializer.data
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated], url_path='request_revision')
+    def request_revision(self, request, pk=None):
+        """Alias for mark_revision_required"""
+        return self.mark_revision_required(request, pk=pk)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, CanEditMRF])
     def duplicate(self, request, pk=None):

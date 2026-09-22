@@ -126,6 +126,10 @@ class SchedulerConfig(AppConfig):
         from onboarding.utils.onboarding_tasks import daily_onboarding_check
         TaskScheduler.register("daily_onboarding_check", lambda: daily_onboarding_check())
 
+        # Auto-reject stale on-hold MRFs (> 60 days)
+        from mrf.utils import auto_reject_stale_held_mrfs
+        TaskScheduler.register("mrf_auto_reject_held", lambda: auto_reject_stale_held_mrfs())
+
         print("[SCHEDULER APP] All task types registered.")
 
     def _ensure_recurring_tasks(self):
@@ -158,6 +162,12 @@ class SchedulerConfig(AppConfig):
                 "task_type": "daily_onboarding_check",
                 "interval_seconds": 86400,       # 1 day
                 "delay_seconds": 20,             # first run after 20s
+                "max_retries": 3,
+            },
+            {
+                "task_type": "mrf_auto_reject_held",
+                "interval_seconds": 86400,       # 1 day
+                "delay_seconds": 25,             # first run after 25s
                 "max_retries": 3,
             },
         ]

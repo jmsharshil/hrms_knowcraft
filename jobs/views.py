@@ -32,14 +32,21 @@ from accounts.models import User
 from rest_framework.parsers import MultiPartParser, FormParser
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
+from rest_framework.pagination import PageNumberPagination
 from .filters import JobApplicationFilter, ApplicationFilter, ReferralApplicationFilter
 from .utils import send_job_assignment_email, send_job_unassignment_email
 from mrf.utils import is_valid_uuid
+
+class JobPagination(PageNumberPagination):
+    page_size = 30
+    page_size_query_param = 'page_size'
+    max_page_size = 200
 
 class JobViewSet(viewsets.ModelViewSet):
     """ViewSet for managing Jobs"""
     
     queryset = Job.objects.filter(is_active=True)
+    pagination_class = JobPagination
     
     def get_serializer_class(self):
         if self.action == 'list':
@@ -1056,7 +1063,7 @@ class JobApplicationLinkViewSet(viewsets.ModelViewSet):
 from rest_framework.pagination import PageNumberPagination
 
 class JobApplicationPagination(PageNumberPagination):
-    page_size = 100
+    page_size = 30
     page_size_query_param = 'page_size'
     max_page_size = 200
 
@@ -1271,6 +1278,166 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
         return Response({
             'message': 'Application soft-deleted successfully.',
             'application_id': str(application.id)
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def jump_stage(self, request, pk=None):
+        """
+        POST /api/applications/{id}/jump_stage/
+        Jump an application forward to a specific valid interview stage.
+        Body: {
+            "target_stage": "interview_pending_2",
+            "reason": "Skipped round per approval"  # optional
+        }
+        """
+        application = self.get_object()
+        target_stage = request.data.get("target_stage")
+        reason = request.data.get("reason", "")
+
+        if not target_stage:
+            return Response(
+                {"error": "target_stage is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Stage progression sequence
+        STAGE_ORDER = [
+            "received",
+            "shortlisted",
+            "interview_pending_1",
+            "interview_done_1",
+            "interview_next_2",
+            "interview_pending_2",
+            "interview_done_2",
+            "interview_next_3",
+            "interview_pending_3",
+            "interview_done_3",
+            "interview_next_final",
+            "interview_pending_final",
+            "interview_done_final",
+            "interview_next_management_client",
+            "interview_pending_management_client",
+            "interview_done_management_client",
+        ]
+
+        # Valid target stages are strictly interview stages
+        VALID_INTERVIEW_TARGET_STAGES = [
+            "interview_pending_1",
+            "interview_next_2",
+            "interview_pending_2",
+            "interview_next_3",
+            "interview_pending_3",
+            "interview_next_final",
+            "interview_pending_final",
+            "interview_next_management_client",
+            "interview_pending_management_client",
+        ]
+
+        if target_stage not in VALID_INTERVIEW_TARGET_STAGES:
+            return Response(
+                {
+                    "error": f"Invalid target_stage '{target_stage}'. Stage jump is restricted strictly to interview stages: {', '.join(VALID_INTERVIEW_TARGET_STAGES)}"
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Candidate must currently be in screening or an interview stage
+        ALLOWED_CURRENT_STAGES = [
+            "received",
+            "shortlisted",
+            "interview_pending_1",
+            "interview_done_1",
+            "interview_next_2",
+            "interview_pending_2",
+            "interview_done_2",
+            "interview_next_3",
+            "interview_pending_3",
+            "interview_done_3",
+            "interview_next_final",
+            "interview_pending_final",
+            "interview_done_final",
+            "interview_next_management_client",
+            "interview_pending_management_client",
+        ]
+        if application.status not in ALLOWED_CURRENT_STAGES:
+            return Response(
+                {
+                    "error": f"Cannot jump stage from '{application.status}'. Stage jump is restricted to candidates currently in screening or interview stages."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        current_idx = STAGE_ORDER.index(application.status)
+        target_idx = STAGE_ORDER.index(target_stage)
+
+        if current_idx >= target_idx:
+            return Response(
+                {
+                    "error": f"Cannot jump backwards or to current stage. Current: '{application.status}', Target: '{target_stage}'."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if the target interview round has an interviewer configured in the MRF
+        mrf = getattr(getattr(application, 'job', None), 'mrf', None)
+        round_email_map = {}
+        if mrf:
+            round_email_map = {
+                "interview_pending_1": mrf.interviewer_email_1,
+                "interview_next_2": mrf.interviewer_email_2,
+                "interview_pending_2": mrf.interviewer_email_2,
+                "interview_next_3": mrf.interviewer_email_3,
+                "interview_pending_3": mrf.interviewer_email_3,
+                "interview_next_final": mrf.interviewer_email_final,
+                "interview_pending_final": mrf.interviewer_email_final,
+                "interview_next_management_client": mrf.interviewer_email_management_client,
+                "interview_pending_management_client": mrf.interviewer_email_management_client,
+            }
+            interviewer_email = round_email_map.get(target_stage)
+            if not interviewer_email and target_stage != "interview_pending_1":
+                return Response(
+                    {"error": f"Cannot jump to '{target_stage}'. This interview round does not have an interviewer configured in the MRF."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        old_status = application.status
+        from onboarding.utils.engine import automation_engine
+        ok, error_msg = automation_engine(application, old_status, target_stage, is_jump=True)
+        if not ok:
+            return Response(
+                {"error": f"Failed to jump stage: {error_msg}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Auto-configure Interviewer and slot link for the jumped stage
+        if mrf:
+            interviewer_email = round_email_map.get(target_stage)
+            if interviewer_email:
+                try:
+                    from slots.models import Interviewer
+                    from django.conf import settings
+                    frontend_url = getattr(settings, 'FRONTEND_URL', '')
+                    name = interviewer_email.split("@")[0].replace(".", " ").title()
+                    interviewer, _ = Interviewer.objects.get_or_create(
+                        email=interviewer_email,
+                        defaults={"name": name}
+                    )
+                    application.slot_link = f"{frontend_url}/api/slots/available/?candidate_id={application.id}&interviewer_id={interviewer.id}"
+                    application.inperson_link = f"{frontend_url}/api/inperson/interview/?candidate_id={application.id}&interviewer_id={interviewer.id}"
+                    application.save(update_fields=['slot_link', 'inperson_link'])
+                except Exception as e:
+                    pass
+
+        if reason:
+            user_label = getattr(request.user, 'name', None) or getattr(request.user, 'email', 'User')
+            note_entry = f"\n[Stage Jump by {user_label} from {old_status} to {target_stage}]: {reason}"
+            application.notes = (application.notes or "") + note_entry
+            application.save(update_fields=['notes'])
+
+        serializer = JobApplicationSerializer(application, context={'request': request})
+        return Response({
+            "message": f"Successfully jumped stage from '{old_status}' to '{target_stage}'.",
+            "data": serializer.data
         }, status=status.HTTP_200_OK)
     
     @action(detail=False, methods=['post'])
@@ -1660,7 +1827,7 @@ class JobDropDownListViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data)
 
 class ApplicationPagination(PageNumberPagination):
-    page_size = 300
+    page_size = 100
     page_size_query_param = 'page_size'
     max_page_size = 500
 

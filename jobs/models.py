@@ -1038,6 +1038,7 @@ class Application(models.Model):
 
     is_touched = models.BooleanField(default=False, help_text="Has the candidate been touched at least once?")
     touched_at = models.DateTimeField(null=True, blank=True, help_text="When was the candidate last touched?")
+    is_tagged = models.BooleanField(default=False, help_text="Tagged application without job (department and designation only)")
     is_active = models.BooleanField(default=True, help_text="Is the platform application active?")
 
     created_at = models.DateTimeField(default=timezone.now)

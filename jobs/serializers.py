@@ -1656,7 +1656,7 @@ class ApplicationListSerializer(serializers.ModelSerializer):
                   'candidate_email','candidate_phone','location','match_score','job',
                   'resume_report','is_duplicate','current_employer','created_at','is_rejected',
                   'department', 'designation', 'department_name', 'designation_name',
-                  'status','status_display']
+                  'status','status_display', 'is_tagged']
 
     def get_resume_url(self, obj):
         request = self.context.get('request')

@@ -403,6 +403,94 @@ email_templates = {
         </table>
     </body>
     </html>
+""",
+
+"mrf_auto_rejected": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#ef4444;font-size:24px;font-weight:600;">MRF Auto-Rejected</h2>
+                                <p style="margin:0 0 16px 0;">Dear <strong>{{manager_name}}</strong>,</p>
+                                <p style="margin:0 0 16px 0;">
+                                    The MRF for <strong>{{position}}</strong> raised on 
+                                    <strong>{{requisition_date}}</strong> has been <strong>auto-rejected</strong> 
+                                    by the system as it was on hold for more than 60 days without action.
+                                </p>
+                                <p style="margin:0 0 16px 0;color:#dc2626;background:#fef2f2;padding:12px 16px;border-radius:8px;border-left:4px solid #ef4444;">
+                                    <strong>Reason:</strong> {{rejection_reason}}
+                                </p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Best Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+""",
+
+"mrf_revision_required": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#f59e0b;font-size:24px;font-weight:600;">MRF Marked for Revision</h2>
+                                <p style="margin:0 0 16px 0;">Dear <strong>{{manager_name}}</strong>,</p>
+                                <p style="margin:0 0 16px 0;">
+                                    The MRF for <strong>{{designation}}</strong> has been moved to 
+                                    <strong>Revision Required</strong>. You can now review, edit and resubmit the requisition.
+                                </p>
+                                <p style="margin:25px 0 30px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}" 
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;display:inline-block;">
+                                        Review MRF
+                                    </a>
+                                </p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Best Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
 """
 }
 
@@ -441,6 +529,17 @@ Team HR
 Dear {{manager_name}},
 We would like to inform you that MRF for an Analyst – {{designation}} position was approved on {{date}}.
 Thank you for your support.
+Best regards,
+Team HR
+""",
+"mrf_auto_rejected":f"""Dear {{manager_name}},
+The MRF for {{position}} raised on {{requisition_date}} has been automatically rejected by the system as it was on hold for more than 60 days without action.
+Reason: {{rejection_reason}}
+Best regards,
+Team HR
+""",
+"mrf_revision_required":f"""Dear {{manager_name}},
+The MRF for {{designation}} has been marked for revision. You may now review, edit, and resubmit the MRF.
 Best regards,
 Team HR
 """
@@ -920,3 +1019,85 @@ def is_valid_uuid(uuid_string):
         return True
     except ValueError:
         return False
+
+def auto_reject_stale_held_mrfs():
+    """
+    Daily task: auto-reject any MRF that has been on hold for > 60 days.
+    Creates an MRFApproval audit record and sends an email to the requester.
+    """
+    from .models import MRF, MRFApproval
+    from django.utils import timezone
+    from datetime import timedelta
+    from django.db import transaction
+    from onboarding.utils.sender import send_email, send_text
+
+    cutoff = timezone.now() - timedelta(days=60)
+    stale_mrfs = MRF.objects.filter(
+        status='on_hold',
+        held_at__lt=cutoff,
+        is_active=True
+    ).select_related('requested_by', 'held_by', 'company', 'designation')
+
+    REJECTION_REASON = "Auto-rejected: MRF was on hold for more than 60 days without action."
+    now = timezone.now()
+    count = 0
+
+    for mrf in stale_mrfs:
+        approver = mrf.held_by or mrf.requested_by
+        try:
+            with transaction.atomic():
+                mrf.status = 'rejected'
+                mrf.rejected_at = now
+                mrf.hold_reason = ''
+                mrf.previous_status = None
+                mrf.held_at = None
+                mrf.held_by = None
+                mrf.save(update_fields=[
+                    'status', 'rejected_at', 'hold_reason',
+                    'previous_status', 'held_at', 'held_by', 'updated_at'
+                ])
+
+                MRFApproval.objects.create(
+                    company=mrf.company,
+                    mrf=mrf,
+                    level=mrf.current_approval_level,
+                    approver=approver,
+                    action='rejected',
+                    rejection_reason=REJECTION_REASON,
+                    comments='System auto-rejection after 60 days on hold.',
+                )
+
+            # Send email to requester
+            requester = mrf.requested_by
+            if requester and requester.email and not mrf.is_private:
+                pos_name = mrf.designation.name if mrf.designation else mrf.mrf_name
+                created_date_str = mrf.created_at.strftime("%B %d, %Y") if mrf.created_at else "N/A"
+                tmpl = email_templates.get("mrf_auto_rejected", "").format(
+                    manager_name=requester.name,
+                    position=pos_name,
+                    requisition_date=created_date_str,
+                    rejection_reason=REJECTION_REASON,
+                )
+                txt = alt_text.get("mrf_auto_rejected", "").format(
+                    manager_name=requester.name,
+                    position=pos_name,
+                    requisition_date=created_date_str,
+                    rejection_reason=REJECTION_REASON,
+                )
+                send_email(
+                    to=requester.email,
+                    subject=f"MRF Auto-Rejected – {pos_name}",
+                    template=tmpl,
+                    text=txt,
+                    event="mrf_auto_rejected",
+                    email_type="internal",
+                )
+                if requester.phone:
+                    send_text(to=requester.phone, text=txt)
+
+            count += 1
+        except Exception as e:
+            print(f"[AUTO-REJECT] Failed for MRF {mrf.id}: {e}")
+
+    print(f"[AUTO-REJECT] Auto-rejected {count} stale on-hold MRF(s).")
+    return count

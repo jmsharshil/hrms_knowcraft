@@ -858,9 +858,147 @@ def parse_resume_task(application,resume_file,job):
         application.save()
     
     if application.is_duplicate:
-        automation_engine(application,application.status,'duplicate_rejected')
+        if (
+            application.application_link
+            or application.source in ['application_link', 'consultancy']
+            or getattr(getattr(application, 'submitted_by', None), 'role', None) == 'consultancy'
+        ):
+            _handle_duplicate_candidate_submission(application, name, email, job)
+        else:
+            automation_engine(application, application.status, 'duplicate_rejected')
     elif application.match_score >= 75:
-        automation_engine(application,application.status,'shortlisted')
+        automation_engine(application, application.status, 'shortlisted')
+
+def _handle_duplicate_candidate_submission(application, candidate_name, candidate_email, job):
+    """
+    When duplicate CV (< 6 months) is submitted via public apply / application link or consultancy:
+    1. Send branded notification email to uploader user (consultancy, link creator, or referral contact).
+    2. Delete uploaded resume file and report file from storage.
+    3. Decrement link applications count (if submitted via link).
+    4. Delete JobApplication record from portal completely (do not save).
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    try:
+        link = getattr(application, 'application_link', None)
+        uploader_recipients = []
+
+        # 1. Direct submitter (consultancy user or portal user)
+        submitted_by = getattr(application, 'submitted_by', None)
+        if submitted_by and submitted_by.email:
+            uploader_recipients.append((submitted_by.name or "Partner", submitted_by.email))
+
+        # 2. Application link creator
+        if link and link.created_by and link.created_by.email:
+            creator_tuple = (link.created_by.name or "User", link.created_by.email)
+            if creator_tuple not in uploader_recipients:
+                uploader_recipients.append(creator_tuple)
+
+        # 3. Referral contact
+        referral_email = getattr(application, 'referral_email', None)
+        if referral_email:
+            ref_tuple = (getattr(application, 'referral_name', None) or "Colleague", referral_email)
+            if ref_tuple not in uploader_recipients:
+                uploader_recipients.append(ref_tuple)
+
+        # 4. If source is consultancy and no recipient found yet, check assigned consultancy on job
+        if (application.source == 'consultancy' or getattr(submitted_by, 'role', None) == 'consultancy') and not uploader_recipients:
+            if job and job.assigned_to_consultancy and job.assigned_to_consultancy.email:
+                uploader_recipients.append((job.assigned_to_consultancy.name or "Consultancy Partner", job.assigned_to_consultancy.email))
+            if job and hasattr(job, 'assigned_consultancies'):
+                for c in job.assigned_consultancies.all():
+                    if c.email and (c.name or "Consultancy Partner", c.email) not in uploader_recipients:
+                        uploader_recipients.append((c.name or "Consultancy Partner", c.email))
+
+        # 5. Fallback: if still no recipient, notify job creator / HR
+        if not uploader_recipients and job and job.posted_by and job.posted_by.email:
+            uploader_recipients.append((job.posted_by.name or "HR", job.posted_by.email))
+
+        job_title = job.job_title if job else "the position"
+
+        for uploader_name, uploader_email in uploader_recipients:
+            subject = f"Duplicate Resume Not Accepted – {candidate_name} ({job_title})"
+            template = f"""
+            <html>
+            <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+                <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+                    <tr>
+                        <td align="center" style="padding:30px 15px;">
+                            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                                <tr>
+                                    <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                        <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                                    </td>
+                                </tr>
+                                <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                                <tr>
+                                    <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
+                                        <h2 style="margin:0 0 22px 0;color:#ef4444;font-size:22px;font-weight:600;">Duplicate Resume Not Accepted</h2>
+                                        <p style="margin:0 0 16px 0;">Dear <strong>{uploader_name}</strong>,</p>
+                                        <p style="margin:0 0 16px 0;">
+                                            The resume for candidate <strong>{candidate_name}</strong> ({candidate_email}) submitted for 
+                                            position <strong>{job_title}</strong> has already been received within the last 6 months.
+                                        </p>
+                                        <p style="margin:0 0 16px 0;background:#fef2f2;padding:12px 16px;border-radius:8px;border-left:4px solid #ef4444;color:#991b1b;">
+                                            As per our recruitment policy, duplicate candidate submissions within a 6-month period cannot be accepted. 
+                                            This uploaded CV has <strong>not been accepted</strong> and has been <strong>removed from the portal</strong>.
+                                        </p>
+                                        <p style="margin:20px 0 6px 0;color:#555555;">Best Regards,</p>
+                                        <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                        <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                        © 2026 Knowcraft Analytics Private Limited • Confidential
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+            """
+            text = f"""Dear {uploader_name},
+
+The resume for candidate {candidate_name} ({candidate_email}) submitted for position {job_title} has already been received within the last 6 months.
+
+As per our recruitment policy, duplicate candidate submissions within a 6-month period cannot be accepted. This uploaded CV has not been accepted and has been removed from the portal.
+
+Best regards,
+Team HR
+Knowcraft Analytics Private Limited
+"""
+            send_email(
+                to=uploader_email,
+                subject=subject,
+                template=template,
+                text=text,
+                event="duplicate_cv_rejected",
+                email_type="internal"
+            )
+
+        # Remove uploaded files from storage
+        try:
+            if application.resume:
+                application.resume.delete(save=False)
+            if application.resume_report:
+                application.resume_report.delete(save=False)
+        except Exception as e:
+            logger.warning(f"Could not delete files for duplicate application {application.id}: {e}")
+
+        # Decrement link count if submitted via link
+        if link and link.applications_count > 0:
+            link.applications_count = max(0, link.applications_count - 1)
+            link.save(update_fields=['applications_count'])
+
+        # Remove record completely from portal
+        application.delete()
+        logger.info(f"Duplicate application for {candidate_name} ({candidate_email}) removed from portal.")
+    except Exception as e:
+        logger.exception(f"Error handling duplicate candidate submission: {e}")
 
 def build_candidate_history(email, exclude_application_id=None):
     qs = JobApplication.objects.filter(
