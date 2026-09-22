@@ -1044,6 +1044,15 @@ class Application(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now)
 
+    def save(self, *args, **kwargs):
+        if not self.job_id and (self.department_id or self.designation_id):
+            self.is_tagged = True
+            if 'update_fields' in kwargs and kwargs['update_fields'] is not None:
+                fields = set(kwargs['update_fields'])
+                fields.add('is_tagged')
+                kwargs['update_fields'] = list(fields)
+        super().save(*args, **kwargs)
+
     def soft_delete(self):
         """Soft delete this platform application (sets is_active=False)."""
         self.is_active = False

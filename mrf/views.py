@@ -503,9 +503,9 @@ class MRFViewSet(viewsets.ModelViewSet):
         """Submit MRF for approval"""
         mrf = self.get_object()
         
-        if mrf.status not in ['draft', 'revision_required']:
+        if mrf.status not in ['draft', 'revision_required', 'rejected']:
             return Response(
-                {'error': 'MRF can only be submitted from draft or revision_required status'},
+                {'error': 'MRF can only be submitted from draft, revision_required, or rejected status'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         

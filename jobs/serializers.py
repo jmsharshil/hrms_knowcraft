@@ -1530,6 +1530,7 @@ class GeneralApplicationCreateSerializer(serializers.ModelSerializer):
                     resume=file,
                     original_filename=file.name,
                     file_size=file.size,
+                    is_tagged=True,
                 )
                 created.append(app)
                 

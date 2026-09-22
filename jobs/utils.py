@@ -903,19 +903,40 @@ def _handle_duplicate_candidate_submission(application, candidate_name, candidat
                 uploader_recipients.append(ref_tuple)
 
         # 4. If source is consultancy and no recipient found yet, check assigned consultancy on job
-        if (application.source == 'consultancy' or getattr(submitted_by, 'role', None) == 'consultancy') and not uploader_recipients:
-            if job and job.assigned_to_consultancy and job.assigned_to_consultancy.email:
+        app_source = getattr(application, 'source', None)
+        if (app_source == 'consultancy' or getattr(submitted_by, 'role', None) == 'consultancy') and not uploader_recipients:
+            if job and getattr(job, 'assigned_to_consultancy', None) and job.assigned_to_consultancy.email:
                 uploader_recipients.append((job.assigned_to_consultancy.name or "Consultancy Partner", job.assigned_to_consultancy.email))
             if job and hasattr(job, 'assigned_consultancies'):
                 for c in job.assigned_consultancies.all():
                     if c.email and (c.name or "Consultancy Partner", c.email) not in uploader_recipients:
                         uploader_recipients.append((c.name or "Consultancy Partner", c.email))
 
-        # 5. Fallback: if still no recipient, notify job creator / HR
-        if not uploader_recipients and job and job.posted_by and job.posted_by.email:
-            uploader_recipients.append((job.posted_by.name or "HR", job.posted_by.email))
+        # 5. Internal HRs or job poster
+        if not uploader_recipients and job:
+            if getattr(job, 'assigned_to_internal_hr', None) and job.assigned_to_internal_hr.email:
+                uploader_recipients.append((job.assigned_to_internal_hr.name or "HR", job.assigned_to_internal_hr.email))
+            if hasattr(job, 'assigned_internal_hrs'):
+                for hr in job.assigned_internal_hrs.all():
+                    if hr.email and (hr.name or "HR", hr.email) not in uploader_recipients:
+                        uploader_recipients.append((hr.name or "HR", hr.email))
+            if getattr(job, 'posted_by', None) and job.posted_by.email:
+                if (job.posted_by.name or "HR", job.posted_by.email) not in uploader_recipients:
+                    uploader_recipients.append((job.posted_by.name or "HR", job.posted_by.email))
 
-        job_title = job.job_title if job else "the position"
+        # 6. Fallback: if no internal recipient found (e.g. public candidate apply, career page, unassigned Application), notify candidate
+        if not uploader_recipients and candidate_email:
+            uploader_recipients.append((candidate_name or "Applicant", candidate_email))
+
+        job_title = "the position"
+        if job and getattr(job, 'job_title', None):
+            job_title = job.job_title
+        elif getattr(application, 'designation', None) and getattr(application.designation, 'name', None):
+            job_title = application.designation.name
+        elif getattr(application, 'position_title', None):
+            job_title = application.position_title
+        elif getattr(application, 'department', None) and getattr(application.department, 'name', None):
+            job_title = f"{application.department.name} Department"
 
         for uploader_name, uploader_email in uploader_recipients:
             subject = f"Duplicate Resume Not Accepted – {candidate_name} ({job_title})"
@@ -982,15 +1003,15 @@ Knowcraft Analytics Private Limited
 
         # Remove uploaded files from storage
         try:
-            if application.resume:
+            if hasattr(application, 'resume') and application.resume:
                 application.resume.delete(save=False)
-            if application.resume_report:
+            if hasattr(application, 'resume_report') and application.resume_report:
                 application.resume_report.delete(save=False)
         except Exception as e:
             logger.warning(f"Could not delete files for duplicate application {application.id}: {e}")
 
         # Decrement link count if submitted via link
-        if link and link.applications_count > 0:
+        if link and getattr(link, 'applications_count', 0) > 0:
             link.applications_count = max(0, link.applications_count - 1)
             link.save(update_fields=['applications_count'])
 
@@ -1362,7 +1383,7 @@ def send_job_unassignment_email(user, job, assigned_by):
 
 
 def pre_parse_resume_task(application,resume_file,job):
-    if not job:
+    if not job and not getattr(application, 'is_tagged', False):
         # Try to find a matching job based on department/designation
         from .models import Job
         job_query = Job.objects.filter(is_active=True)
@@ -1454,6 +1475,9 @@ def pre_parse_resume_task(application,resume_file,job):
         application.is_duplicate = duplicated
         application.candidate_history = history
         application.save()
+
+    if application.is_duplicate:
+        _handle_duplicate_candidate_submission(application, name, email, job)
 
 from .models import Application,Job
 from django.db.models import Q

@@ -1409,7 +1409,7 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Auto-configure Interviewer and slot link for the jumped stage
+        # Auto-configure Interviewer, slot link, and round_name for the jumped stage
         if mrf:
             interviewer_email = round_email_map.get(target_stage)
             if interviewer_email:
@@ -1424,7 +1424,23 @@ class JobApplicationViewSet(viewsets.ModelViewSet):
                     )
                     application.slot_link = f"{frontend_url}/api/slots/available/?candidate_id={application.id}&interviewer_id={interviewer.id}"
                     application.inperson_link = f"{frontend_url}/api/inperson/interview/?candidate_id={application.id}&interviewer_id={interviewer.id}"
-                    application.save(update_fields=['slot_link', 'inperson_link'])
+
+                    # Set round_name based on target stage (matches INTERVIEW_CHOICES)
+                    STAGE_TO_ROUND_NAME = {
+                        "interview_pending_1": "hr_round",
+                        "interview_next_2": "technical_round",
+                        "interview_pending_2": "technical_round",
+                        "interview_next_3": "case_study_round",
+                        "interview_pending_3": "case_study_round",
+                        "interview_next_final": "final_round",
+                        "interview_pending_final": "final_round",
+                        "interview_next_management_client": "management_client_round",
+                        "interview_pending_management_client": "management_client_round",
+                    }
+                    round_name_val = STAGE_TO_ROUND_NAME.get(target_stage)
+                    if round_name_val:
+                        application.round_name = round_name_val
+                    application.save(update_fields=['slot_link', 'inperson_link', 'round_name'])
                 except Exception as e:
                     pass
 

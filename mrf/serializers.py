@@ -271,14 +271,14 @@ class MRFListSerializer(serializers.ModelSerializer):
         if not request or not request.user.is_authenticated:
             return False
         user = request.user
-        # Only creator can edit in draft or revision_required status
-        return (obj.requested_by == user or user.role in ['hr_manager','admin']) and obj.status in ['draft', 'revision_required','approved']
+        # Only creator can edit in draft, revision_required, or rejected status
+        return (obj.requested_by == user or user.role in ['hr_manager','admin']) and obj.status in ['draft', 'revision_required', 'rejected', 'approved']
 
     def get_can_submit(self, obj):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             return False
-        return obj.status in ['draft','revision_required']
+        return obj.status in ['draft', 'revision_required', 'rejected']
     
     def get_hr_round_set(self, obj):
         request = self.context.get('request')
@@ -364,15 +364,15 @@ class MRFDetailSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             return False
-        return obj.status in ['draft','revision_required']
+        return obj.status in ['draft', 'revision_required', 'rejected']
     
     def get_can_edit(self, obj):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             return False
         user = request.user
-        # Only creator can edit in draft or revision_required status
-        return (obj.requested_by == user or user.role in ['hr_manager','admin']) and obj.status in ['draft', 'revision_required','approved']
+        # Only creator can edit in draft, revision_required, or rejected status
+        return (obj.requested_by == user or user.role in ['hr_manager','admin']) and obj.status in ['draft', 'revision_required', 'rejected', 'approved']
     
     def get_can_update_interviewers(self, obj):
         request = self.context.get('request')
@@ -578,7 +578,7 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
     
     def update(self, instance, validated_data):
         # Store previous data for revision tracking
-        if instance.status == 'revision_required':
+        if instance.status in ['revision_required', 'rejected']:
             previous_data = {
                 'department': str(instance.department.id),
                 'designation': str(instance.designation.id),
@@ -595,7 +595,7 @@ class MRFCreateUpdateSerializer(serializers.ModelSerializer):
             )
         
         # Don't allow workflow_template or is_private change if it's already submitted/approved
-        if instance.status not in ['draft', 'revision_required']:
+        if instance.status not in ['draft', 'revision_required', 'rejected']:
             validated_data.pop('workflow_template', None)
         validated_data.pop('is_private', None)
         validated_data.pop('private_approval_levels', None)
