@@ -2060,3 +2060,200 @@ class ApplicationViewSet(viewsets.GenericViewSet):
             'sent': sent_count,
             'failed': failed
         }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def add_note(self, request):
+        """
+        POST /api/platform-applications/add_note/
+        Add a note to one or many Applications, optionally tag them.
+
+        Body:
+        {
+            "candidate_ids": ["<uuid>", ...],   # required (list). Also accepts "candidate_id" for single.
+            "note": "Your note text",           # required
+            "tag": true                         # optional – true/false/omit (omit = don't touch is_tagged)
+        }
+
+        Response:
+        {
+            "message": "Note added to 3 application(s).",
+            "updated": 3,
+            "failed": 0,
+            "results": [
+                {"candidate_id": "...", "status": "ok"},
+                {"candidate_id": "...", "status": "error", "detail": "Not found."}
+            ]
+        }
+        """
+        candidate_ids = request.data.get('candidate_ids') or []
+        single_id = request.data.get('candidate_id') or request.query_params.get('candidate_id')
+        if single_id and not candidate_ids:
+            candidate_ids = [single_id]
+
+        note_text = request.data.get('note', '').strip()
+        should_tag = request.data.get('tag', None)  # None → leave is_tagged as-is
+
+        if not candidate_ids:
+            return Response(
+                {'error': 'candidate_ids (list) or candidate_id is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if not note_text:
+            return Response(
+                {'error': 'note text is required and cannot be blank.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        author = request.user
+        author_name = getattr(author, 'name', None) or getattr(author, 'email', 'Unknown')
+        now = timezone.now()
+        note_entry = {
+            'text': note_text,
+            'author_name': author_name,
+            'author_id': str(author.id),
+            'timestamp': now.isoformat(),
+        }
+
+        results = []
+        updated_count = 0
+        failed_count = 0
+
+        for cid in candidate_ids:
+            try:
+                app = Application.objects.get(id=cid)
+
+                current_notes = app.notes if isinstance(app.notes, list) else []
+                app.notes = [note_entry] + current_notes  # newest first
+                app.updated_at = now
+                update_fields = ['notes', 'updated_at']
+
+                if should_tag is True:
+                    app.is_tagged = True
+                    update_fields.append('is_tagged')
+                elif should_tag is False:
+                    app.is_tagged = False
+                    update_fields.append('is_tagged')
+
+                app.save(update_fields=update_fields)
+                results.append({'candidate_id': str(cid), 'status': 'ok'})
+                updated_count += 1
+
+            except Application.DoesNotExist:
+                results.append({'candidate_id': str(cid), 'status': 'error', 'detail': 'Not found.'})
+                failed_count += 1
+            except Exception as e:
+                results.append({'candidate_id': str(cid), 'status': 'error', 'detail': str(e)})
+                failed_count += 1
+
+        http_status = status.HTTP_200_OK if updated_count > 0 else status.HTTP_400_BAD_REQUEST
+        return Response({
+            'message': f'Note added to {updated_count} application(s).',
+            'updated': updated_count,
+            'failed': failed_count,
+            'results': results,
+        }, status=http_status)
+
+    # ─────────────────────────────────────────────────────────────
+    # TAG / UNTAG
+    # ─────────────────────────────────────────────────────────────
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def tag(self, request):
+        """
+        POST /api/platform-applications/tag/
+        Tag or untag one or many platform Applications, with an optional note.
+
+        Body:
+        {
+            "candidate_ids": ["<uuid>", ...],   # required (list). Also accepts "candidate_id" for single.
+            "is_tagged": true,                  # required – true to tag, false to untag
+            "note": "Optional reason"           # optional
+        }
+
+        Response:
+        {
+            "message": "3 application(s) tagged successfully.",
+            "updated": 3,
+            "failed": 0,
+            "results": [
+                {"candidate_id": "...", "status": "ok", "is_tagged": true},
+                {"candidate_id": "...", "status": "error", "detail": "..."}
+            ]
+        }
+        """
+        candidate_ids = request.data.get('candidate_ids') or []
+        single_id = request.data.get('candidate_id') or request.query_params.get('candidate_id')
+        if single_id and not candidate_ids:
+            candidate_ids = [single_id]
+
+        is_tagged_val = request.data.get('is_tagged')
+        note_text = request.data.get('note', '').strip()
+
+        if not candidate_ids:
+            return Response(
+                {'error': 'candidate_ids (list) or candidate_id is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if is_tagged_val is None:
+            return Response(
+                {'error': 'is_tagged (true/false) is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        author = request.user
+        author_name = getattr(author, 'name', None) or getattr(author, 'email', 'Unknown')
+        new_tagged = bool(is_tagged_val)
+        action_label = 'Tagged' if new_tagged else 'Untagged'
+        now = timezone.now()
+
+        auto_text = f"{action_label} by {author_name}"
+        if note_text:
+            auto_text += f": {note_text}"
+
+        results = []
+        updated_count = 0
+        failed_count = 0
+
+        for cid in candidate_ids:
+            try:
+                app = Application.objects.get(id=cid)
+                old_tagged = app.is_tagged
+                app.is_tagged = new_tagged
+                app.updated_at = now
+                update_fields = ['is_tagged', 'updated_at']
+
+                # Write a note whenever the tag state changes OR caller supplied a manual note
+                if old_tagged != new_tagged or note_text:
+                    note_entry = {
+                        'text': auto_text,
+                        'author_name': author_name,
+                        'author_id': str(author.id),
+                        'timestamp': now.isoformat(),
+                    }
+                    current_notes = app.notes if isinstance(app.notes, list) else []
+                    app.notes = [note_entry] + current_notes
+                    update_fields.append('notes')
+
+                app.save(update_fields=update_fields)
+                results.append({
+                    'candidate_id': str(cid),
+                    'status': 'ok',
+                    'is_tagged': app.is_tagged,
+                })
+                updated_count += 1
+
+            except Application.DoesNotExist:
+                results.append({'candidate_id': str(cid), 'status': 'error', 'detail': 'Not found.'})
+                failed_count += 1
+            except Exception as e:
+                results.append({'candidate_id': str(cid), 'status': 'error', 'detail': str(e)})
+                failed_count += 1
+
+        http_status = status.HTTP_200_OK if updated_count > 0 else status.HTTP_400_BAD_REQUEST
+        return Response({
+            'message': f"{updated_count} application(s) {'tagged' if new_tagged else 'untagged'} successfully.",
+            'updated': updated_count,
+            'failed': failed_count,
+            'results': results,
+        }, status=http_status)
+

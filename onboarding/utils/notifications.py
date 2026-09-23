@@ -1878,7 +1878,8 @@ def notify_internal(candidate: Any, stage: str, cc: list = None) -> bool:
             template = template_base.format(
                 candidate=candidate,
                 feedback_link=feedback_link,
-                reciever_name=reciever_name
+                reciever_name=reciever_name,
+                FRONTEND_URL=FRONTEND_URL
             )
 
             send_email(email, subject=subject, text=body, template=template,event="onboarding_stage_update",email_type="internal")

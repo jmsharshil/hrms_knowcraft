@@ -737,7 +737,7 @@ class MRFViewSet(viewsets.ModelViewSet):
                 if mrf.requested_by.phone:
                     send_text(to=mrf.requested_by.phone, text=text)
             
-            message = 'MRF rejected.'
+            message = 'MRF rejected. Department head can revise and resubmit.'
         
         serializer = MRFDetailSerializer(mrf, context={'request': request})
         return Response({

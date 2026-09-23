@@ -990,7 +990,11 @@ class Application(models.Model):
     original_filename = models.CharField(max_length=255, blank=True)
     file_size = models.PositiveIntegerField(default=0)
 
-    notes = models.TextField(blank=True)
+    notes = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Structured note entries: [{text, author_name, author_id, timestamp}]"
+    )
     position_title = models.CharField(null=True, blank=True)
 
     candidate_name = models.CharField(max_length=255, blank=True)
