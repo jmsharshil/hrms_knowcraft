@@ -125,6 +125,7 @@ class MRFAdmin(admin.ModelAdmin):
     readonly_fields = []
     filter_horizontal = ('selected_viewers', 'technical_interviewers')
     inlines = [PrivateMRFApprovalLevelInline, MRFApprovalInline, MRFRevisionInline]
+    actions = ['mrf_auto_reject_held']
     
     fieldsets = (
         ('Workflow & Status', {
@@ -196,6 +197,13 @@ class MRFAdmin(admin.ModelAdmin):
         }),
     )
 
+    def mrf_auto_reject_held(self, request, queryset):
+        """Action to execute mrf_auto_reject_held method."""
+        from .utils import auto_reject_stale_held_mrfs
+        count = auto_reject_stale_held_mrfs()
+        self.message_user(request, f"Auto-reject task executed. Processed {count} stale on-hold MRF(s).")
+
+    mrf_auto_reject_held.short_description = "Run auto-reject on held MRFs (mrf_auto_reject_held)"
 
 @admin.register(MRFApproval)
 class MRFApprovalAdmin(admin.ModelAdmin):
