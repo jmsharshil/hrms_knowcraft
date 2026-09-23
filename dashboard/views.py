@@ -696,6 +696,29 @@ class BaseAnalyticsView(APIView):
             }
             for r in rejections
         ]
+
+        # Summary of on-hold MRFs per level
+        hold_summary = mrf_qs.filter(status='on_hold').values('current_approval_level').annotate(count=Count('id')).order_by('current_approval_level')
+        section1['mrf_on_hold_summary'] = [{'level': h['current_approval_level'], 'total_on_hold': h['count']} for h in hold_summary]
+
+        # Detailed on-hold MRFs
+        held_mrfs = mrf_qs.filter(status='on_hold').select_related('held_by').values(
+            'current_approval_level', 'hold_reason', 'mrf_name', 'held_at', 'updated_at', 'held_by__name', 'previous_status', 'requisition_no'
+        ).order_by('-held_at', '-updated_at')
+
+        section1['mrf_on_hold_reasons'] = [
+            {
+                'approver_level': h['current_approval_level'],
+                'mrf_name': h['mrf_name'],
+                'requisition_no': h['requisition_no'] or 'N/A',
+                'held_by': h['held_by__name'] or 'System/Unknown',
+                'reason': h['hold_reason'] or 'No reason provided',
+                'previous_status': h['previous_status'] or 'N/A',
+                'date': (h['held_at'] or h['updated_at']).strftime('%Y-%m-%d %H:%M') if (h['held_at'] or h['updated_at']) else 'N/A'
+            }
+            for h in held_mrfs
+        ]
+        section1['mrf_on_hold_details'] = section1['mrf_on_hold_reasons']
         return section1
 
     def calc_job_assignment_analytics(self, job_qs, user_role=None, target_user_ids=None, user=None):
@@ -2773,6 +2796,30 @@ class DashboardExportAPIView(BaseAnalyticsView):
             ws2.append(["Level", "Avg Time (Days)"])
             for f in mrf_data.get("approval_funnel", []):
                 ws2.append([f.get("level"), f.get("avg_time_days", 0)])
+            ws2.append([])
+            ws2.append(["--- On-Hold MRF Details ---"])
+            ws2.append(["Level", "MRF Name", "Req No", "Held By", "Previous Status", "Reason", "Date"])
+            for h in mrf_data.get("mrf_on_hold_details", []):
+                ws2.append([
+                    h.get("approver_level"),
+                    h.get("mrf_name"),
+                    h.get("requisition_no"),
+                    h.get("held_by"),
+                    h.get("previous_status"),
+                    h.get("reason"),
+                    h.get("date"),
+                ])
+            ws2.append([])
+            ws2.append(["--- MRF Rejection Details ---"])
+            ws2.append(["Level", "MRF Name", "Rejected By", "Reason", "Date"])
+            for r in mrf_data.get("mrf_rejection_reasons", []):
+                ws2.append([
+                    r.get("approver_level"),
+                    r.get("mrf_name"),
+                    r.get("rejected_by"),
+                    r.get("reason"),
+                    r.get("date"),
+                ])
             self._style_header(ws2)
             self._auto_width(ws2)
         except Exception:
