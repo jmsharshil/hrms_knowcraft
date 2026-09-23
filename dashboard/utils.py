@@ -426,7 +426,7 @@ def calc_offer_analytics(apps_qs):
 # ──────────────────────────────────────────────────────────────
 # 9. RECRUITER PRODUCTIVITY & WORKLOAD
 # ──────────────────────────────────────────────────────────────
-def calc_recruiter_productivity(apps_qs, target_user_id=None):
+def calc_recruiter_productivity(apps_qs, target_user_ids=None):
     """
     Per recruiter (HR user who submitted CVs):
       - total CVs submitted
@@ -439,8 +439,8 @@ def calc_recruiter_productivity(apps_qs, target_user_id=None):
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     recruiter_filter = Q(submitted_by__isnull=False)
-    if target_user_id:
-        recruiter_filter &= Q(submitted_by__id=target_user_id)
+    if target_user_ids:
+        recruiter_filter &= Q(submitted_by__id__in=target_user_ids)
 
     recruiter_stats = (
         apps_qs

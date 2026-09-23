@@ -9,7 +9,7 @@ from dateutil import parser
 from django.utils import timezone
 from django.db.models import Count, Avg, Q, F, Sum, Case, When, IntegerField, FloatField, ExpressionWrapper, DurationField, OuterRef, Subquery
 from django.contrib.postgres.aggregates import ArrayAgg
-from django.db.models.functions import TruncMonth, TruncDate
+from django.db.models.functions import TruncMonth, TruncDate, Coalesce
 from datetime import timedelta
 from collections import defaultdict
 import statistics
@@ -66,13 +66,16 @@ def safe_parse_date(date_str):
     """
     Parses a date string into a date object.
     Handles single-digit months/days like 2026-5-1 correctly.
+    Also strips time components from ISO 8601 strings like 2026-03-01T00:00:00Z.
     """
     if not date_str:
         return None
     try:
         from datetime import datetime
+        # Strip any time component before processing (handles ISO 8601 datetimes)
+        date_only = date_str.strip().split('T')[0].split(' ')[0]
         # Normalize by splitting and zero-padding each part
-        parts = date_str.strip().replace('/', '-').split('-')
+        parts = date_only.replace('/', '-').split('-')
         if len(parts) == 3:
             if len(parts[0]) == 4:
                 # Format: YYYY-M-D or YYYY-MM-DD
@@ -209,8 +212,9 @@ class DashboardAPIView(APIView):
             except (Department.DoesNotExist, ValidationError, ValueError):
                 referral_filter &= Q(referral_department=department_id)
         
-        if user_id:
-            referral_filter &= Q(referral_emp_code=user_id)
+        if user_id and target_user:
+            # Filter by referrer email (correct field) instead of UUID
+            referral_filter &= Q(referral_email=target_user.email)
             
         referral_qs = ReferralApplication.objects.filter(referral_filter).distinct()
 
@@ -261,8 +265,8 @@ class DashboardAPIView(APIView):
         assigned_jobs_list = []
         if user_id:
             # Annotate with application count
-            annotated_jobs = jobs_qs.annotate(
-                number_of_applications=Count('jobapplication')  # Adjust relation name if needed (e.g., 'applications')
+            annotated_jobs = jobs_qs.select_related('department').annotate(
+                number_of_applications=Count('applications')  # related_name='applications' on JobApplication.job
             ).order_by('-created_at')[:50]  # Recent first, limit 50
 
             for job in annotated_jobs:
@@ -361,12 +365,33 @@ class BaseAnalyticsView(APIView):
             date_filter &= Q(created_at__lte=dt_to)
 
         # User filter Q (validation)
-        target_user = None
-        if user_id:
+        # Supports both ?user_id=X (single, backward-compat) and ?user_ids=X,Y,Z (multi-user)
+        target_user = None       # single target (kept for backward compat)
+        target_users = []        # list of all target users
+        target_user_ids = []     # list of raw UUIDs
+
+        raw_user_ids = request.query_params.getlist('user_ids')  # ?user_ids=X&user_ids=Y
+        if not raw_user_ids:
+            # Support comma-separated: ?user_ids=X,Y,Z
+            raw_user_ids = [uid.strip() for uid in request.query_params.get('user_ids', '').split(',') if uid.strip()]
+        # Backward compat: ?user_id=X
+        single_user_id = request.query_params.get('user_id')
+        if not raw_user_ids and single_user_id:
+            raw_user_ids = [single_user_id]
+
+        for uid in raw_user_ids:
             try:
-                target_user = User.objects.get(id=user_id, company=company)
+                u = User.objects.get(id=uid, company=company)
+                target_users.append(u)
+                target_user_ids.append(uid)
             except User.DoesNotExist:
-                return None, "Invalid user_id"
+                return None, f"Invalid user_id: {uid}"
+
+        if target_users:
+            target_user = target_users[0]  # primary target (backward compat for single)
+
+        # Determine if ALL selected users are consultancies (hide internal sections)
+        all_consultancy = bool(target_users) and all(u.role == 'consultancy' for u in target_users)
 
         # 3. MRF queryset (Filtered by Period Activity)
         # Admins and HR managers see all records including private ones
@@ -375,14 +400,21 @@ class BaseAnalyticsView(APIView):
             mrf_base_filter &= Q(department_id=department_id)
         if designation_id:
             mrf_base_filter &= Q(designation_id=designation_id)
-        if user_id:
-            mrf_base_filter &= (Q(requested_by_id=user_id) | Q(approvals__approver_id=user_id))
-        
+        if target_user_ids and not all_consultancy:
+            # For consultancy-only targets, MRF section is skipped entirely later;
+            # for others, filter MRFs they requested or approved
+            mrf_base_filter &= (
+                Q(requested_by_id__in=target_user_ids) |
+                Q(approvals__approver_id__in=target_user_ids)
+            )
+        elif all_consultancy:
+            # Consultancies don't raise MRFs; return empty
+            mrf_base_filter &= Q(id=None)
+
         mrf_qs = MRF.objects.filter(mrf_base_filter & date_filter).distinct()
 
         # 4. Job queryset
         # Base filter includes company, role, dept, desig, and user but NO date
-        # Admins and HR managers see all records including private ones
         job_base_filter = Q(company=company) & role_job_q & Q(is_active=True)
         if job_id:
             job_base_filter &= Q(id=job_id)
@@ -390,79 +422,107 @@ class BaseAnalyticsView(APIView):
             job_base_filter &= Q(department_id=department_id)
         if designation_id:
             job_base_filter &= Q(designation_id=designation_id)
-        if user_id:
-            if target_user.role == 'consultancy':
-                job_base_filter &= (Q(assigned_to_consultancy_id=user_id) | Q(assigned_consultancies__id=user_id))
-            elif target_user.role in ['hr', 'hr_manager']:
-                job_base_filter &= (Q(assigned_to_internal_hr_id=user_id) | Q(assigned_internal_hrs__id=user_id) | Q(posted_by_id=user_id))
-            else:
-                assignment_q = (
-                    Q(assigned_to_consultancy_id=user_id) |
-                    Q(assigned_consultancies__id=user_id) |
-                    Q(assigned_to_internal_hr_id=user_id) |
-                    Q(assigned_internal_hrs__id=user_id) |
-                    Q(assigned_by_id=user_id) |
-                    Q(posted_by_id=user_id) |
-                    Q(closed_by_id=user_id)
-                )
-                job_base_filter &= assignment_q
-        
+        if target_user_ids:
+            # Build a union Q across all selected users by role
+            assignment_q = Q(id=None)
+            for tu in target_users:
+                uid = str(tu.id)
+                if tu.role == 'consultancy':
+                    assignment_q |= (
+                        Q(assigned_to_consultancy_id=uid) |
+                        Q(assigned_consultancies__id=uid)
+                    )
+                elif tu.role in ['hr', 'hr_manager']:
+                    assignment_q |= (
+                        Q(assigned_to_internal_hr_id=uid) |
+                        Q(assigned_internal_hrs__id=uid) |
+                        Q(posted_by_id=uid)
+                    )
+                else:
+                    assignment_q |= (
+                        Q(assigned_to_consultancy_id=uid) |
+                        Q(assigned_consultancies__id=uid) |
+                        Q(assigned_to_internal_hr_id=uid) |
+                        Q(assigned_internal_hrs__id=uid) |
+                        Q(assigned_by_id=uid) |
+                        Q(posted_by_id=uid) |
+                        Q(closed_by_id=uid)
+                    )
+            job_base_filter &= assignment_q
+
         # broad_job_qs: Used for activity tracking (apps, notes) across all relevant jobs
         broad_job_qs = Job.objects.filter(job_base_filter).distinct()
-        
+
         # job_qs: Used for "Job Analytics" (new jobs created in period)
         job_period_filter = job_base_filter & date_filter
-        # Conditional MRF link: keep logic but use the broad base for jobs
-        # unless you specifically only want jobs for THIS month's MRFs.
-        # Fixed: Jobs are shown if created in period, regardless of MRF date.
         job_qs = Job.objects.filter(job_period_filter).distinct()
 
         # 5. JobApplication queryset (Filtered by Period Activity)
         app_filter = Q(job__in=broad_job_qs) & date_filter & role_app_q & Q(is_active=True)
         if source_filter:
             app_filter &= Q(source=source_filter)
-        if user_id:
-            if target_user.role == 'consultancy':
-                app_filter &= Q(submitted_by_id=user_id) | Q(application_link__created_by_id=user_id)
-            elif target_user.role in ['hr', 'hr_manager', 'admin']:
-                app_filter &= (Q(submitted_by_id=user_id) | Q(job__assigned_to_internal_hr_id=user_id) | Q(job__assigned_internal_hrs__id=user_id) | Q(job__posted_by_id=user_id) | Q(job__closed_by_id=user_id))
-            else:
-                 app_filter &= (
-                    Q(submitted_by_id=user_id) |
-                    Q(job__assigned_to_consultancy_id=user_id) |
-                    Q(job__assigned_consultancies__id=user_id) |
-                    Q(job__assigned_to_internal_hr_id=user_id) |
-                    Q(job__assigned_internal_hrs__id=user_id) |
-                    Q(job__posted_by_id=user_id) |
-                    Q(job__closed_by_id=user_id) |
-                    Q(job__mrf__requested_by_id=user_id)
-                )
+        if target_user_ids:
+            user_app_q = Q(id=None)
+            for tu in target_users:
+                uid = str(tu.id)
+                if tu.role == 'consultancy':
+                    user_app_q |= (
+                        Q(submitted_by_id=uid) |
+                        Q(application_link__created_by_id=uid)
+                    )
+                elif tu.role in ['hr', 'hr_manager', 'admin']:
+                    user_app_q |= (
+                        Q(submitted_by_id=uid) |
+                        Q(job__assigned_to_internal_hr_id=uid) |
+                        Q(job__assigned_internal_hrs__id=uid) |
+                        Q(job__posted_by_id=uid) |
+                        Q(job__closed_by_id=uid)
+                    )
+                else:
+                    user_app_q |= (
+                        Q(submitted_by_id=uid) |
+                        Q(job__assigned_to_consultancy_id=uid) |
+                        Q(job__assigned_consultancies__id=uid) |
+                        Q(job__assigned_to_internal_hr_id=uid) |
+                        Q(job__assigned_internal_hrs__id=uid) |
+                        Q(job__posted_by_id=uid) |
+                        Q(job__closed_by_id=uid) |
+                        Q(job__mrf__requested_by_id=uid)
+                    )
+            app_filter &= user_app_q
         app_qs = JobApplication.objects.filter(app_filter).distinct()
-        
+
         # 6. Platform Application queryset (LinkedIn, Indeed, etc.)
         job_titles = list(broad_job_qs.values_list('job_title', flat=True))
         platform_job_q = Q(job__in=broad_job_qs)
         platform_orphan_q = Q(job__isnull=True, position_title__in=job_titles)
-        platform_app_filter = (platform_job_q | platform_orphan_q) & date_filter
-        
+        platform_app_filter = (platform_job_q | platform_orphan_q) & date_filter & Q(is_active=True)
+
         if source_filter:
             platform_app_filter &= Q(source=source_filter)
-        if user_id:
-            if target_user.role == 'consultancy':
+        if target_user_ids:
+            if all_consultancy:
                 platform_app_qs = Application.objects.none()
             else:
-                if target_user.role in ['hr', 'hr_manager', 'admin']:
-                    access_q = (Q(job__assigned_to_internal_hr_id=user_id) | Q(job__assigned_internal_hrs__id=user_id) | Q(job__posted_by_id=user_id) | Q(job__closed_by_id=user_id))
-                else:
-                    access_q = (
-                        Q(job__assigned_to_consultancy_id=user_id) |
-                        Q(job__assigned_consultancies__id=user_id) |
-                        Q(job__assigned_to_internal_hr_id=user_id) |
-                        Q(job__assigned_internal_hrs__id=user_id) |
-                        Q(job__posted_by_id=user_id) |
-                        Q(job__closed_by_id=user_id)
-                    )
-                # Allow orphans that matched name, or jobs the user has access to
+                access_q = Q(id=None)
+                for tu in target_users:
+                    uid = str(tu.id)
+                    if tu.role in ['hr', 'hr_manager', 'admin']:
+                        access_q |= (
+                            Q(job__assigned_to_internal_hr_id=uid) |
+                            Q(job__assigned_internal_hrs__id=uid) |
+                            Q(job__posted_by_id=uid) |
+                            Q(job__closed_by_id=uid)
+                        )
+                    else:
+                        access_q |= (
+                            Q(job__assigned_to_consultancy_id=uid) |
+                            Q(job__assigned_consultancies__id=uid) |
+                            Q(job__assigned_to_internal_hr_id=uid) |
+                            Q(job__assigned_internal_hrs__id=uid) |
+                            Q(job__posted_by_id=uid) |
+                            Q(job__closed_by_id=uid)
+                        )
                 platform_app_filter &= (access_q | platform_orphan_q)
                 platform_app_qs = Application.objects.filter(platform_app_filter).distinct()
         else:
@@ -471,27 +531,25 @@ class BaseAnalyticsView(APIView):
         referral_filter = date_filter
         if department_id:
             try:
-                # ReferralApplication stores department as a string name, resolve UUID if possible
                 dept_name = Department.objects.get(id=department_id).name
                 referral_filter &= Q(referral_department=dept_name)
             except (Department.DoesNotExist, ValidationError, ValueError):
-                # referral_filter &= Q(referral_department=department_id)
                 pass
 
         if designation_id:
             try:
-                # ReferralApplication stores designation as a string name, resolve UUID if possible
                 desig_name = Designation.objects.get(id=designation_id).name
                 referral_filter &= Q(referral_designation=desig_name)
             except (Designation.DoesNotExist, ValidationError, ValueError):
-                # referral_filter &= Q(referral_designation=designation_id)
                 pass
 
-        if user_id:
-            user_email = User.objects.get(id=user_id).email
-            referral_filter &= Q(referral_email=user_email)
+        if target_user_ids:
+            # Filter referrals by any of the target users' emails
+            target_emails = [u.email for u in target_users if u.email]
+            if target_emails:
+                referral_filter &= Q(referral_email__in=target_emails)
 
-        referral_qs = ReferralApplication.objects.filter(referral_filter).distinct()
+        referral_qs = ReferralApplication.objects.filter(referral_filter & Q(is_active=True)).distinct()
 
         return {
             "mrf_qs": mrf_qs,
@@ -503,12 +561,15 @@ class BaseAnalyticsView(APIView):
             "company": company,
             "user": user,
             "target_user": target_user,
+            "target_users": target_users,
+            "all_consultancy": all_consultancy,
             "date_filter": date_filter,
             "date_from": date_from,
             "date_to": date_to
         }, None
 
     def get_role_filters(self, user):
+
         # Default filters (Admin level)
         return Q(), Q(), Q()
 
@@ -516,11 +577,17 @@ class BaseAnalyticsView(APIView):
     
     def calc_mrf_analytics(self, mrf_qs):
         section1 = {}
-        section1['total_mrf_raised'] = mrf_qs.count()
-        section1['total_approved'] = mrf_qs.filter(status__in=['approved', 'filled', 'joining_pending']).count()
-        section1['total_rejected'] = mrf_qs.filter(status='rejected').count()
-        section1['total_on_hold'] = mrf_qs.filter(status='on_hold').count()
-        section1['total_pending'] = mrf_qs.exclude(status__in=['approved', 'filled', 'joining_pending', 'rejected', 'on_hold']).count()
+        agg = mrf_qs.aggregate(
+            total_mrf_raised=Count('id'),
+            total_approved=Count('id', filter=Q(status__in=['approved', 'filled', 'joining_pending'])),
+            total_rejected=Count('id', filter=Q(status='rejected')),
+            total_on_hold=Count('id', filter=Q(status='on_hold')),
+            total_pending=Count('id', filter=~Q(status__in=['approved', 'filled', 'joining_pending', 'rejected', 'on_hold'])),
+            pending_level_1=Count('id', filter=Q(status='pending_level_1')),
+            pending_level_2=Count('id', filter=Q(status='pending_level_2')),
+            pending_level_3=Count('id', filter=Q(status='pending_level_3')),
+        )
+        section1.update(agg)
 
         # Calculate transition time between levels:
         # Level 1: mrf.submitted_at to level 1 approval
@@ -631,23 +698,31 @@ class BaseAnalyticsView(APIView):
         ]
         return section1
 
-    def calc_job_assignment_analytics(self, job_qs, user_role=None, target_user_id=None, user=None):
+    def calc_job_assignment_analytics(self, job_qs, user_role=None, target_user_ids=None, user=None):
         section2 = {}
-        section2['total_jobs_open'] = job_qs.filter(status__in=['open','assigned_to_internal_hr','assigned_to_consultancy','assigned_to_both']).count()
-        section2['total_jobs_closed'] = job_qs.filter(status__in=['filled', 'joining_pending']).count()
-        section2['total_jobs_on_hold'] = job_qs.filter(status='on_hold').count()
-        section2['jobs_assigned_to_internal_hr'] = job_qs.filter(Q(status='assigned_to_internal_hr') | Q(previous_status='assigned_to_internal_hr') | Q(status='assigned_to_both') | Q(previous_status='assigned_to_both')).count()
-        section2['jobs_assigned_to_consultancy'] = job_qs.filter(Q(status='assigned_to_consultancy') | Q(previous_status='assigned_to_consultancy') | Q(status='assigned_to_both') | Q(previous_status='assigned_to_both')).count()
-        section2['jobs_assigned_to_both'] = job_qs.filter(Q(status='assigned_to_both') | Q(previous_status='assigned_to_both')).count()
-        section2['jobs_unassigned'] = job_qs.filter(status='open').count()
-
-        assigned_jobs = job_qs.filter(assigned_at__isnull=False, created_at__isnull=False)
-        durations = []
-        for job in assigned_jobs:
-            td = (job.assigned_at - job.created_at).total_seconds() / 86400
-            if td >= 0:
-                durations.append(td)
-        section2['avg_time_to_assign_days'] = round(sum(durations) / len(durations), 2) if durations else 0
+        agg = job_qs.aggregate(
+            total_jobs_open=Count('id', filter=Q(status__in=['open','assigned_to_internal_hr','assigned_to_consultancy','assigned_to_both'])),
+            total_jobs_closed=Count('id', filter=Q(status__in=['filled', 'joining_pending'])),
+            total_jobs_on_hold=Count('id', filter=Q(status='on_hold')),
+            jobs_assigned_to_internal_hr=Count('id', filter=Q(status='assigned_to_internal_hr') | Q(previous_status='assigned_to_internal_hr') | Q(status='assigned_to_both') | Q(previous_status='assigned_to_both')),
+            jobs_assigned_to_consultancy=Count('id', filter=Q(status='assigned_to_consultancy') | Q(previous_status='assigned_to_consultancy') | Q(status='assigned_to_both') | Q(previous_status='assigned_to_both')),
+            jobs_assigned_to_both=Count('id', filter=Q(status='assigned_to_both') | Q(previous_status='assigned_to_both')),
+            jobs_unassigned=Count('id', filter=Q(status='open')),
+            avg_time=Avg(
+                # Coalesce picks the first non-null assignment timestamp:
+                # jobs assigned only to internal HR use assigned_internal_at
+                ExpressionWrapper(
+                    Coalesce('assigned_at', 'assigned_internal_at') - F('created_at'),
+                    output_field=DurationField()
+                ),
+                filter=(
+                    Q(assigned_at__isnull=False) | Q(assigned_internal_at__isnull=False)
+                ) & Q(created_at__isnull=False)
+            )
+        )
+        section2.update({k: v for k, v in agg.items() if k != 'avg_time'})
+        avg_time = agg.get('avg_time')
+        section2['avg_time_to_assign_days'] = round(avg_time.total_seconds() / 86400, 2) if avg_time else 0
 
         status_qs = job_qs.values('status').annotate(count=Count('id'))
         status_breakdown = {item['status']: item['count'] for item in status_qs}
@@ -657,6 +732,7 @@ class BaseAnalyticsView(APIView):
 
         hr_dict = {}
         cons_dict = {}
+        unassigned_jobs_list = []
 
         # Efficiently fetch all assigned jobs with necessary relations
         jobs_with_details = job_qs.select_related(
@@ -691,7 +767,7 @@ class BaseAnalyticsView(APIView):
 
             for hr in hrs:
                 hid = str(hr.id)
-                if target_user_id and hid != str(target_user_id):
+                if target_user_ids and hid not in target_user_ids:
                     continue
                 
                 if user_role == 'hr' and user and str(user.id) != hid:
@@ -728,7 +804,7 @@ class BaseAnalyticsView(APIView):
             
             for cons in conss:
                 cid = str(cons.id)
-                if target_user_id and cid != str(target_user_id):
+                if target_user_ids and cid not in target_user_ids:
                     continue
                 
                 if user_role == 'consultancy' and user and str(user.id) != cid:
@@ -753,22 +829,35 @@ class BaseAnalyticsView(APIView):
                 elif job.status not in ['closed', 'cancelled']:
                     cons_dict[cid]['active_jobs'] += 1
                 cons_dict[cid]['jobs'].append(job_detail)
+            
+            if not hrs and not conss and job.status == 'open':
+                unassigned_jobs_list.append(job_detail)
 
         if user_role != 'consultancy':
             section2['jobs_by_hr'] = sorted(list(hr_dict.values()), key=lambda x: x['hr_name'])
         if user_role != 'hr':
             section2['jobs_by_consultancy'] = sorted(list(cons_dict.values()), key=lambda x: x['consultancy_name'])
+        section2['unassigned_jobs'] = unassigned_jobs_list
         
         return section2
 
     def calc_cv_resume_source_analytics(self, app_qs, platform_app_qs, referral_qs, total_interviews_override=None):
         section3 = {}
-        # Union-like total count across both models
+
+        # ── Normalised base querysets (exclude converted apps to avoid double-counting) ──
+        # platform_app_qs and referral_qs already exclude converted/touched records at the
+        # caller level when used for totals; here we consistently apply the same filter.
+        pa_base = platform_app_qs.filter(is_touched=False)
+        ref_base = referral_qs.filter(is_touched=False)
+
         ja_count = app_qs.count()
-        pa_count = platform_app_qs.filter(is_touched=False).count()
-        referral_count = referral_qs.filter(is_touched=False).count()
+        pa_count = pa_base.count()
+        referral_count = ref_base.count()
         total_cvs = ja_count + pa_count + referral_count
         section3['total_cvs_received'] = total_cvs
+        section3['job_application_count'] = ja_count
+        section3['platform_application_count'] = pa_count
+        section3['referral_count'] = referral_count
 
         source_display_map = {
             'internal_hr': 'Internal HR',
@@ -785,92 +874,86 @@ class BaseAnalyticsView(APIView):
         def normalize_source_name(src):
             if not src:
                 return 'Unknown'
-            src_lower = src.lower()
-            return source_display_map.get(src_lower) or src.replace('_', ' ').title()
+            return source_display_map.get(src.lower()) or src.replace('_', ' ').title()
 
-        # Aggregated Source Stats
-        # Combine JobApplication sources and Application sources
+        # ── JobApplication sources (candidate management) ────────────────────
         source_counts = {}
         for s in app_qs.values('source').annotate(count=Count('id')):
             src = normalize_source_name(s['source'])
             source_counts[src] = source_counts.get(src, 0) + s['count']
 
-        cvs_by_source = []
-        for source, count in source_counts.items():
-            percentage = round((count / ja_count * 100), 2) if ja_count else 0
-            cvs_by_source.append({'source': source, 'count': count, 'percentage': percentage})
-        
-        # Sort by count desc and limit to top 10
+        cvs_by_source = [
+            {'source': src, 'count': cnt, 'percentage': round(cnt / ja_count * 100, 2) if ja_count else 0}
+            for src, cnt in source_counts.items()
+        ]
         cvs_by_source.sort(key=lambda x: x['count'], reverse=True)
         section3['candidate_cvs_by_source'] = cvs_by_source[:10]
 
-        # Platform Sources Stats
+        # ── Platform (Application) sources ───────────────────────────────────
         platform_source_counts = {}
-        for s in platform_app_qs.values('source').annotate(count=Count('id')):
+        for s in pa_base.values('source').annotate(count=Count('id')):
             src = normalize_source_name(s['source'])
             platform_source_counts[src] = platform_source_counts.get(src, 0) + s['count']
 
-        platform_cvs_by_source = []
-        for source, count in platform_source_counts.items():
-            percentage = round((count / pa_count * 100), 2) if pa_count else 0
-            platform_cvs_by_source.append({'source': source, 'count': count, 'percentage': percentage})
-
+        platform_cvs_by_source = [
+            {'source': src, 'count': cnt, 'percentage': round(cnt / pa_count * 100, 2) if pa_count else 0}
+            for src, cnt in platform_source_counts.items()
+        ]
         platform_cvs_by_source.sort(key=lambda x: x['count'], reverse=True)
         section3['platform_cvs_by_source'] = platform_cvs_by_source[:10]
 
-        # Combined Platform, Candidate, and Referral Sources Stats
+        # ── Combined sources (JobApp + Platform + Referral) ──────────────────
         combined_source_counts = {}
-        for s in app_qs.values('source').annotate(count=Count('id')):
-            src = normalize_source_name(s['source'])
-            combined_source_counts[src] = combined_source_counts.get(src, 0) + s['count']
-        for s in platform_app_qs.values('source').annotate(count=Count('id')):
-            src = normalize_source_name(s['source'])
-            combined_source_counts[src] = combined_source_counts.get(src, 0) + s['count']
-        
-        # Include referrals count with 'Referral' source
+        for src, cnt in source_counts.items():
+            combined_source_counts[src] = combined_source_counts.get(src, 0) + cnt
+        for src, cnt in platform_source_counts.items():
+            combined_source_counts[src] = combined_source_counts.get(src, 0) + cnt
         combined_source_counts['Referral'] = combined_source_counts.get('Referral', 0) + referral_count
 
-        combined_cvs_by_source = []
-        for source, count in combined_source_counts.items():
-            percentage = round((count / total_cvs * 100), 2) if total_cvs else 0
-            combined_cvs_by_source.append({'source': source, 'count': count, 'percentage': percentage})
-
+        combined_cvs_by_source = [
+            {'source': src, 'count': cnt, 'percentage': round(cnt / total_cvs * 100, 2) if total_cvs else 0}
+            for src, cnt in combined_source_counts.items()
+        ]
         combined_cvs_by_source.sort(key=lambda x: x['count'], reverse=True)
         section3['combined_cvs_by_source'] = combined_cvs_by_source
-        # Deduplicated Job Stats (Unique Candidate Email per Job Title)
-        # We merge counts for the same job title from both models
+
+        # ── CVs by Job Title (JobApp + Platform, unique candidate emails) ────
         job_counts = {}
-        ja_stats = app_qs.values('job__job_title').annotate(unique_cvs=Count('candidate_email', distinct=True))
-        for j in ja_stats:
+        for j in app_qs.values('job__job_title').annotate(unique_cvs=Count('candidate_email', distinct=True)):
             title = j['job__job_title'] or 'Unknown'
             job_counts[title] = job_counts.get(title, 0) + j['unique_cvs']
-            
-        pa_stats = platform_app_qs.values('job__job_title', 'position_title').annotate(unique_cvs=Count('candidate_email', distinct=True))
-        for j in pa_stats:
+        for j in pa_base.values('job__job_title', 'position_title').annotate(unique_cvs=Count('candidate_email', distinct=True)):
             title = j['job__job_title'] or j.get('position_title') or 'Unknown'
             job_counts[title] = job_counts.get(title, 0) + j['unique_cvs']
 
-        cvs_by_job_list = [{'job_title': title, 'total_cvs': count} for title, count in job_counts.items()]
+        cvs_by_job_list = [{'job_title': title, 'total_cvs': cnt} for title, cnt in job_counts.items()]
         cvs_by_job_list.sort(key=lambda x: x['total_cvs'], reverse=True)
         section3['cvs_by_job'] = cvs_by_job_list[:10]
 
-        # Monthly Matrix Breakdown (Combined)
+        # ── CVs by Month (JobApp + Platform + Referral) ──────────────────────
         months_ja = app_qs.annotate(month=TruncMonth('created_at')).values_list('month', flat=True).distinct()
-        months_pa = platform_app_qs.annotate(month=TruncMonth('created_at')).values_list('month', flat=True).distinct()
-        all_months = sorted(list(set(filter(None, list(months_ja) + list(months_pa)))))
+        months_pa = pa_base.annotate(month=TruncMonth('created_at')).values_list('month', flat=True).distinct()
+        months_ref = ref_base.annotate(month=TruncMonth('created_at')).values_list('month', flat=True).distinct()
+        all_months = sorted(set(filter(None, list(months_ja) + list(months_pa) + list(months_ref))))
 
         cvs_by_month = []
         for m_date in all_months:
             m_ja = app_qs.filter(created_at__month=m_date.month, created_at__year=m_date.year)
-            m_pa = platform_app_qs.filter(created_at__month=m_date.month, created_at__year=m_date.year)
-            
-            m_count = m_ja.count() + m_pa.count()
+            m_pa = pa_base.filter(created_at__month=m_date.month, created_at__year=m_date.year)
+            m_ref = ref_base.filter(created_at__month=m_date.month, created_at__year=m_date.year)
+
+            m_count = m_ja.count() + m_pa.count() + m_ref.count()
             source_break = {}
             for s in m_ja.values('source').annotate(c=Count('id')):
-                source_break[s['source']] = source_break.get(s['source'], 0) + s['c']
+                key = normalize_source_name(s['source'])
+                source_break[key] = source_break.get(key, 0) + s['c']
             for s in m_pa.values('source').annotate(c=Count('id')):
-                source_break[s['source']] = source_break.get(s['source'], 0) + s['c']
-                
+                key = normalize_source_name(s['source'])
+                source_break[key] = source_break.get(key, 0) + s['c']
+            ref_m_count = m_ref.count()
+            if ref_m_count:
+                source_break['Referral'] = source_break.get('Referral', 0) + ref_m_count
+
             cvs_by_month.append({
                 'month': m_date.strftime('%Y-%m'),
                 'count': m_count,
@@ -878,19 +961,87 @@ class BaseAnalyticsView(APIView):
             })
         section3['cvs_by_month'] = cvs_by_month
 
-        dups = app_qs.filter(is_duplicate=True).count() + platform_app_qs.filter(is_duplicate=True).count()
+        # ── Duplicates ───────────────────────────────────────────────────────
+        dups = app_qs.filter(is_duplicate=True).count() + pa_base.filter(is_duplicate=True).count()
         section3['duplicate_cvs_count'] = dups
-        section3['duplicate_cvs_percentage'] = round((dups / total_cvs * 100), 2) if total_cvs else 0
+        section3['duplicate_cvs_percentage'] = round(dups / total_cvs * 100, 2) if total_cvs else 0
 
-        # Combined untouched aggregation from all 3 querysets (Candidate Management, Platform, and Referral)
+        # ── Source-wise Candidate Stage Analysis (JobApplications only) ──────
+        # Groups candidates by source and then by status/stage.
+        STAGE_GROUPS = {
+            'received': 'Received',
+            'shortlisted': 'Shortlisted',
+            'interview_pending_1': 'HR Interview Pending',
+            'interview_done_1': 'HR Interview Completed',
+            'interview_rejected_1': 'Rejected – HR Round',
+            'interview_next_2': 'Shortlisted – Technical',
+            'interview_pending_2': 'Technical Interview Pending',
+            'interview_done_2': 'Technical Interview Completed',
+            'interview_rejected_2': 'Rejected – Technical Round',
+            'interview_next_3': 'Shortlisted – Case Study',
+            'interview_pending_3': 'Case Study Pending',
+            'interview_done_3': 'Case Study Completed',
+            'interview_rejected_3': 'Rejected – Case Study',
+            'interview_next_final': 'Shortlisted – Final Round',
+            'interview_pending_final': 'Final Interview Pending',
+            'interview_done_final': 'Final Interview Completed',
+            'interview_rejected_final': 'Rejected – Final Round',
+            'interview_next_management_client': 'Shortlisted – Mgmt/Client',
+            'interview_pending_management_client': 'Mgmt/Client Interview Pending',
+            'interview_done_management_client': 'Mgmt/Client Interview Completed',
+            'interview_rejected_management_client': 'Rejected – Mgmt/Client',
+            'consolidated_result_review': 'Under HR Review',
+            'selected': 'Selected',
+            'approval_pending': 'Approval Pending',
+            'approved': 'Approved',
+            'approval_rejected': 'Approval Rejected',
+            'offer_pending': 'Offer Pending',
+            'offer_sent': 'Offer Sent',
+            'offer_accepted': 'Offer Accepted',
+            'offer_rejected': 'Offer Rejected',
+            'joining_pending': 'Joining Pending',
+            'joined': 'Joined',
+            'duplicate_rejected': 'Duplicate Rejected',
+        }
+
+        # Aggregate source+status from JobApplications
+        src_stage_qs = (
+            app_qs.values('source', 'status')
+            .annotate(count=Count('id'))
+            .order_by('source', 'status')
+        )
+
+        source_stage_map = {}
+        for row in src_stage_qs:
+            src = normalize_source_name(row['source'])
+            status_label = STAGE_GROUPS.get(row['status'], row['status'].replace('_', ' ').title())
+            if src not in source_stage_map:
+                source_stage_map[src] = {'source': src, 'total': 0, 'stages': {}}
+            source_stage_map[src]['total'] += row['count']
+            source_stage_map[src]['stages'][status_label] = (
+                source_stage_map[src]['stages'].get(status_label, 0) + row['count']
+            )
+
+        # Convert stages dict to sorted list
+        candidate_analysis_by_source = []
+        for src_data in source_stage_map.values():
+            stages_list = sorted(
+                [{'stage': k, 'count': v} for k, v in src_data['stages'].items()],
+                key=lambda x: x['count'], reverse=True
+            )
+            candidate_analysis_by_source.append({
+                'source': src_data['source'],
+                'total': src_data['total'],
+                'stages': stages_list,
+            })
+        candidate_analysis_by_source.sort(key=lambda x: x['total'], reverse=True)
+        section3['candidate_analysis_by_source'] = candidate_analysis_by_source
+
+        # ── Untouched CVs aggregation ────────────────────────────────────────
         untouched_map = defaultdict(lambda: {'count': 0, 'job_ids': set()})
 
-        # 1. Candidate Management (app_qs)
         for u in app_qs.filter(status='received').values(
-            'job__designation__name',
-            'job__department__name',
-            'job__job_title',
-            'job__id'
+            'job__designation__name', 'job__department__name', 'job__job_title', 'job__id'
         ):
             desig = u['job__designation__name'] or 'Unknown'
             dept = u['job__department__name'] or 'Unknown'
@@ -900,35 +1051,24 @@ class BaseAnalyticsView(APIView):
             if u['job__id']:
                 untouched_map[key]['job_ids'].add(u['job__id'])
 
-        # 2. Platform Applications (platform_app_qs)
-        for u in platform_app_qs.filter(is_touched=False, is_rejected=False).values(
-            'designation__name',
-            'department__name',
-            'job__job_title',
-            'position_title',
-            'job__id'
+        for u in pa_base.filter(is_rejected=False).values(
+            'designation__name', 'department__name', 'job__job_title', 'position_title', 'job__id'
         ):
             desig = u['designation__name'] or 'Unknown'
             dept = u['department__name'] or 'Unknown'
-            title = u['job__job_title'] or u['position_title'] or 'Unknown'
+            title = u['job__job_title'] or u.get('position_title') or 'Unknown'
             key = (desig, dept, title)
             untouched_map[key]['count'] += 1
             if u['job__id']:
                 untouched_map[key]['job_ids'].add(u['job__id'])
 
-        # 3. Referral Applications (referral_qs)
-        for u in referral_qs.values(
-            'referral_designation',
-            'referral_department',
-            'position_title'
-        ):
+        for u in ref_base.values('referral_designation', 'referral_department', 'position_title'):
             desig = u['referral_designation'] or 'Unknown'
             dept = u['referral_department'] or 'Unknown'
             title = u['position_title'] or 'Unknown'
             key = (desig, dept, title)
             untouched_map[key]['count'] += 1
 
-        # Build list
         untouched_list = []
         for (desig, dept, title), data in untouched_map.items():
             untouched_list.append({
@@ -938,26 +1078,21 @@ class BaseAnalyticsView(APIView):
                 'job_title': title,
                 'job_ids': list(data['job_ids']),
             })
-
-        # Sort by count desc
         untouched_list.sort(key=lambda x: x['untouched_count'], reverse=True)
-        
+
         section3['untouched_cvs_count'] = sum(x['untouched_count'] for x in untouched_list)
         section3['untouched_cvs_by_job'] = untouched_list
         section3['interview_no_show_reschedule'] = calc_interview_no_show_reschedule(app_qs, total_interviews_override)
 
-        # Referral by Department breakdown
-        referral_dept_stats = referral_qs.values('referral_department').annotate(count=Count('id')).order_by('-count')
+        # ── Referral by Department breakdown ─────────────────────────────────
+        referral_dept_stats = ref_base.values('referral_department').annotate(count=Count('id')).order_by('-count')
         section3['referral_by_department'] = [
-            {
-                'department': r['referral_department'] or 'Unknown',
-                'count': r['count']
-            }
+            {'department': r['referral_department'] or 'Unknown', 'count': r['count']}
             for r in referral_dept_stats
         ]
         return section3
 
-    def calc_candidate_pipeline_funnel(self, app_qs, target_user=None, interviewer_app_ids=None):
+    def calc_candidate_pipeline_funnel(self, app_qs, target_users=None, interviewer_app_ids=None):
         section4 = {}
         
         # If filtering by interviewer, narrow down candidates experience to those they actually touched
@@ -1071,12 +1206,18 @@ class BaseAnalyticsView(APIView):
             ('Joined', joined_st),
         ]
 
-        stage_counts = {}
-        for name, condition in ordered_stages:
+        agg_kwargs = {}
+        for idx, (name, condition) in enumerate(ordered_stages):
             if isinstance(condition, list):
-                stage_counts[name] = app_qs.filter(status__in=condition).count()
+                agg_kwargs[f'stage_{idx}'] = Count('id', filter=Q(status__in=condition))
             else:
-                stage_counts[name] = app_qs.filter(condition).distinct().count()
+                agg_kwargs[f'stage_{idx}'] = Count('id', filter=condition, distinct=True)
+                
+        funnel_agg = app_qs.aggregate(**agg_kwargs)
+        
+        stage_counts = {}
+        for idx, (name, condition) in enumerate(ordered_stages):
+            stage_counts[name] = funnel_agg.get(f'stage_{idx}', 0)
 
         section4['funnel_stages'] = [{'stage': k, 'count': v} for k, v in stage_counts.items()]
 
@@ -1261,7 +1402,8 @@ class BaseAnalyticsView(APIView):
         candidate_exp['not_filled'] = not_filled
         section4['candidate_experience'] = candidate_exp
 
-        section4['recruiter_productivity'] = calc_recruiter_productivity(app_qs, target_user.id if target_user else None)
+        target_user_ids = [str(tu.id) for tu in target_users] if target_users else None
+        section4['recruiter_productivity'] = calc_recruiter_productivity(app_qs, target_user_ids)
         return section4
 
     def calc_interview_round_time_analytics(self, app_qs, date_range, company, interviewer_app_ids=None, broad_job_qs=None):
@@ -1482,7 +1624,8 @@ class BaseAnalyticsView(APIView):
                 selected_to_note_deltas.append(0.1)
 
             # 10. Approval Note -> Approved
-            if note and note['approved_at']:
+            # Only count notes that are actually approved (not pending or rejected)
+            if note and note['approved_at'] and note.get('status') not in ('approval_pending', 'approval_rejected'):
                 d = (note['approved_at'] - note['created_at']).total_seconds() / 86400
                 if d >= 0:
                     note_to_approved_deltas.append(d)
@@ -1491,8 +1634,8 @@ class BaseAnalyticsView(APIView):
             ann_created = next((h for h in hist if h['action'] == 'created'), None)
             ann_approved = next((h for h in hist if h['action'] == 'approved'), None)
 
-            # 11. Approved -> Annexure
-            if note and note['approved_at'] and ann_created:
+            # 11. Approved -> Annexure (only when note is genuinely approved)
+            if note and note['approved_at'] and ann_created and note.get('status') not in ('approval_pending', 'approval_rejected'):
                 d = (ann_created['created_at'] - note['approved_at']).total_seconds() / 86400
                 if d >= 0:
                     approved_to_annexure_deltas.append(d)
@@ -1957,18 +2100,18 @@ class BaseAnalyticsView(APIView):
             section5['fastest_stage'] = {'stage_name': 'N/A', 'avg_days': 0.0}
         return section5
 
-    def calc_approval_note_analytics(self, job_qs, date_range, target_user=None, user=None, user_role=None):
+    def calc_approval_note_analytics(self, job_qs, date_range, target_users=None, user=None, user_role=None):
         section6 = {}
         date_from, date_to = date_range
         from datetime import datetime, time
         from django.utils import timezone
         
         base_q = Q(candidate__job__in=job_qs)
-        if target_user:
-            base_q &= (Q(manager=target_user) | Q(created_by=target_user))
+        if target_users:
+            base_q &= (Q(manager__in=target_users) | Q(created_by__in=target_users))
         
         # For HR role (not hr_manager or admin), only show notes sent by the HR user themselves
-        if user_role == 'hr' and user and not target_user:
+        if user_role == 'hr' and user and not target_users:
             base_q &= Q(created_by=user)
             
         def make_date_q(field_name):
@@ -1984,30 +2127,19 @@ class BaseAnalyticsView(APIView):
         created_q = make_date_q('created_at')
         approved_q = make_date_q('approved_at')
         
-        # Notes sent in period
-        sent_qs = ApprovalNote.objects.filter(base_q & created_q)
-        section6['total_approval_notes_sent'] = sent_qs.count()
-        
-        # Notes approved in period (regardless of when sent)
-        approved_statuses = ['approved','docs_pending','docs_uploaded','review_docs','docs_approved','salary_annexure_prep','salary_annexure_review','approved_annexure','offer_pending','offer_sent','offer_accepted','offer_rejected','joining_pending','joined','joining_poned','docs_incomplete','docs_unclear']
-        approved_qs = ApprovalNote.objects.filter(base_q & approved_q & Q(status__in=approved_statuses))
-        section6['approval_notes_approved'] = approved_qs.count()
-        
-        # Notes rejected in period
-        rejected_qs = ApprovalNote.objects.filter(base_q & make_date_q('rejected_at') & Q(status='approval_rejected'))
-        section6['approval_notes_rejected'] = rejected_qs.count()
-        
-        # Notes currently pending (snapshot)
-        section6['approval_notes_pending'] = ApprovalNote.objects.filter(base_q & Q(status='approval_pending')).count()
-
-        if approved_qs.exists():
-            avg = approved_qs.aggregate(avg=Avg(F('approved_at') - F('created_at')))['avg']
-            section6['avg_time_to_approve_days'] = round(avg.total_seconds() / 86400, 2) if avg else 0
-        else:
-            section6['avg_time_to_approve_days'] = 0
-
         delayed_threshold = timezone.now() - timedelta(hours=48)
-        section6['delayed_approval_notes'] = ApprovalNote.objects.filter(base_q & Q(status='approval_pending', created_at__lt=delayed_threshold)).count()
+        agg = ApprovalNote.objects.filter(base_q).aggregate(
+            total_approval_notes_sent=Count('id', filter=created_q),
+            approval_notes_approved=Count('id', filter=approved_q & ~Q(status__in=['approval_pending', 'approval_rejected'])),
+            approval_notes_rejected=Count('id', filter=make_date_q('rejected_at') & Q(status='approval_rejected')),
+            approval_notes_pending=Count('id', filter=Q(status='approval_pending')),
+            delayed_approval_notes=Count('id', filter=Q(status='approval_pending', created_at__lt=delayed_threshold)),
+            avg_time=Avg(F('approved_at') - F('created_at'), filter=approved_q & ~Q(status__in=['approval_pending', 'approval_rejected']))
+        )
+        
+        section6.update({k: v for k, v in agg.items() if k != 'avg_time'})
+        avg = agg.get('avg_time')
+        section6['avg_time_to_approve_days'] = round(avg.total_seconds() / 86400, 2) if avg else 0
 
         # Approver stats
         # Group by manager for all notes that had activity in the period
@@ -2019,20 +2151,17 @@ class BaseAnalyticsView(APIView):
         
         approver_stats = approver_stats_qs.values('manager_id','manager__name').annotate(
             sent=Count('id', filter=created_q),
-            approved=Count('id', filter=approved_q & Q(status__in=approved_statuses)),
+            approved=Count('id', filter=approved_q & ~Q(status__in=['approval_pending', 'approval_rejected'])),
             rejected=Count('id', filter=make_date_q('rejected_at') & Q(status='approval_rejected')),
+            avg_d=Avg(F('approved_at') - F('created_at'), filter=approved_q & ~Q(status__in=['approval_pending', 'approval_rejected']))
         )
         by_approver = []
         for a in approver_stats:
-            mgr_id = a['manager_id']
-            mgr_approved = approved_qs.filter(manager_id=mgr_id)
-            avg_days = 0
-            if mgr_approved.exists():
-                avg_d = mgr_approved.aggregate(avg=Avg(F('approved_at') - F('created_at')))['avg']
-                avg_days = round(avg_d.total_seconds() / 86400, 2) if avg_d else 0
+            avg_d = a['avg_d']
+            avg_days = round(avg_d.total_seconds() / 86400, 2) if avg_d else 0
             by_approver.append({
                 'approver_name': a['manager__name'] or 'Unknown',
-                'approver_id': mgr_id,
+                'approver_id': a['manager_id'],
                 'sent': a['sent'],
                 'approved': a['approved'],
                 'rejected': a['rejected'],
@@ -2195,8 +2324,17 @@ class BaseAnalyticsView(APIView):
         # Using company-wide querysets for these KPIs to avoid being affected by the date range selected
         base_job_qs = Job.objects.filter(company=company, is_active=True)
         section8['active_jobs_count'] = base_job_qs.filter(is_active=True).count()
-        section8['active_consultancies_count'] = User.objects.filter(role='consultancy', company=company, is_active=True).filter(assigned_jobs__in=base_job_qs).distinct().count()
-        section8['active_internal_hrs_count'] = User.objects.filter(role__in=['hr', 'hr_manager'], company=company, is_active=True).filter(assigned_internal_jobs__in=base_job_qs).distinct().count()
+        # Count users assigned via FK *or* M2M to any active job in this company
+        section8['active_consultancies_count'] = User.objects.filter(
+            role='consultancy', company=company, is_active=True
+        ).filter(
+            Q(assigned_jobs__in=base_job_qs) | Q(consultancy_jobs__in=base_job_qs)
+        ).distinct().count()
+        section8['active_internal_hrs_count'] = User.objects.filter(
+            role__in=['hr', 'hr_manager'], company=company, is_active=True
+        ).filter(
+            Q(assigned_internal_jobs__in=base_job_qs) | Q(internal_hr_jobs__in=base_job_qs)
+        ).distinct().count()
 
         # Last 30 days metrics (Fixed: uses company-wide apps_qs instead of filtered app_qs)
         thirty_days_ago = timezone.now() - timedelta(days=30)
@@ -2224,7 +2362,11 @@ class BaseAnalyticsView(APIView):
         # Use broad_job_qs for total counts if provided (user_id filter scenario)
         jobs_for_count = job_qs
         
-        direct_count = app_qs.count()
+        agg_apps = app_qs.aggregate(
+            direct_count=Count('id')
+        )
+        direct_count = agg_apps['direct_count']
+        
         platform_count = platform_app_qs.filter(is_touched=False).count()
         referral_count = referral_qs.filter(is_touched=False).count()
         combined_count = direct_count + platform_count + referral_count
@@ -2232,39 +2374,59 @@ class BaseAnalyticsView(APIView):
         # Joining Pending in next 30 / 60 days
         from datetime import date
         today = date.today()
-        joining_pending_qs = app_qs.filter(
-            status='joining_pending',
-            joining_date__isnull=False,
-            joining_date__gte=today,
+        agg_joining = app_qs.aggregate(
+            next_30=Count('id', filter=Q(status='joining_pending', joining_date__isnull=False, joining_date__gte=today, joining_date__lte=today + timedelta(days=30))),
+            next_60=Count('id', filter=Q(status='joining_pending', joining_date__isnull=False, joining_date__gte=today, joining_date__lte=today + timedelta(days=60)))
         )
-        joining_pending_next_30_days = joining_pending_qs.filter(
-            joining_date__lte=today + timedelta(days=30)
-        ).count()
-        joining_pending_next_60_days = joining_pending_qs.filter(
-            joining_date__lte=today + timedelta(days=60)
-        ).count()
 
+        agg_mrf = mrf_qs.aggregate(
+            total=Count('id'),
+            on_hold=Count('id', filter=Q(status='on_hold'))
+        )
+        
+        agg_jobs = jobs_for_count.aggregate(
+            total=Count('id'),
+            on_hold=Count('id', filter=Q(status='on_hold')),
+            open_positions=Sum(F('no_of_positions') - F('positions_filled')),
+            # Extra kwargs passed directly to Count() are silently ignored by Django.
+            # Null-checks must be placed inside filter=Q(...) to actually apply.
+            hr_only=Count('id', filter=(
+                (Q(status='assigned_to_internal_hr') | Q(previous_status='assigned_to_internal_hr')) &
+                Q(assigned_to_internal_hr__isnull=False) &
+                Q(assigned_to_consultancy__isnull=True)
+            )),
+            consultancy_only=Count('id', filter=(
+                (Q(status='assigned_to_consultancy') | Q(previous_status='assigned_to_consultancy')) &
+                Q(assigned_to_consultancy__isnull=False) &
+                Q(assigned_to_internal_hr__isnull=True)
+            )),
+            both=Count('id', filter=(
+                (Q(status='assigned_to_both') | Q(previous_status='assigned_to_both')) &
+                Q(assigned_to_internal_hr__isnull=False) &
+                Q(assigned_to_consultancy__isnull=False)
+            ))
+        )
 
         return {
-            "total_mrfs": mrf_qs.count(),
-            "total_mrfs_on_hold": mrf_qs.filter(status='on_hold').count(),
-            "total_jobs": jobs_for_count.count(),
-            "total_jobs_on_hold": jobs_for_count.filter(status='on_hold').count(),
+            "total_mrfs": agg_mrf['total'],
+            "total_mrfs_on_hold": agg_mrf['on_hold'],
+            "total_jobs": agg_jobs['total'],
+            "total_jobs_on_hold": agg_jobs['on_hold'],
             "total_combined_cv_count": combined_count,
-            "joining_pending_next_30_days": joining_pending_next_30_days,
-            "joining_pending_next_60_days": joining_pending_next_60_days,
+            "joining_pending_next_30_days": agg_joining['next_30'],
+            "joining_pending_next_60_days": agg_joining['next_60'],
             "cv_counts": {
                 "direct_applications": direct_count,
                 "platform_applications": platform_count,
                 "referrals": referral_count,
                 "combined": combined_count,
-                "total": direct_count + platform_count + referral_count
+                "total": combined_count
             },
-            # "total_open_positions": sum((j.no_of_positions - j.positions_filled) for j in jobs_for_count),
-            "total_open_positions": sum(j.remaining_positions() for j in jobs_for_count),"jobs_by_assignment": {
-                "hr_only": jobs_for_count.filter(Q(status='assigned_to_internal_hr') | Q(previous_status='assigned_to_internal_hr'), assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=True).count(),
-                "consultancy_only": jobs_for_count.filter(Q(status='assigned_to_consultancy') | Q(previous_status='assigned_to_consultancy'), assigned_to_consultancy__isnull=False, assigned_to_internal_hr__isnull=True).count(),
-                "both": jobs_for_count.filter(Q(status='assigned_to_both') | Q(previous_status='assigned_to_both'), assigned_to_internal_hr__isnull=False, assigned_to_consultancy__isnull=False).count()
+            "total_open_positions": agg_jobs['open_positions'] or 0,
+            "jobs_by_assignment": {
+                "hr_only": agg_jobs['hr_only'],
+                "consultancy_only": agg_jobs['consultancy_only'],
+                "both": agg_jobs['both']
             }
         }
 
@@ -2279,19 +2441,25 @@ class BaseAnalyticsView(APIView):
         # Resolve Interviewer Entities using Email via Booking table for reliability
         interviewer_app_ids = None
         interviewer_names = []
-        if target_user:
+        target_users = ctx.get("target_users", [])
+        
+        if target_users:
             from slots.models import Interviewer
             from booking.models import Booking
-            interviewers = Interviewer.objects.filter(email=target_user.email)
-            interviewer_names = list(interviewers.values_list('name', flat=True))
+            target_emails = [u.email for u in target_users if u.email]
             
-            # Get all application IDs where this user was an interviewer or attendee
-            interviewer_app_ids = list(Booking.objects.filter(
-                Q(interviewer__in=interviewers) | Q(attendees__in=interviewers)
-            ).values_list('candidate_id', flat=True).distinct())
+            if target_emails:
+                interviewers = Interviewer.objects.filter(email__in=target_emails)
+                interviewer_names = list(interviewers.values_list('name', flat=True))
+                
+                # Get all application IDs where these users were an interviewer or attendee
+                interviewer_app_ids = list(Booking.objects.filter(
+                    Q(interviewer__in=interviewers) | Q(attendees__in=interviewers)
+                ).values_list('candidate_id', flat=True).distinct())
 
-            if target_user.name and target_user.name not in interviewer_names:
-                interviewer_names.append(target_user.name)
+            for tu in target_users:
+                if tu.name and tu.name not in interviewer_names:
+                    interviewer_names.append(tu.name)
         
         # Determine which sections to return
         requested_sections = request.query_params.get('sections', '').split(',')
@@ -2302,18 +2470,18 @@ class BaseAnalyticsView(APIView):
 
         data = {
             "summary": self.calc_summary_totals(mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, broad_job_qs),
-            "user_details": UserSerializer(ctx["target_user"]).data if ctx.get("target_user") else UserSerializer(ctx["user"]).data
+            "user_details": [UserSerializer(u).data for u in ctx["target_users"]] if ctx.get("target_users") else [UserSerializer(ctx["user"]).data]
         }
 
         # Inject new TAT metrics
         tat_metrics = calc_joining_tat(app_qs)
         data["partial_joining_tat_days"] = tat_metrics["partial_joining_tat_days"]
         data["final_joining_tat_days"] = tat_metrics["final_joining_tat_days"]
-        if 'mrf_analytics' in requested_sections:
+        if 'mrf_analytics' in requested_sections and not ctx.get('all_consultancy'):
             data['mrf_analytics'] = self.calc_mrf_analytics(mrf_qs)
         if 'job_assignment_analytics' in requested_sections:
-            target_user_id = ctx['target_user'].id if ctx.get('target_user') else None
-            data['job_assignment_analytics'] = self.calc_job_assignment_analytics(job_qs, request.user.role, target_user_id, request.user)
+            target_user_ids = [str(u.id) for u in ctx['target_users']] if ctx.get('target_users') else None
+            data['job_assignment_analytics'] = self.calc_job_assignment_analytics(job_qs, request.user.role, target_user_ids, request.user)
         # Calculate Total Completed Rounds (synchronized with Section 5)
         # Uses the same logic as calc_interview_round_time_analytics
         fb_filter = Q(job_application__job__in=broad_job_qs)
@@ -2331,11 +2499,11 @@ class BaseAnalyticsView(APIView):
         if 'cv_resume_source_analytics' in requested_sections:
             data['cv_resume_source_analytics'] = self.calc_cv_resume_source_analytics(app_qs, platform_app_qs, referral_qs, total_completed_interviews)
         if 'candidate_pipeline_funnel' in requested_sections:
-            data['candidate_pipeline_funnel'] = self.calc_candidate_pipeline_funnel(app_qs, target_user, interviewer_app_ids)
+            data['candidate_pipeline_funnel'] = self.calc_candidate_pipeline_funnel(app_qs, ctx.get("target_users"), interviewer_app_ids)
         if 'interview_round_time_analytics' in requested_sections:
             data['interview_round_time_analytics'] = self.calc_interview_round_time_analytics(app_qs, (date_from, date_to), company, interviewer_app_ids, broad_job_qs)
         if 'approval_note_analytics' in requested_sections:
-            data['approval_note_analytics'] = self.calc_approval_note_analytics(broad_job_qs, (date_from, date_to), target_user, request.user, request.user.role)
+            data['approval_note_analytics'] = self.calc_approval_note_analytics(broad_job_qs, (date_from, date_to), ctx.get("target_users"), request.user, request.user.role)
         if 'document_offer_process_timeline' in requested_sections:
             # Pass company to filter OfferDocuments correctly
             data['document_offer_process_timeline'] = self.calc_document_offer_process_timeline(broad_job_qs, (date_from, date_to), company, request.user, request.user.role)
@@ -2445,14 +2613,21 @@ class CandidateExperienceFeedbackSubmitView(APIView):
         """
         token = self.request.query_params.get('token')
         candidate_id = self.request.query_params.get('candidate_id')
-        
-        fb = CandidateExperienceFeedback.objects.all()
+
+        # Require at least one identifier – returning all records to anonymous
+        # callers is a public data leak.
+        if not token and not candidate_id:
+            return Response(
+                {"detail": "Either 'token' or 'candidate_id' query parameter is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         try:
             if token:
                 fb = CandidateExperienceFeedback.objects.filter(
                     feedback_token=token
                 )
-            elif candidate_id:
+            else:
                 fb = CandidateExperienceFeedback.objects.filter(
                     application=candidate_id
                 )
@@ -2605,8 +2780,9 @@ class DashboardExportAPIView(BaseAnalyticsView):
 
         # ── Sheet 3: Job Assignment Analytics ──
         try:
-            target_uid = target_user.id if target_user else None
-            job_data = self.calc_job_assignment_analytics(job_qs, request.user.role, target_uid, request.user)
+            target_users = ctx.get('target_users')
+            target_user_ids = [str(u.id) for u in target_users] if target_users else None
+            job_data = self.calc_job_assignment_analytics(job_qs, request.user.role, target_user_ids, request.user)
             ws3 = wb.create_sheet("Job Analytics")
             ws3.append(["Metric", "Value"])
             ws3.append(["Total Jobs Open", job_data.get("total_jobs_open", 0)])
@@ -2666,7 +2842,7 @@ class DashboardExportAPIView(BaseAnalyticsView):
 
         # ── Sheet 5: Pipeline Funnel ──
         try:
-            pipeline = self.calc_candidate_pipeline_funnel(app_qs, target_user)
+            pipeline = self.calc_candidate_pipeline_funnel(app_qs, ctx.get('target_users'))
             ws5 = wb.create_sheet("Pipeline Funnel")
             ws5.append(["Stage", "Count"])
             for s in pipeline.get("funnel_stages", []):
@@ -2716,7 +2892,7 @@ class DashboardExportAPIView(BaseAnalyticsView):
 
         # ── Sheet 7: Approval Notes ──
         try:
-            approval_data = self.calc_approval_note_analytics(broad_job_qs, (date_from, date_to), target_user, request.user, request.user.role)
+            approval_data = self.calc_approval_note_analytics(broad_job_qs, (date_from, date_to), ctx.get('target_users'), request.user, request.user.role)
             ws7 = wb.create_sheet("Approval Notes")
             ws7.append(["Metric", "Value"])
             ws7.append(["Total Approval Notes Sent", approval_data.get("total_approval_notes_sent", 0)])
