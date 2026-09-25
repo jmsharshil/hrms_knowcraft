@@ -166,14 +166,20 @@ class InterviewFeedbackAdmin(admin.ModelAdmin):
         }),
     )
 
+    @admin.display(
+        description="Candidate",
+        ordering="job_application__candidate_name",
+    )
     def candidate_link(self, obj):
         if obj.job_application:
             url = reverse("admin:jobs_jobapplication_change", args=[obj.job_application.id])
             return format_html('<a href="{}">{}</a>', url, obj.job_application.candidate_name)
         return "—"
-    candidate_link.short_description = 'Candidate'
-    candidate_link.admin_order_field = 'job_application__candidate_name'
 
+    @admin.display(
+        description="Round Avg",
+        ordering="hr_round_avg_rating",
+    )
     def round_average(self, obj):
         """Use the model's get_round_avg() and color-code it."""
         avg = getattr(obj, 'get_round_avg', lambda: 0)()
@@ -184,8 +190,6 @@ class InterviewFeedbackAdmin(admin.ModelAdmin):
         else:
             color = 'red'
         return format_html('<span style="color:{};">{:.2f}</span>', color, avg)
-    round_average.short_description = 'Round Avg'
-    round_average.admin_order_field = 'hr_round_avg_rating'
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('job_application')
