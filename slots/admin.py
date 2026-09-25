@@ -24,16 +24,16 @@ class SlotAdmin(admin.ModelAdmin):
         }),
     )
 
+    @admin.display(description='# Interviewers')
     def interviewer_count(self, obj):
         return obj.interviewers.count()
-    interviewer_count.short_description = '# Interviewers'
 
+    @admin.display(description='Interviewers')
     def interviewer_list_preview(self, obj):
         names = [i.name for i in obj.interviewers.all()[:3]]
         if len(names) > 3:
             names.append('...')
         return ', '.join(names) or '—'
-    interviewer_list_preview.short_description = 'Interviewers'
 
     def get_queryset(self, request):
         return super().get_queryset(request).prefetch_related('interviewers')
@@ -60,19 +60,19 @@ class InterviewerAdmin(admin.ModelAdmin):
         }),
     )
 
+    @admin.display(description='Subscription')
     def subscription_status(self, obj):
         if obj.subscription_expiry and obj.subscription_expiry > timezone.now():
             return format_html('<span style="color:green;">Active</span>')
         return format_html('<span style="color:red;">Expired/Inactive</span>')
-    subscription_status.short_description = 'Subscription'
 
+    @admin.action(description="Soft delete selected interviewers (mark inactive)")
     def soft_delete_selected(self, request, queryset):
         count = 0
         for interviewer in queryset:
             interviewer.soft_delete()
             count += 1
         self.message_user(request, f"Soft-deleted {count} interviewer(s).")
-    soft_delete_selected.short_description = "Soft delete selected interviewers (mark inactive)"
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('company')
@@ -178,11 +178,15 @@ class InterviewFeedbackAdmin(admin.ModelAdmin):
 
     @admin.display(
         description="Round Avg",
-        ordering="hr_round_avg_rating",
+        ordering="hr_round_avg_rating",  # proxies sort to real model field (fixes FieldDoesNotExist)
     )
     def round_average(self, obj):
-        """Use the model's get_round_avg() and color-code it."""
+        """Modern @admin.display version. Uses model's get_round_avg() + color coding.
+        The decorator ensures Django treats this as a list_display method, not a model field.
+        """
         avg = getattr(obj, 'get_round_avg', lambda: 0)()
+        if not isinstance(avg, (int, float)):
+            avg = 0.0
         if avg >= 4.0:
             color = 'green'
         elif avg >= 3.0:
@@ -227,25 +231,25 @@ class InterviewLocationAdmin(admin.ModelAdmin):
         }),
     )
 
+    @admin.display(description='Full Address')
     def full_address_preview(self, obj):
         if obj.full_address:
             return (obj.full_address[:60] + '...') if len(obj.full_address) > 60 else obj.full_address
         return "—"
-    full_address_preview.short_description = 'Full Address'
 
+    @admin.display(description='Google Maps')
     def google_maps_link_display(self, obj):
         if obj.google_maps_link:
             return format_html('<a href="{}" target="_blank">🗺️ Map</a>', obj.google_maps_link)
         return "—"
-    google_maps_link_display.short_description = 'Google Maps'
 
+    @admin.action(description="Soft delete selected locations (mark inactive)")
     def soft_delete_selected(self, request, queryset):
         count = 0
         for location in queryset:
             location.soft_delete()
             count += 1
         self.message_user(request, f"Soft-deleted {count} location(s).")
-    soft_delete_selected.short_description = "Soft delete selected locations (mark inactive)"
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('company')
