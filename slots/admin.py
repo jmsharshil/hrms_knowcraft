@@ -81,8 +81,7 @@ class InterviewerAdmin(admin.ModelAdmin):
 @admin.register(InterviewFeedback)
 class InterviewFeedbackAdmin(admin.ModelAdmin):
     list_display = (
-        'candidate_link', 'interview_round', 'is_selected',
-        'round_average', 'created_at'
+        'candidate_link', 'interview_round', 'is_selected', 'created_at'
     )
     list_filter = (
         'interview_round', 'is_selected', 'created_at',
