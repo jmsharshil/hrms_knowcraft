@@ -990,7 +990,11 @@ class Application(models.Model):
     original_filename = models.CharField(max_length=255, blank=True)
     file_size = models.PositiveIntegerField(default=0)
 
-    notes = models.TextField(blank=True)
+    notes = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Structured note entries: [{text, author_name, author_id, timestamp}]"
+    )
     position_title = models.CharField(null=True, blank=True)
 
     candidate_name = models.CharField(max_length=255, blank=True)
@@ -1038,10 +1042,20 @@ class Application(models.Model):
 
     is_touched = models.BooleanField(default=False, help_text="Has the candidate been touched at least once?")
     touched_at = models.DateTimeField(null=True, blank=True, help_text="When was the candidate last touched?")
+    is_tagged = models.BooleanField(default=False, help_text="Tagged application without job (department and designation only)")
     is_active = models.BooleanField(default=True, help_text="Is the platform application active?")
 
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now)
+
+    def save(self, *args, **kwargs):
+        if not self.job_id and (self.department_id or self.designation_id):
+            self.is_tagged = True
+            if 'update_fields' in kwargs and kwargs['update_fields'] is not None:
+                fields = set(kwargs['update_fields'])
+                fields.add('is_tagged')
+                kwargs['update_fields'] = list(fields)
+        super().save(*args, **kwargs)
 
     def soft_delete(self):
         """Soft delete this platform application (sets is_active=False)."""

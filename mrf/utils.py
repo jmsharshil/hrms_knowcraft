@@ -403,6 +403,150 @@ email_templates = {
         </table>
     </body>
     </html>
+""",
+
+"mrf_auto_rejected": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#ef4444;font-size:24px;font-weight:600;">MRF Auto-Rejected</h2>
+                                <p style="margin:0 0 16px 0;">Dear <strong>{{manager_name}}</strong>,</p>
+                                <p style="margin:0 0 16px 0;">
+                                    The MRF for <strong>{{position}}</strong> raised on 
+                                    <strong>{{requisition_date}}</strong> has been <strong>auto-rejected</strong> 
+                                    by the system as it was on hold for more than 60 days without action.
+                                </p>
+                                <p style="margin:0 0 16px 0;color:#dc2626;background:#fef2f2;padding:12px 16px;border-radius:8px;border-left:4px solid #ef4444;">
+                                    <strong>Reason:</strong> {{rejection_reason}}
+                                </p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Best Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+""",
+
+"mrf_revision_required": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;">
+                                <h2 style="margin:0 0 22px 0;color:#f59e0b;font-size:24px;font-weight:600;">MRF Marked for Revision</h2>
+                                <p style="margin:0 0 16px 0;">Dear <strong>{{manager_name}}</strong>,</p>
+                                <p style="margin:0 0 16px 0;">
+                                    The MRF for <strong>{{designation}}</strong> has been moved to 
+                                    <strong>Revision Required</strong>. You can now review, edit and resubmit the requisition.
+                                </p>
+                                <p style="margin:25px 0 30px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}" 
+                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;display:inline-block;">
+                                        Review MRF
+                                    </a>
+                                </p>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Best Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                © 2026 Knowcraft Analytics Private Limited • Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+""",
+
+"dept_head_weekly_report": f"""
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:660px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Logo -->
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <!-- Separator -->
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <!-- Header -->
+                        <tr>
+                            <td style="padding:30px 40px 0 40px;color:#1f2937;">
+                                <h2 style="margin:0 0 6px 0;font-size:22px;font-weight:700;">Weekly Recruitment Update</h2>
+                                <p style="margin:0;color:#64748b;font-size:14px;">Week of {{week_label}}</p>
+                            </td>
+                        </tr>
+                        <!-- Greeting -->
+                        <tr>
+                            <td style="padding:20px 40px 10px 40px;font-size:16px;color:#333333;">
+                                <p style="margin:0;">Dear <strong>{{manager_name}}</strong>,</p>
+                                <p style="margin:10px 0 0 0;color:#555555;">Here is a summary of recruitment activity for the MRFs raised by you as of this week.</p>
+                            </td>
+                        </tr>
+                        <!-- MRF Sections placeholder (injected dynamically) -->
+                        <tr>
+                            <td style="padding:10px 40px 30px 40px;">{{mrf_sections_html}}</td>
+                        </tr>
+                        <!-- Footer note -->
+                        <tr>
+                            <td style="padding:0 40px 30px 40px;font-size:14px;color:#64748b;">
+                                <p style="margin:0;">If you have questions, please reach out to the HR team directly.</p>
+                                <p style="margin:12px 0 0 0;color:#555555;">Best Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                &copy; 2026 Knowcraft Analytics Private Limited &bull; Confidential
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
 """
 }
 
@@ -443,6 +587,25 @@ We would like to inform you that MRF for an Analyst – {{designation}} position
 Thank you for your support.
 Best regards,
 Team HR
+""",
+"mrf_auto_rejected":f"""Dear {{manager_name}},
+The MRF for {{position}} raised on {{requisition_date}} has been automatically rejected by the system as it was on hold for more than 60 days without action.
+Reason: {{rejection_reason}}
+Best regards,
+Team HR
+""",
+"mrf_revision_required":f"""Dear {{manager_name}},
+The MRF for {{designation}} has been marked for revision. You may now review, edit, and resubmit the MRF.
+Best regards,
+Team HR
+""",
+"dept_head_weekly_report":f"""Dear {{manager_name}},
+Please find below the weekly recruitment update for the MRFs raised by you (week of {{week_label}}).
+{{mrf_sections_text}}
+For questions, please reach out to the HR team.
+Best regards,
+Team HR
+Knowcraft Analytics Private Limited.
 """
 }
 
@@ -920,3 +1083,299 @@ def is_valid_uuid(uuid_string):
         return True
     except ValueError:
         return False
+
+def auto_reject_stale_held_mrfs():
+    """
+    Daily task: auto-reject any MRF that has been on hold for > 60 days.
+    Creates an MRFApproval audit record and sends an email to the requester.
+    """
+    from .models import MRF, MRFApproval
+    from django.utils import timezone
+    from datetime import timedelta
+    from django.db import transaction
+    from onboarding.utils.sender import send_email, send_text
+
+    cutoff = timezone.now() - timedelta(days=60)
+    stale_mrfs = MRF.objects.filter(
+        status='on_hold',
+        held_at__lt=cutoff,
+        is_active=True
+    ).select_related('requested_by', 'held_by', 'company', 'designation')
+
+    REJECTION_REASON = "Auto-rejected: MRF was on hold for more than 60 days without action."
+    now = timezone.now()
+    count = 0
+
+    for mrf in stale_mrfs:
+        approver = mrf.held_by or mrf.requested_by
+        try:
+            with transaction.atomic():
+                mrf.status = 'rejected'
+                mrf.rejected_at = now
+                mrf.hold_reason = ''
+                mrf.previous_status = None
+                mrf.held_at = None
+                mrf.held_by = None
+                mrf.save(update_fields=[
+                    'status', 'rejected_at', 'hold_reason',
+                    'previous_status', 'held_at', 'held_by', 'updated_at'
+                ])
+
+                MRFApproval.objects.create(
+                    company=mrf.company,
+                    mrf=mrf,
+                    level=mrf.current_approval_level,
+                    approver=approver,
+                    action='rejected',
+                    rejection_reason=REJECTION_REASON,
+                    comments='System auto-rejection after 60 days on hold.',
+                )
+
+            # Send email to requester
+            requester = mrf.requested_by
+            if requester and requester.email and not mrf.is_private:
+                pos_name = mrf.designation.name if mrf.designation else mrf.mrf_name
+                created_date_str = mrf.created_at.strftime("%B %d, %Y") if mrf.created_at else "N/A"
+                tmpl = email_templates.get("mrf_auto_rejected", "").format(
+                    manager_name=requester.name,
+                    position=pos_name,
+                    requisition_date=created_date_str,
+                    rejection_reason=REJECTION_REASON,
+                )
+                txt = alt_text.get("mrf_auto_rejected", "").format(
+                    manager_name=requester.name,
+                    position=pos_name,
+                    requisition_date=created_date_str,
+                    rejection_reason=REJECTION_REASON,
+                )
+                send_email(
+                    to=requester.email,
+                    subject=f"MRF Auto-Rejected – {pos_name}",
+                    template=tmpl,
+                    text=txt,
+                    event="mrf_auto_rejected",
+                    email_type="internal",
+                )
+                if requester.phone:
+                    send_text(to=requester.phone, text=txt)
+
+            count += 1
+        except Exception as e:
+            print(f"[AUTO-REJECT] Failed for MRF {mrf.id}: {e}")
+
+    print(f"[AUTO-REJECT] Auto-rejected {count} stale on-hold MRF(s).")
+    return count
+
+
+# ─── Weekly Department Head Report ────────────────────────────────────────────
+
+def dept_head_weekly_report_task():
+    """
+    Send a weekly recruitment status report to each department head for their
+    active MRFs. Covers all candidate pipeline stages across each MRF's jobs.
+    """
+    import logging
+    from datetime import date, timedelta
+    from django.db.models import Count, Q
+
+    from accounts.models import User
+    from jobs.models import JobApplication
+
+    logger = logging.getLogger(__name__)
+
+    STATUS_LABELS = {
+        "received": "CVs Received",
+        "shortlisted": "Shortlisted",
+        "interview_pending_1": "HR Interview Pending",
+        "interview_done_1": "HR Interview Completed",
+        "interview_rejected_1": "Rejected – HR Round",
+        "interview_next_2": "Shortlisted – Technical Round",
+        "interview_pending_2": "Technical Interview Pending",
+        "interview_done_2": "Technical Interview Completed",
+        "interview_rejected_2": "Rejected – Technical Round",
+        "interview_next_3": "Shortlisted – Case Study Round",
+        "interview_pending_3": "Case Study Interview Pending",
+        "interview_done_3": "Case Study Interview Completed",
+        "interview_rejected_3": "Rejected – Case Study Round",
+        "interview_next_final": "Shortlisted – Final Round",
+        "interview_pending_final": "Final Interview Pending",
+        "interview_done_final": "Final Interview Completed",
+        "interview_rejected_final": "Rejected – Final Round",
+        "interview_next_management_client": "Shortlisted – Mgmt/Client Round",
+        "interview_pending_management_client": "Mgmt/Client Interview Pending",
+        "interview_done_management_client": "Mgmt/Client Interview Completed",
+        "interview_rejected_management_client": "Rejected – Mgmt/Client Round",
+        "consolidated_result_review": "Under HR Review",
+        "selected": "Selected",
+        "approval_pending": "Approval Pending",
+        "approved": "Approved by Hiring Manager",
+        "approval_rejected": "Rejected During Approval",
+        "offer_pending": "Offer Pending",
+        "offer_sent": "Offer Sent",
+        "offer_accepted": "Offer Accepted",
+        "offer_rejected": "Offer Rejected",
+        "joining_pending": "Joining Pending",
+        "joined": "Joined",
+        "duplicate_rejected": "Duplicate Rejected",
+    }
+
+    INTERVIEW_STATUSES = {s for s in STATUS_LABELS if 'interview' in s or s == 'shortlisted'}
+
+    today = date.today()
+    week_label = f"{(today - timedelta(days=today.weekday() + 7)).strftime('%d %b')} – {(today - timedelta(days=today.weekday() + 1)).strftime('%d %b %Y')}"
+
+    dept_heads = User.objects.filter(role='department_head', is_active=True).exclude(email='')
+
+    sent_count = 0
+    for head in dept_heads:
+        try:
+            active_mrfs = MRF.objects.filter(
+                requested_by=head,
+                is_active=True,
+                status__in=['approved', 'filled', 'joining_pending', 'open', 'in_progress',
+                            'assigned_to_consultancy', 'assigned_to_internal_hr', 'assigned_to_both']
+            ).select_related('designation', 'department').prefetch_related('jobs')
+
+            if not active_mrfs.exists():
+                continue
+
+            # ── Build HTML + text sections per MRF ───────────────────────────
+            mrf_sections_html_parts = []
+            mrf_sections_text_parts = []
+
+            for mrf in active_mrfs:
+                jobs = mrf.jobs.filter(is_active=True)
+                if not jobs.exists():
+                    continue
+
+                desig_name = mrf.designation.name if mrf.designation else mrf.mrf_name or "Unknown"
+                dept_name = mrf.department.name if mrf.department else "Unknown"
+
+                # Aggregate counts across all jobs of this MRF
+                all_apps = JobApplication.objects.filter(job__in=jobs)
+                stage_counts = {}
+                for entry in all_apps.values('status').annotate(count=Count('id')):
+                    stage_counts[entry['status']] = entry['count']
+
+                total_cvs = sum(stage_counts.values())
+                total_interviews_done = sum(
+                    v for k, v in stage_counts.items()
+                    if 'interview_done' in k or 'interview_rejected' in k
+                )
+                in_interview_process = sum(
+                    v for k, v in stage_counts.items()
+                    if 'interview_pending' in k or 'interview_next' in k
+                )
+                selected_count = stage_counts.get('selected', 0) + stage_counts.get('approved', 0)
+                offered_count = stage_counts.get('offer_sent', 0) + stage_counts.get('offer_accepted', 0)
+                joined_count = stage_counts.get('joined', 0)
+
+                # ── Build HTML rows ───────────────────────────────────────────
+                stage_rows_html = ""
+                for status_key, label in STATUS_LABELS.items():
+                    count = stage_counts.get(status_key, 0)
+                    if count > 0:
+                        badge_color = "#10b981" if "joined" in status_key or "accepted" in status_key else \
+                                      "#ef4444" if "rejected" in status_key else \
+                                      "#2563eb" if "pending" in status_key or "interview_done" in status_key else "#64748b"
+                        stage_rows_html += (
+                            f'<tr>'
+                            f'<td style="padding:8px 12px;color:#374151;border-bottom:1px solid #f3f4f6;font-size:14px;">{label}</td>'
+                            f'<td style="padding:8px 12px;text-align:center;border-bottom:1px solid #f3f4f6;">'
+                            f'<span style="background:{badge_color};color:#fff;padding:3px 10px;border-radius:999px;font-size:13px;font-weight:600;">{count}</span>'
+                            f'</td>'
+                            f'</tr>'
+                        )
+
+                mrf_html = f"""
+<div style="margin:24px 0 0 0;">
+  <table border="0" cellpadding="0" cellspacing="0" width="100%"
+         style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin-bottom:6px;">
+    <tr>
+      <td colspan="2" style="background:#1e40af;padding:14px 16px;">
+        <p style="margin:0;font-size:16px;font-weight:700;color:#ffffff;">{desig_name}</p>
+        <p style="margin:4px 0 0 0;font-size:13px;color:#bfdbfe;">{dept_name} &nbsp;&bull;&nbsp; Req No: {mrf.requisition_no or 'N/A'}</p>
+      </td>
+    </tr>
+    <!-- Summary row -->
+    <tr>
+      <td colspan="2" style="padding:12px 16px;background:#f8fafc;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%">
+          <tr>
+            <td style="text-align:center;padding:6px 8px;">
+              <p style="margin:0;font-size:20px;font-weight:700;color:#1e40af;">{total_cvs}</p>
+              <p style="margin:2px 0 0 0;font-size:12px;color:#64748b;">Total CVs</p>
+            </td>
+            <td style="text-align:center;padding:6px 8px;border-left:1px solid #e5e7eb;">
+              <p style="margin:0;font-size:20px;font-weight:700;color:#0891b2;">{total_interviews_done}</p>
+              <p style="margin:2px 0 0 0;font-size:12px;color:#64748b;">Interviews Done</p>
+            </td>
+            <td style="text-align:center;padding:6px 8px;border-left:1px solid #e5e7eb;">
+              <p style="margin:0;font-size:20px;font-weight:700;color:#7c3aed;">{in_interview_process}</p>
+              <p style="margin:2px 0 0 0;font-size:12px;color:#64748b;">In Process</p>
+            </td>
+            <td style="text-align:center;padding:6px 8px;border-left:1px solid #e5e7eb;">
+              <p style="margin:0;font-size:20px;font-weight:700;color:#16a34a;">{offered_count}</p>
+              <p style="margin:2px 0 0 0;font-size:12px;color:#64748b;">Offered</p>
+            </td>
+            <td style="text-align:center;padding:6px 8px;border-left:1px solid #e5e7eb;">
+              <p style="margin:0;font-size:20px;font-weight:700;color:#059669;">{joined_count}</p>
+              <p style="margin:2px 0 0 0;font-size:12px;color:#64748b;">Joined</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <!-- Stage details -->
+    {f'<tr><td colspan="2"><table border="0" cellpadding="0" cellspacing="0" width="100%">{stage_rows_html}</table></td></tr>' if stage_rows_html else ''}
+  </table>
+</div>"""
+
+                mrf_sections_html_parts.append(mrf_html)
+
+                # ── Plain text section ────────────────────────────────────────
+                text_lines = [
+                    f"\n--- {desig_name} ({dept_name}) | Req: {mrf.requisition_no or 'N/A'} ---",
+                    f"  Total CVs: {total_cvs}",
+                    f"  Interviews Done: {total_interviews_done}",
+                    f"  In Interview Process: {in_interview_process}",
+                    f"  Offered: {offered_count}  |  Joined: {joined_count}",
+                ]
+                for status_key, label in STATUS_LABELS.items():
+                    count = stage_counts.get(status_key, 0)
+                    if count > 0:
+                        text_lines.append(f"    {label}: {count}")
+                mrf_sections_text_parts.append("\n".join(text_lines))
+
+            if not mrf_sections_html_parts:
+                continue
+
+            mrf_sections_html = "".join(mrf_sections_html_parts)
+            mrf_sections_text = "\n".join(mrf_sections_text_parts)
+
+            template = email_templates["dept_head_weekly_report"].format(
+                manager_name=head.name,
+                week_label=week_label,
+                mrf_sections_html=mrf_sections_html,
+            )
+            text = alt_text["dept_head_weekly_report"].format(
+                manager_name=head.name,
+                week_label=week_label,
+                mrf_sections_text=mrf_sections_text,
+            )
+
+            send_email(
+                to=head.email,
+                subject=f"Weekly Recruitment Update – {week_label}",
+                template=template,
+                text=text,
+                event="dept_head_weekly_report",
+                email_type="internal",
+            )
+            sent_count += 1
+
+        except Exception as e:
+            logger.error("[WEEKLY-REPORT] Failed for dept head %s: %s", head.email, e)
+
+    print(f"[WEEKLY-REPORT] Sent {sent_count} weekly report(s).")
+    return sent_count

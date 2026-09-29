@@ -85,8 +85,8 @@ class CanEditMRF(permissions.BasePermission):
         if obj.requested_by != user:
             return False
         
-        # Can only edit in draft or revision_required status
-        return obj.status in ['draft', 'revision_required']
+        # Can only edit in draft, revision_required, or rejected status
+        return obj.status in ['draft', 'revision_required', 'rejected']
 
 
 class CanApproveMRF(permissions.BasePermission):
@@ -109,5 +109,5 @@ class CanSubmitMRF(permissions.BasePermission):
         if obj.requested_by != user:
             return False
         
-        # Can only submit from draft or revision_required status
-        return obj.status in ['draft', 'revision_required']
+        # Can only submit from draft, revision_required, or rejected status
+        return obj.status in ['draft', 'revision_required', 'rejected']

@@ -35,6 +35,15 @@ class UserAdmin(BaseUserAdmin):
     
     ordering = ['-created_at']
     filter_horizontal = ('groups', 'user_permissions')
+    actions = ['send_weekly_report_email']
+
+    def send_weekly_report_email(self, request, queryset):
+        """Run weekly recruitment status report email task."""
+        from mrf.utils import dept_head_weekly_report_task
+        count = dept_head_weekly_report_task()
+        self.message_user(request, f"Weekly report task executed. Sent {count} report(s).")
+
+    send_weekly_report_email.short_description = "Send weekly report email (dept_head_weekly_report)"
 
 
 @admin.register(MagicLink)

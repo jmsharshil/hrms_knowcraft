@@ -1530,6 +1530,7 @@ class GeneralApplicationCreateSerializer(serializers.ModelSerializer):
                     resume=file,
                     original_filename=file.name,
                     file_size=file.size,
+                    is_tagged=True,
                 )
                 created.append(app)
                 
@@ -1656,7 +1657,7 @@ class ApplicationListSerializer(serializers.ModelSerializer):
                   'candidate_email','candidate_phone','location','match_score','job',
                   'resume_report','is_duplicate','current_employer','created_at','is_rejected',
                   'department', 'designation', 'department_name', 'designation_name',
-                  'status','status_display']
+                  'status','status_display', 'is_tagged', 'notes']
 
     def get_resume_url(self, obj):
         request = self.context.get('request')

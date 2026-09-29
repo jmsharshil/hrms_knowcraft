@@ -4,6 +4,7 @@ from django.db.models import FileField
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status,permissions
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.template import Template, Context
@@ -634,9 +635,18 @@ class SendApprovalNoteAPIView(APIView):
             onboarding_initiation_form_exists=Exists(onboarding_form_exists)
         ).distinct()
 
+        class ApprovalNotePagination(PageNumberPagination):
+            page_size = 30
+            page_size_query_param = 'page_size'
+            max_page_size = 200
+
+        paginator = ApprovalNotePagination()
+        page = paginator.paginate_queryset(approval_notes, request)
+        notes_to_process = page if page is not None else approval_notes
+
         results = []
 
-        for note in approval_notes:
+        for note in notes_to_process:
             can_approve = (
                 note.manager == request.user
                 and note.status == "approval_pending"
@@ -662,6 +672,11 @@ class SendApprovalNoteAPIView(APIView):
                 "salary_annexure_upload_link": f"{FRONTEND_URL}/upload-salary-annexure/{note.candidate.id}",
                 "offer_letter_upload_link": f"{FRONTEND_URL}/review-documents/{note.candidate.id}"
             })
+
+        if page is not None:
+            response = paginator.get_paginated_response(results)
+            response.data["approval_notes"] = results
+            return response
 
         return Response(
             {

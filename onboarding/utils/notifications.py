@@ -1803,9 +1803,19 @@ def notify_internal(candidate: Any, stage: str, cc: list = None) -> bool:
         return False
 
     recievers = NOTIFY_INTERNAL_MAP[stage]['receivers']
-    subject = NOTIFY_INTERNAL_MAP[stage]['subject']
-    body = NOTIFY_INTERNAL_MAP[stage]['body']
-    base_sms_text = NOTIFY_INTERNAL_MAP[stage]['sms']  # FIX
+    raw_subject = NOTIFY_INTERNAL_MAP[stage]['subject']
+    raw_body = NOTIFY_INTERNAL_MAP[stage]['body']
+    base_sms_text = NOTIFY_INTERNAL_MAP[stage]['sms']
+
+    # Resolve {candidate.xxx} placeholders in subject and body
+    try:
+        subject = raw_subject.format(candidate=candidate)
+    except Exception:
+        subject = raw_subject
+    try:
+        body = raw_body.format(candidate=candidate)
+    except Exception:
+        body = raw_body
 
     if not recievers:
         logger.warning("No notification recievers for stage '%s'", stage)
@@ -1868,7 +1878,8 @@ def notify_internal(candidate: Any, stage: str, cc: list = None) -> bool:
             template = template_base.format(
                 candidate=candidate,
                 feedback_link=feedback_link,
-                reciever_name=reciever_name
+                reciever_name=reciever_name,
+                FRONTEND_URL=FRONTEND_URL
             )
 
             send_email(email, subject=subject, text=body, template=template,event="onboarding_stage_update",email_type="internal")
