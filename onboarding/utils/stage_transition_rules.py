@@ -46,7 +46,7 @@ ALLOWED_TRANSITIONS = {
     # TERMINAL
     "duplicate_rejected": ["shortlisted"],
     "interview_rejected_1": ["interview_next_2","selected"],
-    "interview_rejected_2": ["interview_next_3","selected"],
+    "interview_rejected_2": ["interview_next_3","selected" ,"interview_next_final"],
     "interview_rejected_3": ["interview_next_final","selected"],
     "interview_rejected_final": ["selected"],
     "interview_rejected_management_client":['selected'],
