@@ -802,14 +802,14 @@ class BaseAnalyticsView(APIView):
                         'hr_name': hr.name or hr.email or 'Unknown',
                         'job_count': 0,
                         'active_jobs': 0,
-                        'closed_jobs': 0,
+                        'filled_jobs': 0,
                         'on_hold_jobs': 0,
                         'jobs': []
                     }
                 
                 hr_dict[hid]['job_count'] += 1
                 if job.status in ['filled', 'joining_pending']:
-                    hr_dict[hid]['closed_jobs'] += 1
+                    hr_dict[hid]['filled_jobs'] += 1
                 elif job.status == 'on_hold':
                     hr_dict[hid]['on_hold_jobs'] += 1
                 elif job.status not in ['closed', 'cancelled']:
@@ -839,14 +839,14 @@ class BaseAnalyticsView(APIView):
                         'consultancy_name': cons.name or cons.email or 'Unknown',
                         'job_count': 0,
                         'active_jobs': 0,
-                        'closed_jobs': 0,
+                        'filled_jobs': 0,
                         'on_hold_jobs': 0,
                         'jobs': []
                     }
                 
                 cons_dict[cid]['job_count'] += 1
                 if job.status in ['filled', 'joining_pending']:
-                    cons_dict[cid]['closed_jobs'] += 1
+                    cons_dict[cid]['filled_jobs'] += 1
                 elif job.status == 'on_hold':
                     cons_dict[cid]['on_hold_jobs'] += 1
                 elif job.status not in ['closed', 'cancelled']:
