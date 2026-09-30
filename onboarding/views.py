@@ -197,6 +197,15 @@ class RevertRejectionAPI(APIView):
                 )
             if interviewer:
                 interviewer_id = interviewer.id
+                # Validate candidate email before generating online interview booking link
+                if not application.candidate_email or not application.candidate_email.strip() or application.candidate_email.strip().lower() == 'unknown':
+                    return Response(
+                        {
+                            "error": "Candidate email is required for scheduling an online interview. "
+                                     "Please update the candidate's email and try again."
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
                 application.slot_link = (
                     f"{FRONTEND_URL}/api/slots/available/"
                     f"?candidate_id={application.id}&interviewer_id={interviewer_id}"
@@ -2497,8 +2506,8 @@ class AssignBuddyAPI(APIView):
                     candidate=application
                 )
 
-            # ── Work email reminder if not set ────────────────────────────────
-            if not application.work_email:
+            # ── Work email reminder if not set (only for active onboarding candidates) ─
+            if not application.work_email and hasattr(application, 'onboarding_form'):
                 try:
                     from onboarding.utils.notifications import notify_internal
                     notify_internal(application, "work_email_reminder")
