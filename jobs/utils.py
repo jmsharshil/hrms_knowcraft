@@ -858,14 +858,15 @@ def parse_resume_task(application,resume_file,job):
         application.save()
     
     if application.is_duplicate:
-        if (
-            application.application_link
-            or application.source in ['application_link', 'consultancy']
-            or getattr(getattr(application, 'submitted_by', None), 'role', None) == 'consultancy'
-        ):
-            _handle_duplicate_candidate_submission(application, name, email, job)
-        else:
-            automation_engine(application, application.status, 'duplicate_rejected')
+        # if (
+        #     application.application_link
+        #     or application.source in ['application_link', 'consultancy']
+        #     or getattr(getattr(application, 'submitted_by', None), 'role', None) == 'consultancy'
+        # ):
+        #     _handle_duplicate_candidate_submission(application, name, email, job)
+        # else:
+        #     automation_engine(application, application.status, 'duplicate_rejected')
+        automation_engine(application, application.status, 'duplicate_rejected')
     elif application.match_score >= 75:
         automation_engine(application, application.status, 'shortlisted')
 
