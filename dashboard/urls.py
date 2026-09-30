@@ -8,6 +8,7 @@ from .views import (
     HRAnalyticsAPIView,
     DeptHeadAnalyticsAPIView,
     ConsultancyAnalyticsAPIView,
+    UserCompareAnalyticsAPIView,
     RecruitmentCostViewSet,
     CandidateExperienceFeedbackSubmitView,
     DashboardExportAPIView,
@@ -32,6 +33,9 @@ urlpatterns = [
     path('analytics/hr/', HRAnalyticsAPIView.as_view(), name='analytics-hr'),
     path('analytics/dept-head/', DeptHeadAnalyticsAPIView.as_view(), name='analytics-dept-head'),
     path('analytics/consultancy/', ConsultancyAnalyticsAPIView.as_view(), name='analytics-consultancy'),
+
+    # User comparison analytics endpoint
+    path('analytics/compare/', UserCompareAnalyticsAPIView.as_view(), name='analytics-compare'),
 
     # Public candidate feedback submission
     path('feedback/submit/', CandidateExperienceFeedbackSubmitView.as_view(), name='feedback-submit'),
