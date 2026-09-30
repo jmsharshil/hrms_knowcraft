@@ -107,6 +107,7 @@ class RevertRejectionAPI(APIView):
             return Response({"error": "Job Application not found"}, status=404)
 
         old_status = application.status
+        round_name = application.round_name
         comment = request.data.get("comment", "")  # New optional comment field
         
         # We only allow reverting from terminal rejection states
@@ -136,10 +137,13 @@ class RevertRejectionAPI(APIView):
             # Rejected after HR round → try Technical, then Case Study, then Final
             if mrf.interviewer_email_2:
                 new_status = "interview_next_2"
+                round_name = 'technical_round'
             elif mrf.interviewer_email_3:
                 new_status = "interview_next_3"
+                round_name = 'case_study_round'
             elif mrf.interviewer_email_final:
                 new_status = "interview_next_final"
+                round_name = 'final_round'
             else:
                 new_status = "selected"
 
@@ -147,8 +151,10 @@ class RevertRejectionAPI(APIView):
             # Rejected after Technical round → check Case Study, then Final
             if mrf.interviewer_email_3:
                 new_status = "interview_next_3"        # case study is configured
+                round_name = 'case_study_round'
             elif mrf.interviewer_email_final:
                 new_status = "interview_next_final"    # skip straight to final
+                round_name = 'final_round'
             else:
                 new_status = "selected"
 
@@ -156,6 +162,7 @@ class RevertRejectionAPI(APIView):
             # Rejected after Case Study round → check Final round
             if mrf.interviewer_email_final:
                 new_status = "interview_next_final"
+                round_name = 'final_round'
             else:
                 new_status = "selected"
 
@@ -190,6 +197,15 @@ class RevertRejectionAPI(APIView):
                 )
             if interviewer:
                 interviewer_id = interviewer.id
+                # Validate candidate email before generating online interview booking link
+                if not application.candidate_email or not application.candidate_email.strip() or application.candidate_email.strip().lower() == 'unknown':
+                    return Response(
+                        {
+                            "error": "Candidate email is required for scheduling an online interview. "
+                                     "Please update the candidate's email and try again."
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
                 application.slot_link = (
                     f"{FRONTEND_URL}/api/slots/available/"
                     f"?candidate_id={application.id}&interviewer_id={interviewer_id}"
@@ -198,6 +214,7 @@ class RevertRejectionAPI(APIView):
                     f"{FRONTEND_URL}/api/inperson/interview/"
                     f"?candidate_id={application.id}&interviewer_id={interviewer_id}"
                 )
+                application.round_name = round_name
             else:
                 application.slot_link = ""
                 application.inperson_link = ""
@@ -2489,8 +2506,8 @@ class AssignBuddyAPI(APIView):
                     candidate=application
                 )
 
-            # ── Work email reminder if not set ────────────────────────────────
-            if not application.work_email:
+            # ── Work email reminder if not set (only for active onboarding candidates) ─
+            if not application.work_email and hasattr(application, 'onboarding_form'):
                 try:
                     from onboarding.utils.notifications import notify_internal
                     notify_internal(application, "work_email_reminder")

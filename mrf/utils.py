@@ -1234,7 +1234,7 @@ def dept_head_weekly_report_task():
                 is_active=True,
                 status__in=['approved', 'filled', 'joining_pending', 'open', 'in_progress',
                             'assigned_to_consultancy', 'assigned_to_internal_hr', 'assigned_to_both']
-            ).select_related('designation', 'department').prefetch_related('jobs')
+            ).select_related('designation', 'department', 'job')
 
             if not active_mrfs.exists():
                 continue
@@ -1244,15 +1244,14 @@ def dept_head_weekly_report_task():
             mrf_sections_text_parts = []
 
             for mrf in active_mrfs:
-                jobs = mrf.jobs.filter(is_active=True)
-                if not jobs.exists():
+                if not hasattr(mrf, 'job') or not mrf.job.is_active:
                     continue
 
                 desig_name = mrf.designation.name if mrf.designation else mrf.mrf_name or "Unknown"
                 dept_name = mrf.department.name if mrf.department else "Unknown"
 
                 # Aggregate counts across all jobs of this MRF
-                all_apps = JobApplication.objects.filter(job__in=jobs)
+                all_apps = JobApplication.objects.filter(job=mrf.job)
                 stage_counts = {}
                 for entry in all_apps.values('status').annotate(count=Count('id')):
                     stage_counts[entry['status']] = entry['count']
