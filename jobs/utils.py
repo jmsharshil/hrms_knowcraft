@@ -1001,23 +1001,24 @@ Knowcraft Analytics Private Limited
                 email_type="internal"
             )
 
-        # Remove uploaded files from storage
-        try:
-            if hasattr(application, 'resume') and application.resume:
-                application.resume.delete(save=False)
-            if hasattr(application, 'resume_report') and application.resume_report:
-                application.resume_report.delete(save=False)
-        except Exception as e:
-            logger.warning(f"Could not delete files for duplicate application {application.id}: {e}")
+        # [DISABLED] Remove uploaded files from storage
+        # try:
+        #     if hasattr(application, 'resume') and application.resume:
+        #         application.resume.delete(save=False)
+        #     if hasattr(application, 'resume_report') and application.resume_report:
+        #         application.resume_report.delete(save=False)
+        # except Exception as e:
+        #     logger.warning(f"Could not delete files for duplicate application {application.id}: {e}")
 
-        # Decrement link count if submitted via link
-        if link and getattr(link, 'applications_count', 0) > 0:
-            link.applications_count = max(0, link.applications_count - 1)
-            link.save(update_fields=['applications_count'])
+        # [DISABLED] Decrement link count if submitted via link
+        # if link and getattr(link, 'applications_count', 0) > 0:
+        #     link.applications_count = max(0, link.applications_count - 1)
+        #     link.save(update_fields=['applications_count'])
 
-        # Remove record completely from portal
-        application.delete()
-        logger.info(f"Duplicate application for {candidate_name} ({candidate_email}) removed from portal.")
+        # [DISABLED] Remove record completely from portal
+        # application.delete()
+        # logger.info(f"Duplicate application for {candidate_name} ({candidate_email}) removed from portal.")
+        logger.info(f"Duplicate application for {candidate_name} ({candidate_email}) detected but NOT deleted (deletion disabled).")
     except Exception as e:
         logger.exception(f"Error handling duplicate candidate submission: {e}")
 
