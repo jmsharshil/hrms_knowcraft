@@ -2585,6 +2585,61 @@ class ConsultancyAnalyticsAPIView(BaseAnalyticsView):
         return ['candidate_pipeline_funnel', 'overall_summary_kpis', 'job_assignment_analytics']
 
 
+class UserCompareAnalyticsAPIView(BaseAnalyticsView):
+    """
+    Takes multiple user_ids (e.g. ?user_ids=id1,id2) and returns an array of analytics 
+    objects, one for each user, allowing for side-by-side comparison.
+    """
+    def get_sections(self):
+        return [
+            'mrf_analytics', 'job_assignment_analytics', 'cv_resume_source_analytics',
+            'candidate_pipeline_funnel', 'interview_round_time_analytics', 
+            'approval_note_analytics', 'document_offer_process_timeline', 'overall_summary_kpis'
+        ]
+
+    def get(self, request):
+        raw_user_ids = request.query_params.getlist('user_ids')
+        if not raw_user_ids:
+            raw_user_ids = [uid.strip() for uid in request.query_params.get('user_ids', '').split(',') if uid.strip()]
+            
+        if len(raw_user_ids) < 2:
+            return Response({"detail": "Please provide at least two user_ids for comparison (e.g. ?user_ids=id1,id2)"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        comparison_results = []
+        original_query_params = request.query_params.copy()
+        
+        for uid in raw_user_ids:
+            temp_params = original_query_params.copy()
+            if 'user_ids' in temp_params:
+                # DRF QueryDict: to remove a list, we might need to delete it completely.
+                del temp_params['user_ids']
+            
+            temp_params['user_id'] = uid
+            request._request.GET = temp_params
+            
+            try:
+                # We call the BaseAnalyticsView.get
+                single_result_response = super().get(request)
+                if single_result_response.status_code == 200:
+                    comparison_results.append({
+                        "user_id": uid,
+                        "data": single_result_response.data
+                    })
+                else:
+                    comparison_results.append({
+                        "user_id": uid,
+                        "error": single_result_response.data
+                    })
+            except Exception as e:
+                comparison_results.append({
+                    "user_id": uid,
+                    "error": str(e)
+                })
+                
+        request._request.GET = original_query_params
+        return Response(comparison_results, status=status.HTTP_200_OK)
+
+
 # Legacy / Redirect dispatcher
 class AnalyticsAPIView(APIView):
     permission_classes = [IsAuthenticated]
