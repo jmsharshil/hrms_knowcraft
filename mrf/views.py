@@ -979,8 +979,9 @@ class MRFViewSet(viewsets.ModelViewSet):
             'pending_level_2': queryset.filter(status='pending_level_2').count(),
             'pending_level_3': queryset.filter(status='pending_level_3').count(),
             'approved': queryset.filter(status='approved').count(),
-            # 'rejected': queryset.filter(status='rejected').count(),
+            'rejected': queryset.filter(status='rejected').count(),
             'revision_required': queryset.filter(status='revision_required').count(),
+            'on_hold': queryset.filter(status='on_hold').count(),
             'all_pending': queryset.filter(
                 status__in=['pending_level_1', 'pending_level_2', 'pending_level_3']
             ).count()
@@ -1036,7 +1037,9 @@ class MRFViewSet(viewsets.ModelViewSet):
             'pending_level_2': queryset.filter(status='pending_level_2').count(),
             'pending_level_3': queryset.filter(status='pending_level_3').count(),
             'approved': queryset.filter(status='approved').count(),
+            'rejected': queryset.filter(status='rejected').count(),
             'revision_required': queryset.filter(status='revision_required').count(),
+            'on_hold': queryset.filter(status='on_hold').count(),
             'all_pending': queryset.filter(
                 status__in=['pending_level_1','pending_level_2','pending_level_3']
             ).count()
