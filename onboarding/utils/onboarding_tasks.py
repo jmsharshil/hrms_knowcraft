@@ -137,8 +137,9 @@ def daily_onboarding_check():
                     pass
 
             if not work_email:
-                logger.info(f"Work email missing for {app.candidate_name}. Sending reminder and skipping post-joining tasks.")
-                notify_internal(app, "missing_work_email_reminder")
+                logger.info(f"Work email missing for {app.candidate_name}. Skipping post-joining tasks.")
+                if hasattr(app, 'onboarding_form'):
+                    notify_internal(app, "missing_work_email_reminder")
                 continue
 
             app.work_email = work_email
@@ -428,8 +429,9 @@ def run_onboarding_check_for_candidate(app):
                 pass
 
         if not work_email:
-            logger.info(f"[ADMIN ACTION] Work email missing for {app.candidate_name}. Sending reminder and skipping post-joining tasks.")
-            notify_internal(app, "missing_work_email_reminder")
+            logger.info(f"[ADMIN ACTION] Work email missing for {app.candidate_name}. Skipping post-joining tasks.")
+            if hasattr(app, 'onboarding_form'):
+                notify_internal(app, "missing_work_email_reminder")
             return days_until_joining
 
         app.work_email = work_email
