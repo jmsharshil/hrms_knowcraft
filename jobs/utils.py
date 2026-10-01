@@ -993,14 +993,14 @@ Best regards,
 Team HR
 Knowcraft Analytics Private Limited
 """
-            send_email(
-                to=uploader_email,
-                subject=subject,
-                template=template,
-                text=text,
-                event="duplicate_cv_rejected",
-                email_type="internal"
-            )
+#             send_email(
+#                 to=uploader_email,
+#                 subject=subject,
+#                 template=template,
+#                 text=text,
+#                 event="duplicate_cv_rejected",
+#                 email_type="internal"
+#             )
 
         # [DISABLED] Remove uploaded files from storage
         # try:
