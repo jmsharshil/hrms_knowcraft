@@ -2485,21 +2485,24 @@ class BaseAnalyticsView(APIView):
                     interviewer_names.append(tu.name)
         
         # Determine which sections to return
-        requested_sections = request.query_params.get('sections', '').split(',')
-        if requested_sections == ['']:
+        requested_sections_raw = request.query_params.get('sections', '')
+        if not requested_sections_raw:
             requested_sections = allowed_sections
         else:
-            requested_sections = [s for s in requested_sections if s in allowed_sections]
+            requested_sections = [s for s in requested_sections_raw.split(',') if s in allowed_sections]
 
         data = {
             "summary": self.calc_summary_totals(mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, broad_job_qs),
             "user_details": [UserSerializer(u).data for u in ctx["target_users"]] if ctx.get("target_users") else [UserSerializer(ctx["user"]).data]
         }
 
-        # Inject new TAT metrics
-        tat_metrics = calc_joining_tat(app_qs)
-        data["partial_joining_tat_days"] = tat_metrics["partial_joining_tat_days"]
-        data["final_joining_tat_days"] = tat_metrics["final_joining_tat_days"]
+        # Include summary and TAT metrics only if specifically requested or if fetching all sections
+        if not requested_sections_raw or 'overall_summary_kpis' in requested_sections:
+            data["summary"] = self.calc_summary_totals(mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, broad_job_qs)
+            # Inject new TAT metrics
+            tat_metrics = calc_joining_tat(app_qs)
+            data["partial_joining_tat_days"] = tat_metrics["partial_joining_tat_days"]
+            data["final_joining_tat_days"] = tat_metrics["final_joining_tat_days"]
         if 'mrf_analytics' in requested_sections and not ctx.get('all_consultancy'):
             data['mrf_analytics'] = self.calc_mrf_analytics(mrf_qs)
         if 'job_assignment_analytics' in requested_sections:
@@ -2507,19 +2510,18 @@ class BaseAnalyticsView(APIView):
             data['job_assignment_analytics'] = self.calc_job_assignment_analytics(job_qs, request.user.role, target_user_ids, request.user)
         # Calculate Total Completed Rounds (synchronized with Section 5)
         # Uses the same logic as calc_interview_round_time_analytics
-        fb_filter = Q(job_application__job__in=broad_job_qs)
-        from datetime import datetime, time
-        from django.utils import timezone
-        if date_from:
-            dt_from = timezone.make_aware(datetime.combine(date_from, time.min))
-            fb_filter &= Q(created_at__gte=dt_from)
-        if date_to:
-            dt_to = timezone.make_aware(datetime.combine(date_to, time.max))
-            fb_filter &= Q(created_at__lte=dt_to)
-        if interviewer_app_ids is not None: fb_filter &= Q(job_application_id__in=interviewer_app_ids)
-        total_completed_interviews = InterviewFeedback.objects.filter(fb_filter).count()
-
         if 'cv_resume_source_analytics' in requested_sections:
+            fb_filter = Q(job_application__job__in=broad_job_qs)
+            from datetime import datetime, time
+            from django.utils import timezone
+            if date_from:
+                dt_from = timezone.make_aware(datetime.combine(date_from, time.min))
+                fb_filter &= Q(created_at__gte=dt_from)
+            if date_to:
+                dt_to = timezone.make_aware(datetime.combine(date_to, time.max))
+                fb_filter &= Q(created_at__lte=dt_to)
+            if interviewer_app_ids is not None: fb_filter &= Q(job_application_id__in=interviewer_app_ids)
+            total_completed_interviews = InterviewFeedback.objects.filter(fb_filter).count()
             data['cv_resume_source_analytics'] = self.calc_cv_resume_source_analytics(app_qs, platform_app_qs, referral_qs, total_completed_interviews)
         if 'candidate_pipeline_funnel' in requested_sections:
             data['candidate_pipeline_funnel'] = self.calc_candidate_pipeline_funnel(app_qs, ctx.get("target_users"), interviewer_app_ids)
