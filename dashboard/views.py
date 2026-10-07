@@ -1045,7 +1045,7 @@ class BaseAnalyticsView(APIView):
             'duplicate_rejected': 'Duplicate Rejected',
         }
 
-        # Aggregate source+status from JobApplications
+        # Aggregate source+status from JobApplications, Platform Applications, and Referral Applications
         src_stage_qs = (
             app_qs.values('source', 'status')
             .annotate(count=Count('id'))
@@ -1056,6 +1056,28 @@ class BaseAnalyticsView(APIView):
         for row in src_stage_qs:
             src = normalize_source_name(row['source'])
             status_label = STAGE_GROUPS.get(row['status'], row['status'].replace('_', ' ').title())
+            if src not in source_stage_map:
+                source_stage_map[src] = {'source': src, 'total': 0, 'stages': {}}
+            source_stage_map[src]['total'] += row['count']
+            source_stage_map[src]['stages'][status_label] = (
+                source_stage_map[src]['stages'].get(status_label, 0) + row['count']
+            )
+
+        # Include untouched Platform Applications (pa_base) into candidate stage breakdown by source
+        for row in pa_base.values('source', 'is_rejected').annotate(count=Count('id')):
+            src = normalize_source_name(row['source'])
+            status_label = 'Rejected' if row['is_rejected'] else 'Received'
+            if src not in source_stage_map:
+                source_stage_map[src] = {'source': src, 'total': 0, 'stages': {}}
+            source_stage_map[src]['total'] += row['count']
+            source_stage_map[src]['stages'][status_label] = (
+                source_stage_map[src]['stages'].get(status_label, 0) + row['count']
+            )
+
+        # Include untouched Referral Applications (ref_base) into candidate stage breakdown by source
+        for row in ref_base.values('is_rejected').annotate(count=Count('id')):
+            src = 'Referral'
+            status_label = 'Rejected' if row['is_rejected'] else 'Received'
             if src not in source_stage_map:
                 source_stage_map[src] = {'source': src, 'total': 0, 'stages': {}}
             source_stage_map[src]['total'] += row['count']
@@ -1092,7 +1114,7 @@ class BaseAnalyticsView(APIView):
             if u['job__id']:
                 untouched_map[key]['job_ids'].add(u['job__id'])
 
-        for u in pa_base.filter(is_rejected=False).values(
+        for u in pa_base.filter(is_rejected=False, is_tagged=False).values(
             'designation__name', 'department__name', 'job__job_title', 'position_title', 'job__id'
         ):
             desig = u['designation__name'] or 'Unknown'
