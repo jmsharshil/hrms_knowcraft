@@ -343,11 +343,21 @@ class BaseAnalyticsView(APIView):
         # 2. Parse query params
         date_from_str = request.query_params.get('date_from')
         date_to_str = request.query_params.get('date_to')
-        department_id = request.query_params.get('department')
-        designation_id = request.query_params.get('designation')
         job_id = request.query_params.get('job_id')
         user_id = request.query_params.get('user_id')
         source_filter = request.query_params.get('source')
+
+        # Multi-value department filter: ?department=X&department=Y  or  ?department=X,Y
+        raw_dept_ids = request.query_params.getlist('department')
+        if not raw_dept_ids:
+            raw_dept_ids = [d.strip() for d in request.query_params.get('department', '').split(',') if d.strip()]
+        department_ids = raw_dept_ids  # kept as strings for Q(...__in=)
+
+        # Multi-value designation filter: ?designation=X&designation=Y  or  ?designation=X,Y
+        raw_desig_ids = request.query_params.getlist('designation')
+        if not raw_desig_ids:
+            raw_desig_ids = [d.strip() for d in request.query_params.get('designation', '').split(',') if d.strip()]
+        designation_ids = raw_desig_ids  # kept as strings for Q(...__in=)
 
         date_from = safe_parse_date(date_from_str)
         date_to = safe_parse_date(date_to_str)
@@ -396,10 +406,10 @@ class BaseAnalyticsView(APIView):
         # 3. MRF queryset (Filtered by Period Activity)
         # Admins and HR managers see all records including private ones
         mrf_base_filter = Q(company=company) & role_mrf_q & Q(is_active=True)
-        if department_id:
-            mrf_base_filter &= Q(department_id=department_id)
-        if designation_id:
-            mrf_base_filter &= Q(designation_id=designation_id)
+        if department_ids:
+            mrf_base_filter &= Q(department_id__in=department_ids)
+        if designation_ids:
+            mrf_base_filter &= Q(designation_id__in=designation_ids)
         if target_user_ids and not all_consultancy:
             # For consultancy-only targets, MRF section is skipped entirely later;
             # for others, filter MRFs they requested or approved
@@ -418,10 +428,10 @@ class BaseAnalyticsView(APIView):
         job_base_filter = Q(company=company) & role_job_q & Q(is_active=True)
         if job_id:
             job_base_filter &= Q(id=job_id)
-        if department_id:
-            job_base_filter &= Q(department_id=department_id)
-        if designation_id:
-            job_base_filter &= Q(designation_id=designation_id)
+        if department_ids:
+            job_base_filter &= Q(department_id__in=department_ids)
+        if designation_ids:
+            job_base_filter &= Q(designation_id__in=designation_ids)
         if target_user_ids:
             # Build a union Q across all selected users by role
             assignment_q = Q(id=None)
@@ -529,18 +539,26 @@ class BaseAnalyticsView(APIView):
             platform_app_qs = Application.objects.filter(platform_app_filter).distinct()
 
         referral_filter = date_filter
-        if department_id:
+        if department_ids:
             try:
-                dept_name = Department.objects.get(id=department_id).name
-                referral_filter &= Q(referral_department=dept_name)
-            except (Department.DoesNotExist, ValidationError, ValueError):
+                dept_names = list(
+                    Department.objects.filter(id__in=department_ids)
+                    .values_list('name', flat=True)
+                )
+                if dept_names:
+                    referral_filter &= Q(referral_department__in=dept_names)
+            except (ValidationError, ValueError):
                 pass
 
-        if designation_id:
+        if designation_ids:
             try:
-                desig_name = Designation.objects.get(id=designation_id).name
-                referral_filter &= Q(referral_designation=desig_name)
-            except (Designation.DoesNotExist, ValidationError, ValueError):
+                desig_names = list(
+                    Designation.objects.filter(id__in=designation_ids)
+                    .values_list('name', flat=True)
+                )
+                if desig_names:
+                    referral_filter &= Q(referral_designation__in=desig_names)
+            except (ValidationError, ValueError):
                 pass
 
         if target_user_ids:

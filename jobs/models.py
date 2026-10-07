@@ -770,6 +770,14 @@ class JobApplication(models.Model):
     is_selected = models.BooleanField(default=False)
     is_approved = models.BooleanField(default=False)
     is_rejected = models.BooleanField(default=False)
+    rejected_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="jobapplication_rejections",
+        help_text="User who rejected this application"
+    )
 
     slot_link = models.URLField(null=True,blank=True)
     inperson_link = models.URLField(null=True,blank=True)

@@ -185,7 +185,7 @@ class EmailLogAdmin(admin.ModelAdmin):
     date_hierarchy = 'sent_at'
     ordering = ('-sent_at',)
     list_per_page = 50
-    list_select_related = ('job_application',)
+    list_select_related = ('candidate',)
     actions = ['approve_and_send_emails']
 
     def approve_and_send_emails(self, request, queryset):

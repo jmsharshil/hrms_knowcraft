@@ -197,6 +197,7 @@ class ApplicationFilter(django_filters.FilterSet):
     job_id = django_filters.CharFilter(method='filter_job')
     source = django_filters.CharFilter(field_name='source')
     is_tagged = django_filters.BooleanFilter(field_name='is_tagged')
+    is_touched = django_filters.BooleanFilter(field_name='is_touched')
     without_job = django_filters.BooleanFilter(method='filter_without_job')
     is_unlinked = django_filters.BooleanFilter(method='filter_without_job')
 

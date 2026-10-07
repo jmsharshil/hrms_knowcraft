@@ -466,6 +466,8 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     is_private = serializers.SerializerMethodField()
     mrf_details = serializers.SerializerMethodField()
     attendees_details = serializers.SerializerMethodField()
+    rejected_by_name = serializers.CharField(source='rejected_by.name', read_only=True, allow_null=True)
+    rejected_by_email = serializers.CharField(source='rejected_by.email', read_only=True, allow_null=True)
     
     class Meta:
         model = JobApplication
@@ -481,7 +483,8 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at','is_selected','is_approved','is_rejected','inperson_link','reschedule_count','no_show_count',
             'interview_scheduled_at','interviewer_name','interview_link','feedback_link','round_name','round_name_display',
             "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone","interview_end_at",
-            "document_upload_link", "candidate_experience_link","is_private","mrf_details", "attendees_details"
+            "document_upload_link", "candidate_experience_link","is_private","mrf_details", "attendees_details",
+            "rejected_by", "rejected_by_name", "rejected_by_email"
         ]
     
     def get_platform_name(self, obj):
@@ -764,10 +767,24 @@ class JobApplicationUpdateSerializer(serializers.ModelSerializer):
         return value
 
     def update(self, instance, validated_data):
+        REJECTION_STATUSES = {
+            'duplicate_rejected', 'interview_rejected_1', 'interview_rejected_2',
+            'interview_rejected_3', 'interview_rejected_final',
+            'interview_rejected_management_client', 'approval_rejected',
+            'offer_rejected', 'rejected', 'backed_out'
+        }
         has_new_resume = 'resume' in validated_data and validated_data.get('resume') is not None
-        
+        new_status = validated_data.get('status')
+
         instance = super().update(instance, validated_data)
-        
+
+        # Auto-set rejected_by when transitioning to any rejection status
+        if new_status and new_status in REJECTION_STATUSES:
+            request = self.context.get('request')
+            if request and request.user and request.user.is_authenticated:
+                instance.rejected_by = request.user
+                instance.save(update_fields=['rejected_by'])
+
         if has_new_resume:
             from onboarding.utils.task_queue import TASK_QUEUE
             from .utils import parse_resume_task
