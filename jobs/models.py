@@ -747,6 +747,7 @@ class JobApplication(models.Model):
     # Timestamps
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now)
+    rejected_at = models.DateTimeField(null=True,blank=True)
     
     # Rating (optional)
     rating = models.DecimalField(

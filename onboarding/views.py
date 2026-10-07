@@ -90,8 +90,14 @@ class UpdatestatusAPI(APIView):
                 application.slot_link = ""
                 application.inperson_link = ""
             if application.status in ["rejected", "backed_out"] and rejection_reason:
+                if request.user:
+                    application.rejected_by = request.user
+                    application.rejected_at = timezone.now()
                 application.rejection_reason = rejection_reason
             if application.status in ["terminated_bgv"] and bgv_termination_reason:
+                if request.user:
+                    application.rejected_by = request.user
+                    application.rejected_at = timezone.now()
                 application.bgv_termination_reason = bgv_termination_reason
             application.save()
             return Response({"success": ok,"status":application.status})
