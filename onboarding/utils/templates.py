@@ -406,12 +406,6 @@ HTML_TEMPLATES = {
                                 <p style="margin:0 0 16px 0;">We are pleased to inform you that your joining process has been initiated.</p>
                                 <p style="margin:0 0 16px 0;">Our HR team will be sharing further details and next steps with you shortly.</p>
                                 <p style="margin:0 0 16px 0;">We look forward to welcoming you to Knowcraft Analytics.</p>
-                                
-                                <p style="margin:25px 0 30px 0;text-align:center;">
-                                    <a href="{FRONTEND_URL}/onboarding/task-list/{{candidate.id}}" 
-                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">View Onboarding Journey</a>
-                                </p>
-                                
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
@@ -783,12 +777,6 @@ HTML_TEMPLATES = {
                                 <p style="margin:0 0 16px 0;">We have initiated an e-signature request for your onboarding documents via <b>Flowace</b>. You will receive a separate email from Flowace with a secure link to review and sign your documents.</p>
                                 <p style="margin:0 0 16px 0;">Please complete this process at your earliest convenience to ensure a smooth joining experience.</p>
                                 <p style="margin:0 0 16px 0;">If you face any issues accessing the documents, please feel free to reach out to our HR team.</p>
-                                
-                                <p style="margin:25px 0 30px 0;text-align:center;">
-                                    <a href="{FRONTEND_URL}/onboarding/task-list/{{candidate.id}}" 
-                                       style="background-color:#2563eb;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">View Onboarding Journey</a>
-                                </p>
-                                
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
                                 <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>

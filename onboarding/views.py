@@ -2207,23 +2207,43 @@ class DownloadApprovalNoteAPIView(APIView):
 class EmailLogViewSet(ReadOnlyModelViewSet):
     """
     API View to list all emails sent out from the system.
-    Supports filtering by email, event, status, type, and candidate.
+    Supports filtering by email, event, status, type, candidate, name, and subject.
     """
-    queryset = EmailLog.objects.all().order_by('-sent_at')
+    queryset = EmailLog.objects.select_related('candidate').order_by('-sent_at')
     serializer_class = EmailLogSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
         # Only HR/Admin can see email audit logs
-        if user.role !='admin':
+        if user.role != 'admin':
             return EmailLog.objects.none()
 
         qs = super().get_queryset()
 
+        # General search (candidate name, subject, or recipient email)
+        search = self.request.query_params.get("search")
+        if search:
+            search = search.strip()
+            qs = qs.filter(
+                Q(candidate__candidate_name__icontains=search) |
+                Q(subject__icontains=search) |
+                Q(recipient_email__icontains=search)
+            )
+
+        # Search specifically by candidate name
+        name = self.request.query_params.get("name") or self.request.query_params.get("candidate_name")
+        if name:
+            qs = qs.filter(candidate__candidate_name__icontains=name.strip())
+
+        # Search specifically by subject
+        subject = self.request.query_params.get("subject")
+        if subject:
+            qs = qs.filter(subject__icontains=subject.strip())
+
         recipient = self.request.query_params.get("recipient_email")
         if recipient:
-            qs = qs.filter(recipient_email__icontains=recipient)
+            qs = qs.filter(recipient_email__icontains=recipient.strip())
 
         event = self.request.query_params.get("event")
         if event:

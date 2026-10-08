@@ -1100,15 +1100,28 @@ class BaseAnalyticsView(APIView):
             )
 
         # Include untouched Referral Applications (ref_base) into candidate stage breakdown by source
-        for row in ref_base.values('is_rejected').annotate(count=Count('id')):
-            src = 'Referral'
-            status_label = 'Rejected' if row['is_rejected'] else 'Received'
-            if src not in source_stage_map:
-                source_stage_map[src] = {'source': src, 'total': 0, 'stages': {}}
-            source_stage_map[src]['total'] += row['count']
-            source_stage_map[src]['stages'][status_label] = (
-                source_stage_map[src]['stages'].get(status_label, 0) + row['count']
-            )
+        ref_model_fields = {f.name for f in ref_base.model._meta.get_fields()}
+        if 'is_rejected' in ref_model_fields:
+            for row in ref_base.values('is_rejected').annotate(count=Count('id')):
+                src = 'Referral'
+                status_label = 'Rejected' if row['is_rejected'] else 'Received'
+                if src not in source_stage_map:
+                    source_stage_map[src] = {'source': src, 'total': 0, 'stages': {}}
+                source_stage_map[src]['total'] += row['count']
+                source_stage_map[src]['stages'][status_label] = (
+                    source_stage_map[src]['stages'].get(status_label, 0) + row['count']
+                )
+        else:
+            ref_untouched_count = ref_base.count()
+            if ref_untouched_count > 0:
+                src = 'Referral'
+                status_label = 'Received'
+                if src not in source_stage_map:
+                    source_stage_map[src] = {'source': src, 'total': 0, 'stages': {}}
+                source_stage_map[src]['total'] += ref_untouched_count
+                source_stage_map[src]['stages'][status_label] = (
+                    source_stage_map[src]['stages'].get(status_label, 0) + ref_untouched_count
+                )
 
         # Convert stages dict to sorted list
         candidate_analysis_by_source = []

@@ -178,15 +178,19 @@ admin.site.register(OfferDocument, OfferDocumentAdmin)
 
 
 class EmailLogAdmin(admin.ModelAdmin):
-    list_display = ('id', 'recipient_email', 'subject', 'status', 'sent_at', 'error_message')
+    list_display = ('id', 'recipient_email', 'get_candidate_name', 'subject', 'status', 'sent_at', 'error_message')
     list_filter = ('status', 'sent_at')
-    search_fields = ('recipient_email', 'subject', 'body_text', 'error_message')
+    search_fields = ('recipient_email', 'subject', 'body_text', 'error_message', 'candidate__candidate_name')
     readonly_fields = ('sent_at',)
     date_hierarchy = 'sent_at'
     ordering = ('-sent_at',)
     list_per_page = 50
     list_select_related = ('candidate',)
     actions = ['approve_and_send_emails']
+
+    def get_candidate_name(self, obj):
+        return obj.candidate.candidate_name if obj.candidate else '-'
+    get_candidate_name.short_description = 'Candidate'
 
     def approve_and_send_emails(self, request, queryset):
         from django.core.mail import EmailMultiAlternatives
