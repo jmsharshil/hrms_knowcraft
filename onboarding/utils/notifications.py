@@ -677,6 +677,14 @@ Knowcraft Analytics Private Limited""",
         "sms": "Dear {candidate.candidate_name},\n\nThank you for your time during our recruitment process. We'd love to hear about your experience.\nPlease fill the feedback form:\n {FRONTEND_URL}/candidate/feedback/{candidate.id}",
         "log": "Feedback request sent to {candidate.candidate_email}",
     },
+    "candidate_feedback_reminder": {
+        "email": {
+            "subject": "Reminder: Candidate Experience Feedback - Knowcraft Analytics",
+            "text": "Reminder: Thank you for your time during our recruitment process. We'd love to hear about your experience.",
+        },
+        "sms": "Dear {candidate.candidate_name},\n\nReminder: Please take a moment to share your recruitment experience feedback:\n {FRONTEND_URL}/candidate/feedback/{candidate.id}",
+        "log": "Feedback reminder sent to {candidate.candidate_email}",
+    },
 
     # --------------------------------------------------------------
     # POST-JOINING STAGES (Triggered by onboarding_tasks.py cron)
@@ -1927,21 +1935,67 @@ def send_document_signoff_email(candidate: Any, cc: list = None) -> bool:
 
 def trigger_feedback_email(candidate: Any, feedback_type: str):
     """
-    Creates/fetches CandidateExperienceFeedback and sends a separate feedback email.
+    Creates/fetches CandidateExperienceFeedback, sends a separate feedback email,
+    and schedules a 24-hour reminder task if feedback remains unsubmitted.
     """
     from dashboard.models import CandidateExperienceFeedback
+    from scheduler.services import TaskScheduler
     
     try:
         feedback_link = f"{FRONTEND_URL}/candidate/feedback/{candidate.id}"
         
+        fb, _ = CandidateExperienceFeedback.objects.get_or_create(
+            application=candidate,
+            defaults={
+                'feedback_type': feedback_type,
+                'is_submitted': False,
+            }
+        )
+        
         logger.info("Triggering separate feedback email for %s (type=%s)", candidate.candidate_email, feedback_type)
         
-        # Send the email
-        # We pass cc=[] because feedback is usually private to the candidate
-        return notify_candidate(candidate, 'candidate_feedback', cc=[], feedback_link=feedback_link)
+        sent = notify_candidate(candidate, 'candidate_feedback', cc=[], feedback_link=feedback_link)
+        if sent:
+            try:
+                TaskScheduler.schedule(
+                    task_type="candidate_feedback_reminder",
+                    task_kwargs={"feedback_id": str(fb.id)},
+                    delay_seconds=86400,  # 24 hours
+                )
+            except Exception as sched_err:
+                logger.error("Failed to schedule feedback reminder for candidate %s: %s", candidate.id, sched_err)
+        return sent
     except Exception as e:
         logger.exception("Failed to trigger feedback email for %s: %s", candidate.candidate_email, e)
         return False
+
+
+def candidate_feedback_reminder_task(feedback_id: str = None):
+    """
+    Task handler: Sends a reminder email for unsubmitted CandidateExperienceFeedback after 24 hours.
+    If feedback_id is provided, checks that specific record; otherwise checks all unsubmitted records created > 24 hours ago.
+    """
+    from dashboard.models import CandidateExperienceFeedback
+    from django.utils import timezone
+
+    now = timezone.now()
+    if feedback_id:
+        qs = CandidateExperienceFeedback.objects.filter(id=feedback_id, is_submitted=False, reminder_sent_at__isnull=True)
+    else:
+        cutoff = now - timedelta(hours=24)
+        qs = CandidateExperienceFeedback.objects.filter(is_submitted=False, reminder_sent_at__isnull=True, created_at__lte=cutoff)
+
+    for fb in qs.select_related('application'):
+        candidate = fb.application
+        if not candidate or not getattr(candidate, 'candidate_email', None):
+            continue
+        
+        feedback_link = f"{FRONTEND_URL}/candidate/feedback/{candidate.id}"
+        logger.info("Sending 24h feedback reminder to %s", candidate.candidate_email)
+        sent = notify_candidate(candidate, 'candidate_feedback_reminder', cc=[], feedback_link=feedback_link)
+        if sent:
+            fb.reminder_sent_at = now
+            fb.save(update_fields=['reminder_sent_at'])
 
 
 DEFAULT_HANDBOOK_ATTACHMENTS = {

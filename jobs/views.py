@@ -114,7 +114,13 @@ class JobViewSet(viewsets.ModelViewSet):
         # Apply filters from query params
         status_filter = self.request.query_params.get('status')
         if status_filter:
-            queryset = queryset.filter(status=status_filter)
+            s_val = status_filter.lower().strip()
+            if s_val == 'open':
+                queryset = queryset.filter(status__in=['open', 'assigned_to_internal_hr', 'assigned_to_consultancy', 'assigned_to_both'])
+            elif s_val == 'unassigned':
+                queryset = queryset.filter(status='open')
+            else:
+                queryset = queryset.filter(status=status_filter)
         
         department_filter = self.request.query_params.get('department')
         if department_filter and is_valid_uuid(department_filter):

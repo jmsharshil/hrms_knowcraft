@@ -134,6 +134,13 @@ class SchedulerConfig(AppConfig):
         from mrf.utils import dept_head_weekly_report_task
         TaskScheduler.register("dept_head_weekly_report", lambda: dept_head_weekly_report_task())
 
+        # Candidate Experience Feedback 24h Reminder
+        from onboarding.utils.notifications import candidate_feedback_reminder_task
+        TaskScheduler.register(
+            "candidate_feedback_reminder",
+            lambda feedback_id=None: candidate_feedback_reminder_task(feedback_id),
+        )
+
         print("[SCHEDULER APP] All task types registered.")
 
     def _ensure_recurring_tasks(self):

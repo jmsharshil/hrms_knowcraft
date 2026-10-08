@@ -583,7 +583,9 @@ class BaseAnalyticsView(APIView):
             "all_consultancy": all_consultancy,
             "date_filter": date_filter,
             "date_from": date_from,
-            "date_to": date_to
+            "date_to": date_to,
+            "department_ids": department_ids,
+            "designation_ids": designation_ids,
         }, None
 
     def get_role_filters(self, user):
@@ -593,7 +595,7 @@ class BaseAnalyticsView(APIView):
 
     # SECTION CALCULATION METHODS ---------------------------------
     
-    def calc_mrf_analytics(self, mrf_qs):
+    def calc_mrf_analytics(self, mrf_qs, designation_ids=None):
         section1 = {}
         agg = mrf_qs.aggregate(
             total_mrf_raised=Count('id'),
@@ -691,6 +693,29 @@ class BaseAnalyticsView(APIView):
             avg_days = round(sum(durations) / len(durations), 2) if durations else 0
             mrf_by_dept.append({'department': dept_name, 'count': d['count'], 'avg_approval_time_days': avg_days})
         section1['mrf_by_department'] = mrf_by_dept
+
+        # mrf_by_designation should only be seen if designation filter is applied
+        if designation_ids is None and hasattr(self, 'request') and self.request:
+            raw_desig = self.request.query_params.getlist('designation')
+            if not raw_desig:
+                raw_desig = [d.strip() for d in self.request.query_params.get('designation', '').split(',') if d.strip()]
+            designation_ids = [d for d in raw_desig if d]
+
+        if designation_ids:
+            desig_stats = mrf_qs.values('designation__name').annotate(count=Count('id')).order_by('-count')
+            mrf_by_desig = []
+            for d in desig_stats:
+                desig_name = d['designation__name']
+                desig_mrfs = approved_mrfs.filter(designation__name=desig_name)
+                durations = []
+                for mrf in desig_mrfs:
+                    if mrf.approved_at and mrf.submitted_at:
+                        td = (mrf.approved_at - mrf.submitted_at).total_seconds() / 86400
+                        if td >= 0:
+                            durations.append(td)
+                avg_days = round(sum(durations) / len(durations), 2) if durations else 0
+                mrf_by_desig.append({'designation': desig_name, 'count': d['count'], 'avg_approval_time_days': avg_days})
+            section1['mrf_by_designation'] = mrf_by_desig
 
         month_stats = mrf_qs.annotate(month=TruncMonth('created_at')).values('month').annotate(count=Count('id')).order_by('month')
         section1['mrf_by_month'] = [{'month': m['month'].strftime('%Y-%m'), 'count': m['count']} for m in month_stats]
@@ -2544,7 +2569,7 @@ class BaseAnalyticsView(APIView):
             data["partial_joining_tat_days"] = tat_metrics["partial_joining_tat_days"]
             data["final_joining_tat_days"] = tat_metrics["final_joining_tat_days"]
         if 'mrf_analytics' in requested_sections and not ctx.get('all_consultancy'):
-            data['mrf_analytics'] = self.calc_mrf_analytics(mrf_qs)
+            data['mrf_analytics'] = self.calc_mrf_analytics(mrf_qs, ctx.get('designation_ids'))
         if 'job_assignment_analytics' in requested_sections:
             target_user_ids = [str(u.id) for u in ctx['target_users']] if ctx.get('target_users') else None
             data['job_assignment_analytics'] = self.calc_job_assignment_analytics(job_qs, request.user.role, target_user_ids, request.user)
@@ -2873,7 +2898,7 @@ class DashboardExportAPIView(BaseAnalyticsView):
 
         # ── Sheet 2: MRF Analytics ──
         try:
-            mrf_data = self.calc_mrf_analytics(mrf_qs)
+            mrf_data = self.calc_mrf_analytics(mrf_qs, ctx.get('designation_ids'))
             ws2 = wb.create_sheet("MRF Analytics")
             ws2.append(["Metric", "Value"])
             ws2.append(["Total MRF Raised", mrf_data.get("total_mrf_raised", 0)])
@@ -2888,6 +2913,12 @@ class DashboardExportAPIView(BaseAnalyticsView):
             ws2.append(["Department", "Count", "Avg Approval Time (Days)"])
             for d in mrf_data.get("mrf_by_department", []):
                 ws2.append([d.get("department", "N/A"), d.get("count", 0), d.get("avg_approval_time_days", 0)])
+            if mrf_data.get("mrf_by_designation"):
+                ws2.append([])
+                ws2.append(["--- MRF By Designation ---"])
+                ws2.append(["Designation", "Count", "Avg Approval Time (Days)"])
+                for d in mrf_data.get("mrf_by_designation", []):
+                    ws2.append([d.get("designation", "N/A"), d.get("count", 0), d.get("avg_approval_time_days", 0)])
             ws2.append([])
             ws2.append(["--- Approval Funnel ---"])
             ws2.append(["Level", "Avg Time (Days)"])

@@ -188,6 +188,7 @@ class CandidateExperienceFeedback(models.Model):
     # ── Submission Tracking ──
     is_submitted = models.BooleanField(default=False)
     submitted_at = models.DateTimeField(null=True, blank=True)
+    reminder_sent_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
