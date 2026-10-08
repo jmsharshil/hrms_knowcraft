@@ -595,7 +595,7 @@ class BaseAnalyticsView(APIView):
 
     # SECTION CALCULATION METHODS ---------------------------------
     
-    def calc_mrf_analytics(self, mrf_qs, designation_ids=None):
+    def calc_mrf_analytics(self, mrf_qs, department_ids=None, designation_ids=None):
         section1 = {}
         agg = mrf_qs.aggregate(
             total_mrf_raised=Count('id'),
@@ -694,18 +694,18 @@ class BaseAnalyticsView(APIView):
             mrf_by_dept.append({'department': dept_name, 'count': d['count'], 'avg_approval_time_days': avg_days})
         section1['mrf_by_department'] = mrf_by_dept
 
-        # mrf_by_designation should only be seen if designation filter is applied
-        if designation_ids is None and hasattr(self, 'request') and self.request:
-            raw_desig = self.request.query_params.getlist('designation')
-            if not raw_desig:
-                raw_desig = [d.strip() for d in self.request.query_params.get('designation', '').split(',') if d.strip()]
-            designation_ids = [d for d in raw_desig if d]
+        # mrf_by_designation should only be seen if department filter is applied
+        if department_ids is None and hasattr(self, 'request') and self.request:
+            raw_dept = self.request.query_params.getlist('department')
+            if not raw_dept:
+                raw_dept = [d.strip() for d in self.request.query_params.get('department', '').split(',') if d.strip()]
+            department_ids = [d for d in raw_dept if d]
 
-        if designation_ids:
+        if department_ids:
             desig_stats = mrf_qs.values('designation__name').annotate(count=Count('id')).order_by('-count')
             mrf_by_desig = []
             for d in desig_stats:
-                desig_name = d['designation__name']
+                desig_name = d['designation__name'] or 'Unknown'
                 desig_mrfs = approved_mrfs.filter(designation__name=desig_name)
                 durations = []
                 for mrf in desig_mrfs:
@@ -2582,7 +2582,7 @@ class BaseAnalyticsView(APIView):
             data["partial_joining_tat_days"] = tat_metrics["partial_joining_tat_days"]
             data["final_joining_tat_days"] = tat_metrics["final_joining_tat_days"]
         if 'mrf_analytics' in requested_sections and not ctx.get('all_consultancy'):
-            data['mrf_analytics'] = self.calc_mrf_analytics(mrf_qs, ctx.get('designation_ids'))
+            data['mrf_analytics'] = self.calc_mrf_analytics(mrf_qs, department_ids=ctx.get('department_ids'), designation_ids=ctx.get('designation_ids'))
         if 'job_assignment_analytics' in requested_sections:
             target_user_ids = [str(u.id) for u in ctx['target_users']] if ctx.get('target_users') else None
             data['job_assignment_analytics'] = self.calc_job_assignment_analytics(job_qs, request.user.role, target_user_ids, request.user)
@@ -2911,7 +2911,7 @@ class DashboardExportAPIView(BaseAnalyticsView):
 
         # ── Sheet 2: MRF Analytics ──
         try:
-            mrf_data = self.calc_mrf_analytics(mrf_qs, ctx.get('designation_ids'))
+            mrf_data = self.calc_mrf_analytics(mrf_qs, department_ids=ctx.get('department_ids'), designation_ids=ctx.get('designation_ids'))
             ws2 = wb.create_sheet("MRF Analytics")
             ws2.append(["Metric", "Value"])
             ws2.append(["Total MRF Raised", mrf_data.get("total_mrf_raised", 0)])
