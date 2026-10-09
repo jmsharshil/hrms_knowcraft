@@ -2434,7 +2434,6 @@ def _send_onboarding_form_admin_email(application, form_data, submitted_by):
             subject=subject,
             text=body,
             template=template,
-            use_default_cc=False,
             event="onboarding_form_submitted",
             email_type="internal",
             candidate=application,
