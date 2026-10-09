@@ -876,6 +876,13 @@ Knowcraft Analytics Private Limited""",
         "sms": "Please check your email for Knowcraft's POSH Policy & Guidelines.",
         "log": "POSH Policy sent to {candidate.candidate_email}",
     },
+    "tagged_candidate": {
+        "email": {
+            "subject": "Thank You for Your Interest in Knowcraft Analytics Private Limited",
+            "text": "",
+        },
+        "log": "Tagged Candidate email sent to {candidate.candidate_email}",
+    },
 }
 
 def notify_candidate(candidate: Any, stage: str, cc: list = None, feedback_link: str = None, extra_context: dict = None) -> bool:
