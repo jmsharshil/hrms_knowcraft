@@ -183,16 +183,25 @@ def daily_onboarding_check():
                 app.is_esign_reminder_sent = True
                 app.save(update_fields=['is_esign_reminder_sent'])
 
-        # ── DOJ + 5 Days (Document Verification) ────────────────
-        if days_until_joining <= -5 and not getattr(app, 'is_d5_verification_sent', False):
-            logger.info(f"DOJ + 5 for candidate {app.candidate_name}. Sending document verification email.")
-            if notify_candidate(app, "d5_document_verification", cc=[]):
-                app.is_d5_verification_sent = True
-                app.save(update_fields=['is_d5_verification_sent'])
+        # ── DOJ + 5 Days (Document Verification & Undertaking Sign-off) ────────
+        if days_until_joining <= -5:
+            # Document verification must ONLY be sent after all e-sign docs are uploaded
+            if not getattr(app, 'is_d5_verification_sent', False):
+                esign_docs = app.esign_documents.all()
+                esign_docs_uploaded = esign_docs.exists() and not esign_docs.filter(source_file="").exists()
+                is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
+
+                if not esign_docs_uploaded and not is_debug:
+                    logger.info(f"DOJ + 5 for candidate {app.candidate_name}: e-sign docs not yet uploaded. Deferring document verification email.")
+                else:
+                    logger.info(f"DOJ + 5 for candidate {app.candidate_name}. Sending document verification email.")
+                    if notify_candidate(app, "d5_document_verification", cc=[]):
+                        app.is_d5_verification_sent = True
+                        app.save(update_fields=['is_d5_verification_sent'])
 
             # Send Undertaking Sign-off Document via Zoho Sign template
             if not getattr(app, 'is_undertaking_signoff_sent', False):
-                logger.info(f"DOJ 0 for candidate {app.candidate_name}. Sending Undertaking Sign-off Document.")
+                logger.info(f"DOJ + 5 for candidate {app.candidate_name}. Sending Undertaking Sign-off Document.")
                 try:
                     from .zoho_sign import send_undertaking_signoff
                     result = send_undertaking_signoff(app)
@@ -472,16 +481,25 @@ def run_onboarding_check_for_candidate(app):
             app.save(update_fields=['is_esign_reminder_sent'])
             create_milestone_tasks(app, "DOJ_PLUS_1_ESIGN_REMINDER", joining_date)
 
-    # ── DOJ + 5 Days — Document Verification ────────────────────────────────
-    if days_until_joining <= -5 and not getattr(app, 'is_d5_verification_sent', False):
-        logger.info(f"[ADMIN ACTION] DOJ + 5 for {app.candidate_name}. Sending document verification email.")
-        if notify_candidate(app, "d5_document_verification", cc=[]):
-            app.is_d5_verification_sent = True
-            app.save(update_fields=['is_d5_verification_sent'])
-        
+    # ── DOJ + 5 Days — Document Verification & Undertaking Sign-off ─────────
+    if days_until_joining <= -5:
+        # Document verification must ONLY be sent after all e-sign docs are uploaded
+        if not getattr(app, 'is_d5_verification_sent', False):
+            esign_docs = app.esign_documents.all()
+            esign_docs_uploaded = esign_docs.exists() and not esign_docs.filter(source_file="").exists()
+            is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
+
+            if not esign_docs_uploaded and not is_debug:
+                logger.info(f"[ADMIN ACTION] DOJ + 5 for {app.candidate_name}: e-sign docs not yet uploaded. Deferring document verification email.")
+            else:
+                logger.info(f"[ADMIN ACTION] DOJ + 5 for {app.candidate_name}. Sending document verification email.")
+                if notify_candidate(app, "d5_document_verification", cc=[]):
+                    app.is_d5_verification_sent = True
+                    app.save(update_fields=['is_d5_verification_sent'])
+
         # Send Undertaking Sign-off Document via Zoho Sign template
         if not getattr(app, 'is_undertaking_signoff_sent', False):
-            logger.info(f"[ADMIN ACTION] DOJ 0 for {app.candidate_name}. Sending Undertaking Sign-off Document.")
+            logger.info(f"[ADMIN ACTION] DOJ + 5 for {app.candidate_name}. Sending Undertaking Sign-off Document.")
             try:
                 from .zoho_sign import send_undertaking_signoff
                 result = send_undertaking_signoff(app)

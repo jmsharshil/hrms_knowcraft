@@ -496,48 +496,59 @@ email_templates = {
 "dept_head_weekly_report": f"""
     <html>
     <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
-        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:660px;margin:0 auto;background-color:#f4f4f7;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:980px;margin:0 auto;background-color:#f4f4f7;">
             <tr>
-                <td align="center" style="padding:30px 15px;">
-                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                <td align="center" style="padding:25px 12px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:10px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
                         <!-- Logo -->
                         <tr>
-                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
-                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            <td align="center" style="padding:32px 30px 18px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:250px;height:auto;display:block;margin:0 auto;">
                             </td>
                         </tr>
                         <!-- Separator -->
-                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
-                        <!-- Header -->
+                        <tr><td style="padding:0 30px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        
+                        <!-- Main Content -->
                         <tr>
-                            <td style="padding:30px 40px 0 40px;color:#1f2937;">
-                                <h2 style="margin:0 0 6px 0;font-size:22px;font-weight:700;">Weekly Recruitment Update</h2>
-                                <p style="margin:0;color:#64748b;font-size:14px;">Week of {{week_label}}</p>
+                            <td style="padding:28px 32px 32px 32px;color:#1f2937;font-size:15px;line-height:1.5;">
+                                <p style="margin:0 0 16px 0;font-size:16px;color:#1f2937;">
+                                    Hi <strong>{{manager_name}}</strong>,
+                                </p>
+                                <p style="margin:0 0 24px 0;font-size:15px;color:#374151;line-height:1.5;">
+                                    Please find below the latest hiring status update of the open positions for your review:
+                                </p>
+                                
+                                <!-- Hiring Summary Section -->
+                                <p style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#111827;">
+                                    Hiring Summary:
+                                </p>
+                                <div style="overflow-x:auto;margin-bottom:30px;">
+                                    {{hiring_summary_table}}
+                                </div>
+                                
+                                <!-- Candidate Pipeline Section -->
+                                <p style="margin:0 0 12px 0;font-size:16px;font-weight:700;color:#111827;">
+                                    Candidate’s Pipeline :
+                                </p>
+                                <div style="overflow-x:auto;margin-bottom:28px;">
+                                    {{candidate_pipeline_table}}
+                                </div>
+                                
+                                <p style="margin:0 0 18px 0;font-size:15px;color:#374151;line-height:1.5;">
+                                    Please let us know if you require any additional details or would like to discuss any specific positions.
+                                </p>
+                                
+                                <p style="margin:0;font-size:15px;color:#1f2937;line-height:1.6;">
+                                    Regards,<br>
+                                    <strong>Talent Acquisition Team</strong>
+                                </p>
                             </td>
                         </tr>
-                        <!-- Greeting -->
-                        <tr>
-                            <td style="padding:20px 40px 10px 40px;font-size:16px;color:#333333;">
-                                <p style="margin:0;">Dear <strong>{{manager_name}}</strong>,</p>
-                                <p style="margin:10px 0 0 0;color:#555555;">Here is a summary of recruitment activity for the MRFs raised by you as of this week.</p>
-                            </td>
-                        </tr>
-                        <!-- MRF Sections placeholder (injected dynamically) -->
-                        <tr>
-                            <td style="padding:10px 40px 30px 40px;">{{mrf_sections_html}}</td>
-                        </tr>
-                        <!-- Footer note -->
-                        <tr>
-                            <td style="padding:0 40px 30px 40px;font-size:14px;color:#64748b;">
-                                <p style="margin:0;">If you have questions, please reach out to the HR team directly.</p>
-                                <p style="margin:12px 0 0 0;color:#555555;">Best Regards,</p>
-                                <p style="margin:0;font-weight:700;color:#1f2937;">Team – HR</p>
-                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
-                            </td>
-                        </tr>
+                        
                         <!-- Footer -->
                         <tr>
-                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                            <td style="background:#f8fafc;padding:16px 30px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
                                 &copy; 2026 Knowcraft Analytics Private Limited &bull; Confidential
                             </td>
                         </tr>
@@ -599,12 +610,20 @@ The MRF for {{designation}} has been marked for revision. You may now review, ed
 Best regards,
 Team HR
 """,
-"dept_head_weekly_report":f"""Dear {{manager_name}},
-Please find below the weekly recruitment update for the MRFs raised by you (week of {{week_label}}).
-{{mrf_sections_text}}
-For questions, please reach out to the HR team.
-Best regards,
-Team HR
+"dept_head_weekly_report": f"""Hi {{manager_name}},
+
+Please find below the latest hiring status update of the open positions for your review:
+
+Hiring Summary:
+{{hiring_summary_text}}
+
+Candidate’s Pipeline :
+{{candidate_pipeline_text}}
+
+Please let us know if you require any additional details or would like to discuss any specific positions.
+
+Regards,
+Talent Acquisition Team
 Knowcraft Analytics Private Limited.
 """
 }
@@ -1172,7 +1191,8 @@ def auto_reject_stale_held_mrfs():
 def dept_head_weekly_report_task():
     """
     Send a weekly recruitment status report to each department head for their
-    active MRFs. Covers all candidate pipeline stages across each MRF's jobs.
+    active open positions.
+    Includes Hiring Summary table and Candidate's Pipeline table.
     """
     import logging
     from datetime import date, timedelta
@@ -1180,187 +1200,263 @@ def dept_head_weekly_report_task():
 
     from accounts.models import User
     from jobs.models import JobApplication
+    from booking.models import Booking
+    from slots.models import InterviewFeedback
 
     logger = logging.getLogger(__name__)
-
-    STATUS_LABELS = {
-        "received": "CVs Received",
-        "shortlisted": "Shortlisted",
-        "interview_pending_1": "HR Interview Pending",
-        "interview_done_1": "HR Interview Completed",
-        "interview_rejected_1": "Rejected – HR Round",
-        "interview_next_2": "Shortlisted – Technical Round",
-        "interview_pending_2": "Technical Interview Pending",
-        "interview_done_2": "Technical Interview Completed",
-        "interview_rejected_2": "Rejected – Technical Round",
-        "interview_next_3": "Shortlisted – Case Study Round",
-        "interview_pending_3": "Case Study Interview Pending",
-        "interview_done_3": "Case Study Interview Completed",
-        "interview_rejected_3": "Rejected – Case Study Round",
-        "interview_next_final": "Shortlisted – Final Round",
-        "interview_pending_final": "Final Interview Pending",
-        "interview_done_final": "Final Interview Completed",
-        "interview_rejected_final": "Rejected – Final Round",
-        "interview_next_management_client": "Shortlisted – Mgmt/Client Round",
-        "interview_pending_management_client": "Mgmt/Client Interview Pending",
-        "interview_done_management_client": "Mgmt/Client Interview Completed",
-        "interview_rejected_management_client": "Rejected – Mgmt/Client Round",
-        "consolidated_result_review": "Under HR Review",
-        "selected": "Selected",
-        "approval_pending": "Approval Pending",
-        "approved": "Approved by Hiring Manager",
-        "approval_rejected": "Rejected During Approval",
-        "offer_pending": "Offer Pending",
-        "offer_sent": "Offer Sent",
-        "offer_accepted": "Offer Accepted",
-        "offer_rejected": "Offer Rejected",
-        "joining_pending": "Joining Pending",
-        "joined": "Joined",
-        "duplicate_rejected": "Duplicate Rejected",
-    }
-
-    INTERVIEW_STATUSES = {s for s in STATUS_LABELS if 'interview' in s or s == 'shortlisted'}
 
     today = date.today()
     week_label = f"{(today - timedelta(days=today.weekday() + 7)).strftime('%d %b')} – {(today - timedelta(days=today.weekday() + 1)).strftime('%d %b %Y')}"
 
     dept_heads = User.objects.filter(role='department_head', is_active=True).exclude(email='')
 
+    STAGE_DISPLAY_MAP = {
+        "received": "HR Screening (Received)",
+        "shortlisted": "HR Screening (Shortlisted)",
+        "interview_pending_1": "HR Round (Pending)",
+        "interview_done_1": "HR Round (Completed)",
+        "interview_next_2": "Technical Round (Shortlisted)",
+        "interview_pending_2": "Technical Round (Pending)",
+        "interview_done_2": "Technical Round (Completed)",
+        "interview_next_3": "Case Study (Shortlisted)",
+        "interview_pending_3": "Case Study (Pending)",
+        "interview_done_3": "Case Study (Completed)",
+        "interview_next_final": "Final Round (Shortlisted)",
+        "interview_pending_final": "Final Round (Pending)",
+        "interview_done_final": "Final Round (Completed)",
+        "interview_next_management_client": "Client/Final Round (Shortlisted)",
+        "interview_pending_management_client": "Client/Final Round (Pending)",
+        "interview_done_management_client": "Client/Final Round (Completed)",
+        "consolidated_result_review": "Under HR Review",
+        "selected": "Selected",
+        "approval_pending": "Under HR Approval",
+        "approved": "Approved by Hiring Manager",
+        "offer_pending": "Offer Pending",
+        "offer_sent": "Offer Released",
+        "offer_accepted": "Offer Accepted",
+        "joining_pending": "Joining Pending",
+    }
+
     sent_count = 0
     for head in dept_heads:
         try:
-            active_mrfs = MRF.objects.filter(
-                requested_by=head,
+            mrf_filter = Q(
                 is_active=True,
-                status__in=['approved', 'filled', 'joining_pending', 'open', 'in_progress',
-                            'assigned_to_consultancy', 'assigned_to_internal_hr', 'assigned_to_both']
-            ).select_related('designation', 'department', 'job')
+                status__in=[
+                    'approved', 'filled', 'joining_pending', 'open', 'in_progress',
+                    'assigned_to_consultancy', 'assigned_to_internal_hr', 'assigned_to_both'
+                ]
+            )
+            if head.department:
+                mrf_filter &= (Q(requested_by=head) | Q(department=head.department))
+            else:
+                mrf_filter &= Q(requested_by=head)
+
+            active_mrfs = MRF.objects.filter(mrf_filter).select_related('designation', 'department', 'job').distinct()
 
             if not active_mrfs.exists():
                 continue
 
-            # ── Build HTML + text sections per MRF ───────────────────────────
-            mrf_sections_html_parts = []
-            mrf_sections_text_parts = []
+            summary_html_rows = []
+            summary_text_rows = []
+            pipeline_candidates_data = []
 
             for mrf in active_mrfs:
-                if not hasattr(mrf, 'job') or not mrf.job.is_active:
-                    continue
+                desig_name = mrf.designation.name if mrf.designation else (mrf.mrf_name or "Unknown")
+                openings = mrf.no_of_vacancies or 1
+                team = mrf.team or (mrf.department.name if mrf.department else "-")
 
-                desig_name = mrf.designation.name if mrf.designation else mrf.mrf_name or "Unknown"
-                dept_name = mrf.department.name if mrf.department else "Unknown"
-
-                # Aggregate counts across all jobs of this MRF
-                all_apps = JobApplication.objects.filter(job=mrf.job)
                 stage_counts = {}
-                for entry in all_apps.values('status').annotate(count=Count('id')):
-                    stage_counts[entry['status']] = entry['count']
+                if hasattr(mrf, 'job') and mrf.job:
+                    all_apps = JobApplication.objects.filter(job=mrf.job, is_active=True)
+                    for entry in all_apps.values('status').annotate(count=Count('id')):
+                        stage_counts[entry['status']] = entry['count']
 
-                total_cvs = sum(stage_counts.values())
-                total_interviews_done = sum(
-                    v for k, v in stage_counts.items()
-                    if 'interview_done' in k or 'interview_rejected' in k
+                    # Candidates in active recruitment pipeline
+                    active_apps = all_apps.exclude(
+                        status__in=[
+                            'rejected', 'backed_out', 'duplicate_rejected', 'joined',
+                            'approval_rejected', 'offer_rejected', 'interview_rejected_1',
+                            'interview_rejected_2', 'interview_rejected_3',
+                            'interview_rejected_final', 'interview_rejected_management_client'
+                        ]
+                    ).select_related('job', 'job__designation')
+
+                    for app in active_apps:
+                        pipeline_candidates_data.append((mrf, app))
+
+                received = stage_counts.get('received', 0)
+                shortlisted = stage_counts.get('shortlisted', 0)
+                screening_val = f"{received} / {shortlisted}"
+
+                hr_round = stage_counts.get('interview_pending_1', 0) + stage_counts.get('interview_done_1', 0)
+                tech_round = (
+                    stage_counts.get('interview_next_2', 0) +
+                    stage_counts.get('interview_pending_2', 0) +
+                    stage_counts.get('interview_done_2', 0)
                 )
-                in_interview_process = sum(
-                    v for k, v in stage_counts.items()
-                    if 'interview_pending' in k or 'interview_next' in k
+                client_final = (
+                    stage_counts.get('interview_next_3', 0) +
+                    stage_counts.get('interview_pending_3', 0) +
+                    stage_counts.get('interview_done_3', 0) +
+                    stage_counts.get('interview_next_final', 0) +
+                    stage_counts.get('interview_pending_final', 0) +
+                    stage_counts.get('interview_done_final', 0) +
+                    stage_counts.get('interview_next_management_client', 0) +
+                    stage_counts.get('interview_pending_management_client', 0) +
+                    stage_counts.get('interview_done_management_client', 0)
                 )
-                selected_count = stage_counts.get('selected', 0) + stage_counts.get('approved', 0)
-                offered_count = stage_counts.get('offer_sent', 0) + stage_counts.get('offer_accepted', 0)
-                joined_count = stage_counts.get('joined', 0)
+                doc_approval = (
+                    stage_counts.get('consolidated_result_review', 0) +
+                    stage_counts.get('selected', 0) +
+                    stage_counts.get('approval_pending', 0) +
+                    stage_counts.get('approved', 0)
+                )
+                offer_released = stage_counts.get('offer_sent', 0) + stage_counts.get('offer_pending', 0)
+                offer_accepted = stage_counts.get('offer_accepted', 0)
+                joining_expected = stage_counts.get('joining_pending', 0)
 
-                # ── Build HTML rows ───────────────────────────────────────────
-                stage_rows_html = ""
-                for status_key, label in STATUS_LABELS.items():
-                    count = stage_counts.get(status_key, 0)
-                    if count > 0:
-                        badge_color = "#10b981" if "joined" in status_key or "accepted" in status_key else \
-                                      "#ef4444" if "rejected" in status_key else \
-                                      "#2563eb" if "pending" in status_key or "interview_done" in status_key else "#64748b"
-                        stage_rows_html += (
-                            f'<tr>'
-                            f'<td style="padding:8px 12px;color:#374151;border-bottom:1px solid #f3f4f6;font-size:14px;">{label}</td>'
-                            f'<td style="padding:8px 12px;text-align:center;border-bottom:1px solid #f3f4f6;">'
-                            f'<span style="background:{badge_color};color:#fff;padding:3px 10px;border-radius:999px;font-size:13px;font-weight:600;">{count}</span>'
-                            f'</td>'
-                            f'</tr>'
-                        )
+                if joining_expected >= openings or mrf.status == 'joining_pending':
+                    remarks = "Joining Pending"
+                elif mrf.status == 'filled':
+                    remarks = "Position Filled"
+                else:
+                    remarks = "Open"
 
-                mrf_html = f"""
-<div style="margin:24px 0 0 0;">
-  <table border="0" cellpadding="0" cellspacing="0" width="100%"
-         style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin-bottom:6px;">
-    <tr>
-      <td colspan="2" style="background:#1e40af;padding:14px 16px;">
-        <p style="margin:0;font-size:16px;font-weight:700;color:#ffffff;">{desig_name}</p>
-        <p style="margin:4px 0 0 0;font-size:13px;color:#bfdbfe;">{dept_name} &nbsp;&bull;&nbsp; Req No: {mrf.requisition_no or 'N/A'}</p>
-      </td>
+                summary_html_rows.append(f"""
+<tr>
+  <td style="border:1px solid #000000;padding:6px 8px;text-align:left;font-weight:500;">{desig_name}</td>
+  <td style="border:1px solid #000000;padding:6px 8px;text-align:center;">{openings}</td>
+  <td style="border:1px solid #000000;padding:6px 8px;text-align:center;">{team}</td>
+  <td style="border:1px solid #000000;padding:6px 8px;text-align:center;">{screening_val}</td>
+  <td style="border:1px solid #000000;padding:6px 8px;text-align:center;">{hr_round}</td>
+  <td style="border:1px solid #000000;padding:6px 8px;text-align:center;">{tech_round}</td>
+  <td style="border:1px solid #000000;padding:6px 8px;text-align:center;">{client_final}</td>
+  <td style="border:1px solid #000000;padding:6px 8px;text-align:center;">{doc_approval}</td>
+  <td style="border:1px solid #000000;padding:6px 8px;text-align:center;">{offer_released}</td>
+  <td style="border:1px solid #000000;padding:6px 8px;text-align:center;">{offer_accepted}</td>
+  <td style="border:1px solid #000000;padding:6px 8px;text-align:center;">{joining_expected}</td>
+  <td style="border:1px solid #000000;padding:6px 8px;text-align:center;font-weight:600;">{remarks}</td>
+</tr>""")
+
+                summary_text_rows.append(
+                    f"{desig_name} | Openings: {openings} | Team: {team} | Screening: {screening_val} | "
+                    f"HR Round: {hr_round} | Tech Round: {tech_round} | Client/Final: {client_final} | "
+                    f"Doc/Approval: {doc_approval} | Offer Released: {offer_released} | Offer Accepted: {offer_accepted} | "
+                    f"Joining Expected: {joining_expected} | Remarks: {remarks}"
+                )
+
+            # Build Hiring Summary Table HTML
+            hiring_summary_table = f"""
+<table border="1" cellpadding="6" cellspacing="0" width="100%" style="border-collapse:collapse;border:1px solid #000000;font-size:12px;font-family:Arial,Helvetica,sans-serif;width:100%;min-width:740px;">
+  <thead>
+    <tr style="background-color:#ffffff;">
+      <th style="border:1px solid #000000;padding:8px 6px;font-weight:bold;font-size:12px;color:#000000;text-align:center;vertical-align:middle;">Designation</th>
+      <th style="border:1px solid #000000;padding:8px 6px;font-weight:bold;font-size:12px;color:#000000;text-align:center;vertical-align:middle;">Number<br>of<br>Openings</th>
+      <th style="border:1px solid #000000;padding:8px 6px;font-weight:bold;font-size:12px;color:#000000;text-align:center;vertical-align:middle;">Team</th>
+      <th style="border:1px solid #000000;padding:8px 6px;font-weight:bold;font-size:12px;color:#000000;text-align:center;vertical-align:middle;">HR Screening<br>(Received /<br>Shortlisted)</th>
+      <th style="border:1px solid #000000;padding:8px 6px;font-weight:bold;font-size:12px;color:#000000;text-align:center;vertical-align:middle;">HR<br>Round</th>
+      <th style="border:1px solid #000000;padding:8px 6px;font-weight:bold;font-size:12px;color:#000000;text-align:center;vertical-align:middle;">Technical<br>Round</th>
+      <th style="border:1px solid #000000;padding:8px 6px;font-weight:bold;font-size:12px;color:#000000;text-align:center;vertical-align:middle;">Client/Final<br>Round</th>
+      <th style="border:1px solid #000000;padding:8px 6px;font-weight:bold;font-size:12px;color:#000000;text-align:center;vertical-align:middle;">Documentation/<br>Under HR<br>Approval</th>
+      <th style="border:1px solid #000000;padding:8px 6px;font-weight:bold;font-size:12px;color:#000000;text-align:center;vertical-align:middle;">Offer<br>Released</th>
+      <th style="border:1px solid #000000;padding:8px 6px;font-weight:bold;font-size:12px;color:#000000;text-align:center;vertical-align:middle;">Offer<br>Accepted</th>
+      <th style="border:1px solid #000000;padding:8px 6px;font-weight:bold;font-size:12px;color:#000000;text-align:center;vertical-align:middle;">Joining<br>Expected</th>
+      <th style="border:1px solid #000000;padding:8px 6px;font-weight:bold;font-size:12px;color:#000000;text-align:center;vertical-align:middle;">Remarks<br>(Open/<br>Joining Pending)</th>
     </tr>
-    <!-- Summary row -->
-    <tr>
-      <td colspan="2" style="padding:12px 16px;background:#f8fafc;">
-        <table border="0" cellpadding="0" cellspacing="0" width="100%">
-          <tr>
-            <td style="text-align:center;padding:6px 8px;">
-              <p style="margin:0;font-size:20px;font-weight:700;color:#1e40af;">{total_cvs}</p>
-              <p style="margin:2px 0 0 0;font-size:12px;color:#64748b;">Total CVs</p>
-            </td>
-            <td style="text-align:center;padding:6px 8px;border-left:1px solid #e5e7eb;">
-              <p style="margin:0;font-size:20px;font-weight:700;color:#0891b2;">{total_interviews_done}</p>
-              <p style="margin:2px 0 0 0;font-size:12px;color:#64748b;">Interviews Done</p>
-            </td>
-            <td style="text-align:center;padding:6px 8px;border-left:1px solid #e5e7eb;">
-              <p style="margin:0;font-size:20px;font-weight:700;color:#7c3aed;">{in_interview_process}</p>
-              <p style="margin:2px 0 0 0;font-size:12px;color:#64748b;">In Process</p>
-            </td>
-            <td style="text-align:center;padding:6px 8px;border-left:1px solid #e5e7eb;">
-              <p style="margin:0;font-size:20px;font-weight:700;color:#16a34a;">{offered_count}</p>
-              <p style="margin:2px 0 0 0;font-size:12px;color:#64748b;">Offered</p>
-            </td>
-            <td style="text-align:center;padding:6px 8px;border-left:1px solid #e5e7eb;">
-              <p style="margin:0;font-size:20px;font-weight:700;color:#059669;">{joined_count}</p>
-              <p style="margin:2px 0 0 0;font-size:12px;color:#64748b;">Joined</p>
-            </td>
-          </tr>
-        </table>
-      </td>
+  </thead>
+  <tbody>
+    {''.join(summary_html_rows)}
+  </tbody>
+</table>"""
+
+            # ── 2. Build Candidate Pipeline Rows ──────────────────────────────
+            pipeline_html_rows = []
+            pipeline_text_rows = []
+
+            for mrf, app in pipeline_candidates_data:
+                cand_desig = (
+                    (mrf.designation.name if mrf.designation else None) or
+                    (app.job.designation.name if (app.job and app.job.designation) else None) or
+                    (app.job.job_title if app.job else "Unknown")
+                )
+                cand_name = app.candidate_name or "N/A"
+                cand_stage = STAGE_DISPLAY_MAP.get(app.status, app.status.replace('_', ' ').title())
+
+                booking = Booking.objects.filter(candidate=app).order_by('-start').first()
+                if booking:
+                    interview_date = booking.start.strftime('%d-%b-%Y') if booking.start else "-"
+                    interviewer_name = booking.interviewer.name if booking.interviewer else "-"
+                else:
+                    feedback = InterviewFeedback.objects.filter(job_application=app).order_by('-created_at').first()
+                    if feedback and feedback.interview_date:
+                        interview_date = feedback.interview_date.strftime('%d-%b-%Y')
+                        interviewer_name = feedback.interviewer_name or "-"
+                    else:
+                        interview_date = "-"
+                        interviewer_name = "-"
+                        if 'interview' in app.status:
+                            if '_1' in app.status and mrf.hr_interviewer:
+                                interviewer_name = mrf.hr_interviewer.name
+                            elif '_2' in app.status:
+                                interviewer_name = mrf.technical_interview_1 or (
+                                    mrf.technical_interviewers.first().name if mrf.technical_interviewers.exists() else "-"
+                                )
+                            elif ('_3' in app.status or '_final' in app.status or '_management' in app.status):
+                                interviewer_name = mrf.final_interview or (
+                                    mrf.final_interviewer.name if mrf.final_interviewer else "-"
+                                )
+
+                pipeline_html_rows.append(f"""
+<tr>
+  <td style="border:1px solid #000000;padding:6px 10px;text-align:left;">{cand_desig}</td>
+  <td style="border:1px solid #000000;padding:6px 10px;text-align:left;font-weight:500;">{cand_name}</td>
+  <td style="border:1px solid #000000;padding:6px 10px;text-align:left;">{cand_stage}</td>
+  <td style="border:1px solid #000000;padding:6px 10px;text-align:center;">{interview_date}</td>
+  <td style="border:1px solid #000000;padding:6px 10px;text-align:left;">{interviewer_name}</td>
+</tr>""")
+
+                pipeline_text_rows.append(
+                    f"{cand_desig} | {cand_name} | {cand_stage} | Date: {interview_date} | Interviewer: {interviewer_name}"
+                )
+
+            if not pipeline_html_rows:
+                pipeline_html_rows.append("""
+<tr>
+  <td colspan="5" style="border:1px solid #000000;padding:12px 10px;text-align:center;color:#6b7280;font-style:italic;">
+    No active candidates in the pipeline currently.
+  </td>
+</tr>""")
+                pipeline_text_rows.append("No active candidates in the pipeline currently.")
+
+            candidate_pipeline_table = f"""
+<table border="1" cellpadding="6" cellspacing="0" width="100%" style="border-collapse:collapse;border:1px solid #000000;font-size:12px;font-family:Arial,Helvetica,sans-serif;width:100%;min-width:680px;">
+  <thead>
+    <tr style="background-color:#ffff00;">
+      <th style="background-color:#ffff00;border:1px solid #000000;padding:8px 10px;font-weight:bold;font-size:12px;color:#000000;text-align:left;">Designation</th>
+      <th style="background-color:#ffff00;border:1px solid #000000;padding:8px 10px;font-weight:bold;font-size:12px;color:#000000;text-align:left;">Name of the candidate</th>
+      <th style="background-color:#ffff00;border:1px solid #000000;padding:8px 10px;font-weight:bold;font-size:12px;color:#000000;text-align:left;">Recruitment Stage</th>
+      <th style="background-color:#ffff00;border:1px solid #000000;padding:8px 10px;font-weight:bold;font-size:12px;color:#000000;text-align:left;">Date of the Interview</th>
+      <th style="background-color:#ffff00;border:1px solid #000000;padding:8px 10px;font-weight:bold;font-size:12px;color:#000000;text-align:left;">Interviewer</th>
     </tr>
-    <!-- Stage details -->
-    {f'<tr><td colspan="2"><table border="0" cellpadding="0" cellspacing="0" width="100%">{stage_rows_html}</table></td></tr>' if stage_rows_html else ''}
-  </table>
-</div>"""
+  </thead>
+  <tbody>
+    {''.join(pipeline_html_rows)}
+  </tbody>
+</table>"""
 
-                mrf_sections_html_parts.append(mrf_html)
-
-                # ── Plain text section ────────────────────────────────────────
-                text_lines = [
-                    f"\n--- {desig_name} ({dept_name}) | Req: {mrf.requisition_no or 'N/A'} ---",
-                    f"  Total CVs: {total_cvs}",
-                    f"  Interviews Done: {total_interviews_done}",
-                    f"  In Interview Process: {in_interview_process}",
-                    f"  Offered: {offered_count}  |  Joined: {joined_count}",
-                ]
-                for status_key, label in STATUS_LABELS.items():
-                    count = stage_counts.get(status_key, 0)
-                    if count > 0:
-                        text_lines.append(f"    {label}: {count}")
-                mrf_sections_text_parts.append("\n".join(text_lines))
-
-            if not mrf_sections_html_parts:
-                continue
-
-            mrf_sections_html = "".join(mrf_sections_html_parts)
-            mrf_sections_text = "\n".join(mrf_sections_text_parts)
+            hiring_summary_text = "\n".join(summary_text_rows)
+            candidate_pipeline_text = "\n".join(pipeline_text_rows)
 
             template = email_templates["dept_head_weekly_report"].format(
                 manager_name=head.name,
-                week_label=week_label,
-                mrf_sections_html=mrf_sections_html,
+                hiring_summary_table=hiring_summary_table,
+                candidate_pipeline_table=candidate_pipeline_table,
             )
             text = alt_text["dept_head_weekly_report"].format(
                 manager_name=head.name,
-                week_label=week_label,
-                mrf_sections_text=mrf_sections_text,
+                hiring_summary_text=hiring_summary_text,
+                candidate_pipeline_text=candidate_pipeline_text,
             )
 
             send_email(

@@ -35,6 +35,7 @@ from rest_framework import filters
 from rest_framework.pagination import PageNumberPagination
 from .filters import JobApplicationFilter, ApplicationFilter, ReferralApplicationFilter
 from .utils import send_job_assignment_email, send_job_unassignment_email
+from onboarding.utils.notifications import notify_candidate
 from mrf.utils import is_valid_uuid
 
 class JobPagination(PageNumberPagination):
@@ -114,7 +115,13 @@ class JobViewSet(viewsets.ModelViewSet):
         # Apply filters from query params
         status_filter = self.request.query_params.get('status')
         if status_filter:
-            queryset = queryset.filter(status=status_filter)
+            s_val = status_filter.lower().strip()
+            if s_val == 'open':
+                queryset = queryset.filter(status__in=['open', 'assigned_to_internal_hr', 'assigned_to_consultancy', 'assigned_to_both'])
+            elif s_val == 'unassigned':
+                queryset = queryset.filter(status='open')
+            else:
+                queryset = queryset.filter(status=status_filter)
         
         department_filter = self.request.query_params.get('department')
         if department_filter and is_valid_uuid(department_filter):
@@ -2127,6 +2134,7 @@ class ApplicationViewSet(viewsets.GenericViewSet):
                 app.updated_at = now
                 update_fields = ['notes', 'updated_at']
 
+                old_tagged = app.is_tagged
                 if should_tag is True:
                     app.is_tagged = True
                     update_fields.append('is_tagged')
@@ -2135,6 +2143,10 @@ class ApplicationViewSet(viewsets.GenericViewSet):
                     update_fields.append('is_tagged')
 
                 app.save(update_fields=update_fields)
+                
+                if should_tag is True and not old_tagged:
+                    notify_candidate(app, "tagged_candidate")
+
                 results.append({'candidate_id': str(cid), 'status': 'ok'})
                 updated_count += 1
 
@@ -2235,6 +2247,10 @@ class ApplicationViewSet(viewsets.GenericViewSet):
                     update_fields.append('notes')
 
                 app.save(update_fields=update_fields)
+                
+                if new_tagged and not old_tagged:
+                    notify_candidate(app, "tagged_candidate")
+
                 results.append({
                     'candidate_id': str(cid),
                     'status': 'ok',

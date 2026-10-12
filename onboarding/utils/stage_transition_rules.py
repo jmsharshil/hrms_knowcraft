@@ -52,7 +52,7 @@ ALLOWED_TRANSITIONS = {
     "interview_rejected_management_client":['selected'],
     "approval_rejected": ["selected","approval_pending"],
     "offer_rejected": ["selected"],
-    "joined": ["terminated_bgv", "terminated_misconduct", "terminated_other"],
+    "joined": ["terminated_bgv", "terminated_misconduct", "terminated_other", "backed_out"],
     "rejected": ["selected"],
     "backed_out": ["selected"],
     # POST-JOINING TERMINATION (terminal — no forward transitions)

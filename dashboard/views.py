@@ -343,11 +343,21 @@ class BaseAnalyticsView(APIView):
         # 2. Parse query params
         date_from_str = request.query_params.get('date_from')
         date_to_str = request.query_params.get('date_to')
-        department_id = request.query_params.get('department')
-        designation_id = request.query_params.get('designation')
         job_id = request.query_params.get('job_id')
         user_id = request.query_params.get('user_id')
         source_filter = request.query_params.get('source')
+
+        # Multi-value department filter: ?department=X&department=Y  or  ?department=X,Y
+        raw_dept_ids = request.query_params.getlist('department')
+        if not raw_dept_ids:
+            raw_dept_ids = [d.strip() for d in request.query_params.get('department', '').split(',') if d.strip()]
+        department_ids = raw_dept_ids  # kept as strings for Q(...__in=)
+
+        # Multi-value designation filter: ?designation=X&designation=Y  or  ?designation=X,Y
+        raw_desig_ids = request.query_params.getlist('designation')
+        if not raw_desig_ids:
+            raw_desig_ids = [d.strip() for d in request.query_params.get('designation', '').split(',') if d.strip()]
+        designation_ids = raw_desig_ids  # kept as strings for Q(...__in=)
 
         date_from = safe_parse_date(date_from_str)
         date_to = safe_parse_date(date_to_str)
@@ -396,10 +406,10 @@ class BaseAnalyticsView(APIView):
         # 3. MRF queryset (Filtered by Period Activity)
         # Admins and HR managers see all records including private ones
         mrf_base_filter = Q(company=company) & role_mrf_q & Q(is_active=True)
-        if department_id:
-            mrf_base_filter &= Q(department_id=department_id)
-        if designation_id:
-            mrf_base_filter &= Q(designation_id=designation_id)
+        if department_ids:
+            mrf_base_filter &= Q(department_id__in=department_ids)
+        if designation_ids:
+            mrf_base_filter &= Q(designation_id__in=designation_ids)
         if target_user_ids and not all_consultancy:
             # For consultancy-only targets, MRF section is skipped entirely later;
             # for others, filter MRFs they requested or approved
@@ -418,10 +428,10 @@ class BaseAnalyticsView(APIView):
         job_base_filter = Q(company=company) & role_job_q & Q(is_active=True)
         if job_id:
             job_base_filter &= Q(id=job_id)
-        if department_id:
-            job_base_filter &= Q(department_id=department_id)
-        if designation_id:
-            job_base_filter &= Q(designation_id=designation_id)
+        if department_ids:
+            job_base_filter &= Q(department_id__in=department_ids)
+        if designation_ids:
+            job_base_filter &= Q(designation_id__in=designation_ids)
         if target_user_ids:
             # Build a union Q across all selected users by role
             assignment_q = Q(id=None)
@@ -529,18 +539,26 @@ class BaseAnalyticsView(APIView):
             platform_app_qs = Application.objects.filter(platform_app_filter).distinct()
 
         referral_filter = date_filter
-        if department_id:
+        if department_ids:
             try:
-                dept_name = Department.objects.get(id=department_id).name
-                referral_filter &= Q(referral_department=dept_name)
-            except (Department.DoesNotExist, ValidationError, ValueError):
+                dept_names = list(
+                    Department.objects.filter(id__in=department_ids)
+                    .values_list('name', flat=True)
+                )
+                if dept_names:
+                    referral_filter &= Q(referral_department__in=dept_names)
+            except (ValidationError, ValueError):
                 pass
 
-        if designation_id:
+        if designation_ids:
             try:
-                desig_name = Designation.objects.get(id=designation_id).name
-                referral_filter &= Q(referral_designation=desig_name)
-            except (Designation.DoesNotExist, ValidationError, ValueError):
+                desig_names = list(
+                    Designation.objects.filter(id__in=designation_ids)
+                    .values_list('name', flat=True)
+                )
+                if desig_names:
+                    referral_filter &= Q(referral_designation__in=desig_names)
+            except (ValidationError, ValueError):
                 pass
 
         if target_user_ids:
@@ -565,7 +583,9 @@ class BaseAnalyticsView(APIView):
             "all_consultancy": all_consultancy,
             "date_filter": date_filter,
             "date_from": date_from,
-            "date_to": date_to
+            "date_to": date_to,
+            "department_ids": department_ids,
+            "designation_ids": designation_ids,
         }, None
 
     def get_role_filters(self, user):
@@ -575,7 +595,7 @@ class BaseAnalyticsView(APIView):
 
     # SECTION CALCULATION METHODS ---------------------------------
     
-    def calc_mrf_analytics(self, mrf_qs):
+    def calc_mrf_analytics(self, mrf_qs, department_ids=None, designation_ids=None):
         section1 = {}
         agg = mrf_qs.aggregate(
             total_mrf_raised=Count('id'),
@@ -673,6 +693,29 @@ class BaseAnalyticsView(APIView):
             avg_days = round(sum(durations) / len(durations), 2) if durations else 0
             mrf_by_dept.append({'department': dept_name, 'count': d['count'], 'avg_approval_time_days': avg_days})
         section1['mrf_by_department'] = mrf_by_dept
+
+        # mrf_by_designation should only be seen if department filter is applied
+        if department_ids is None and hasattr(self, 'request') and self.request:
+            raw_dept = self.request.query_params.getlist('department')
+            if not raw_dept:
+                raw_dept = [d.strip() for d in self.request.query_params.get('department', '').split(',') if d.strip()]
+            department_ids = [d for d in raw_dept if d]
+
+        if department_ids:
+            desig_stats = mrf_qs.values('designation__name').annotate(count=Count('id')).order_by('-count')
+            mrf_by_desig = []
+            for d in desig_stats:
+                desig_name = d['designation__name'] or 'Unknown'
+                desig_mrfs = approved_mrfs.filter(designation__name=desig_name)
+                durations = []
+                for mrf in desig_mrfs:
+                    if mrf.approved_at and mrf.submitted_at:
+                        td = (mrf.approved_at - mrf.submitted_at).total_seconds() / 86400
+                        if td >= 0:
+                            durations.append(td)
+                avg_days = round(sum(durations) / len(durations), 2) if durations else 0
+                mrf_by_desig.append({'designation': desig_name, 'count': d['count'], 'avg_approval_time_days': avg_days})
+            section1['mrf_by_designation'] = mrf_by_desig
 
         month_stats = mrf_qs.annotate(month=TruncMonth('created_at')).values('month').annotate(count=Count('id')).order_by('month')
         section1['mrf_by_month'] = [{'month': m['month'].strftime('%Y-%m'), 'count': m['count']} for m in month_stats]
@@ -1027,7 +1070,7 @@ class BaseAnalyticsView(APIView):
             'duplicate_rejected': 'Duplicate Rejected',
         }
 
-        # Aggregate source+status from JobApplications
+        # Aggregate source+status from JobApplications, Platform Applications, and Referral Applications
         src_stage_qs = (
             app_qs.values('source', 'status')
             .annotate(count=Count('id'))
@@ -1044,6 +1087,41 @@ class BaseAnalyticsView(APIView):
             source_stage_map[src]['stages'][status_label] = (
                 source_stage_map[src]['stages'].get(status_label, 0) + row['count']
             )
+
+        # Include untouched Platform Applications (pa_base) into candidate stage breakdown by source
+        for row in pa_base.values('source', 'is_rejected').annotate(count=Count('id')):
+            src = normalize_source_name(row['source'])
+            status_label = 'Rejected' if row['is_rejected'] else 'Received'
+            if src not in source_stage_map:
+                source_stage_map[src] = {'source': src, 'total': 0, 'stages': {}}
+            source_stage_map[src]['total'] += row['count']
+            source_stage_map[src]['stages'][status_label] = (
+                source_stage_map[src]['stages'].get(status_label, 0) + row['count']
+            )
+
+        # Include untouched Referral Applications (ref_base) into candidate stage breakdown by source
+        ref_model_fields = {f.name for f in ref_base.model._meta.get_fields()}
+        if 'is_rejected' in ref_model_fields:
+            for row in ref_base.values('is_rejected').annotate(count=Count('id')):
+                src = 'Referral'
+                status_label = 'Rejected' if row['is_rejected'] else 'Received'
+                if src not in source_stage_map:
+                    source_stage_map[src] = {'source': src, 'total': 0, 'stages': {}}
+                source_stage_map[src]['total'] += row['count']
+                source_stage_map[src]['stages'][status_label] = (
+                    source_stage_map[src]['stages'].get(status_label, 0) + row['count']
+                )
+        else:
+            ref_untouched_count = ref_base.count()
+            if ref_untouched_count > 0:
+                src = 'Referral'
+                status_label = 'Received'
+                if src not in source_stage_map:
+                    source_stage_map[src] = {'source': src, 'total': 0, 'stages': {}}
+                source_stage_map[src]['total'] += ref_untouched_count
+                source_stage_map[src]['stages'][status_label] = (
+                    source_stage_map[src]['stages'].get(status_label, 0) + ref_untouched_count
+                )
 
         # Convert stages dict to sorted list
         candidate_analysis_by_source = []
@@ -1074,7 +1152,7 @@ class BaseAnalyticsView(APIView):
             if u['job__id']:
                 untouched_map[key]['job_ids'].add(u['job__id'])
 
-        for u in pa_base.filter(is_rejected=False).values(
+        for u in pa_base.filter(is_rejected=False, is_tagged=False).values(
             'designation__name', 'department__name', 'job__job_title', 'position_title', 'job__id'
         ):
             desig = u['designation__name'] or 'Unknown'
@@ -2504,7 +2582,7 @@ class BaseAnalyticsView(APIView):
             data["partial_joining_tat_days"] = tat_metrics["partial_joining_tat_days"]
             data["final_joining_tat_days"] = tat_metrics["final_joining_tat_days"]
         if 'mrf_analytics' in requested_sections and not ctx.get('all_consultancy'):
-            data['mrf_analytics'] = self.calc_mrf_analytics(mrf_qs)
+            data['mrf_analytics'] = self.calc_mrf_analytics(mrf_qs, department_ids=ctx.get('department_ids'), designation_ids=ctx.get('designation_ids'))
         if 'job_assignment_analytics' in requested_sections:
             target_user_ids = [str(u.id) for u in ctx['target_users']] if ctx.get('target_users') else None
             data['job_assignment_analytics'] = self.calc_job_assignment_analytics(job_qs, request.user.role, target_user_ids, request.user)
@@ -2833,7 +2911,7 @@ class DashboardExportAPIView(BaseAnalyticsView):
 
         # ── Sheet 2: MRF Analytics ──
         try:
-            mrf_data = self.calc_mrf_analytics(mrf_qs)
+            mrf_data = self.calc_mrf_analytics(mrf_qs, department_ids=ctx.get('department_ids'), designation_ids=ctx.get('designation_ids'))
             ws2 = wb.create_sheet("MRF Analytics")
             ws2.append(["Metric", "Value"])
             ws2.append(["Total MRF Raised", mrf_data.get("total_mrf_raised", 0)])
@@ -2848,6 +2926,12 @@ class DashboardExportAPIView(BaseAnalyticsView):
             ws2.append(["Department", "Count", "Avg Approval Time (Days)"])
             for d in mrf_data.get("mrf_by_department", []):
                 ws2.append([d.get("department", "N/A"), d.get("count", 0), d.get("avg_approval_time_days", 0)])
+            if mrf_data.get("mrf_by_designation"):
+                ws2.append([])
+                ws2.append(["--- MRF By Designation ---"])
+                ws2.append(["Designation", "Count", "Avg Approval Time (Days)"])
+                for d in mrf_data.get("mrf_by_designation", []):
+                    ws2.append([d.get("designation", "N/A"), d.get("count", 0), d.get("avg_approval_time_days", 0)])
             ws2.append([])
             ws2.append(["--- Approval Funnel ---"])
             ws2.append(["Level", "Avg Time (Days)"])
