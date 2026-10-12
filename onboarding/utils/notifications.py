@@ -1473,6 +1473,12 @@ Knowcraft Analytics Private Limited""",
         "body": "Candidate {candidate.candidate_name} (office joiner) arriving in 7 days. Please arrange seating and access card.",
         "sms": "Office joiner preparations required for {candidate.candidate_name}.",
     },
+    "hod_assignment_reminder": {
+        "receivers": ["hr", "hr_manager"],
+        "subject": "Action Required: Head of Department Not Assigned – {candidate.candidate_name}",
+        "body": "The Head of Department (HOD) has not been assigned for {candidate.candidate_name} who is joining in 15 days. Please assign the HOD in HRMS so that the correct person receives onboarding notifications (D-7 HOD briefing, 30-day surveys, escalation alerts).",
+        "sms": "Action required: Please assign HOD for {candidate.candidate_name} (joining in 15 days) in HRMS.",
+    },
     "bgv_escalation": {
         "receivers": ["hr", "admin"],
         "subject": "ESCALATION: BGV Pending Beyond 7 Days",
@@ -1629,13 +1635,16 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
             # DEPARTMENT HEAD
             # =========================
             if role == 'department_head':
-                if mrf:
-                    # Try requested_by first regardless of their system role
+                # 1. Prefer HOD explicitly assigned on the application
+                hod = getattr(candidate, 'hod', None)
+                if hod:
+                    add_user(hod)
+                elif mrf:
+                    # 2. Fall back to MRF requester (original behaviour)
                     user = getattr(mrf, "requested_by", None)
                     if user:
                         add_user(user)
-                    # Also try the requested_by_email field if it exists
-                    hod_email = mrf.requested_by.email if getattr(mrf, "requested_by", None) and getattr(mrf.requested_by,"email",None) else None
+                    hod_email = mrf.requested_by.email if getattr(mrf, "requested_by", None) and getattr(mrf.requested_by, "email", None) else None
                     if hod_email:
                         add_email(hod_email)
                 continue
@@ -1688,6 +1697,19 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
                 .exclude(email__isnull=True) \
                 .exclude(email="")
             add_users(hr_managers)
+
+        # Always append emails_to_notify from the OnboardingForm if it exists.
+        # This covers ALL internal milestone notifications (DOJ -15 / -7 / -2 / 0 / +5 / +7 / +30 / +45 / +90).
+        try:
+            onboarding_form = getattr(candidate, 'onboarding_form', None)
+            if onboarding_form:
+                raw_notify = getattr(onboarding_form, 'emails_to_notify', None) or ''
+                for addr in raw_notify.replace(';', ',').split(','):
+                    addr = addr.strip()
+                    if addr:
+                        emails.add(addr)
+        except Exception as _notify_err:
+            logger.warning("Could not read emails_to_notify from onboarding_form: %s", _notify_err)
 
         return list(emails)
 

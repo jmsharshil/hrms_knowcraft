@@ -807,7 +807,17 @@ class JobApplication(models.Model):
     interview_link = models.TextField(null=True,blank=True)
     feedback_link = models.TextField(null=True,blank=True)
     round_name = models.CharField(null=True,blank=True,choices=INTERVIEW_CHOICES)
-    
+
+    # Head of Department – overrides MRF requested_by for onboarding emails
+    hod = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='hod_applications',
+        help_text='Head of Department for this hire. If set, onboarding emails go here instead of the MRF requester.'
+    )
+
     class Meta:
         db_table = 'job_applications'
         ordering = ['-created_at']
