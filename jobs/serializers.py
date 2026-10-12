@@ -468,6 +468,8 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     attendees_details = serializers.SerializerMethodField()
     rejected_by_name = serializers.CharField(source='rejected_by.name', read_only=True, allow_null=True)
     rejected_by_email = serializers.CharField(source='rejected_by.email', read_only=True, allow_null=True)
+    hod_name = serializers.CharField(source='hod.name', read_only=True, allow_null=True)
+    hod_email = serializers.EmailField(source='hod.email', read_only=True, allow_null=True)
     
     class Meta:
         model = JobApplication
@@ -484,7 +486,8 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             'interview_scheduled_at','interviewer_name','interview_link','feedback_link','round_name','round_name_display',
             "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone","interview_end_at",
             "document_upload_link", "candidate_experience_link","is_private","mrf_details", "attendees_details",
-            "rejected_by", "rejected_by_name", "rejected_by_email", "rejected_at"
+            "rejected_by", "rejected_by_name", "rejected_by_email", "rejected_at",
+            "hod", "hod_name", "hod_email",
         ]
     
     def get_platform_name(self, obj):
@@ -740,7 +743,7 @@ class JobApplicationUpdateSerializer(serializers.ModelSerializer):
         fields = ['status', 'notes', 'rating', 'candidate_name','candidate_phone','candidate_email',
                   'source','experience_years','relevant_experience_years','location','skill',
                   'education','current_employer','linkedin_url','job',
-                  'work_email', 'resume', 'crafter_id'
+                  'work_email', 'resume', 'crafter_id', 'hod'
                   ]
 
     def validate_resume(self, value):

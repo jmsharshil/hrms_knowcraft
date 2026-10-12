@@ -2268,6 +2268,46 @@ class EmailLogViewSet(ReadOnlyModelViewSet):
 class InitiateOnboardingAPI(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    def get(self, request, id):
+        """Retrieve the existing onboarding form for an application, if one exists."""
+        application = get_object_or_404(JobApplication, id=id)
+        from onboarding.models import OnboardingForm
+        try:
+            form = application.onboarding_form
+        except OnboardingForm.DoesNotExist:
+            return Response(
+                {"detail": "Onboarding form not yet submitted for this application."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        data = {
+            "onboarding_form_id": str(form.id),
+            "assets": form.assets,
+            "site": form.site,
+            "subject": form.subject,
+            "first_name": form.first_name,
+            "last_name": form.last_name,
+            "personal_email_id": form.personal_email_id,
+            "contact_number": form.contact_number,
+            "joining_date": str(form.joining_date) if form.joining_date else None,
+            "designation": form.designation,
+            "department": form.department,
+            "employee_category": form.employee_category,
+            "center_office_location": form.center_office_location,
+            "mode_for_collecting_assets": form.mode_for_collecting_assets,
+            "team_manager": form.team_manager,
+            "work_from": form.work_from,
+            "crafter_id": form.crafter_id,
+            "emails_to_notify": form.emails_to_notify,
+            "current_address": form.current_address,
+            "description": form.description,
+            "custom_notes": form.custom_notes,
+            "ticket_ref": form.ticket_ref,
+            "submitted_by": str(form.submitted_by_id) if form.submitted_by_id else None,
+            "created_at": form.created_at.isoformat() if form.created_at else None,
+        }
+        return Response(data, status=status.HTTP_200_OK)
+
     def post(self, request, id):
         application = get_object_or_404(JobApplication, id=id)
         
@@ -2361,6 +2401,55 @@ class InitiateOnboardingAPI(APIView):
             logger.error(f"Error initiating onboarding for {application.id}: {e}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    def patch(self, request, id):
+        """
+        Partially update an existing onboarding form.
+        Only the fields present in the request body are updated.
+        Does NOT re-send the admin notification email.
+        """
+        application = get_object_or_404(JobApplication, id=id)
+        from onboarding.models import OnboardingForm
+
+        try:
+            form = application.onboarding_form
+        except OnboardingForm.DoesNotExist:
+            return Response(
+                {"detail": "No onboarding form found. Use POST to create one first."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        UPDATABLE_FIELDS = [
+            "assets", "site", "subject", "first_name", "last_name",
+            "personal_email_id", "contact_number", "joining_date",
+            "designation", "department", "employee_category",
+            "center_office_location", "mode_for_collecting_assets",
+            "team_manager", "work_from", "crafter_id",
+            "emails_to_notify", "current_address", "description", "custom_notes",
+        ]
+
+        changed_fields = []
+        for field in UPDATABLE_FIELDS:
+            if field in request.data:
+                setattr(form, field, request.data[field])
+                changed_fields.append(field)
+
+        if not changed_fields:
+            return Response(
+                {"detail": "No updatable fields provided in the request body."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        form.save(update_fields=changed_fields)
+        logger.info(
+            f"Onboarding form {form.id} updated by {getattr(request.user, 'email', '?')} "
+            f"for application {application.id}. Fields: {changed_fields}"
+        )
+
+        return Response({
+            "message": "Onboarding form updated successfully.",
+            "onboarding_form_id": str(form.id),
+            "updated_fields": changed_fields,
+        }, status=status.HTTP_200_OK)
 
 def _send_onboarding_form_admin_email(application, form_data, submitted_by):
     """
@@ -2389,6 +2478,13 @@ def _send_onboarding_form_admin_email(application, form_data, submitted_by):
         admin_emails = ["zeelsh@jmsadvisory.in"]
     else:
         admin_emails = ["itsupport@knowcraft.in"]
+
+    # Also send to all addresses listed in the onboarding form's "emails_to_notify" field
+    raw_notify = form_data.get('emails_to_notify') or ''
+    extra_emails = [e.strip() for e in raw_notify.replace(';', ',').split(',') if e.strip()]
+    for addr in extra_emails:
+        if addr not in admin_emails:
+            admin_emails.append(addr)
 
     template_base = NOTIFY_INTERNAL_HTML_TEMPLATES.get('onboarding_form_submitted', '')
     submitted_by_name = getattr(submitted_by, 'name', None) or getattr(submitted_by, 'email', 'HR Team')

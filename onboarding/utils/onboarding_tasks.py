@@ -81,6 +81,12 @@ def daily_onboarding_check():
 
             # Send Email to IT Team
             notify_internal(app, "doj_minus_15_it_team")
+
+            # Remind HR to assign HOD if not yet set
+            if not getattr(app, 'hod', None):
+                logger.info(f"HOD not assigned for {app.candidate_name} at DOJ -15. Sending hod_assignment_reminder.")
+                notify_internal(app, "hod_assignment_reminder")
+
             create_milestone_tasks(app, "DOJ_MINUS_15", app.joining_date)
             app.is_doj_minus_15_triggered = True
             app.save(update_fields=['is_doj_minus_15_triggered'])

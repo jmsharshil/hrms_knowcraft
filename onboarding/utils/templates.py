@@ -3618,4 +3618,65 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
     </body>
     </html>
     """,
+    "hod_assignment_reminder": """
+    <html>
+    <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
+        <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:0 auto;background-color:#f4f4f7;">
+            <tr>
+                <td align="center" style="padding:30px 15px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#ffffff;border:1px solid #e0e3e9;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.06);">
+                        <!-- Logo -->
+                        <tr>
+                            <td align="center" style="padding:40px 30px 25px 30px;background:#ffffff;">
+                                <img src="https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png" alt="Knowcraft Analytics" style="max-width:280px;height:auto;display:block;margin:0 auto;">
+                            </td>
+                        </tr>
+                        <!-- Separator -->
+                        <tr><td style="padding:0 40px;"><hr style="border:0;border-top:1px solid #f0f2f7;margin:0;"></td></tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding:35px 40px 45px 40px;color:#333333;font-size:16px;line-height:1.6;">
+                                <h2 style="margin:0 0 22px 0;color:#b45309;font-size:22px;font-weight:700;">⚠️ Action Required: HOD Not Assigned</h2>
+                                <p style="margin:0 0 16px 0;">Dear HR Team,</p>
+                                <p style="margin:0 0 16px 0;">This is an automated reminder that the <strong>Head of Department (HOD)</strong> has <strong>not been assigned</strong> for the following incoming joiner:</p>
+                                <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#fffbeb;border:1px solid #fde68a;border-radius:8px;margin:16px 0 24px 0;">
+                                    <tr>
+                                        <td style="padding:16px 20px;color:#1f2937;font-size:15px;">
+                                            <strong>Candidate:</strong> {candidate.candidate_name}<br>
+                                            <strong>Joining Date:</strong> {candidate.joining_date}<br>
+                                            <strong>Department:</strong> {candidate.job.department.name}<br>
+                                            <strong>Designation:</strong> {candidate.job.designation.name}
+                                        </td>
+                                    </tr>
+                                </table>
+                                <p style="margin:0 0 16px 0;">Assigning the HOD ensures they receive the correct notifications, including:</p>
+                                <ul style="margin:0 0 20px 0;padding-left:20px;color:#374151;">
+                                    <li style="margin-bottom:6px;">DOJ &minus;7 HOD briefing email</li>
+                                    <li style="margin-bottom:6px;">30-Day HOD satisfaction survey</li>
+                                    <li style="margin-bottom:6px;">45-Day &amp; 90-Day check-in escalation alerts</li>
+                                </ul>
+                                <p style="margin:0 0 24px 0;">Please assign the HOD in the HRMS by editing the application and setting the <strong>Head of Department</strong> field.</p>
+                                <p style="margin:24px 0 30px 0;text-align:center;">
+                                    <a href="{FRONTEND_URL}/onboarding/task-list/{candidate.id}"
+                                       style="background-color:#b45309;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:600;font-size:16px;display:inline-block;">Assign HOD Now</a>
+                                </p>
+                                <br>
+                                <p style="margin:20px 0 6px 0;color:#555555;">Regards,</p>
+                                <p style="margin:0;font-weight:700;color:#1f2937;">HRMS Automation</p>
+                                <p style="margin:4px 0 0 0;color:#555555;font-weight:700;">Knowcraft Analytics Private Limited.</p>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
+                                &copy; 2026 Knowcraft Analytics Private Limited &bull; System Generated
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """,
 })
