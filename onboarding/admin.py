@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     ApprovalNote, JobApplicationDocument, SalaryAnnexure, SalaryAnnexureHistory,
-    SalaryComponent, OfferDocument, EmailLog, OnboardingForm, SurveyResponse, OnboardingCall,
+    SalaryComponent, OfferDocument, EmailLog, OnboardingForm, OnboardingFormAttachment, SurveyResponse, OnboardingCall,
     OnboardingTaskList, OnboardingTask, DocumentEsignTask
 )
 
@@ -228,6 +228,12 @@ class EmailLogAdmin(admin.ModelAdmin):
 admin.site.register(EmailLog, EmailLogAdmin)
 
 
+class OnboardingFormAttachmentInline(admin.TabularInline):
+    model = OnboardingFormAttachment
+    extra = 0
+    readonly_fields = ('id', 'uploaded_at', 'size')
+
+
 class OnboardingFormAdmin(admin.ModelAdmin):
     list_display = (
         'id', 'get_candidate_name', 'ticket_ref', 'designation',
@@ -235,7 +241,8 @@ class OnboardingFormAdmin(admin.ModelAdmin):
     )
     search_fields = (
         'job_application__candidate_name', 'job_application__candidate_email',
-        'ticket_ref', 'first_name', 'last_name', 'crafter_id', 'personal_email_id'
+        'ticket_ref', 'first_name', 'last_name', 'crafter_id', 'personal_email_id',
+        'requester_name', 'requester_email_id'
     )
     list_filter = ('department', 'work_from', 'employee_category', 'site', 'created_at')
     readonly_fields = ('id', 'created_at')
@@ -244,9 +251,13 @@ class OnboardingFormAdmin(admin.ModelAdmin):
     ordering = ('-created_at',)
     list_per_page = 50
     list_select_related = ('job_application', 'submitted_by')
+    inlines = [OnboardingFormAttachmentInline]
     fieldsets = (
         ('Candidate & Submission Info', {
-            'fields': ('id', 'job_application', 'submitted_by', 'ticket_ref', 'created_at')
+            'fields': (
+                'id', 'job_application', 'submitted_by', 'ticket_ref',
+                'requester_id', 'requester_name', 'requester_email_id', 'created_at'
+            )
         }),
         ('Candidate Details', {
             'fields': (

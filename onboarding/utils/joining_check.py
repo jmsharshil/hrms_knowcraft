@@ -27,12 +27,20 @@ def run_joining_date_check():
             print("[JOINING CHECK] No candidates found for transition.")
             return True
 
+        from django.db import transaction
         for app in apps_to_update:
-            print(f"[JOINING CHECK] Auto-transitioning {app.candidate_name} (ID: {app.id}) to joined")
-            # automation_engine will handle status change, notifications, Job/MRF sync
-            ok, reason = automation_engine(app, 'joining_pending', 'joined')
-            if not ok:
-                logger.warning(f"Transition failed for {app.id}: {reason}")
+            with transaction.atomic():
+                locked_app = JobApplication.objects.select_for_update(skip_locked=True).filter(
+                    id=app.id,
+                    status='joining_pending'
+                ).first()
+                if not locked_app:
+                    continue
+                print(f"[JOINING CHECK] Auto-transitioning {locked_app.candidate_name} (ID: {locked_app.id}) to joined")
+                # automation_engine will handle status change, notifications, Job/MRF sync
+                ok, reason = automation_engine(locked_app, 'joining_pending', 'joined')
+                if not ok:
+                    logger.warning(f"Transition failed for {locked_app.id}: {reason}")
         print(f"[JOINING CHECK] Successfully processed {len(apps_to_update)} candidates.")
         return True
     except Exception as e:

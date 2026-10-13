@@ -2305,6 +2305,21 @@ class InitiateOnboardingAPI(APIView):
             "ticket_ref": form.ticket_ref,
             "submitted_by": str(form.submitted_by_id) if form.submitted_by_id else None,
             "created_at": form.created_at.isoformat() if form.created_at else None,
+            # Requester details
+            "requester_id": form.requester_id,
+            "requester_name": form.requester_name,
+            "requester_email_id": form.requester_email_id,
+            # Attachments
+            "attachments": [
+                {
+                    "id": str(att.id),
+                    "name": att.name or att.file.name,
+                    "url": request.build_absolute_uri(att.file.url) if att.file else None,
+                    "size": att.size,
+                    "uploaded_at": att.uploaded_at.isoformat() if att.uploaded_at else None,
+                }
+                for att in form.attachments.all()
+            ],
         }
         return Response(data, status=status.HTTP_200_OK)
 
@@ -2375,7 +2390,7 @@ class InitiateOnboardingAPI(APIView):
             # Persist the onboarding form data to DB
             db_fields = {
                 k: v for k, v in form_data.items()
-                if k not in ('attachment_files', 'requester_email_id', 'requester_name', 'requester_id')
+                if k != 'attachment_files'
             }
             onboarding_form, created = OnboardingForm.objects.update_or_create(
                 job_application=application,
@@ -2385,6 +2400,16 @@ class InitiateOnboardingAPI(APIView):
                     **db_fields,
                 }
             )
+
+            # Save uploaded file attachments
+            from onboarding.models import OnboardingFormAttachment
+            for upload in form_data.get('attachment_files') or []:
+                OnboardingFormAttachment.objects.create(
+                    onboarding_form=onboarding_form,
+                    file=upload,
+                    name=upload.name,
+                    size=upload.size,
+                )
 
             # Send admin notification email with full form details
             try:
@@ -2425,6 +2450,8 @@ class InitiateOnboardingAPI(APIView):
             "center_office_location", "mode_for_collecting_assets",
             "team_manager", "work_from", "crafter_id",
             "emails_to_notify", "current_address", "description", "custom_notes",
+            # Requester details
+            "requester_id", "requester_name", "requester_email_id",
         ]
 
         changed_fields = []

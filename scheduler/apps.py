@@ -189,7 +189,21 @@ class SchedulerConfig(AppConfig):
             },
         ]
 
+        from .models import ScheduledTask
         for cfg in RECURRING_TASKS:
+            # Deduplicate any duplicate pending rows that may have accumulated
+            pending_rows = list(ScheduledTask.objects.filter(
+                task_type=cfg["task_type"],
+                status="pending"
+            ).order_by("-created_at"))
+            if len(pending_rows) > 1:
+                dup_ids = [r.id for r in pending_rows[1:]]
+                ScheduledTask.objects.filter(id__in=dup_ids).update(
+                    status="cancelled",
+                    error_message="Cancelled duplicate recurring task during multi-worker deduplication"
+                )
+                logger.info("[SCHEDULER] Cancelled %d duplicate pending '%s' task(s).", len(dup_ids), cfg["task_type"])
+
             TaskScheduler.schedule(
                 task_type=cfg["task_type"],
                 delay_seconds=cfg["delay_seconds"],

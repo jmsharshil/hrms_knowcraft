@@ -13,6 +13,49 @@ from .esign_tasks import generate_esign_documents, send_documents_for_esign, sen
 
 logger = logging.getLogger(__name__)
 
+BGV_COMPLETED_STATUSES = [
+    'clear', 'verified', 'completed', 'bgv_completed', 'closed', 'unable_to_verify'
+]
+
+def is_candidate_bgv_completed(application):
+    """
+    Check if a candidate's BGV is completed across CandidateBGV, JobApplication.bgv_status,
+    JobApplication.status, and ApprovalNote.bgv_status.
+    Returns (is_completed: bool, resolved_status: str).
+    """
+    app_bgv_status = getattr(application, 'bgv_status', None)
+    if app_bgv_status and str(app_bgv_status).strip().lower() in BGV_COMPLETED_STATUSES:
+        return True, str(app_bgv_status).strip().lower()
+
+    app_status = getattr(application, 'status', None)
+    if app_status and str(app_status).strip().lower() in BGV_COMPLETED_STATUSES:
+        return True, str(app_status).strip().lower()
+
+    bgv_status = None
+    try:
+        from bgv.models import CandidateBGV
+        bgv = CandidateBGV.objects.filter(candidate=application).first()
+        if bgv and bgv.status:
+            bgv_status = str(bgv.status).strip().lower()
+            if bgv_status in BGV_COMPLETED_STATUSES:
+                return True, bgv_status
+    except Exception:
+        pass
+
+    try:
+        from onboarding.models import ApprovalNote
+        note = ApprovalNote.objects.filter(candidate=application).order_by('-id').first()
+        if note and note.bgv_status:
+            nst = str(note.bgv_status).strip().lower()
+            if nst in BGV_COMPLETED_STATUSES:
+                return True, nst
+    except Exception:
+        pass
+
+    resolved = bgv_status or (str(app_bgv_status).strip().lower() if app_bgv_status else "pending")
+    return False, resolved
+
+
 def daily_onboarding_check():
     """
     Daily task to scan all candidates in 'offer_accepted', 'docs_pending', 'joining_pending' or 'joined' status,
@@ -220,7 +263,12 @@ def daily_onboarding_check():
         # ── DOJ + 7 Days (Escalation Check) ─────────────────────
         if days_until_joining <= -7 and not getattr(app, 'is_doj_7_triggered', False):
             logger.info(f"DOJ + 7 for candidate {app.candidate_name}. Checking BGV status.")
-            
+
+            # Set triggered flag and milestone task FIRST to prevent duplicate executions
+            create_milestone_tasks(app, "DOJ_PLUS_7_BGV", app.joining_date)
+            app.is_doj_7_triggered = True
+            app.save(update_fields=['is_doj_7_triggered'])
+
             designation_name = app.job.mrf.designation.name.lower() if (
                 hasattr(app, 'job') and app.job and
                 hasattr(app.job, 'mrf') and app.job.mrf and
@@ -229,27 +277,33 @@ def daily_onboarding_check():
             is_intern = 'intern' in designation_name
             is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
 
-            # In debug simulation, skip the real BGV lookup so is_escalated stays False
-            # and downstream D30/D45/D90 milestones are not blocked.
-            if not is_debug and not app.is_escalated and not is_intern:
-                try:
-                    bgv = CandidateBGV.objects.get(candidate=app)
-                    if bgv.status not in ['clear', 'verified']:
+            if not is_debug and not is_intern:
+                bgv_done, resolved_status = is_candidate_bgv_completed(app)
+                if bgv_done:
+                    logger.info(
+                        f"DOJ + 7: BGV for {app.candidate_name} is '{resolved_status}' — no escalation needed."
+                    )
+                    if getattr(app, 'is_escalated', False):
+                        app.is_escalated = False
+                        app.save(update_fields=['is_escalated'])
+                else:
+                    if not getattr(app, 'is_escalated', False):
                         app.is_escalated = True
                         app.save(update_fields=['is_escalated'])
-                        notify_internal(app, "bgv_escalation")
-                except CandidateBGV.DoesNotExist:
-                    app.is_escalated = True
-                    app.save(update_fields=['is_escalated'])
-                    notify_internal(app, "bgv_escalation")
-
-            create_milestone_tasks(app, "DOJ_PLUS_7_BGV", app.joining_date)
-            app.is_doj_7_triggered = True
-            app.save(update_fields=['is_doj_7_triggered'])
+                        logger.warning(
+                            f"DOJ + 7: BGV for {app.candidate_name} is '{resolved_status}' — escalating."
+                        )
+                        notify_internal(app, "bgv_escalation", cc=['zafiya.mallick@knowcraft.in'])
 
         days_past = 0
         if days_until_joining < 0:
             days_past = abs(days_until_joining)
+
+        # If candidate was previously escalated but BGV is now completed, clear escalation flag
+        if getattr(app, 'is_escalated', False) and is_candidate_bgv_completed(app)[0]:
+            logger.info(f"Candidate {app.candidate_name} BGV is now completed. Clearing is_escalated flag.")
+            app.is_escalated = False
+            app.save(update_fields=['is_escalated'])
 
         # ── DOJ + 30 Days ─────────────────────────────────────────
         if days_past >= 30 and not getattr(app, 'is_d30_survey_sent', False):
@@ -518,28 +572,43 @@ def run_onboarding_check_for_candidate(app):
     # ── DOJ + 7 Days — BGV check ────────────────────────────────────────────
     if days_until_joining <= -7 and not getattr(app, 'is_doj_7_triggered', False):
         logger.info(f"[ADMIN ACTION] DOJ + 7 for {app.candidate_name}. Checking BGV status.")
+        create_milestone_tasks(app, "DOJ_PLUS_7_BGV", joining_date)
+        app.is_doj_7_triggered = True
+        app.save(update_fields=['is_doj_7_triggered'])
+
         designation_name = app.job.mrf.designation.name.lower() if (
             app.job and app.job.mrf and app.job.mrf.designation
         ) else ""
         is_intern = 'intern' in designation_name
         is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
 
-        if not is_debug and not app.is_escalated and not is_intern:
-            try:
-                bgv = CandidateBGV.objects.get(candidate=app)
-                if bgv.status not in ['clear', 'verified']:
+        if not is_debug and not is_intern:
+            bgv_done, resolved_status = is_candidate_bgv_completed(app)
+            if bgv_done:
+                logger.info(
+                    f"[ADMIN ACTION] DOJ + 7: BGV for {app.candidate_name} is '{resolved_status}' — "
+                    f"no escalation needed."
+                )
+                if getattr(app, 'is_escalated', False):
+                    app.is_escalated = False
+                    app.save(update_fields=['is_escalated'])
+            else:
+                if not getattr(app, 'is_escalated', False):
                     app.is_escalated = True
                     app.save(update_fields=['is_escalated'])
-                    notify_internal(app, "bgv_escalation")
-            except CandidateBGV.DoesNotExist:
-                app.is_escalated = True
-                app.save(update_fields=['is_escalated'])
-                notify_internal(app, "bgv_escalation",cc=['zafiya.mallick@knowcraft.in'])
-        create_milestone_tasks(app, "DOJ_PLUS_7_BGV", joining_date)
-        app.is_doj_7_triggered = True
-        app.save(update_fields=['is_doj_7_triggered'])
+                    logger.warning(
+                        f"[ADMIN ACTION] DOJ + 7: BGV for {app.candidate_name} is '{resolved_status}' — "
+                        f"escalating."
+                    )
+                    notify_internal(app, "bgv_escalation", cc=['zafiya.mallick@knowcraft.in'])
 
     days_past = abs(days_until_joining) if days_until_joining < 0 else 0
+
+    # If candidate was previously escalated but BGV is now completed, clear escalation flag
+    if getattr(app, 'is_escalated', False) and is_candidate_bgv_completed(app)[0]:
+        logger.info(f"[ADMIN ACTION] Candidate {app.candidate_name} BGV is now completed. Clearing is_escalated flag.")
+        app.is_escalated = False
+        app.save(update_fields=['is_escalated'])
 
     # ── DOJ + 30 Days ───────────────────────────────────────────────────────
     if days_past >= 30 and not getattr(app, 'is_d30_survey_sent', False):
