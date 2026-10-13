@@ -662,6 +662,11 @@ class OnboardingForm(models.Model):
     description = models.TextField(null=True, blank=True)
     custom_notes = models.TextField(null=True, blank=True)
 
+    # Requester Details
+    requester_id = models.CharField(max_length=255, null=True, blank=True)
+    requester_name = models.CharField(max_length=255, null=True, blank=True)
+    requester_email_id = models.EmailField(null=True, blank=True)
+
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -670,6 +675,29 @@ class OnboardingForm(models.Model):
 
     def __str__(self):
         return f"Onboarding Form: {self.job_application.candidate_name}"
+
+
+class OnboardingFormAttachment(models.Model):
+    """
+    Stores file attachments uploaded alongside the OnboardingForm.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    onboarding_form = models.ForeignKey(
+        OnboardingForm,
+        on_delete=models.CASCADE,
+        related_name="attachments"
+    )
+    file = models.FileField(upload_to="onboarding_forms/attachments/")
+    name = models.CharField(max_length=255, blank=True)
+    size = models.BigIntegerField(null=True, blank=True)
+    uploaded_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "onboarding_form_attachments"
+        ordering = ["uploaded_at"]
+
+    def __str__(self):
+        return f"{self.name or self.file.name} ({self.onboarding_form.job_application.candidate_name})"
 
 
 
