@@ -122,24 +122,32 @@ def run_bgv_schedule_check():
             print("[BGV SCHEDULER] No scheduled BGV records found to process.")
             return
 
+        from django.db import transaction
         for bgv_record in pending_bgvs:
-            candidate = bgv_record.candidate
-            print(
-                f"[BGV SCHEDULER] Sending BGV initiation link to experienced candidate "
-                f"{candidate.candidate_name} (app={candidate.id}, "
-                f"scheduled={bgv_record.bgv_scheduled_date})"
-            )
-            try:
-                send_notification_for_bgv(candidate)
-                logger.info(
-                    "BGV initiation link sent to scheduled candidate %s (app=%s)",
-                    candidate.candidate_name, candidate.id,
+            with transaction.atomic():
+                locked_bgv = CandidateBGV.objects.select_for_update(skip_locked=True).filter(
+                    id=bgv_record.id,
+                    status="pending_schedule"
+                ).first()
+                if not locked_bgv:
+                    continue
+                candidate = locked_bgv.candidate
+                print(
+                    f"[BGV SCHEDULER] Sending BGV initiation link to experienced candidate "
+                    f"{candidate.candidate_name} (app={candidate.id}, "
+                    f"scheduled={locked_bgv.bgv_scheduled_date})"
                 )
-            except Exception as exc:
-                logger.exception(
-                    "Failed to send BGV initiation link to candidate %s (app=%s): %s",
-                    candidate.candidate_name, candidate.id, exc,
-                )
+                try:
+                    send_notification_for_bgv(candidate)
+                    logger.info(
+                        "BGV initiation link sent to scheduled candidate %s (app=%s)",
+                        candidate.candidate_name, candidate.id,
+                    )
+                except Exception as exc:
+                    logger.exception(
+                        "Failed to send BGV initiation link to candidate %s (app=%s): %s",
+                        candidate.candidate_name, candidate.id, exc,
+                    )
 
         print(
             f"[BGV SCHEDULER] Processed {len(pending_bgvs)} scheduled BGV records."

@@ -7,10 +7,19 @@ from onboarding.utils.notifications import send_email
 
 
 def get_or_create_task_list(app):
-    return OnboardingTaskList.objects.get_or_create(
-        job_application=app,
-        defaults={"name": f"Onboarding — {app.candidate_name}"},
-    )
+    existing = OnboardingTaskList.objects.filter(job_application=app).first()
+    if existing:
+        return existing, False
+    try:
+        return OnboardingTaskList.objects.get_or_create(
+            job_application=app,
+            defaults={"name": f"Onboarding — {app.candidate_name}"},
+        )
+    except Exception:
+        existing = OnboardingTaskList.objects.filter(job_application=app).first()
+        if existing:
+            return existing, False
+        raise
 
 
 def create_task(app, title, description="", due_date=None, assigned_to=None, team=None):

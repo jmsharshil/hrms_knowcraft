@@ -367,9 +367,18 @@ def sync_bgv_status_to_application(sender, instance, **kwargs):
         )
         return
         
+    update_fields = []
     if app.bgv_status != new_status:
         app.bgv_status = new_status
-        app.save(update_fields=['bgv_status'])
+        update_fields.append('bgv_status')
+
+    # If BGV completed or clear, ensure application escalation flag is cleared
+    if new_status in {'clear', 'completed', 'verified', 'closed', 'unable_to_verify'} and getattr(app, 'is_escalated', False):
+        app.is_escalated = False
+        update_fields.append('is_escalated')
+
+    if update_fields:
+        app.save(update_fields=update_fields)
         
         # Also sync to the latest ApprovalNote
         latest_note = ApprovalNote.objects.filter(candidate=app).order_by('-id').first()

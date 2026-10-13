@@ -1681,7 +1681,12 @@ class ApplicationListSerializer(serializers.ModelSerializer):
 
     def get_resume_url(self, obj):
         request = self.context.get('request')
-        return request.build_absolute_uri(obj.resume.url) if request else obj.resume.url
+        try:
+            if not obj.resume:
+                return None
+            return request.build_absolute_uri(obj.resume.url) if request else obj.resume.url
+        except (ValueError, AttributeError):
+            return None
 
     def get_status(self, obj):
         """Get the HIGHEST status from matching JobApplication(s) using original_filename and referral_email"""
