@@ -9,6 +9,41 @@ from django.apps import AppConfig
 logger = logging.getLogger(__name__)
 
 
+def _seconds_until_next_friday_630pm():
+    """
+    Return the number of seconds from *now* (IST) until the next
+    Friday at 18:30 IST (UTC+5:30).
+
+    If today is already Friday but before 18:30, the delay targets
+    today's 18:30.  If it is Friday at/after 18:30 the next Friday
+    (7 days later) is targeted instead.
+    """
+    import pytz
+    from datetime import datetime, time as dt_time
+
+    IST = pytz.timezone("Asia/Kolkata")
+    now_ist = datetime.now(IST)
+
+    # weekday(): Monday=0 … Friday=4 … Sunday=6
+    days_ahead = (4 - now_ist.weekday()) % 7          # 0 if today is Friday
+    target = now_ist.replace(
+        hour=18, minute=30, second=0, microsecond=0
+    )
+    if days_ahead == 0 and now_ist >= target:
+        # Already past 18:30 on Friday — aim for next Friday
+        days_ahead = 7
+
+    from datetime import timedelta
+    target += timedelta(days=days_ahead)
+
+    delay = (target - now_ist).total_seconds()
+    logger.info(
+        "[SCHEDULER] Next weekly report scheduled in %.0fs (at %s IST).",
+        delay, target.strftime("%A %Y-%m-%d %H:%M %Z"),
+    )
+    return int(max(delay, 0))
+
+
 class SchedulerConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "scheduler"
@@ -183,13 +218,16 @@ class SchedulerConfig(AppConfig):
             },
             {
                 "task_type": "dept_head_weekly_report",
-                "interval_seconds": 604800,      # 7 days (weekly)
-                "delay_seconds": 60,             # first run after 60s
+                "interval_seconds": 604800,      # 7 days (weekly) — kept for fallback
+                "delay_seconds": _seconds_until_next_friday_630pm(),  # next Friday 18:30 IST
                 "max_retries": 2,
             },
         ]
 
+        import datetime as _dt
         from .models import ScheduledTask
+        from django.utils import timezone as tz
+
         for cfg in RECURRING_TASKS:
             # Deduplicate any duplicate pending rows that may have accumulated
             pending_rows = list(ScheduledTask.objects.filter(
@@ -203,6 +241,29 @@ class SchedulerConfig(AppConfig):
                     error_message="Cancelled duplicate recurring task during multi-worker deduplication"
                 )
                 logger.info("[SCHEDULER] Cancelled %d duplicate pending '%s' task(s).", len(dup_ids), cfg["task_type"])
+
+            # ── Weekly report: guard against stale scheduled_at ───────────────
+            # If a pending row already exists but its scheduled_at is in the
+            # past (server was down over the weekend / restart after a crash),
+            # bump it forward to the next Friday 18:30 IST BEFORE reconcile()
+            # runs, so reconcile() does not fire the report immediately.
+            # The in-memory timer is then re-armed by reschedule_future_pending()
+            # which runs right after _ensure_recurring_tasks().
+            if cfg["task_type"] == "dept_head_weekly_report" and pending_rows:
+                surviving_row = pending_rows[0]
+                if surviving_row.scheduled_at <= tz.now():
+                    new_delay = _seconds_until_next_friday_630pm()
+                    new_scheduled_at = tz.now() + _dt.timedelta(seconds=new_delay)
+                    ScheduledTask.objects.filter(id=surviving_row.id).update(
+                        scheduled_at=new_scheduled_at,
+                    )
+                    logger.info(
+                        "[SCHEDULER] Bumped stale 'dept_head_weekly_report' "
+                        "scheduled_at to %s IST (in %ds). "
+                        "reschedule_future_pending() will re-arm the in-memory timer.",
+                        new_scheduled_at, new_delay,
+                    )
+                    continue  # skip schedule() — row already exists and will be re-armed
 
             TaskScheduler.schedule(
                 task_type=cfg["task_type"],
