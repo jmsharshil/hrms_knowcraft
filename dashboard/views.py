@@ -1,3 +1,5 @@
+import uuid
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -88,6 +90,32 @@ def safe_parse_date(date_str):
         return parser.parse(date_str, dayfirst=True).date()
     except (ValueError, TypeError, OverflowError):
         return None
+
+def parse_multi_uuid_params(query_params, param_names):
+    """
+    Safely extract and validate a list of UUID strings from query parameters.
+    Handles:
+      - Repeated params: ?designation=X&designation=Y
+      - Comma-separated: ?designation=X,Y
+      - Array notation: ?designation[]=X&designation[]=Y or ?designation[]=X,Y
+      - Alternate param names (e.g. designation_id, designation_ids)
+    Strips whitespace and verifies each item is a valid UUID to prevent ORM 500 errors.
+    """
+    raw_values = []
+    for name in param_names:
+        for val in query_params.getlist(name):
+            if val is not None:
+                for item in str(val).split(','):
+                    cleaned = item.strip()
+                    if cleaned and cleaned not in raw_values:
+                        raw_values.append(cleaned)
+    valid_uuids = []
+    for item in raw_values:
+        try:
+            valid_uuids.append(str(uuid.UUID(item)))
+        except (ValueError, AttributeError, TypeError):
+            continue
+    return valid_uuids
 
 class IsDashboardUser:
     """Inline permission mixin – admin or hr_manager only."""
@@ -343,21 +371,24 @@ class BaseAnalyticsView(APIView):
         # 2. Parse query params
         date_from_str = request.query_params.get('date_from')
         date_to_str = request.query_params.get('date_to')
-        job_id = request.query_params.get('job_id')
-        user_id = request.query_params.get('user_id')
+        raw_job_id = request.query_params.get('job_id')
+        job_id = None
+        if raw_job_id:
+            try:
+                job_id = str(uuid.UUID(str(raw_job_id).strip()))
+            except (ValueError, AttributeError, TypeError):
+                job_id = '00000000-0000-0000-0000-000000000000'
         source_filter = request.query_params.get('source')
 
-        # Multi-value department filter: ?department=X&department=Y  or  ?department=X,Y
-        raw_dept_ids = request.query_params.getlist('department')
-        if not raw_dept_ids:
-            raw_dept_ids = [d.strip() for d in request.query_params.get('department', '').split(',') if d.strip()]
-        department_ids = raw_dept_ids  # kept as strings for Q(...__in=)
+        # Multi-value department filter: ?department=X&department=Y  or  ?department=X,Y or ?department_id=...
+        dept_keys = ['department', 'department_id', 'department_ids', 'department[]', 'department_ids[]']
+        has_dept_param = any(k in request.query_params for k in dept_keys)
+        department_ids = parse_multi_uuid_params(request.query_params, dept_keys)
 
-        # Multi-value designation filter: ?designation=X&designation=Y  or  ?designation=X,Y
-        raw_desig_ids = request.query_params.getlist('designation')
-        if not raw_desig_ids:
-            raw_desig_ids = [d.strip() for d in request.query_params.get('designation', '').split(',') if d.strip()]
-        designation_ids = raw_desig_ids  # kept as strings for Q(...__in=)
+        # Multi-value designation filter: ?designation=X&designation=Y  or  ?designation=X,Y or ?designation_id=...
+        desig_keys = ['designation', 'designation_id', 'designation_ids', 'designation[]', 'designation_ids[]']
+        has_desig_param = any(k in request.query_params for k in desig_keys)
+        designation_ids = parse_multi_uuid_params(request.query_params, desig_keys)
 
         date_from = safe_parse_date(date_from_str)
         date_to = safe_parse_date(date_to_str)
@@ -380,21 +411,22 @@ class BaseAnalyticsView(APIView):
         target_users = []        # list of all target users
         target_user_ids = []     # list of raw UUIDs
 
-        raw_user_ids = request.query_params.getlist('user_ids')  # ?user_ids=X&user_ids=Y
-        if not raw_user_ids:
-            # Support comma-separated: ?user_ids=X,Y,Z
-            raw_user_ids = [uid.strip() for uid in request.query_params.get('user_ids', '').split(',') if uid.strip()]
-        # Backward compat: ?user_id=X
-        single_user_id = request.query_params.get('user_id')
-        if not raw_user_ids and single_user_id:
-            raw_user_ids = [single_user_id]
+        user_param_keys = ['user_ids', 'user_id', 'user_ids[]', 'user[]']
+        raw_user_ids = []
+        for name in user_param_keys:
+            for val in request.query_params.getlist(name):
+                if val is not None:
+                    for uid in str(val).split(','):
+                        cleaned = uid.strip()
+                        if cleaned and cleaned not in raw_user_ids:
+                            raw_user_ids.append(cleaned)
 
         for uid in raw_user_ids:
             try:
                 u = User.objects.get(id=uid, company=company)
                 target_users.append(u)
-                target_user_ids.append(uid)
-            except User.DoesNotExist:
+                target_user_ids.append(str(u.id))
+            except (User.DoesNotExist, DjangoValidationError, ValueError):
                 return None, f"Invalid user_id: {uid}"
 
         if target_users:
@@ -406,10 +438,16 @@ class BaseAnalyticsView(APIView):
         # 3. MRF queryset (Filtered by Period Activity)
         # Admins and HR managers see all records including private ones
         mrf_base_filter = Q(company=company) & role_mrf_q & Q(is_active=True)
-        if department_ids:
-            mrf_base_filter &= Q(department_id__in=department_ids)
-        if designation_ids:
-            mrf_base_filter &= Q(designation_id__in=designation_ids)
+        if has_dept_param:
+            if department_ids:
+                mrf_base_filter &= Q(department_id__in=department_ids)
+            else:
+                mrf_base_filter &= Q(id=None)
+        if has_desig_param:
+            if designation_ids:
+                mrf_base_filter &= Q(designation_id__in=designation_ids)
+            else:
+                mrf_base_filter &= Q(id=None)
         if target_user_ids and not all_consultancy:
             # For consultancy-only targets, MRF section is skipped entirely later;
             # for others, filter MRFs they requested or approved
@@ -428,10 +466,16 @@ class BaseAnalyticsView(APIView):
         job_base_filter = Q(company=company) & role_job_q & Q(is_active=True)
         if job_id:
             job_base_filter &= Q(id=job_id)
-        if department_ids:
-            job_base_filter &= Q(department_id__in=department_ids)
-        if designation_ids:
-            job_base_filter &= Q(designation_id__in=designation_ids)
+        if has_dept_param:
+            if department_ids:
+                job_base_filter &= Q(department_id__in=department_ids)
+            else:
+                job_base_filter &= Q(id=None)
+        if has_desig_param:
+            if designation_ids:
+                job_base_filter &= Q(designation_id__in=designation_ids)
+            else:
+                job_base_filter &= Q(id=None)
         if target_user_ids:
             # Build a union Q across all selected users by role
             assignment_q = Q(id=None)
@@ -547,7 +591,7 @@ class BaseAnalyticsView(APIView):
                 )
                 if dept_names:
                     referral_filter &= Q(referral_department__in=dept_names)
-            except (ValidationError, ValueError):
+            except Exception:
                 pass
 
         if designation_ids:
@@ -558,7 +602,7 @@ class BaseAnalyticsView(APIView):
                 )
                 if desig_names:
                     referral_filter &= Q(referral_designation__in=desig_names)
-            except (ValidationError, ValueError):
+            except Exception:
                 pass
 
         if target_user_ids:
@@ -694,14 +738,14 @@ class BaseAnalyticsView(APIView):
             mrf_by_dept.append({'department': dept_name, 'count': d['count'], 'avg_approval_time_days': avg_days})
         section1['mrf_by_department'] = mrf_by_dept
 
-        # mrf_by_designation should only be seen if department filter is applied
+        # mrf_by_designation should only be seen if department or designation filter is applied
         if department_ids is None and hasattr(self, 'request') and self.request:
-            raw_dept = self.request.query_params.getlist('department')
-            if not raw_dept:
-                raw_dept = [d.strip() for d in self.request.query_params.get('department', '').split(',') if d.strip()]
-            department_ids = [d for d in raw_dept if d]
+            department_ids = parse_multi_uuid_params(self.request.query_params, ['department', 'department_id', 'department_ids', 'department[]', 'department_ids[]'])
 
-        if department_ids:
+        if designation_ids is None and hasattr(self, 'request') and self.request:
+            designation_ids = parse_multi_uuid_params(self.request.query_params, ['designation', 'designation_id', 'designation_ids', 'designation[]', 'designation_ids[]'])
+
+        if department_ids or designation_ids:
             desig_stats = mrf_qs.values('designation__name').annotate(count=Count('id')).order_by('-count')
             mrf_by_desig = []
             for d in desig_stats:
@@ -2678,7 +2722,13 @@ class UserCompareAnalyticsAPIView(BaseAnalyticsView):
         ]
 
     def get(self, request):
-        raw_user_ids = request.query_params.getlist('user_ids')
+        raw_user_ids = []
+        for val in request.query_params.getlist('user_ids'):
+            if val is not None:
+                for uid in str(val).split(','):
+                    cleaned = uid.strip()
+                    if cleaned and cleaned not in raw_user_ids:
+                        raw_user_ids.append(cleaned)
         if not raw_user_ids:
             raw_user_ids = [uid.strip() for uid in request.query_params.get('user_ids', '').split(',') if uid.strip()]
             
