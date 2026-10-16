@@ -857,5 +857,18 @@ def get_interviewer_email_template(action, candidate, interviewer, start_str, me
     </body>
     </html>
     """
-    return html_template
+    return append_email_html_disclaimer(html_template)
+
+
+# ----------------------------------------------------------------------
+# Apply professional corporate automated communication disclaimer footer
+# to all email templates defined in this module
+# ----------------------------------------------------------------------
+from onboarding.utils.disclaimers import append_email_html_disclaimer
+
+_current_globals = dict(globals())
+for _name, _val in _current_globals.items():
+    if _name.endswith('_template') and isinstance(_val, str):
+        globals()[_name] = append_email_html_disclaimer(_val)
+
 

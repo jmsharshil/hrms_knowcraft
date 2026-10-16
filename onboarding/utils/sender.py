@@ -6,9 +6,15 @@ import threading
 import os
 import queue
 import logging
+from .disclaimers import append_email_html_disclaimer, append_email_text_disclaimer, append_sms_disclaimer
 logger = logging.getLogger(__name__)
 
 def send_email(to, subject, cc=[], text="", template=None, attachments=None, use_default_cc=True, is_private=False, event="", email_type="other", candidate=None):
+    # Ensure corporate automated message disclaimers are present on all emails
+    if template:
+        template = append_email_html_disclaimer(template)
+    text = append_email_text_disclaimer(text)
+
     if is_private:
         logger.info(f"Skipping email to {to} for private record: {subject}")
         _log_email(to, cc, subject, text, template, event, email_type, candidate, status="skipped")
@@ -22,36 +28,36 @@ def send_email(to, subject, cc=[], text="", template=None, attachments=None, use
     # If the exact same email (same recipient and subject, and candidate if specified)
     # was already sent within the last 300 seconds (5 minutes),
     # suppress duplicate sends from concurrent workers or overlapping tasks.
-    try:
-        from onboarding.models import EmailLog
-        from django.utils import timezone
-        from datetime import timedelta
-        from django.db.models import Q
+    # try:
+    #     from onboarding.models import EmailLog
+    #     from django.utils import timezone
+    #     from datetime import timedelta
+    #     from django.db.models import Q
 
-        recent_window = timezone.now() - timedelta(seconds=300)
-        recent_query = EmailLog.objects.filter(
-            recipient_email=to,
-            subject=subject,
-            sent_at__gte=recent_window,
-        ).filter(
-            Q(status="sent") | Q(error_message="Intercepted for debug approval")
-        )
-        if candidate and hasattr(candidate, 'id'):
-            recent_query = recent_query.filter(candidate=candidate)
+    #     recent_window = timezone.now() - timedelta(seconds=300)
+    #     recent_query = EmailLog.objects.filter(
+    #         recipient_email=to,
+    #         subject=subject,
+    #         sent_at__gte=recent_window,
+    #     ).filter(
+    #         Q(status="sent") | Q(error_message="Intercepted for debug approval")
+    #     )
+    #     if candidate and hasattr(candidate, 'id'):
+    #         recent_query = recent_query.filter(candidate=candidate)
 
-        if recent_query.exists():
-            logger.warning(
-                f"[DEDUPLICATION] Preventing duplicate email to '{to}' with subject '{subject}' "
-                f"(already processed within the last 300s). Skipping duplicate."
-            )
-            _log_email(
-                to, cc_list, subject, text, template, event, email_type, candidate,
-                status="skipped",
-                error="Duplicate email suppressed by multi-worker guard (already sent within 300s)"
-            )
-            return
-    except Exception as dedup_err:
-        logger.warning(f"[DEDUPLICATION] Error checking recent email logs: {dedup_err}")
+    #     if recent_query.exists():
+    #         logger.warning(
+    #             f"[DEDUPLICATION] Preventing duplicate email to '{to}' with subject '{subject}' "
+    #             f"(already processed within the last 300s). Skipping duplicate."
+    #         )
+    #         _log_email(
+    #             to, cc_list, subject, text, template, event, email_type, candidate,
+    #             status="skipped",
+    #             error="Duplicate email suppressed by multi-worker guard (already sent within 300s)"
+    #         )
+    #         return
+    # except Exception as dedup_err:
+    #     logger.warning(f"[DEDUPLICATION] Error checking recent email logs: {dedup_err}")
 
     is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
     if is_debug:
@@ -128,6 +134,10 @@ def send_text(to: str, text: str, is_private=False):
         logger.error("Missing recipient number in send_text()")
         return
     
+    # Append corporate automated communication disclaimer
+    if text:
+        text = append_sms_disclaimer(text)
+
     # 1) 'to' + 'text'  (most common)
     try:
         payload = {"to": to, "text": text}

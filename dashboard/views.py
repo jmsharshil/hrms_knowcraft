@@ -2535,10 +2535,17 @@ class BaseAnalyticsView(APIView):
         # Use broad_job_qs for total counts if provided (user_id filter scenario)
         jobs_for_count = job_qs
         
+        consultancy_filter = Q(source='consultancy') | Q(submitted_by__role='consultancy')
+        app_link_filter = ~consultancy_filter & (Q(source='application_link') | Q(application_link__isnull=False))
+
         agg_apps = app_qs.aggregate(
-            direct_count=Count('id')
+            direct_count=Count('id'),
+            consultancy_count=Count('id', filter=consultancy_filter),
+            app_link_count=Count('id', filter=app_link_filter),
         )
         direct_count = agg_apps['direct_count']
+        consultancy_count = agg_apps['consultancy_count']
+        app_link_count = agg_apps['app_link_count']
         
         platform_count = platform_app_qs.filter(is_touched=False).count()
         referral_count = referral_qs.filter(is_touched=False).count()
@@ -2590,6 +2597,8 @@ class BaseAnalyticsView(APIView):
             "joining_pending_next_60_days": agg_joining['next_60'],
             "cv_counts": {
                 "direct_applications": direct_count,
+                "consultancy": consultancy_count,
+                "application_link": app_link_count,
                 "platform_applications": platform_count,
                 "referrals": referral_count,
                 "combined": combined_count,
@@ -2913,7 +2922,7 @@ class DashboardExportAPIView(BaseAnalyticsView):
             app_q = Q(job__department=user.department)
             return mrf_q, job_q, app_q
         elif role == 'consultancy':
-            mrf_q = Q(jobs__assigned_to_consultancy=user) | Q(jobs__assigned_consultancies=user)
+            mrf_q = Q(job__assigned_to_consultancy=user) | Q(job__assigned_consultancies=user)
             job_q = Q(assigned_to_consultancy=user) | Q(assigned_consultancies=user)
             app_q = Q(job__assigned_to_consultancy=user) | Q(job__assigned_consultancies=user) | Q(submitted_by=user)
             return mrf_q, job_q, app_q
@@ -2984,7 +2993,9 @@ class DashboardExportAPIView(BaseAnalyticsView):
         ws1.append(["Total Jobs On Hold", summary.get("total_jobs_on_hold", 0)])
         ws1.append(["Total Combined CVs", summary.get("total_combined_cv_count", 0)])
         cv_counts = summary.get("cv_counts", {})
-        ws1.append(["  Direct Applications", cv_counts.get("direct_applications", 0)])
+        # ws1.append(["  Direct Applications", cv_counts.get("direct_applications", 0)])
+        ws1.append(["  Consultancy", cv_counts.get("consultancy", 0)])
+        ws1.append(["  Application Link", cv_counts.get("application_link", 0)])
         ws1.append(["  Platform Applications", cv_counts.get("platform_applications", 0)])
         ws1.append(["  Referrals", cv_counts.get("referrals", 0)])
         ws1.append(["Total Open Positions", summary.get("total_open_positions", 0)])
@@ -3102,6 +3113,11 @@ class DashboardExportAPIView(BaseAnalyticsView):
             ws4.append(["Duplicate CVs Count", cv_data.get("duplicate_cvs_count", 0)])
             ws4.append(["Duplicate CVs %", cv_data.get("duplicate_cvs_percentage", 0)])
             ws4.append(["Untouched CVs Count", cv_data.get("untouched_cvs_count", 0)])
+            ws4.append([])
+            ws4.append(["--- Direct Applications By Source ---"])
+            ws4.append(["Source", "Count", "Percentage"])
+            for s in cv_data.get("candidate_cvs_by_source", []):
+                ws4.append([s.get("source", ""), s.get("count", 0), s.get("percentage", 0)])
             ws4.append([])
             ws4.append(["--- Combined CVs By Source ---"])
             ws4.append(["Source", "Count", "Percentage"])
