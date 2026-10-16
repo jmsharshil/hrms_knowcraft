@@ -1197,10 +1197,13 @@ class BaseAnalyticsView(APIView):
                 untouched_map[key]['job_ids'].add(u['job__id'])
 
         for u in pa_base.filter(is_rejected=False, is_tagged=False).values(
-            'designation__name', 'department__name', 'job__job_title', 'position_title', 'job__id'
+            'designation__name', 'department__name',
+            'job__designation__name', 'job__department__name',
+            'job__job_title', 'position_title', 'job__id'
         ):
-            desig = u['designation__name'] or 'Unknown'
-            dept = u['department__name'] or 'Unknown'
+            # Prefer direct designation/department FKs; fall back to linked job's values
+            desig = u['designation__name'] or u['job__designation__name'] or 'Unknown'
+            dept = u['department__name'] or u['job__department__name'] or 'Unknown'
             title = u['job__job_title'] or u.get('position_title') or 'Unknown'
             key = (desig, dept, title)
             untouched_map[key]['count'] += 1
