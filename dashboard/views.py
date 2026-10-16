@@ -1185,12 +1185,36 @@ class BaseAnalyticsView(APIView):
         # ── Untouched CVs aggregation ────────────────────────────────────────
         untouched_map = defaultdict(lambda: {'count': 0, 'job_ids': set()})
 
+        # Build a name-lookup from Designation master for fallback resolution.
+        # Key: designation name (lower) → (designation_name, department_name)
+        # No company filter needed — app_qs is already scoped to the right company.
+        from mrf.models import Designation as DesignationModel
+        desig_name_lookup = {}
+        for d in DesignationModel.objects.select_related('department').values('name', 'department__name'):
+            desig_name_lookup[d['name'].lower()] = (d['name'], d['department__name'] or 'N/A')
+
+        def _resolve(desig_val, dept_val, title_val):
+            """Return (designation, department) with best-effort fallback."""
+            if desig_val and dept_val:
+                return desig_val, dept_val
+            if desig_val and not dept_val:
+                # Try to get dept from master
+                match = desig_name_lookup.get(desig_val.lower())
+                return desig_val, (match[1] if match else 'N/A')
+            if not desig_val and title_val:
+                # Try to match job_title against designation names
+                match = desig_name_lookup.get(title_val.lower())
+                if match:
+                    return match[0], match[1]
+            return desig_val or title_val or 'Unknown', dept_val or 'N/A'
+
         for u in app_qs.filter(status='received').values(
             'job__designation__name', 'job__department__name', 'job__job_title', 'job__id'
         ):
-            desig = u['job__designation__name'] or 'Unknown'
-            dept = u['job__department__name'] or 'Unknown'
+            raw_desig = u['job__designation__name']
+            raw_dept = u['job__department__name']
             title = u['job__job_title'] or 'Unknown'
+            desig, dept = _resolve(raw_desig, raw_dept, title)
             key = (desig, dept, title)
             untouched_map[key]['count'] += 1
             if u['job__id']:
@@ -1201,10 +1225,11 @@ class BaseAnalyticsView(APIView):
             'job__designation__name', 'job__department__name',
             'job__job_title', 'position_title', 'job__id'
         ):
-            # Prefer direct designation/department FKs; fall back to linked job's values
-            desig = u['designation__name'] or u['job__designation__name'] or 'Unknown'
-            dept = u['department__name'] or u['job__department__name'] or 'Unknown'
+            # Prefer direct designation/department FKs; fall back to linked job's values then name lookup
+            raw_desig = u['designation__name'] or u['job__designation__name']
+            raw_dept = u['department__name'] or u['job__department__name']
             title = u['job__job_title'] or u.get('position_title') or 'Unknown'
+            desig, dept = _resolve(raw_desig, raw_dept, title)
             key = (desig, dept, title)
             untouched_map[key]['count'] += 1
             if u['job__id']:
@@ -2929,6 +2954,19 @@ class DashboardExportAPIView(BaseAnalyticsView):
         date_from = ctx.get('date_from')
         date_to = ctx.get('date_to')
         target_user = ctx.get('target_user')
+        target_users = ctx.get('target_users', [])
+
+        # ── Resolve interviewer_app_ids (same logic as analytics API) ──
+        interviewer_app_ids = None
+        if target_users:
+            from slots.models import Interviewer
+            from booking.models import Booking
+            target_emails = [u.email for u in target_users if u.email]
+            if target_emails:
+                interviewers = Interviewer.objects.filter(email__in=target_emails)
+                interviewer_app_ids = list(Booking.objects.filter(
+                    Q(interviewer__in=interviewers) | Q(attendees__in=interviewers)
+                ).values_list('candidate_id', flat=True).distinct())
 
         import openpyxl
         from django.http import HttpResponse
@@ -3053,6 +3091,9 @@ class DashboardExportAPIView(BaseAnalyticsView):
                 fb_filter &= Q(created_at__gte=_tz.make_aware(_dt.combine(date_from, _t.min)))
             if date_to:
                 fb_filter &= Q(created_at__lte=_tz.make_aware(_dt.combine(date_to, _t.max)))
+            # Mirror analytics API: apply interviewer filter to total_interviews count
+            if interviewer_app_ids is not None:
+                fb_filter &= Q(job_application_id__in=interviewer_app_ids)
             total_interviews = InterviewFeedback.objects.filter(fb_filter).count()
             cv_data = self.calc_cv_resume_source_analytics(app_qs, platform_app_qs, referral_qs, total_interviews)
             ws4 = wb.create_sheet("CVs By Source")
@@ -3083,7 +3124,7 @@ class DashboardExportAPIView(BaseAnalyticsView):
 
         # ── Sheet 5: Pipeline Funnel ──
         try:
-            pipeline = self.calc_candidate_pipeline_funnel(app_qs, ctx.get('target_users'))
+            pipeline = self.calc_candidate_pipeline_funnel(app_qs, target_users, interviewer_app_ids)
             ws5 = wb.create_sheet("Pipeline Funnel")
             ws5.append(["Stage", "Count"])
             for s in pipeline.get("funnel_stages", []):
@@ -3108,7 +3149,7 @@ class DashboardExportAPIView(BaseAnalyticsView):
 
         # ── Sheet 6: Interview Round Analytics ──
         try:
-            interview_data = self.calc_interview_round_time_analytics(app_qs, (date_from, date_to), company, broad_job_qs=broad_job_qs)
+            interview_data = self.calc_interview_round_time_analytics(app_qs, (date_from, date_to), company, interviewer_app_ids, broad_job_qs)
             ws6 = wb.create_sheet("Interview Analytics")
             ws6.append(["Avg Time to Shortlist (Days)", interview_data.get("avg_time_to_shortlist_days", 0)])
             ws6.append([])
