@@ -1473,4 +1473,38 @@ def dept_head_weekly_report_task():
             logger.error("[WEEKLY-REPORT] Failed for dept head %s: %s", head.email, e)
 
     print(f"[WEEKLY-REPORT] Sent {sent_count} weekly report(s).")
-    return sent_count
+
+    # ── Self-reschedule to the next Friday at 18:30 IST ──────────────────────
+    # We do this explicitly so the next run is always pinned to Friday 18:30,
+    # instead of drifting with the generic interval_seconds offset.
+    try:
+        import pytz
+        from datetime import datetime, timedelta
+        from scheduler.services import TaskScheduler
+
+        IST = pytz.timezone("Asia/Kolkata")
+        now_ist = datetime.now(IST)
+        days_ahead = (4 - now_ist.weekday()) % 7  # 0 if today is Friday
+        target = now_ist.replace(hour=18, minute=30, second=0, microsecond=0)
+        if days_ahead == 0 and now_ist >= target:
+            days_ahead = 7
+        target += timedelta(days=days_ahead)
+        delay = int(max((target - now_ist).total_seconds(), 0))
+
+        TaskScheduler.schedule(
+            task_type="dept_head_weekly_report",
+            delay_seconds=delay,
+            is_recurring=True,
+            interval_seconds=604800,
+            max_retries=2,
+        )
+        logger.info(
+            "[WEEKLY-REPORT] Next report scheduled in %ds (at %s IST).",
+            delay, target.strftime("%A %Y-%m-%d %H:%M %Z"),
+        )
+    except Exception as reschedule_err:
+        logger.error("[WEEKLY-REPORT] Failed to self-reschedule: %s", reschedule_err)
+
+    # Return False so the generic recurring mechanism does NOT add a second
+    # copy using the flat interval_seconds offset.
+    return False

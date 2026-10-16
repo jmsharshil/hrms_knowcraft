@@ -421,3 +421,26 @@ class QueryParamFilterTests(AnalyticsTestBase):
             f'&department={self.dept.id}&user_id={self.hr.id}'
         )
         self.assertEqual(resp.status_code, 200)
+
+    def test_multiple_designation_comma_separated_filter(self):
+        desig2 = Designation.objects.create(name='QA', company=self.company, department=self.dept)
+        resp = self.client.get(f'/api/dashboard/analytics/admin/?designation={self.desig.id},{desig2.id}')
+        self.assertEqual(resp.status_code, 200)
+
+    def test_multiple_designation_repeated_param_filter(self):
+        desig2 = Designation.objects.create(name='DevOps', company=self.company, department=self.dept)
+        resp = self.client.get(f'/api/dashboard/analytics/admin/?designation={self.desig.id}&designation={desig2.id}')
+        self.assertEqual(resp.status_code, 200)
+
+    def test_multiple_department_comma_separated_filter(self):
+        dept2 = Department.objects.create(name='HR', company=self.company)
+        resp = self.client.get(f'/api/dashboard/analytics/admin/?department={self.dept.id},{dept2.id}')
+        self.assertEqual(resp.status_code, 200)
+
+    def test_multiple_department_and_designation_filter(self):
+        dept2 = Department.objects.create(name='Finance', company=self.company)
+        desig2 = Designation.objects.create(name='Accountant', company=self.company, department=dept2)
+        resp = self.client.get(
+            f'/api/dashboard/analytics/admin/?department={self.dept.id},{dept2.id}&designation={self.desig.id},{desig2.id}'
+        )
+        self.assertEqual(resp.status_code, 200)
