@@ -92,7 +92,17 @@ def base_html(title, body_content):
 <tr><td style="background:#f8fafc;padding:18px 40px;text-align:center;font-size:13px;color:#64748b;border-top:1px solid #e2e8f0;">
 &copy; 2026 Knowcraft Analytics Private Limited &bull; Confidential
 </td></tr>
-</table></td></tr></table>
+</table>
+<!-- Automated Notification Footer -->
+<table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:620px;margin:16px auto 0 auto;text-align:center;">
+    <tr>
+        <td align="center" style="padding:10px 20px;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+            <p style="margin:0 0 4px 0;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Automated Notification</p>
+            <p style="margin:0;font-size:12px;line-height:1.5;color:#64748b;">This is an automated system-generated communication. Please do not reply directly to this email as this mailbox is unattended and incoming messages are not monitored.<br>For inquiries or assistance, please contact the Talent Acquisition Team at <a href="mailto:talent@knowcraft.in" style="color:#2563eb;text-decoration:none;font-weight:500;">talent@knowcraft.in</a>.</p>
+        </td>
+    </tr>
+</table>
+</td></tr></table>
 </body></html>"""
 
 EMAILS = [

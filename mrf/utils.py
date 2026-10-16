@@ -1243,7 +1243,8 @@ def dept_head_weekly_report_task():
             mrf_filter = Q(
                 is_active=True,
                 status__in=[
-                    'approved', 'filled', 'joining_pending', 'open', 'in_progress',
+                    # 'filled' excluded — position already hired, no need to report
+                    'approved', 'joining_pending', 'open', 'in_progress',
                     'assigned_to_consultancy', 'assigned_to_internal_hr', 'assigned_to_both'
                 ]
             )

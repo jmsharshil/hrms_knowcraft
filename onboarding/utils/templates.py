@@ -3680,3 +3680,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
     </html>
     """,
 })
+
+# ----------------------------------------------------------------------
+# Apply professional corporate automated communication disclaimer footer
+# to every email template in HTML_TEMPLATES and NOTIFY_INTERNAL_HTML_TEMPLATES
+# ----------------------------------------------------------------------
+from .disclaimers import append_email_html_disclaimer
+
+for _k, _tpl in list(HTML_TEMPLATES.items()):
+    if isinstance(_tpl, str):
+        HTML_TEMPLATES[_k] = append_email_html_disclaimer(_tpl)
+
+for _k, _tpl in list(NOTIFY_INTERNAL_HTML_TEMPLATES.items()):
+    if isinstance(_tpl, str):
+        NOTIFY_INTERNAL_HTML_TEMPLATES[_k] = append_email_html_disclaimer(_tpl)
+
