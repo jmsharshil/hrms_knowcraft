@@ -470,6 +470,8 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     rejected_by_email = serializers.CharField(source='rejected_by.email', read_only=True, allow_null=True)
     hod_name = serializers.CharField(source='hod.name', read_only=True, allow_null=True)
     hod_email = serializers.EmailField(source='hod.email', read_only=True, allow_null=True)
+    reporting_manager_name = serializers.CharField(source='reporting_manager.name', read_only=True, allow_null=True)
+    reporting_manager_email = serializers.EmailField(source='reporting_manager.email', read_only=True, allow_null=True)
     
     class Meta:
         model = JobApplication
@@ -488,6 +490,8 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             "document_upload_link", "candidate_experience_link","is_private","mrf_details", "attendees_details",
             "rejected_by", "rejected_by_name", "rejected_by_email", "rejected_at",
             "hod", "hod_name", "hod_email",
+            "reporting_manager", "reporting_manager_name", "reporting_manager_email",
+            "team", "shift_timings",
         ]
     
     def get_platform_name(self, obj):
@@ -743,7 +747,8 @@ class JobApplicationUpdateSerializer(serializers.ModelSerializer):
         fields = ['status', 'notes', 'rating', 'candidate_name','candidate_phone','candidate_email',
                   'source','experience_years','relevant_experience_years','location','skill',
                   'education','current_employer','linkedin_url','job',
-                  'work_email', 'resume', 'crafter_id', 'hod'
+                  'work_email', 'resume', 'crafter_id', 'hod',
+                  'reporting_manager', 'team', 'shift_timings',
                   ]
 
     def validate_resume(self, value):

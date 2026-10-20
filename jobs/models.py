@@ -818,6 +818,32 @@ class JobApplication(models.Model):
         help_text='Head of Department for this hire. If set, onboarding emails go here instead of the MRF requester.'
     )
 
+    # Reporting Manager
+    reporting_manager = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reportee_applications',
+        help_text='Reporting Manager for this hire.'
+    )
+
+    # Team name / unit
+    team = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text='Team or unit this candidate will join.'
+    )
+
+    # Shift timings
+    shift_timings = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text='Shift timings for this hire (e.g. 9 AM – 6 PM).'
+    )
+
     class Meta:
         db_table = 'job_applications'
         ordering = ['-created_at']
