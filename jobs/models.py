@@ -808,24 +808,18 @@ class JobApplication(models.Model):
     feedback_link = models.TextField(null=True,blank=True)
     round_name = models.CharField(null=True,blank=True,choices=INTERVIEW_CHOICES)
 
-    # Head of Department – overrides MRF requested_by for onboarding emails
-    hod = models.ForeignKey(
-        'accounts.User',
-        on_delete=models.SET_NULL,
+    # Head of Department email – used for onboarding notifications
+    hod_email = models.EmailField(
         null=True,
         blank=True,
-        related_name='hod_applications',
-        help_text='Head of Department for this hire. If set, onboarding emails go here instead of the MRF requester.'
+        help_text='HOD email for this hire. If set, onboarding emails go here instead of the MRF requester.'
     )
 
-    # Reporting Manager
-    reporting_manager = models.ForeignKey(
-        'accounts.User',
-        on_delete=models.SET_NULL,
+    # Reporting Manager email
+    reporting_manager_email = models.EmailField(
         null=True,
         blank=True,
-        related_name='reportee_applications',
-        help_text='Reporting Manager for this hire.'
+        help_text='Reporting Manager email for this hire.'
     )
 
     # Team name / unit

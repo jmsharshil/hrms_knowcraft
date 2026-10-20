@@ -126,7 +126,7 @@ def daily_onboarding_check():
             notify_internal(app, "doj_minus_15_it_team")
 
             # Remind HR to assign HOD if not yet set
-            if not getattr(app, 'hod', None):
+            if not getattr(app, 'hod_email', None):
                 logger.info(f"HOD not assigned for {app.candidate_name} at DOJ -15. Sending hod_assignment_reminder.")
                 notify_internal(app, "hod_assignment_reminder")
 

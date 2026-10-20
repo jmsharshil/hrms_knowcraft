@@ -1635,10 +1635,10 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
             # DEPARTMENT HEAD
             # =========================
             if role == 'department_head':
-                # 1. Prefer HOD explicitly assigned on the application
-                hod = getattr(candidate, 'hod', None)
+                # 1. Prefer HOD email explicitly assigned on the application
+                hod = getattr(candidate, 'hod_email', None)
                 if hod:
-                    add_user(hod)
+                    add_email(hod)
                 elif mrf:
                     # 2. Fall back to MRF requester (original behaviour)
                     user = getattr(mrf, "requested_by", None)
