@@ -1411,7 +1411,7 @@ Knowcraft Analytics Private Limited""",
         "body": "Candidate has joined successfully.",
         "sms": """Dear Team,
 
-We are pleased to inform you that {candidate.candidate_name} has successfully joined the organization.
+We are pleased to inform you that {candidate.candidate_name} has successfully joined the organization. Department: {candidate.job.department.name} | Designation: {candidate.job.designation.name}.
 
 We wish them a successful journey with Knowcraft Analytics.
 

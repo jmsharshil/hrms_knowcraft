@@ -1730,7 +1730,7 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Candidate Joined Successfully</h2>
                                 <p style="margin:0 0 16px 0;">Dear Team,</p>
-                                <p style="margin:0 0 16px 0;">We are pleased to inform you that <strong>{{candidate.candidate_name}}</strong> has successfully joined the organization.</p>
+                                <p style="margin:0 0 16px 0;">We are pleased to inform you that <strong>{{candidate.candidate_name}}</strong> has successfully joined the organization. <strong>Department:</strong> {{candidate.job.department.name}} | <strong>Designation:</strong> {{candidate.job.designation.name}}.</p>
                                 <p style="margin:0 0 16px 0;">We wish them a successful journey with Knowcraft Analytics.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
