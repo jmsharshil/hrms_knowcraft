@@ -1389,6 +1389,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Candidate Shortlisted</h2>
                                 <p style="margin:0 0 16px 0;">Dear HR Team,</p>
                                 <p style="margin:0 0 16px 0;">The candidate <strong>{{candidate.candidate_name}}</strong> has been shortlisted.</p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">Please proceed with the next steps in the hiring process.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
@@ -1427,6 +1439,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Candidate Progress Update</h2>
                                 <p style="margin:0 0 16px 0;">Dear HR Team,</p>
                                 <p style="margin:0 0 16px 0;">The candidate <strong>{{candidate.candidate_name}}</strong> has successfully cleared the HR round.</p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">Please proceed with the next stage of the hiring process.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
@@ -1465,6 +1489,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Candidate Progress Update</h2>
                                 <p style="margin:0 0 16px 0;">Dear HR Team,</p>
                                 <p style="margin:0 0 16px 0;">The candidate <strong>{{candidate.candidate_name}}</strong> has successfully cleared the Technical round.</p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">Please proceed with the next stage.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
@@ -1503,6 +1539,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Candidate Progress Update</h2>
                                 <p style="margin:0 0 16px 0;">Dear HR Team,</p>
                                 <p style="margin:0 0 16px 0;">The candidate <strong>{{candidate.candidate_name}}</strong> has successfully cleared the Case Study round.</p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">Please proceed with the next stage.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
@@ -1541,6 +1589,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Candidate Progress Update</h2>
                                 <p style="margin:0 0 16px 0;">Dear HR Team,</p>
                                 <p style="margin:0 0 16px 0;">The candidate <strong>{{candidate.candidate_name}}</strong> has successfully cleared the Final round.</p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">Please proceed with the next stage.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
@@ -1579,6 +1639,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Approval Required</h2>
                                 <p style="margin:0 0 16px 0;">Dear Manager,</p>
                                 <p style="margin:0 0 16px 0;">The candidate <strong>{{candidate.candidate_name}}</strong> is pending your approval.</p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">Kindly review the profile and provide your decision to proceed further.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
@@ -1617,6 +1689,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Candidate Approved</h2>
                                 <p style="margin:0 0 16px 0;">Dear HR Team,</p>
                                 <p style="margin:0 0 16px 0;">The candidate <strong>{{candidate.candidate_name}}</strong> has been approved.</p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">Please proceed with salary discussion and offer letter formalities.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
@@ -1655,6 +1739,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Candidate Approval Rejected</h2>
                                 <p style="margin:0 0 16px 0;">Dear HR Team,</p>
                                 <p style="margin:0 0 16px 0;">The candidate <strong>{{candidate.candidate_name}}</strong> was not approved during the approval stage.</p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">Please take the necessary action to close the process.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
@@ -1693,6 +1789,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Offer Letter Pending</h2>
                                 <p style="margin:0 0 16px 0;">Dear HR Team,</p>
                                 <p style="margin:0 0 16px 0;">The offer letter for <strong>{{candidate.candidate_name}}</strong> is currently pending.</p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">Please prepare and share the offer at the earliest.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
@@ -1730,7 +1838,19 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Candidate Joined Successfully</h2>
                                 <p style="margin:0 0 16px 0;">Dear Team,</p>
-                                <p style="margin:0 0 16px 0;">We are pleased to inform you that <strong>{{candidate.candidate_name}}</strong> has successfully joined the organization. <strong>Department:</strong> {{candidate.job.department.name}} | <strong>Designation:</strong> {{candidate.job.designation.name}}.</p>
+                                <p style="margin:0 0 16px 0;">We are pleased to inform you that <strong>{{candidate.candidate_name}}</strong> has successfully joined the organization.</p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">We wish them a successful journey with Knowcraft Analytics.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
@@ -1769,6 +1889,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Candidate Rejected</h2>
                                 <p style="margin:0 0 16px 0;">Dear Team,</p>
                                 <p style="margin:0 0 16px 0;">The candidate <strong>{{candidate.candidate_name}}</strong> has been rejected.</p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">This concludes the hiring process for this profile.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
@@ -1806,6 +1938,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
                                 <p style="margin:0 0 16px 0;">Dear {{reciever_name}},</p>
                                 <p style="margin:0 0 16px 0;">This is to inform you that the candidate <strong>{{candidate.candidate_name}}</strong> has successfully uploaded all the required documents.</p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">You may review the documents and proceed with the next steps of evaluation and onboarding.</p>
                                 <p style="margin:0 0 16px 0;">Please let us know if any additional information is required.</p>
                                 <br>
@@ -1843,7 +1987,15 @@ NOTIFY_INTERNAL_HTML_TEMPLATES = {
                         <tr>
                             <td style="padding:35px 40px 40px 40px;color:#333333;font-size:16px;">
                                 <p style="margin:0 0 16px 0;">Dear {{reciever_name}},</p>
-                                <p style="margin:0 0 16px 0;">This is to inform you that <strong>{{candidate.candidate_name}}</strong> has formally accepted the offer for the position of <strong>{{candidate.job.mrf.designation.name}}</strong>.</p>
+                                <p style="margin:0 0 16px 0;">This is to inform you that <strong>{{candidate.candidate_name}}</strong> has formally accepted the offer for the position of <strong>{{candidate.job.mrf.designation.name}}</strong>..</p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">Please proceed with the next onboarding steps.</p>
                                 <p style="margin:0 0 16px 0;">Kindly let us know if any additional details are required.</p>
                                 <br>
@@ -2357,6 +2509,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <p style="margin:0 0 16px 0;">
                                     Please be informed that candidate <strong>{{candidate.candidate_name}}</strong> is scheduled to join us on <strong>{{candidate.joining_date}}</strong>.
                                 </p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">
                                     Kindly ensure that all laptop procurement and initial account setup tasks assigned via Zoho ManageEngine are completed prior to their joining date.
                                 </p>
@@ -2446,6 +2610,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <p style="margin:0 0 16px 0;">
                                     Candidate <strong>{{candidate.candidate_name}}</strong> is scheduled to join us on {{candidate.joining_date}} as an office joiner.
                                 </p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">
                                     Please proceed with allocating their seating arrangement and generating the necessary access ID cards before their start date.
                                 </p>
@@ -2495,6 +2671,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <p style="margin:0 0 16px 0;">
                                     This is to notify you that <strong>{{candidate.candidate_name}}</strong> has successfully completed their first 30 days with us.
                                 </p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">
                                     We have automatically dispatched the 30-Day Satisfaction Survey to the employee to gauge their onboarding experience.
                                 </p>
@@ -2540,6 +2728,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <p style="margin:0 0 16px 0;">
                                     This is an automated reminder to schedule the 45-day check-in call for candidate <strong>{{candidate.candidate_name}}</strong>.
                                 </p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">
                                     Please coordinate via Microsoft Teams and mark the check-in as complete in the HRMS dashboard once finished.
                                 </p>
@@ -2589,6 +2789,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <p style="margin:0 0 16px 0;">
                                     This is an automated reminder to schedule the 90-day final review call for candidate <strong>{{candidate.candidate_name}}</strong>.
                                 </p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">
                                     Please hold the meeting and mark the 90-day milestone as complete in the HRMS to officially close out their onboarding pipeline.
                                 </p>
@@ -2756,6 +2968,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <p style="margin:0 0 16px 0;">
                                     An onboarding service request has just been initiated for candidate <strong>{{candidate.candidate_name}}</strong>.
                                 </p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">
                                     ManageEngine Ticket Reference: <strong>{{candidate.it_ticket_ref}}</strong>
                                 </p>
@@ -2802,6 +3026,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Upcoming Joiner — IT Procurement Reminder</h2>
                                 <p style="margin:0 0 16px 0;">Dear IT Team,</p>
                                 <p style="margin:0 0 16px 0;">This is an automated reminder that <strong>{{candidate.candidate_name}}</strong> is scheduled to join on <strong>{{candidate.joining_date}}</strong>.</p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">Please ensure laptop procurement, system access, and email account setup are initiated at the earliest.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
@@ -2840,6 +3076,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">Upcoming Team Member Joining (7 Days)</h2>
                                 <p style="margin:0 0 16px 0;">Dear HOD,</p>
                                 <p style="margin:0 0 16px 0;"><strong>{{candidate.candidate_name}}</strong> is joining your department on <strong>{{candidate.joining_date}}</strong>.</p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">Please prepare for their onboarding — assign a buddy, schedule an orientation session, and ensure their workspace is ready.</p>
                                 <p style="margin:24px 0 30px 0;text-align:center;">
                                     <a href="{FRONTEND_URL}/onboarding/task-list/{{candidate.id}}"
@@ -2882,6 +3130,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">New Office Joiner Preparations (7 Days)</h2>
                                 <p style="margin:0 0 16px 0;">Dear Admin Team,</p>
                                 <p style="margin:0 0 16px 0;"><strong>{{candidate.candidate_name}}</strong> is arriving at the office on <strong>{{candidate.joining_date}}</strong>.</p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">Please arrange seating, access card issuance, and any other office-entry logistics in advance of their joining date.</p>
                                 <br>
                                 <p style="margin:20px 0 6px 0;color:#555555;">Warm Regards,</p>
@@ -2920,6 +3180,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <h2 style="margin:0 0 22px 0;color:#dc2626;font-size:24px;font-weight:600;">⚠ ESCALATION: BGV Pending Beyond 7 Days</h2>
                                 <p style="margin:0 0 16px 0;">Dear HR / Admin Team,</p>
                                 <p style="margin:0 0 16px 0;">The Background Verification (BGV) for candidate <strong>{{candidate.candidate_name}}</strong> has been pending for more than <strong>7 days post-joining</strong> and requires immediate attention.</p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">Please review the current BGV status in the HRMS and take the necessary action to resolve or escalate further.</p>
                                 <p style="margin:24px 0 30px 0;text-align:center;">
                                     <a href="{FRONTEND_URL}/onboarding/task-list/{{candidate.id}}"
@@ -2962,6 +3234,18 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
                                 <h2 style="margin:0 0 22px 0;color:#1f2937;font-size:24px;font-weight:600;">30-Day HOD Satisfaction Survey</h2>
                                 <p style="margin:0 0 16px 0;">Dear {{reciever_name}},</p>
                                 <p style="margin:0 0 16px 0;"><strong>{{candidate.candidate_name}}</strong> has completed their first 30 days at Knowcraft Analytics.</p>
+                                <table border="0" cellpadding="0" cellspacing="0" style="width:100%;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin:4px 0 16px 0;">
+                                    <tr>
+                                        <td style="padding:10px 16px;border-right:1px solid #e2e8f0;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Department</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.department.name}}</strong>
+                                        </td>
+                                        <td style="padding:10px 16px;width:50%;vertical-align:top;">
+                                            <span style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:3px;">Designation</span>
+                                            <strong style="color:#1f2937;font-size:14px;">{{candidate.job.designation.name}}</strong>
+                                        </td>
+                                    </tr>
+                                </table>
                                 <p style="margin:0 0 16px 0;">As their Head of Department, we'd value your assessment of their progress during this initial period. Please take a moment to complete the HOD Satisfaction Survey.</p>
                                 <p style="margin:25px 0 30px 0;text-align:center;">
                                     <a href="{FRONTEND_URL}/onboarding/hod-survey-junior/{{candidate.id}}"
