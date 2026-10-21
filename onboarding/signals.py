@@ -55,45 +55,56 @@ def update_approval_note_status(sender, instance, created, **kwargs):
     # New: Bidirectional sync for fields
     approval_notes = instance.approval_notes.all()
 
-    # New: Sync job changes to approval note
+    # New: Sync job changes to approval note and shift interview rounds if applicable
     old_job_id = getattr(instance, '_old_job_id', None)
-    if old_job_id and old_job_id != instance.job_id and approval_notes.exists():
-        approval_note = approval_notes.first()
-        payload = approval_note.payload or {}
-        changed = False
+    if old_job_id and old_job_id != instance.job_id:
+        if approval_notes.exists():
+            approval_note = approval_notes.first()
+            payload = approval_note.payload or {}
+            changed = False
 
-        # Sync job-related fields
-        if instance.job and instance.job.department:
-            new_dept = instance.job.department.name
-            if payload.get('department') != new_dept:
-                payload['department'] = new_dept
-                changed = True
+            # Sync job-related fields
+            if instance.job and instance.job.department:
+                new_dept = instance.job.department.name
+                if payload.get('department') != new_dept:
+                    payload['department'] = new_dept
+                    changed = True
 
-        if instance.job and instance.job.designation:
-            new_desig = instance.job.designation.name
-            if payload.get('designation') != new_desig:
-                payload['designation'] = new_desig
-                changed = True
+            if instance.job and instance.job.designation:
+                new_desig = instance.job.designation.name
+                if payload.get('designation') != new_desig:
+                    payload['designation'] = new_desig
+                    changed = True
 
-        if instance.job and instance.job.mrf:
-            new_mrf = instance.job.mrf.mrf_name
-            if payload.get('mrf') != new_mrf:
-                payload['mrf'] = new_mrf
-                changed = True
+            if instance.job and instance.job.mrf:
+                new_mrf = instance.job.mrf.mrf_name
+                if payload.get('mrf') != new_mrf:
+                    payload['mrf'] = new_mrf
+                    changed = True
 
-        if instance.job and instance.job.location:
-            new_loc = instance.job.location
-            if payload.get('office_location') != new_loc:
-                payload['office_location'] = new_loc
-                changed = True
+            if instance.job and instance.job.location:
+                new_loc = instance.job.location
+                if payload.get('office_location') != new_loc:
+                    payload['office_location'] = new_loc
+                    changed = True
 
-        # Optionally sync other fields like hiring_type if derivable from job
-        # e.g., if hasattr(instance.job, 'hiring_type') ...
+            # Optionally sync other fields like hiring_type if derivable from job
+            # e.g., if hasattr(instance.job, 'hiring_type') ...
 
-        if changed:
-            approval_note.payload = payload
-            approval_note.updated_at = timezone.now()
-            approval_note.save(update_fields=['payload', 'updated_at'])
+            if changed:
+                approval_note.payload = payload
+                approval_note.updated_at = timezone.now()
+                approval_note.save(update_fields=['payload', 'updated_at'])
+
+        # Shift interview round / update slot links if candidate is in interview pipeline
+        if instance.status in [
+            "shortlisted",
+            "interview_next_2",
+            "interview_next_3",
+            "interview_next_final",
+            "interview_next_management_client",
+        ]:
+            update_candidate_slot_link(instance)
 
 @receiver(pre_save, sender=JobApplicationDocument)
 def store_old_annexure(sender, instance, **kwargs):
@@ -250,50 +261,76 @@ def update_slot_links_when_interviewer_assigned(sender, instance, **kwargs):
         update_candidate_slot_link(candidate)
 
 def update_candidate_slot_link(candidate):
-    interviewer_email = None
+    if getattr(candidate, '_in_slot_link_update', False):
+        return
 
+    mrf = getattr(getattr(candidate, 'job', None), 'mrf', None)
+    if not mrf:
+        return
+
+    interviewer_email = None
     status = candidate.status
 
+    hr_email = mrf.interviewer_email_1 or (mrf.hr_interviewer.email if getattr(mrf, 'hr_interviewer', None) else None)
+    tech_email = mrf.interviewer_email_2 or (mrf.technical_interviewers.first().email if mrf.technical_interviewers.exists() else None)
+    case_email = mrf.interviewer_email_3 or (mrf.case_study_interviewer.email if getattr(mrf, 'case_study_interviewer', None) else None)
+    final_email = mrf.interviewer_email_final or (mrf.final_interviewer.email if getattr(mrf, 'final_interviewer', None) else None)
+    mgmt_email = mrf.interviewer_email_management_client or (mrf.management_client_interviewer.email if getattr(mrf, 'management_client_interviewer', None) else None)
+
     if status == 'shortlisted':
-        if candidate.job.mrf.interviewer_email_1:
-            interviewer_email = candidate.job.mrf.interviewer_email_1
+        if hr_email:
+            interviewer_email = hr_email
             candidate.round_name = "hr_round"
-        elif candidate.job.mrf.interviewer_email_2:
-            interviewer_email = candidate.job.mrf.interviewer_email_2
+        elif tech_email:
+            interviewer_email = tech_email
             candidate.round_name = "technical_round"
-        elif candidate.job.mrf.interviewer_email_3:
-            interviewer_email = candidate.job.mrf.interviewer_email_3
+        elif case_email:
+            interviewer_email = case_email
             candidate.round_name = "case_study_round"
-        elif candidate.job.mrf.interviewer_email_final:
-            interviewer_email = candidate.job.mrf.interviewer_email_final
+        elif final_email:
+            interviewer_email = final_email
             candidate.round_name = "final_round"
+        elif mgmt_email:
+            interviewer_email = mgmt_email
+            candidate.round_name = "management_client_round"
     elif status == "interview_next_2":
-        interviewer_email = candidate.job.mrf.interviewer_email_2
+        interviewer_email = tech_email
+        candidate.round_name = "technical_round"
     elif status == "interview_next_3":
-        interviewer_email = candidate.job.mrf.interviewer_email_3
+        interviewer_email = case_email
+        candidate.round_name = "case_study_round"
     elif status == "interview_next_final":
-        interviewer_email = candidate.job.mrf.interviewer_email_final
+        interviewer_email = final_email
+        candidate.round_name = "final_round"
     elif status == "interview_next_management_client":
-        interviewer_email = candidate.job.mrf.interviewer_email_management_client
+        interviewer_email = mgmt_email
+        candidate.round_name = "management_client_round"
 
     interviewer = None
     if interviewer_email:
-        interviewer = Interviewer.objects.filter(email=interviewer_email).first()
+        name = interviewer_email.split("@")[0].replace(".", " ").title()
+        interviewer, _ = Interviewer.objects.get_or_create(
+            email=interviewer_email,
+            defaults={"name": name}
+        )
 
+    frontend_url = getattr(settings, 'FRONTEND_URL', 'https://knowcrafthrms-djfkb4hseuf0adcy.centralindia-01.azurewebsites.net')
     if interviewer:
         candidate.slot_link = (
-            f"{settings.FRONTEND_URL}/api/slots/available/"
+            f"{frontend_url}/api/slots/available/"
             f"?candidate_id={candidate.id}&interviewer_id={interviewer.id}"
         )
         candidate.inperson_link = (
-            f"{settings.FRONTEND_URL}/api/inperson/interview/"
+            f"{frontend_url}/api/inperson/interview/"
             f"?candidate_id={candidate.id}&interviewer_id={interviewer.id}"
         )
     else:
         candidate.slot_link = ""
         candidate.inperson_link = ""
 
-    candidate.save(update_fields=["slot_link","inperson_link","round_name"])
+    candidate._in_slot_link_update = True
+    candidate.save(update_fields=["slot_link", "inperson_link", "round_name"])
+    candidate._in_slot_link_update = False
 
 
 @receiver(post_save, sender=JobApplication)

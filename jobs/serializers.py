@@ -781,6 +781,9 @@ class JobApplicationUpdateSerializer(serializers.ModelSerializer):
 
         instance = super().update(instance, validated_data)
 
+        if 'job' in validated_data:
+            instance.refresh_from_db(fields=['slot_link', 'inperson_link', 'round_name'])
+
         # Auto-set rejected_by when transitioning to any rejection status
         if new_status and new_status in REJECTION_STATUSES:
             request = self.context.get('request')
