@@ -1479,6 +1479,12 @@ Knowcraft Analytics Private Limited""",
         "body": "The Head of Department (HOD) has not been assigned for {candidate.candidate_name} who is joining in 15 days. Please assign the HOD in HRMS so that the correct person receives onboarding notifications (D-7 HOD briefing, 30-day surveys, escalation alerts).",
         "sms": "Action required: Please assign HOD for {candidate.candidate_name} (joining in 15 days) in HRMS.",
     },
+    "reporting_manager_assignment_reminder": {
+        "receivers": ["hr", "hr_manager"],
+        "subject": "Action Required: Reporting Manager Not Assigned – {candidate.candidate_name}",
+        "body": "A Reporting Manager has not been assigned for {candidate.candidate_name}, who is joining in 15 days. Please assign the Reporting Manager in HRMS so the correct person receives onboarding communications and can review ZingHR requests.",
+        "sms": "Action required: Please assign a Reporting Manager for {candidate.candidate_name} (joining in 15 days) in HRMS.",
+    },
     "bgv_escalation": {
         "receivers": ["hr", "admin"],
         "subject": "ESCALATION: BGV Pending Beyond 7 Days",
@@ -1555,7 +1561,19 @@ Knowcraft Analytics Private Limited""",
     },
 }
 
-def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
+ONBOARDING_STRICT_HOD_EMAIL_STAGES = {
+    "missing_work_email_reminder",
+    "doj_minus_7_hod",
+    "satisfaction_survey_hod_junior",
+    "satisfaction_survey_hod_senior",
+    "schedule_checkin_call_reminder",
+    "schedule_final_review_reminder",
+    "buddy_assigned",
+    "work_email_reminder",
+}
+
+
+def resolve_internal_emails(candidate,receivers: list[str],*,strict_hod_email: bool = False,) -> list[str]:
     emails = set()
 
     job = getattr(candidate, "job", None)
@@ -1635,18 +1653,21 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
             # DEPARTMENT HEAD
             # =========================
             if role == 'department_head':
-                # 1. Prefer HOD email explicitly assigned on the application
                 hod = getattr(candidate, 'hod_email', None)
                 if hod:
                     add_email(hod)
-                elif mrf:
-                    # 2. Fall back to MRF requester (original behaviour)
+                elif mrf and not strict_hod_email:
+                    # Preserve the legacy fallback outside onboarding notices.
                     user = getattr(mrf, "requested_by", None)
                     if user:
                         add_user(user)
                     hod_email = mrf.requested_by.email if getattr(mrf, "requested_by", None) and getattr(mrf.requested_by, "email", None) else None
                     if hod_email:
                         add_email(hod_email)
+                continue
+
+            if role == "reporting_manager":
+                add_email(getattr(candidate, "reporting_manager_email", None))
                 continue
 
             # =========================
@@ -1688,7 +1709,7 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
                 continue
 
         # Fallback: if no recipients resolved, fall back to active users with role hr_manager
-        if not emails:
+        if not emails and not strict_hod_email:
             logger.info("No internal email recipients resolved for receivers %s. Falling back to active hr_manager users.", receivers)
             user = getattr(job, "assigned_by", None)
             if user and getattr(user, "role", None) == 'hr_manager':
@@ -1700,16 +1721,17 @@ def resolve_internal_emails(candidate, receivers: list[str]) -> list[str]:
 
         # Always append emails_to_notify from the OnboardingForm if it exists.
         # This covers ALL internal milestone notifications (DOJ -15 / -7 / -2 / 0 / +5 / +7 / +30 / +45 / +90).
-        try:
-            onboarding_form = getattr(candidate, 'onboarding_form', None)
-            if onboarding_form:
-                raw_notify = getattr(onboarding_form, 'emails_to_notify', None) or ''
-                for addr in raw_notify.replace(';', ',').split(','):
-                    addr = addr.strip()
-                    if addr:
-                        emails.add(addr)
-        except Exception as _notify_err:
-            logger.warning("Could not read emails_to_notify from onboarding_form: %s", _notify_err)
+        if not (strict_hod_email and receivers == ["department_head"]):
+            try:
+                onboarding_form = getattr(candidate, 'onboarding_form', None)
+                if onboarding_form:
+                    raw_notify = getattr(onboarding_form, 'emails_to_notify', None) or ''
+                    for addr in raw_notify.replace(';', ',').split(','):
+                        addr = addr.strip()
+                        if addr:
+                            emails.add(addr)
+            except Exception as _notify_err:
+                logger.warning("Could not read emails_to_notify from onboarding_form: %s", _notify_err)
 
         return list(emails)
 
@@ -1858,10 +1880,15 @@ def notify_internal(candidate: Any, stage: str, cc: list = None) -> bool:
         logger.warning("No notification recievers for stage '%s'", stage)
         return False
 
-    to_emails = resolve_internal_emails(candidate, recievers)
+    strict_hod_email = stage in ONBOARDING_STRICT_HOD_EMAIL_STAGES
+    to_emails = resolve_internal_emails(
+        candidate,
+        recievers,
+        strict_hod_email=strict_hod_email,
+    )
     to_phones = resolve_internal_phones(candidate, recievers)
 
-    if not to_emails:
+    if not to_emails and not strict_hod_email:
         logger.info(f"No internal email recipients resolved for stage {stage}. Falling back to active hr_manager users.")
         try:
             from accounts.models import User

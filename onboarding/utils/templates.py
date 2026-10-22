@@ -3963,6 +3963,21 @@ NOTIFY_INTERNAL_HTML_TEMPLATES.update({
     </body>
     </html>
     """,
+    "reporting_manager_assignment_reminder": """
+    <html>
+    <body style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;line-height:1.6;">
+        <h2 style="color:#b45309;">Action Required: Reporting Manager Not Assigned</h2>
+        <p>Dear HR Team,</p>
+        <p>A Reporting Manager has not been assigned for this incoming joiner:</p>
+        <ul>
+            <li><strong>Candidate:</strong> {candidate.candidate_name}</li>
+            <li><strong>Joining Date:</strong> {candidate.joining_date}</li>
+        </ul>
+        <p>Please assign the Reporting Manager in HRMS before the joining date.</p>
+        <p>Regards,<br>HRMS Automation<br>Knowcraft Analytics Private Limited</p>
+    </body>
+    </html>
+    """,
 })
 
 # ----------------------------------------------------------------------
@@ -3978,4 +3993,3 @@ for _k, _tpl in list(HTML_TEMPLATES.items()):
 for _k, _tpl in list(NOTIFY_INTERNAL_HTML_TEMPLATES.items()):
     if isinstance(_tpl, str):
         NOTIFY_INTERNAL_HTML_TEMPLATES[_k] = append_email_html_disclaimer(_tpl)
-

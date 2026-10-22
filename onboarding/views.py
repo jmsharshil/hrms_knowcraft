@@ -3705,24 +3705,18 @@ class OnboardingJourneyAPI(APIView):
         from django.utils import timezone as tz
 
         application = get_object_or_404(JobApplication, id=id)
-        today = tz.now().date()
 
         # ── Days since joining ─────────────────────────────────────────────
         joining_date = application.joining_date
-        from django.conf import settings
-        
-        if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
-            # Mirror the _DEBUG_MINUTE_MAP from onboarding_tasks.py exactly.
-            # days_until_joining = map[minutes]; days_since_joining = -days_until_joining
-            _DEBUG_MINUTE_MAP = {0: 15, 1: 7, 2: 2, 3: 0, 4: -1, 5: -7, 6: -30, 7: -45, 8: -90}
-            minutes_since_creation = int((tz.now() - application.created_at).total_seconds() / 60)
-            days_until_joining = _DEBUG_MINUTE_MAP.get(minutes_since_creation, 999)
-            if days_until_joining != 999:
-                days_since_joining = -days_until_joining  # positive = past DOJ, negative = pre-DOJ
-            else:
-                days_since_joining = (today - joining_date).days if joining_date else None
+        if joining_date:
+            from onboarding.utils.onboarding_tasks import get_days_until_joining
+
+            days_since_joining = -get_days_until_joining(
+                application,
+                now=tz.now(),
+            )
         else:
-            days_since_joining = (today - joining_date).days if joining_date else None
+            days_since_joining = None
 
         # ── MRF / Requisition details ──────────────────────────────────────
         mrf_data = None
@@ -4596,4 +4590,3 @@ class VerifyD5DocumentAPI(APIView):
         application.save(update_fields=['is_d5_verification_completed', 'updated_at'])
         
         return Response({'message': 'Verification completed successfully.'}, status=status.HTTP_200_OK)
-

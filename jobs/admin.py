@@ -304,7 +304,7 @@ class JobApplicationAdmin(admin.ModelAdmin):
         flow — milestone by milestone — in a background daemon thread so the admin
         request returns immediately without hitting a 504 timeout.
 
-        Timeline (1 minute per milestone, mirrors the new _DEBUG_MINUTE_MAP):
+        Timeline (1 minute per milestone, mirrors DEBUG_ONBOARDING_MILESTONES):
           minute 0  →  DOJ - 15  (IT team email + tasks)
           minute 1  →  DOJ -  7  (HOD/Admin email + tasks)
           minute 2  →  DOJ -  2  (Welcome email)
@@ -318,11 +318,22 @@ class JobApplicationAdmin(admin.ModelAdmin):
         import threading
         import datetime as dt
         import time
+        from django.conf import settings
         from django.utils import timezone
         from onboarding.utils.engine import automation_engine
         from onboarding.utils.onboarding_tasks import run_onboarding_check_for_candidate
 
-        # Milestone minute-marks (aligned with the new _DEBUG_MINUTE_MAP in onboarding_tasks.py)
+        if not settings.ONBOARDING_DEBUG_MINUTES:
+            self.message_user(
+                request,
+                "Full onboarding simulation is disabled. Enable "
+                "ONBOARDING_DEBUG_MINUTES only in an isolated test environment; "
+                "keep it disabled on the live system.",
+                level='warning',
+            )
+            return
+
+        # Keep this sequence aligned with DEBUG_ONBOARDING_MILESTONES.
         MILESTONE_MINUTES = [0, 1, 2, 3, 4, 5, 6, 7, 8]
         MILESTONE_LABELS = {
             0: "DOJ - 15", 1: "DOJ -  7", 2: "DOJ -  2",

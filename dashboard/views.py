@@ -371,14 +371,24 @@ class BaseAnalyticsView(APIView):
         # 2. Parse query params
         date_from_str = request.query_params.get('date_from')
         date_to_str = request.query_params.get('date_to')
-        raw_job_id = request.query_params.get('job_id')
-        job_id = None
-        if raw_job_id:
-            try:
-                job_id = str(uuid.UUID(str(raw_job_id).strip()))
-            except (ValueError, AttributeError, TypeError):
-                job_id = '00000000-0000-0000-0000-000000000000'
-        source_filter = request.query_params.get('source')
+
+        # Multi-value job filter: ?job=X&job=Y  or  ?job_ids=X,Y or ?job_id=...
+        job_keys = ['job', 'job_id', 'job_ids', 'job[]', 'job_ids[]']
+        has_job_param = any(k in request.query_params for k in job_keys)
+        job_ids = parse_multi_uuid_params(request.query_params, job_keys)
+
+        # Multi-value source filter: ?source=X&source=Y  or  ?sources=X,Y or ?source[]...
+        source_keys = ['source', 'sources', 'source[]', 'sources[]']
+        has_source_param = any(k in request.query_params for k in source_keys)
+        sources = []
+        for name in source_keys:
+            for val in request.query_params.getlist(name):
+                if val is not None:
+                    for s in str(val).split(','):
+                        cleaned = s.strip()
+                        if cleaned and cleaned not in sources:
+                            sources.append(cleaned)
+        source_filter = sources[0] if sources else None
 
         # Multi-value department filter: ?department=X&department=Y  or  ?department=X,Y or ?department_id=...
         dept_keys = ['department', 'department_id', 'department_ids', 'department[]', 'department_ids[]']
@@ -438,6 +448,11 @@ class BaseAnalyticsView(APIView):
         # 3. MRF queryset (Filtered by Period Activity)
         # Admins and HR managers see all records including private ones
         mrf_base_filter = Q(company=company) & role_mrf_q & Q(is_active=True)
+        if has_job_param:
+            if job_ids:
+                mrf_base_filter &= Q(job__id__in=job_ids)
+            else:
+                mrf_base_filter &= Q(id=None)
         if has_dept_param:
             if department_ids:
                 mrf_base_filter &= Q(department_id__in=department_ids)
@@ -464,8 +479,11 @@ class BaseAnalyticsView(APIView):
         # 4. Job queryset
         # Base filter includes company, role, dept, desig, and user but NO date
         job_base_filter = Q(company=company) & role_job_q & Q(is_active=True)
-        if job_id:
-            job_base_filter &= Q(id=job_id)
+        if has_job_param:
+            if job_ids:
+                job_base_filter &= Q(id__in=job_ids)
+            else:
+                job_base_filter &= Q(id=None)
         if has_dept_param:
             if department_ids:
                 job_base_filter &= Q(department_id__in=department_ids)
@@ -513,8 +531,11 @@ class BaseAnalyticsView(APIView):
 
         # 5. JobApplication queryset (Filtered by Period Activity)
         app_filter = Q(job__in=broad_job_qs) & date_filter & role_app_q & Q(is_active=True)
-        if source_filter:
-            app_filter &= Q(source=source_filter)
+        if has_source_param:
+            if sources:
+                app_filter &= Q(source__in=sources)
+            else:
+                app_filter &= Q(id=None)
         if target_user_ids:
             user_app_q = Q(id=None)
             for tu in target_users:
@@ -552,8 +573,11 @@ class BaseAnalyticsView(APIView):
         platform_orphan_q = Q(job__isnull=True, position_title__in=job_titles)
         platform_app_filter = (platform_job_q | platform_orphan_q) & date_filter & Q(is_active=True)
 
-        if source_filter:
-            platform_app_filter &= Q(source=source_filter)
+        if has_source_param:
+            if sources:
+                platform_app_filter &= Q(source__in=sources)
+            else:
+                platform_app_filter &= Q(id=None)
         if target_user_ids:
             if all_consultancy:
                 platform_app_qs = Application.objects.none()
@@ -583,27 +607,48 @@ class BaseAnalyticsView(APIView):
             platform_app_qs = Application.objects.filter(platform_app_filter).distinct()
 
         referral_filter = date_filter
-        if department_ids:
-            try:
-                dept_names = list(
-                    Department.objects.filter(id__in=department_ids)
-                    .values_list('name', flat=True)
-                )
-                if dept_names:
-                    referral_filter &= Q(referral_department__in=dept_names)
-            except Exception:
-                pass
+        if has_dept_param:
+            if department_ids:
+                try:
+                    dept_names = list(
+                        Department.objects.filter(id__in=department_ids)
+                        .values_list('name', flat=True)
+                    )
+                    if dept_names:
+                        referral_filter &= Q(referral_department__in=dept_names)
+                    else:
+                        referral_filter &= Q(id=None)
+                except Exception:
+                    referral_filter &= Q(id=None)
+            else:
+                referral_filter &= Q(id=None)
 
-        if designation_ids:
-            try:
-                desig_names = list(
-                    Designation.objects.filter(id__in=designation_ids)
-                    .values_list('name', flat=True)
-                )
-                if desig_names:
-                    referral_filter &= Q(referral_designation__in=desig_names)
-            except Exception:
-                pass
+        if has_desig_param:
+            if designation_ids:
+                try:
+                    desig_names = list(
+                        Designation.objects.filter(id__in=designation_ids)
+                        .values_list('name', flat=True)
+                    )
+                    if desig_names:
+                        referral_filter &= Q(referral_designation__in=desig_names)
+                    else:
+                        referral_filter &= Q(id=None)
+                except Exception:
+                    referral_filter &= Q(id=None)
+            else:
+                referral_filter &= Q(id=None)
+
+        if has_job_param:
+            if job_titles:
+                referral_filter &= Q(position_title__in=job_titles)
+            else:
+                referral_filter &= Q(id=None)
+
+        if has_source_param:
+            ref_sources = {'referral', 'employee_referral', 'referrals'}
+            if not any(s.lower() in ref_sources for s in sources):
+                referral_filter &= Q(id=None)
 
         if target_user_ids:
             # Filter referrals by any of the target users' emails
@@ -2905,28 +2950,32 @@ class DashboardExportAPIView(BaseAnalyticsView):
     """
     GET /api/dashboard/export/
     Export full dashboard analytics to a multi-sheet Excel workbook.
-    Supports filters: department, designation, job_id, user_id, date_from, date_to.
+    Supports all analytics filters: department, designation, job/job_ids, source/sources, user_id/user_ids, date_from, date_to, sections.
     """
+    def get_role_view(self, request):
+        role = request.user.role
+        role_map = {
+            'admin': AdminAnalyticsAPIView,
+            'hr_manager': HRManagerAnalyticsAPIView,
+            'hr': HRAnalyticsAPIView,
+            'department_head': DeptHeadAnalyticsAPIView,
+            'consultancy': ConsultancyAnalyticsAPIView,
+        }
+        view_class = role_map.get(role, AdminAnalyticsAPIView)
+        role_view = view_class()
+        role_view.request = request
+        return role_view
+
     def get_role_filters(self, user):
-        role = user.role
-        if role in ['admin', 'hr_manager']:
-            return Q(), Q(), Q()
-        elif role == 'hr':
-            job_q = (Q(assigned_to_internal_hr=user) | Q(assigned_internal_hrs=user) | Q(posted_by=user) | Q(closed_by=user))
-            app_q = Q(job__assigned_to_internal_hr=user) | Q(job__assigned_internal_hrs=user) | Q(job__posted_by=user) | Q(job__closed_by=user) | Q(submitted_by=user)
-            mrf_q = Q(requested_by=user) | Q(approvals__approver=user)
-            return mrf_q, job_q, app_q
-        elif role == 'department_head':
-            mrf_q = Q(department=user.department)
-            job_q = Q(department=user.department)
-            app_q = Q(job__department=user.department)
-            return mrf_q, job_q, app_q
-        elif role == 'consultancy':
-            mrf_q = Q(job__assigned_to_consultancy=user) | Q(job__assigned_consultancies=user)
-            job_q = Q(assigned_to_consultancy=user) | Q(assigned_consultancies=user)
-            app_q = Q(job__assigned_to_consultancy=user) | Q(job__assigned_consultancies=user) | Q(submitted_by=user)
-            return mrf_q, job_q, app_q
-        return Q(id__isnull=True), Q(id__isnull=True), Q(id__isnull=True)
+        role_map = {
+            'admin': AdminAnalyticsAPIView,
+            'hr_manager': HRManagerAnalyticsAPIView,
+            'hr': HRAnalyticsAPIView,
+            'department_head': DeptHeadAnalyticsAPIView,
+            'consultancy': ConsultancyAnalyticsAPIView,
+        }
+        view_class = role_map.get(user.role, AdminAnalyticsAPIView)
+        return view_class().get_role_filters(user)
 
     def _style_header(self, ws, header_row=1):
         """Apply bold styling to header row."""
@@ -2965,6 +3014,14 @@ class DashboardExportAPIView(BaseAnalyticsView):
         target_user = ctx.get('target_user')
         target_users = ctx.get('target_users', [])
 
+        role_view = self.get_role_view(request)
+        allowed_sections = role_view.get_sections()
+        requested_sections_raw = request.query_params.get('sections', '')
+        if not requested_sections_raw:
+            requested_sections = allowed_sections
+        else:
+            requested_sections = [s.strip() for s in requested_sections_raw.split(',') if s.strip() in allowed_sections]
+
         # ── Resolve interviewer_app_ids (same logic as analytics API) ──
         interviewer_app_ids = None
         if target_users:
@@ -2981,311 +3038,336 @@ class DashboardExportAPIView(BaseAnalyticsView):
         from django.http import HttpResponse
 
         wb = openpyxl.Workbook()
+        default_sheet = wb.active
+        created_sheets = []
+
+        def add_sheet(title):
+            if not created_sheets:
+                default_sheet.title = title
+                created_sheets.append(default_sheet)
+                return default_sheet
+            ws = wb.create_sheet(title)
+            created_sheets.append(ws)
+            return ws
 
         # ── Sheet 1: Summary Totals ──
-        ws1 = wb.active
-        ws1.title = "Summary"
-        summary = self.calc_summary_totals(mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, broad_job_qs)
-        ws1.append(["Metric", "Value"])
-        ws1.append(["Total MRFs", summary.get("total_mrfs", 0)])
-        ws1.append(["Total MRFs On Hold", summary.get("total_mrfs_on_hold", 0)])
-        ws1.append(["Total Jobs", summary.get("total_jobs", 0)])
-        ws1.append(["Total Jobs On Hold", summary.get("total_jobs_on_hold", 0)])
-        ws1.append(["Total Combined CVs", summary.get("total_combined_cv_count", 0)])
-        cv_counts = summary.get("cv_counts", {})
-        # ws1.append(["  Direct Applications", cv_counts.get("direct_applications", 0)])
-        ws1.append(["  Consultancy", cv_counts.get("consultancy", 0)])
-        ws1.append(["  Application Link", cv_counts.get("application_link", 0)])
-        ws1.append(["  Platform Applications", cv_counts.get("platform_applications", 0)])
-        ws1.append(["  Referrals", cv_counts.get("referrals", 0)])
-        ws1.append(["Total Open Positions", summary.get("total_open_positions", 0)])
-        ws1.append(["Joining Pending (Next 30 Days)", summary.get("joining_pending_next_30_days", 0)])
-        ws1.append(["Joining Pending (Next 60 Days)", summary.get("joining_pending_next_60_days", 0)])
-        jobs_assign = summary.get("jobs_by_assignment", {})
-        ws1.append(["Jobs Assigned HR Only", jobs_assign.get("hr_only", 0)])
-        ws1.append(["Jobs Assigned Consultancy Only", jobs_assign.get("consultancy_only", 0)])
-        ws1.append(["Jobs Assigned Both", jobs_assign.get("both", 0)])
-        tat = calc_joining_tat(app_qs)
-        ws1.append(["Partial Joining TAT (Days)", tat.get("partial_joining_tat_days", 0)])
-        ws1.append(["Final Joining TAT (Days)", tat.get("final_joining_tat_days", 0)])
-        self._style_header(ws1)
-        self._auto_width(ws1)
+        if not requested_sections_raw or 'overall_summary_kpis' in requested_sections:
+            ws1 = add_sheet("Summary")
+            summary = self.calc_summary_totals(mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, broad_job_qs)
+            ws1.append(["Metric", "Value"])
+            ws1.append(["Total MRFs", summary.get("total_mrfs", 0)])
+            ws1.append(["Total MRFs On Hold", summary.get("total_mrfs_on_hold", 0)])
+            ws1.append(["Total Jobs", summary.get("total_jobs", 0)])
+            ws1.append(["Total Jobs On Hold", summary.get("total_jobs_on_hold", 0)])
+            ws1.append(["Total Combined CVs", summary.get("total_combined_cv_count", 0)])
+            cv_counts = summary.get("cv_counts", {})
+            # ws1.append(["  Direct Applications", cv_counts.get("direct_applications", 0)])
+            ws1.append(["  Consultancy", cv_counts.get("consultancy", 0)])
+            ws1.append(["  Application Link", cv_counts.get("application_link", 0)])
+            ws1.append(["  Platform Applications", cv_counts.get("platform_applications", 0)])
+            ws1.append(["  Referrals", cv_counts.get("referrals", 0)])
+            ws1.append(["Total Open Positions", summary.get("total_open_positions", 0)])
+            ws1.append(["Joining Pending (Next 30 Days)", summary.get("joining_pending_next_30_days", 0)])
+            ws1.append(["Joining Pending (Next 60 Days)", summary.get("joining_pending_next_60_days", 0)])
+            jobs_assign = summary.get("jobs_by_assignment", {})
+            ws1.append(["Jobs Assigned HR Only", jobs_assign.get("hr_only", 0)])
+            ws1.append(["Jobs Assigned Consultancy Only", jobs_assign.get("consultancy_only", 0)])
+            ws1.append(["Jobs Assigned Both", jobs_assign.get("both", 0)])
+            tat = calc_joining_tat(app_qs)
+            ws1.append(["Partial Joining TAT (Days)", tat.get("partial_joining_tat_days", 0)])
+            ws1.append(["Final Joining TAT (Days)", tat.get("final_joining_tat_days", 0)])
+            self._style_header(ws1)
+            self._auto_width(ws1)
 
         # ── Sheet 2: MRF Analytics ──
-        try:
-            mrf_data = self.calc_mrf_analytics(mrf_qs, department_ids=ctx.get('department_ids'), designation_ids=ctx.get('designation_ids'))
-            ws2 = wb.create_sheet("MRF Analytics")
-            ws2.append(["Metric", "Value"])
-            ws2.append(["Total MRF Raised", mrf_data.get("total_mrf_raised", 0)])
-            ws2.append(["Total Approved", mrf_data.get("total_approved", 0)])
-            ws2.append(["Total Rejected", mrf_data.get("total_rejected", 0)])
-            ws2.append(["Total On Hold", mrf_data.get("total_on_hold", 0)])
-            ws2.append(["Total Pending", mrf_data.get("total_pending", 0)])
-            ws2.append(["MRF to Job Conversion Rate (%)", mrf_data.get("mrf_to_job_conversion_rate", 0)])
-            ws2.append(["Avg MRF Approval Time (Days)", mrf_data.get("avg_mrf_approval_time_days", 0)])
-            ws2.append([])
-            ws2.append(["--- MRF By Department ---"])
-            ws2.append(["Department", "Count", "Avg Approval Time (Days)"])
-            for d in mrf_data.get("mrf_by_department", []):
-                ws2.append([d.get("department", "N/A"), d.get("count", 0), d.get("avg_approval_time_days", 0)])
-            if mrf_data.get("mrf_by_designation"):
+        if 'mrf_analytics' in requested_sections and not ctx.get('all_consultancy'):
+            try:
+                mrf_data = self.calc_mrf_analytics(mrf_qs, department_ids=ctx.get('department_ids'), designation_ids=ctx.get('designation_ids'))
+                ws2 = add_sheet("MRF Analytics")
+                ws2.append(["Metric", "Value"])
+                ws2.append(["Total MRF Raised", mrf_data.get("total_mrf_raised", 0)])
+                ws2.append(["Total Approved", mrf_data.get("total_approved", 0)])
+                ws2.append(["Total Rejected", mrf_data.get("total_rejected", 0)])
+                ws2.append(["Total On Hold", mrf_data.get("total_on_hold", 0)])
+                ws2.append(["Total Pending", mrf_data.get("total_pending", 0)])
+                ws2.append(["MRF to Job Conversion Rate (%)", mrf_data.get("mrf_to_job_conversion_rate", 0)])
+                ws2.append(["Avg MRF Approval Time (Days)", mrf_data.get("avg_mrf_approval_time_days", 0)])
                 ws2.append([])
-                ws2.append(["--- MRF By Designation ---"])
-                ws2.append(["Designation", "Count", "Avg Approval Time (Days)"])
-                for d in mrf_data.get("mrf_by_designation", []):
-                    ws2.append([d.get("designation", "N/A"), d.get("count", 0), d.get("avg_approval_time_days", 0)])
-            ws2.append([])
-            ws2.append(["--- Approval Funnel ---"])
-            ws2.append(["Level", "Avg Time (Days)"])
-            for f in mrf_data.get("approval_funnel", []):
-                ws2.append([f.get("level"), f.get("avg_time_days", 0)])
-            ws2.append([])
-            ws2.append(["--- On-Hold MRF Details ---"])
-            ws2.append(["Level", "MRF Name", "Req No", "Held By", "Previous Status", "Reason", "Date"])
-            for h in mrf_data.get("mrf_on_hold_details", []):
-                ws2.append([
-                    h.get("approver_level"),
-                    h.get("mrf_name"),
-                    h.get("requisition_no"),
-                    h.get("held_by"),
-                    h.get("previous_status"),
-                    h.get("reason"),
-                    h.get("date"),
-                ])
-            ws2.append([])
-            ws2.append(["--- MRF Rejection Details ---"])
-            ws2.append(["Level", "MRF Name", "Rejected By", "Reason", "Date"])
-            for r in mrf_data.get("mrf_rejection_reasons", []):
-                ws2.append([
-                    r.get("approver_level"),
-                    r.get("mrf_name"),
-                    r.get("rejected_by"),
-                    r.get("reason"),
-                    r.get("date"),
-                ])
-            self._style_header(ws2)
-            self._auto_width(ws2)
-        except Exception:
-            pass
+                ws2.append(["--- MRF By Department ---"])
+                ws2.append(["Department", "Count", "Avg Approval Time (Days)"])
+                for d in mrf_data.get("mrf_by_department", []):
+                    ws2.append([d.get("department", "N/A"), d.get("count", 0), d.get("avg_approval_time_days", 0)])
+                if mrf_data.get("mrf_by_designation"):
+                    ws2.append([])
+                    ws2.append(["--- MRF By Designation ---"])
+                    ws2.append(["Designation", "Count", "Avg Approval Time (Days)"])
+                    for d in mrf_data.get("mrf_by_designation", []):
+                        ws2.append([d.get("designation", "N/A"), d.get("count", 0), d.get("avg_approval_time_days", 0)])
+                ws2.append([])
+                ws2.append(["--- Approval Funnel ---"])
+                ws2.append(["Level", "Avg Time (Days)"])
+                for f in mrf_data.get("approval_funnel", []):
+                    ws2.append([f.get("level"), f.get("avg_time_days", 0)])
+                ws2.append([])
+                ws2.append(["--- On-Hold MRF Details ---"])
+                ws2.append(["Level", "MRF Name", "Req No", "Held By", "Previous Status", "Reason", "Date"])
+                for h in mrf_data.get("mrf_on_hold_details", []):
+                    ws2.append([
+                        h.get("approver_level"),
+                        h.get("mrf_name"),
+                        h.get("requisition_no"),
+                        h.get("held_by"),
+                        h.get("previous_status"),
+                        h.get("reason"),
+                        h.get("date"),
+                    ])
+                ws2.append([])
+                ws2.append(["--- MRF Rejection Details ---"])
+                ws2.append(["Level", "MRF Name", "Rejected By", "Reason", "Date"])
+                for r in mrf_data.get("mrf_rejection_reasons", []):
+                    ws2.append([
+                        r.get("approver_level"),
+                        r.get("mrf_name"),
+                        r.get("rejected_by"),
+                        r.get("reason"),
+                        r.get("date"),
+                    ])
+                self._style_header(ws2)
+                self._auto_width(ws2)
+            except Exception:
+                pass
 
         # ── Sheet 3: Job Assignment Analytics ──
-        try:
-            target_users = ctx.get('target_users')
-            target_user_ids = [str(u.id) for u in target_users] if target_users else None
-            job_data = self.calc_job_assignment_analytics(job_qs, request.user.role, target_user_ids, request.user)
-            ws3 = wb.create_sheet("Job Analytics")
-            ws3.append(["Metric", "Value"])
-            ws3.append(["Total Jobs Open", job_data.get("total_jobs_open", 0)])
-            ws3.append(["Total Jobs Closed/Filled", job_data.get("total_jobs_closed", 0)])
-            ws3.append(["Total Jobs On Hold", job_data.get("total_jobs_on_hold", 0)])
-            ws3.append(["Jobs Assigned to Internal HR", job_data.get("jobs_assigned_to_internal_hr", 0)])
-            ws3.append(["Jobs Assigned to Consultancy", job_data.get("jobs_assigned_to_consultancy", 0)])
-            ws3.append(["Jobs Assigned to Both", job_data.get("jobs_assigned_to_both", 0)])
-            ws3.append(["Jobs Unassigned", job_data.get("jobs_unassigned", 0)])
-            ws3.append(["Avg Time To Assign (Days)", job_data.get("avg_time_to_assign_days", 0)])
-            ws3.append([])
-            ws3.append(["--- Status Breakdown ---"])
-            ws3.append(["Status", "Count"])
-            for k, v in job_data.get("job_status_breakdown", {}).items():
-                ws3.append([k, v])
-            self._style_header(ws3)
-            self._auto_width(ws3)
-        except Exception:
-            pass
+        if 'job_assignment_analytics' in requested_sections:
+            try:
+                target_users_list = ctx.get('target_users')
+                target_user_ids = [str(u.id) for u in target_users_list] if target_users_list else None
+                job_data = self.calc_job_assignment_analytics(job_qs, request.user.role, target_user_ids, request.user)
+                ws3 = add_sheet("Job Analytics")
+                ws3.append(["Metric", "Value"])
+                ws3.append(["Total Jobs Open", job_data.get("total_jobs_open", 0)])
+                ws3.append(["Total Jobs Closed/Filled", job_data.get("total_jobs_closed", 0)])
+                ws3.append(["Total Jobs On Hold", job_data.get("total_jobs_on_hold", 0)])
+                ws3.append(["Jobs Assigned to Internal HR", job_data.get("jobs_assigned_to_internal_hr", 0)])
+                ws3.append(["Jobs Assigned to Consultancy", job_data.get("jobs_assigned_to_consultancy", 0)])
+                ws3.append(["Jobs Assigned to Both", job_data.get("jobs_assigned_to_both", 0)])
+                ws3.append(["Jobs Unassigned", job_data.get("jobs_unassigned", 0)])
+                ws3.append(["Avg Time To Assign (Days)", job_data.get("avg_time_to_assign_days", 0)])
+                ws3.append([])
+                ws3.append(["--- Status Breakdown ---"])
+                ws3.append(["Status", "Count"])
+                for k, v in job_data.get("job_status_breakdown", {}).items():
+                    ws3.append([k, v])
+                self._style_header(ws3)
+                self._auto_width(ws3)
+            except Exception:
+                pass
 
         # ── Sheet 4: CV Source Analytics ──
-        try:
-            fb_filter = Q(job_application__job__in=broad_job_qs)
-            from datetime import datetime as _dt, time as _t
-            from django.utils import timezone as _tz
-            if date_from:
-                fb_filter &= Q(created_at__gte=_tz.make_aware(_dt.combine(date_from, _t.min)))
-            if date_to:
-                fb_filter &= Q(created_at__lte=_tz.make_aware(_dt.combine(date_to, _t.max)))
-            # Mirror analytics API: apply interviewer filter to total_interviews count
-            if interviewer_app_ids is not None:
-                fb_filter &= Q(job_application_id__in=interviewer_app_ids)
-            total_interviews = InterviewFeedback.objects.filter(fb_filter).count()
-            cv_data = self.calc_cv_resume_source_analytics(app_qs, platform_app_qs, referral_qs, total_interviews)
-            ws4 = wb.create_sheet("CVs By Source")
-            ws4.append(["Metric", "Value"])
-            ws4.append(["Total CVs Received", cv_data.get("total_cvs_received", 0)])
-            ws4.append(["Duplicate CVs Count", cv_data.get("duplicate_cvs_count", 0)])
-            ws4.append(["Duplicate CVs %", cv_data.get("duplicate_cvs_percentage", 0)])
-            ws4.append(["Untouched CVs Count", cv_data.get("untouched_cvs_count", 0)])
-            ws4.append([])
-            ws4.append(["--- Direct Applications By Source ---"])
-            ws4.append(["Source", "Count", "Percentage"])
-            for s in cv_data.get("candidate_cvs_by_source", []):
-                ws4.append([s.get("source", ""), s.get("count", 0), s.get("percentage", 0)])
-            ws4.append([])
-            ws4.append(["--- Combined CVs By Source ---"])
-            ws4.append(["Source", "Count", "Percentage"])
-            for s in cv_data.get("combined_cvs_by_source", []):
-                ws4.append([s.get("source", ""), s.get("count", 0), s.get("percentage", 0)])
-            ws4.append([])
-            ws4.append(["--- CVs By Job ---"])
-            ws4.append(["Job Title", "Total CVs"])
-            for j in cv_data.get("cvs_by_job", []):
-                ws4.append([j.get("job_title", ""), j.get("total_cvs", 0)])
-            ws4.append([])
-            ws4.append(["--- CVs By Month ---"])
-            ws4.append(["Month", "Count"])
-            for m in cv_data.get("cvs_by_month", []):
-                ws4.append([m.get("month", ""), m.get("count", 0)])
-            self._style_header(ws4)
-            self._auto_width(ws4)
-        except Exception:
-            pass
+        if 'cv_resume_source_analytics' in requested_sections:
+            try:
+                fb_filter = Q(job_application__job__in=broad_job_qs)
+                from datetime import datetime as _dt, time as _t
+                from django.utils import timezone as _tz
+                if date_from:
+                    fb_filter &= Q(created_at__gte=_tz.make_aware(_dt.combine(date_from, _t.min)))
+                if date_to:
+                    fb_filter &= Q(created_at__lte=_tz.make_aware(_dt.combine(date_to, _t.max)))
+                # Mirror analytics API: apply interviewer filter to total_interviews count
+                if interviewer_app_ids is not None:
+                    fb_filter &= Q(job_application_id__in=interviewer_app_ids)
+                total_interviews = InterviewFeedback.objects.filter(fb_filter).count()
+                cv_data = self.calc_cv_resume_source_analytics(app_qs, platform_app_qs, referral_qs, total_interviews)
+                ws4 = add_sheet("CVs By Source")
+                ws4.append(["Metric", "Value"])
+                ws4.append(["Total CVs Received", cv_data.get("total_cvs_received", 0)])
+                ws4.append(["Duplicate CVs Count", cv_data.get("duplicate_cvs_count", 0)])
+                ws4.append(["Duplicate CVs %", cv_data.get("duplicate_cvs_percentage", 0)])
+                ws4.append(["Untouched CVs Count", cv_data.get("untouched_cvs_count", 0)])
+                ws4.append([])
+                ws4.append(["--- Direct Applications By Source ---"])
+                ws4.append(["Source", "Count", "Percentage"])
+                for s in cv_data.get("candidate_cvs_by_source", []):
+                    ws4.append([s.get("source", ""), s.get("count", 0), s.get("percentage", 0)])
+                ws4.append([])
+                ws4.append(["--- Combined CVs By Source ---"])
+                ws4.append(["Source", "Count", "Percentage"])
+                for s in cv_data.get("combined_cvs_by_source", []):
+                    ws4.append([s.get("source", ""), s.get("count", 0), s.get("percentage", 0)])
+                ws4.append([])
+                ws4.append(["--- CVs By Job ---"])
+                ws4.append(["Job Title", "Total CVs"])
+                for j in cv_data.get("cvs_by_job", []):
+                    ws4.append([j.get("job_title", ""), j.get("total_cvs", 0)])
+                ws4.append([])
+                ws4.append(["--- CVs By Month ---"])
+                ws4.append(["Month", "Count"])
+                for m in cv_data.get("cvs_by_month", []):
+                    ws4.append([m.get("month", ""), m.get("count", 0)])
+                self._style_header(ws4)
+                self._auto_width(ws4)
+            except Exception:
+                pass
 
         # ── Sheet 5: Pipeline Funnel ──
-        try:
-            pipeline = self.calc_candidate_pipeline_funnel(app_qs, target_users, interviewer_app_ids)
-            ws5 = wb.create_sheet("Pipeline Funnel")
-            ws5.append(["Stage", "Count"])
-            for s in pipeline.get("funnel_stages", []):
-                ws5.append([s.get("stage", ""), s.get("count", 0)])
-            ws5.append([])
-            ws5.append(["--- Drop-Off Rates ---"])
-            ws5.append(["From Stage", "To Stage", "Drop-Off %"])
-            for d in pipeline.get("drop_off_rates", []):
-                ws5.append([d.get("from_stage", ""), d.get("to_stage", ""), d.get("drop_off_percentage", 0)])
-            ws5.append([])
-            ws5.append(["--- Candidates By Status ---"])
-            ws5.append(["Status", "Count"])
-            for k, v in pipeline.get("candidates_by_status", {}).items():
-                ws5.append([k, v])
-            ws5.append([])
-            ws5.append(["Offer Acceptance Rate (%)", pipeline.get("offer_acceptance_rate", 0)])
-            ws5.append(["Offer Rejection Rate (%)", pipeline.get("offer_rejection_rate", 0)])
-            self._style_header(ws5)
-            self._auto_width(ws5)
-        except Exception:
-            pass
+        if 'candidate_pipeline_funnel' in requested_sections:
+            try:
+                pipeline = self.calc_candidate_pipeline_funnel(app_qs, target_users, interviewer_app_ids)
+                ws5 = add_sheet("Pipeline Funnel")
+                ws5.append(["Stage", "Count"])
+                for s in pipeline.get("funnel_stages", []):
+                    ws5.append([s.get("stage", ""), s.get("count", 0)])
+                ws5.append([])
+                ws5.append(["--- Drop-Off Rates ---"])
+                ws5.append(["From Stage", "To Stage", "Drop-Off %"])
+                for d in pipeline.get("drop_off_rates", []):
+                    ws5.append([d.get("from_stage", ""), d.get("to_stage", ""), d.get("drop_off_percentage", 0)])
+                ws5.append([])
+                ws5.append(["--- Candidates By Status ---"])
+                ws5.append(["Status", "Count"])
+                for k, v in pipeline.get("candidates_by_status", {}).items():
+                    ws5.append([k, v])
+                ws5.append([])
+                ws5.append(["Offer Acceptance Rate (%)", pipeline.get("offer_acceptance_rate", 0)])
+                ws5.append(["Offer Rejection Rate (%)", pipeline.get("offer_rejection_rate", 0)])
+                self._style_header(ws5)
+                self._auto_width(ws5)
+            except Exception:
+                pass
 
         # ── Sheet 6: Interview Round Analytics ──
-        try:
-            interview_data = self.calc_interview_round_time_analytics(app_qs, (date_from, date_to), company, interviewer_app_ids, broad_job_qs)
-            ws6 = wb.create_sheet("Interview Analytics")
-            ws6.append(["Avg Time to Shortlist (Days)", interview_data.get("avg_time_to_shortlist_days", 0)])
-            ws6.append([])
-            ws6.append(["--- Avg Time Between Rounds ---"])
-            ws6.append(["From Round", "To Round", "Avg Days", "Num Applications"])
-            for r in interview_data.get("avg_time_between_rounds_days", []):
-                ws6.append([r.get("from_round", ""), r.get("to_round", ""), r.get("avg_days", 0), r.get("num_applications", 0)])
-            ws6.append([])
-            ws6.append(["--- Round Completion Rate ---"])
-            ws6.append(["Round", "Scheduled", "Pending", "Completed", "Shortlisted", "Rejected", "Not Moved", "Unassigned", "Pass Rate %"])
-            for r in interview_data.get("round_completion_rate", []):
-                ws6.append([r.get("round_type", ""), r.get("total_scheduled", 0), r.get("pending", 0), r.get("completed", 0), r.get("shortlisted", 0), r.get("rejected", 0), r.get("not_moved_to_next", 0), r.get("unassigned_interviewer_count", 0), r.get("pass_rate_percentage", 0)])
-            slowest = interview_data.get("slowest_stage", {})
-            fastest = interview_data.get("fastest_stage", {})
-            ws6.append([])
-            ws6.append(["Slowest Stage", slowest.get("stage_name", "N/A"), slowest.get("avg_days", 0)])
-            ws6.append(["Fastest Stage", fastest.get("stage_name", "N/A"), fastest.get("avg_days", 0)])
-            self._style_header(ws6)
-            self._auto_width(ws6)
-        except Exception:
-            pass
+        if 'interview_round_time_analytics' in requested_sections:
+            try:
+                interview_data = self.calc_interview_round_time_analytics(app_qs, (date_from, date_to), company, interviewer_app_ids, broad_job_qs)
+                ws6 = add_sheet("Interview Analytics")
+                ws6.append(["Avg Time to Shortlist (Days)", interview_data.get("avg_time_to_shortlist_days", 0)])
+                ws6.append([])
+                ws6.append(["--- Avg Time Between Rounds ---"])
+                ws6.append(["From Round", "To Round", "Avg Days", "Num Applications"])
+                for r in interview_data.get("avg_time_between_rounds_days", []):
+                    ws6.append([r.get("from_round", ""), r.get("to_round", ""), r.get("avg_days", 0), r.get("num_applications", 0)])
+                ws6.append([])
+                ws6.append(["--- Round Completion Rate ---"])
+                ws6.append(["Round", "Scheduled", "Pending", "Completed", "Shortlisted", "Rejected", "Not Moved", "Unassigned", "Pass Rate %"])
+                for r in interview_data.get("round_completion_rate", []):
+                    ws6.append([r.get("round_type", ""), r.get("total_scheduled", 0), r.get("pending", 0), r.get("completed", 0), r.get("shortlisted", 0), r.get("rejected", 0), r.get("not_moved_to_next", 0), r.get("unassigned_interviewer_count", 0), r.get("pass_rate_percentage", 0)])
+                slowest = interview_data.get("slowest_stage", {})
+                fastest = interview_data.get("fastest_stage", {})
+                ws6.append([])
+                ws6.append(["Slowest Stage", slowest.get("stage_name", "N/A"), slowest.get("avg_days", 0)])
+                ws6.append(["Fastest Stage", fastest.get("stage_name", "N/A"), fastest.get("avg_days", 0)])
+                self._style_header(ws6)
+                self._auto_width(ws6)
+            except Exception:
+                pass
 
         # ── Sheet 7: Approval Notes ──
-        try:
-            approval_data = self.calc_approval_note_analytics(broad_job_qs, (date_from, date_to), ctx.get('target_users'), request.user, request.user.role)
-            ws7 = wb.create_sheet("Approval Notes")
-            ws7.append(["Metric", "Value"])
-            ws7.append(["Total Approval Notes Sent", approval_data.get("total_approval_notes_sent", 0)])
-            ws7.append(["Approved", approval_data.get("approval_notes_approved", 0)])
-            ws7.append(["Rejected", approval_data.get("approval_notes_rejected", 0)])
-            ws7.append(["Pending", approval_data.get("approval_notes_pending", 0)])
-            ws7.append(["Avg Time To Approve (Days)", approval_data.get("avg_time_to_approve_days", 0)])
-            ws7.append(["Delayed (>48hrs)", approval_data.get("delayed_approval_notes", 0)])
-            ws7.append([])
-            ws7.append(["--- By Approver ---"])
-            ws7.append(["Approver", "Sent", "Approved", "Rejected", "Avg Days"])
-            for a in approval_data.get("approval_notes_by_approver", []):
-                ws7.append([a.get("approver_name", ""), a.get("sent", 0), a.get("approved", 0), a.get("rejected", 0), a.get("avg_days", 0)])
-            self._style_header(ws7)
-            self._auto_width(ws7)
-        except Exception:
-            pass
+        if 'approval_note_analytics' in requested_sections:
+            try:
+                approval_data = self.calc_approval_note_analytics(broad_job_qs, (date_from, date_to), ctx.get('target_users'), request.user, request.user.role)
+                ws7 = add_sheet("Approval Notes")
+                ws7.append(["Metric", "Value"])
+                ws7.append(["Total Approval Notes Sent", approval_data.get("total_approval_notes_sent", 0)])
+                ws7.append(["Approved", approval_data.get("approval_notes_approved", 0)])
+                ws7.append(["Rejected", approval_data.get("approval_notes_rejected", 0)])
+                ws7.append(["Pending", approval_data.get("approval_notes_pending", 0)])
+                ws7.append(["Avg Time To Approve (Days)", approval_data.get("avg_time_to_approve_days", 0)])
+                ws7.append(["Delayed (>48hrs)", approval_data.get("delayed_approval_notes", 0)])
+                ws7.append([])
+                ws7.append(["--- By Approver ---"])
+                ws7.append(["Approver", "Sent", "Approved", "Rejected", "Avg Days"])
+                for a in approval_data.get("approval_notes_by_approver", []):
+                    ws7.append([a.get("approver_name", ""), a.get("sent", 0), a.get("approved", 0), a.get("rejected", 0), a.get("avg_days", 0)])
+                self._style_header(ws7)
+                self._auto_width(ws7)
+            except Exception:
+                pass
 
         # ── Sheet 8: Document & Offer Timeline ──
-        try:
-            doc_data = self.calc_document_offer_process_timeline(broad_job_qs, (date_from, date_to), company, request.user, request.user.role)
-            ws8 = wb.create_sheet("Document & Offer")
-            ws8.append(["Metric", "Avg Days"])
-            ws8.append(["Document Request to Upload", doc_data.get("avg_time_document_request_to_upload_days", 0)])
-            ws8.append(["Document Upload to Approval", doc_data.get("avg_time_document_upload_to_approval_days", 0)])
-            ws8.append(["Approval to Salary Annexure", doc_data.get("avg_time_approval_to_salary_annexure_days", 0)])
-            ws8.append(["Salary Annexure to Approval", doc_data.get("avg_time_salary_annexure_to_approval_days", 0)])
-            ws8.append(["Offer Letter Creation", doc_data.get("avg_time_to_offer_letter_creation_days", 0)])
-            ws8.append(["Offer Letter to Approval", doc_data.get("avg_time_offer_letter_to_approval_days", 0)])
-            ws8.append(["Offer Sent to Response", doc_data.get("avg_time_offer_letter_sent_to_response_days", 0)])
-            ws8.append(["Full Pipeline Avg", doc_data.get("full_pipeline_avg_days", 0)])
-            bottleneck = doc_data.get("bottleneck_stage", {})
-            ws8.append([])
-            ws8.append(["Bottleneck Stage", bottleneck.get("stage_name", "N/A")])
-            ws8.append(["Bottleneck Avg Days", bottleneck.get("avg_days", 0)])
-            self._style_header(ws8)
-            self._auto_width(ws8)
-        except Exception:
-            pass
+        if 'document_offer_process_timeline' in requested_sections:
+            try:
+                doc_data = self.calc_document_offer_process_timeline(broad_job_qs, (date_from, date_to), company, request.user, request.user.role)
+                ws8 = add_sheet("Document & Offer")
+                ws8.append(["Metric", "Avg Days"])
+                ws8.append(["Document Request to Upload", doc_data.get("avg_time_document_request_to_upload_days", 0)])
+                ws8.append(["Document Upload to Approval", doc_data.get("avg_time_document_upload_to_approval_days", 0)])
+                ws8.append(["Approval to Salary Annexure", doc_data.get("avg_time_approval_to_salary_annexure_days", 0)])
+                ws8.append(["Salary Annexure to Approval", doc_data.get("avg_time_salary_annexure_to_approval_days", 0)])
+                ws8.append(["Offer Letter Creation", doc_data.get("avg_time_to_offer_letter_creation_days", 0)])
+                ws8.append(["Offer Letter to Approval", doc_data.get("avg_time_offer_letter_to_approval_days", 0)])
+                ws8.append(["Offer Sent to Response", doc_data.get("avg_time_offer_letter_sent_to_response_days", 0)])
+                ws8.append(["Full Pipeline Avg", doc_data.get("full_pipeline_avg_days", 0)])
+                bottleneck = doc_data.get("bottleneck_stage", {})
+                ws8.append([])
+                ws8.append(["Bottleneck Stage", bottleneck.get("stage_name", "N/A")])
+                ws8.append(["Bottleneck Avg Days", bottleneck.get("avg_days", 0)])
+                self._style_header(ws8)
+                self._auto_width(ws8)
+            except Exception:
+                pass
 
         # ── Sheet 9: Overall KPIs ──
-        try:
-            kpi_data = self.calc_overall_summary_kpis(mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, company, (date_from, date_to))
-            ws9 = wb.create_sheet("Overall KPIs")
-            ws9.append(["Metric", "Value"])
-            ws9.append(["Total Candidates", kpi_data.get("total_candidates", 0)])
-            ws9.append(["Total Positions Filled", kpi_data.get("total_positions_filled", 0)])
-            ws9.append(["Total Positions Open", kpi_data.get("total_positions_open", 0)])
-            ws9.append(["Overall Offer Acceptance Rate (%)", kpi_data.get("overall_offer_acceptance_rate", 0)])
-            ws9.append(["Partial Joining TAT (Days)", kpi_data.get("partial_joining_tat_days", 0)])
-            ws9.append(["Final Joining TAT (Days)", kpi_data.get("final_joining_tat_days", 0)])
-            top_src = kpi_data.get("top_sourcing_channel", {})
-            ws9.append(["Top Sourcing Channel", top_src.get("source", "N/A")])
-            ws9.append(["Top Source Count", top_src.get("count", 0)])
-            ws9.append(["Active Jobs", kpi_data.get("active_jobs_count", 0)])
-            ws9.append(["Active Consultancies", kpi_data.get("active_consultancies_count", 0)])
-            ws9.append(["Active Internal HRs", kpi_data.get("active_internal_hrs_count", 0)])
-            ws9.append(["CVs Last 30 Days", kpi_data.get("cvs_last_30_days", 0)])
-            ws9.append(["Offers Last 30 Days", kpi_data.get("offers_last_30_days", 0)])
-            self._style_header(ws9)
-            self._auto_width(ws9)
-        except Exception:
-            pass
+        if 'overall_summary_kpis' in requested_sections:
+            try:
+                kpi_data = self.calc_overall_summary_kpis(mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, company, (date_from, date_to))
+                ws9 = add_sheet("Overall KPIs")
+                ws9.append(["Metric", "Value"])
+                ws9.append(["Total Candidates", kpi_data.get("total_candidates", 0)])
+                # ws9.append(["Total Positions Filled", kpi_data.get("total_positions_filled", 0)])
+                # ws9.append(["Total Positions Open", kpi_data.get("total_positions_open", 0)])
+                ws9.append(["Overall Offer Acceptance Rate (%)", kpi_data.get("overall_offer_acceptance_rate", 0)])
+                ws9.append(["Partial Joining TAT (Days)", kpi_data.get("partial_joining_tat_days", 0)])
+                ws9.append(["Final Joining TAT (Days)", kpi_data.get("final_joining_tat_days", 0)])
+                top_src = kpi_data.get("top_sourcing_channel", {})
+                ws9.append(["Top Sourcing Channel", top_src.get("source", "N/A")])
+                ws9.append(["Top Source Count", top_src.get("count", 0)])
+                ws9.append(["Active Jobs", kpi_data.get("active_jobs_count", 0)])
+                ws9.append(["Active Consultancies", kpi_data.get("active_consultancies_count", 0)])
+                ws9.append(["Active Internal HRs", kpi_data.get("active_internal_hrs_count", 0)])
+                ws9.append(["CVs Last 30 Days", kpi_data.get("cvs_last_30_days", 0)])
+                ws9.append(["Offers Last 30 Days", kpi_data.get("offers_last_30_days", 0)])
+                self._style_header(ws9)
+                self._auto_width(ws9)
+            except Exception:
+                pass
 
         # ── Sheet 10: Raw CVs Breakdown ──
-        ws10 = wb.create_sheet("CVs Breakdown")
-        cv_headers = [
-            "Date Applied", "Candidate Name", "Email", "Phone",
-            "Job Title", "Designation", "Department",
-            "Status", "BGV Status", "Source", "Submitted By",
-            "Exp (Years)", "Current CTC", "Expected CTC",
-            "Notice Period", "Match Score"
-        ]
-        ws10.append(cv_headers)
-        for app in app_qs.select_related('job', 'job__department', 'job__designation', 'submitted_by'):
-            ws10.append([
-                app.created_at.strftime('%Y-%m-%d %H:%M:%S') if app.created_at else 'N/A',
-                app.candidate_name or 'N/A',
-                app.candidate_email or 'N/A',
-                app.candidate_phone or 'N/A',
-                app.job.job_title if app.job else 'N/A',
-                app.job.designation.name if (app.job and app.job.designation) else 'N/A',
-                app.job.department.name if (app.job and app.job.department) else 'N/A',
-                app.get_status_display(),
-                app.get_bgv_status_display(),
-                app.get_source_display(),
-                (app.submitted_by.name or app.submitted_by.email) if app.submitted_by else 'N/A',
-                str(app.experience_years) if app.experience_years is not None else 'N/A',
-                app.current_ctc or 'N/A',
-                app.expected_ctc or 'N/A',
-                app.notice_period or 'N/A',
-                str(app.match_score) if app.match_score is not None else 'N/A',
-            ])
-        self._style_header(ws10)
-        self._auto_width(ws10)
+        if not requested_sections_raw or any(s in requested_sections for s in ['cv_resume_source_analytics', 'candidate_pipeline_funnel', 'overall_summary_kpis', 'cvs_breakdown']):
+            ws10 = add_sheet("CVs Breakdown")
+            cv_headers = [
+                "Date Applied", "Candidate Name", "Email", "Phone",
+                "Job Title", "Designation", "Department",
+                "Status", "BGV Status", "Source", "Submitted By",
+                "Exp (Years)", "Current CTC", "Expected CTC",
+                "Notice Period", "Match Score"
+            ]
+            ws10.append(cv_headers)
+            for app in app_qs.select_related('job', 'job__department', 'job__designation', 'submitted_by'):
+                ws10.append([
+                    app.created_at.strftime('%Y-%m-%d %H:%M:%S') if app.created_at else 'N/A',
+                    app.candidate_name or 'N/A',
+                    app.candidate_email or 'N/A',
+                    app.candidate_phone or 'N/A',
+                    app.job.job_title if app.job else 'N/A',
+                    app.job.designation.name if (app.job and app.job.designation) else 'N/A',
+                    app.job.department.name if (app.job and app.job.department) else 'N/A',
+                    app.get_status_display(),
+                    app.get_bgv_status_display(),
+                    app.get_source_display(),
+                    (app.submitted_by.name or app.submitted_by.email) if app.submitted_by else 'N/A',
+                    str(app.experience_years) if app.experience_years is not None else 'N/A',
+                    app.current_ctc or 'N/A',
+                    app.expected_ctc or 'N/A',
+                    app.notice_period or 'N/A',
+                    str(app.match_score) if app.match_score is not None else 'N/A',
+                ])
+            self._style_header(ws10)
+            self._auto_width(ws10)
+
+        # Fallback if no sheets were added
+        if not created_sheets:
+            ws_empty = add_sheet("Summary")
+            ws_empty.append(["Detail", "No data matches the selected sections or filters."])
 
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         response['Content-Disposition'] = 'attachment; filename="dashboard_analytics_export.xlsx"'
