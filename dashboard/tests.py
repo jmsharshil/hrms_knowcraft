@@ -444,3 +444,97 @@ class QueryParamFilterTests(AnalyticsTestBase):
             f'/api/dashboard/analytics/admin/?department={self.dept.id},{dept2.id}&designation={self.desig.id},{desig2.id}'
         )
         self.assertEqual(resp.status_code, 200)
+
+    def test_multiple_job_id_filters(self):
+        resp = self.client.get(f'/api/dashboard/analytics/admin/?job_id={self.job.id}')
+        self.assertEqual(resp.status_code, 200)
+
+        # Comma-separated
+        resp2 = self.client.get(f'/api/dashboard/analytics/admin/?job_id={self.job.id},{self.job.id}')
+        self.assertEqual(resp2.status_code, 200)
+
+        # job_ids parameter
+        resp3 = self.client.get(f'/api/dashboard/analytics/admin/?job_ids={self.job.id}')
+        self.assertEqual(resp3.status_code, 200)
+
+    def test_multiple_source_filters(self):
+        resp = self.client.get('/api/dashboard/analytics/admin/?source=internal_hr,consultancy')
+        self.assertEqual(resp.status_code, 200)
+
+        resp2 = self.client.get('/api/dashboard/analytics/admin/?sources=internal_hr')
+        self.assertEqual(resp2.status_code, 200)
+
+
+# ═══════════════════════════════════════════════════
+# 13. DASHBOARD EXPORT API TESTS
+# ═══════════════════════════════════════════════════
+class DashboardExportTests(AnalyticsTestBase):
+    """Verify Excel export endpoint works with filters and sections."""
+
+    def test_export_full_admin_200(self):
+        resp = self.client.get('/api/dashboard/export/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(
+            resp['Content-Type'],
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        self.assertIn('dashboard_analytics_export.xlsx', resp['Content-Disposition'])
+
+    def test_export_with_sections_filter(self):
+        resp = self.client.get('/api/dashboard/export/?sections=job_assignment_analytics,mrf_analytics')
+        self.assertEqual(resp.status_code, 200)
+
+    def test_export_with_date_and_job_filters(self):
+        d = self.target_date.strftime('%Y-%m-%d')
+        resp = self.client.get(
+            f'/api/dashboard/export/?date_from={d}&date_to={d}&job_id={self.job.id}&source=internal_hr'
+        )
+        self.assertEqual(resp.status_code, 200)
+
+    def test_hr_user_export(self):
+        self.client.force_authenticate(user=self.hr)
+        resp = self.client.get('/api/dashboard/export/')
+        self.assertEqual(resp.status_code, 200)
+
+
+# ═══════════════════════════════════════════════════
+# 14. 60+ DAYS ON HOLD AUTO-REJECT & JOB DEACTIVATION TESTS
+# ═══════════════════════════════════════════════════
+class StaleHoldDeactivationTests(AnalyticsTestBase):
+    """Verify that auto_reject_stale_held_mrfs deactivates jobs and application links."""
+
+    def test_mrf_auto_reject_deactivates_job_and_links(self):
+        from mrf.utils import auto_reject_stale_held_mrfs
+        from jobs.models import JobApplicationLink
+
+        # Put MRF on hold > 60 days ago
+        self.mrf.status = 'on_hold'
+        self.mrf.held_at = timezone.now() - timedelta(days=65)
+        self.mrf.save()
+
+        # Job is currently open and has an active link
+        self.job.is_active = True
+        self.job.status = 'open'
+        self.job.save()
+
+        link = JobApplicationLink.objects.create(
+            job=self.job,
+            platform='linkedin',
+            title='LinkedIn Link',
+            created_by=self.admin,
+            is_active=True
+        )
+
+        # Run auto-reject task
+        auto_reject_stale_held_mrfs()
+
+        # Reload MRF and Job
+        self.mrf.refresh_from_db()
+        self.job.refresh_from_db()
+        link.refresh_from_db()
+
+        self.assertEqual(self.mrf.status, 'rejected')
+        self.assertFalse(self.job.is_active, "Associated Job must be deactivated (is_active=False)")
+        self.assertEqual(self.job.status, 'closed', "Associated Job status must be 'closed'")
+        self.assertFalse(link.is_active, "Job application links must be deactivated")
+

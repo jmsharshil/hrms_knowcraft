@@ -17,6 +17,63 @@ BGV_COMPLETED_STATUSES = [
     'clear', 'verified', 'completed', 'bgv_completed', 'closed', 'unable_to_verify'
 ]
 
+DEBUG_ONBOARDING_MILESTONES = (
+    (0, 15),
+    (1, 7),
+    (2, 2),
+    (3, 0),
+    (4, -1),
+    (5, -7),
+    (6, -30),
+    (7, -45),
+    (8, -90),
+)
+
+
+def get_days_until_joining(application, now=None):
+    """Return the real or simulated joining offset for an onboarding candidate."""
+    now = now or timezone.now()
+
+    if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
+        elapsed_minutes = max(
+            int((now - application.created_at).total_seconds() // 60),
+            0,
+        )
+        days_until_joining = DEBUG_ONBOARDING_MILESTONES[0][1]
+        for milestone_minute, milestone_day in DEBUG_ONBOARDING_MILESTONES:
+            if elapsed_minutes < milestone_minute:
+                break
+            days_until_joining = milestone_day
+        logger.debug(
+            "[DEBUG MODE] Candidate %s: elapsed_minutes=%s, "
+            "mapped_days_until_joining=%s",
+            application.candidate_name,
+            elapsed_minutes,
+            days_until_joining,
+        )
+        return days_until_joining
+
+    joining_date = getattr(application, 'joining_date', None)
+    return (joining_date - now.date()).days if joining_date else 999
+
+
+def _send_manager_assignment_reminders(application):
+    if not getattr(application, 'hod_email', None):
+        logger.info(
+            "HOD not assigned for %s. Sending hod_assignment_reminder.",
+            application.candidate_name,
+        )
+        notify_internal(application, "hod_assignment_reminder")
+
+    if not getattr(application, 'reporting_manager_email', None):
+        logger.info(
+            "Reporting Manager not assigned for %s. "
+            "Sending reporting_manager_assignment_reminder.",
+            application.candidate_name,
+        )
+        notify_internal(application, "reporting_manager_assignment_reminder")
+
+
 def is_candidate_bgv_completed(application):
     """
     Check if a candidate's BGV is completed across CandidateBGV, JobApplication.bgv_status,
@@ -63,8 +120,6 @@ def daily_onboarding_check():
     """
     logger.info("Running daily_onboarding_check...")
 
-    today = timezone.now().date()
-
     # We only care about active applications that have a joining date and have accepted the offer.
     # Exclude candidates who have completed onboarding or are rejected/withdrawn.
     active_statuses = [
@@ -83,23 +138,7 @@ def daily_onboarding_check():
     # me_client = ManageEngineClient()
 
     for app in candidates:
-        if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
-            # Test Mode: Each milestone is exactly 1 minute apart.
-            # minute 0 → DOJ - 15
-            # minute 1 → DOJ -  7
-            # minute 2 → DOJ -  2
-            # minute 3 → DOJ    0
-            # minute 4 → DOJ +  1
-            # minute 5 → DOJ +  7
-            # minute 6 → DOJ + 30
-            # minute 7 → DOJ + 45
-            # minute 8 → DOJ + 90
-            _DEBUG_MINUTE_MAP = {0: 15, 1: 7, 2: 2, 3: 0, 4: -1, 5: -7, 6: -30, 7: -45, 8: -90}
-            minutes_since_creation = int((timezone.now() - app.created_at).total_seconds() / 60)
-            days_until_joining = _DEBUG_MINUTE_MAP.get(minutes_since_creation, 999)
-            logger.debug(f"[DEBUG MODE] Candidate {app.candidate_name}: minutes_since_creation={minutes_since_creation}, mapped_days_until_joining={days_until_joining}")
-        else:
-            days_until_joining = (app.joining_date - today).days if app.joining_date else 999
+        days_until_joining = get_days_until_joining(app)
 
         # Gate: The onboarding task milestones will ONLY start after the onboarding initiation form is filled.
         # For candidates who have already joined, the initiation reminder email should NOT be sent.
@@ -111,6 +150,19 @@ def daily_onboarding_check():
                 # Send reminder until it is filled
                 notify_internal(app, "onboarding_initiation_reminder")
                 continue
+
+        if days_until_joining <= 0 and not getattr(app, 'is_joining_day_manager_email_sent', False):
+            if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
+                logger.info(
+                    "Skipping joining-day manager email for %s while onboarding debug mode is enabled.",
+                    app.candidate_name,
+                )
+            else:
+                from .joining_manager_email import send_joining_day_manager_email
+
+                if send_joining_day_manager_email(app):
+                    app.is_joining_day_manager_email_sent = True
+                    app.save(update_fields=['is_joining_day_manager_email_sent'])
 
         # ── DOJ - 15 Days ───────────────────────────────────────
         if days_until_joining <= 15 and not getattr(app, 'is_doj_minus_15_triggered', False) and app.status != "joined":
@@ -125,10 +177,7 @@ def daily_onboarding_check():
             # Send Email to IT Team
             notify_internal(app, "doj_minus_15_it_team")
 
-            # Remind HR to assign HOD if not yet set
-            if not getattr(app, 'hod', None):
-                logger.info(f"HOD not assigned for {app.candidate_name} at DOJ -15. Sending hod_assignment_reminder.")
-                notify_internal(app, "hod_assignment_reminder")
+            _send_manager_assignment_reminders(app)
 
             create_milestone_tasks(app, "DOJ_MINUS_15", app.joining_date)
             app.is_doj_minus_15_triggered = True
@@ -418,20 +467,12 @@ def run_onboarding_check_for_candidate(app):
         logger.error(f"[ADMIN ACTION] Candidate {app.candidate_name} has no joining date.")
         return 999
         
-    today = timezone.now().date()
-    
-    if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
-        _DEBUG_MINUTE_MAP = {0: 15, 1: 7, 2: 2, 3: 0, 4: -1, 5: -7, 6: -30, 7: -45, 8: -90}
-        minutes_since_creation = int((timezone.now() - app.created_at).total_seconds() / 60)
-        days_until_joining = _DEBUG_MINUTE_MAP.get(minutes_since_creation, 999)
-        logger.debug(
-            f"[ADMIN ACTION - DEBUG MODE] {app.candidate_name}: minutes_since_creation={minutes_since_creation}, mapped_days_until_joining={days_until_joining}"
-        )
-    else:
-        days_until_joining = (joining_date - today).days
-        logger.debug(
-            f"[ADMIN ACTION] {app.candidate_name}: days_until_joining={days_until_joining}"
-        )
+    days_until_joining = get_days_until_joining(app)
+    logger.debug(
+        "[ADMIN ACTION] %s: days_until_joining=%s",
+        app.candidate_name,
+        days_until_joining,
+    )
 
     # ── DOJ - 15 Days ───────────────────────────────────────────────────────
     if days_until_joining <= 15 and not getattr(app, 'is_doj_minus_15_triggered', False) and app.status != "joined":
@@ -442,6 +483,7 @@ def run_onboarding_check_for_candidate(app):
         #         note += " (Remote joiner: VPN setup task required)."
         #     me_client.update_ticket(app.it_ticket_ref, {}, note=note)
         notify_internal(app, "doj_minus_15_it_team")
+        _send_manager_assignment_reminders(app)
         create_milestone_tasks(app, "DOJ_MINUS_15", joining_date)
         app.is_doj_minus_15_triggered = True
         app.save(update_fields=['is_doj_minus_15_triggered'])

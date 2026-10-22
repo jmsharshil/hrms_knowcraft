@@ -1125,6 +1125,8 @@ def auto_reject_stale_held_mrfs():
     now = timezone.now()
     count = 0
 
+    from jobs.models import Job, JobAssignmentHistory
+
     for mrf in stale_mrfs:
         approver = mrf.held_by or mrf.requested_by
         try:
@@ -1139,6 +1141,31 @@ def auto_reject_stale_held_mrfs():
                     'status', 'rejected_at', 'hold_reason',
                     'previous_status', 'held_at', 'held_by', 'updated_at'
                 ])
+
+                # Deactivate associated Job if exists
+                job = getattr(mrf, 'job', None)
+                if job:
+                    job.is_active = False
+                    job.status = 'closed'
+                    job.closure_notes = REJECTION_REASON
+                    job.closed_at = now
+                    job.held_at = None
+                    job.hold_reason = ''
+                    job.previous_status = None
+                    job.save(update_fields=[
+                        'is_active', 'status', 'closure_notes', 'closed_at',
+                        'held_at', 'hold_reason', 'previous_status', 'updated_at'
+                    ])
+                    job.application_links.filter(is_active=True).update(is_active=False)
+                    try:
+                        JobAssignmentHistory.objects.create(
+                            job=job,
+                            action='closed',
+                            performed_by=None,
+                            notes=REJECTION_REASON
+                        )
+                    except Exception:
+                        pass
 
                 MRFApproval.objects.create(
                     company=mrf.company,
@@ -1181,6 +1208,39 @@ def auto_reject_stale_held_mrfs():
             count += 1
         except Exception as e:
             print(f"[AUTO-REJECT] Failed for MRF {mrf.id}: {e}")
+
+    # Also deactivate any remaining jobs that have been on hold for > 60 days
+    stale_jobs = Job.objects.filter(
+        status='on_hold',
+        held_at__lt=cutoff,
+        is_active=True
+    )
+    for job in stale_jobs:
+        try:
+            with transaction.atomic():
+                job.is_active = False
+                job.status = 'closed'
+                job.closure_notes = REJECTION_REASON
+                job.closed_at = now
+                job.held_at = None
+                job.hold_reason = ''
+                job.previous_status = None
+                job.save(update_fields=[
+                    'is_active', 'status', 'closure_notes', 'closed_at',
+                    'held_at', 'hold_reason', 'previous_status', 'updated_at'
+                ])
+                job.application_links.filter(is_active=True).update(is_active=False)
+                try:
+                    JobAssignmentHistory.objects.create(
+                        job=job,
+                        action='closed',
+                        performed_by=None,
+                        notes=REJECTION_REASON
+                    )
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"[AUTO-REJECT] Failed to deactivate Job {job.id}: {e}")
 
     print(f"[AUTO-REJECT] Auto-rejected {count} stale on-hold MRF(s).")
     return count

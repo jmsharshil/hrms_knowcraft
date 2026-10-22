@@ -706,6 +706,7 @@ class JobApplication(models.Model):
     is_doj_minus_7_triggered = models.BooleanField(default=False)
     is_doj_minus_2_triggered = models.BooleanField(default=False)
     is_doj_0_triggered = models.BooleanField(default=False)
+    is_joining_day_manager_email_sent = models.BooleanField(default=False)
     is_doj_7_triggered = models.BooleanField(default=False)
     is_doj_45_triggered = models.BooleanField(default=False)
 
@@ -808,14 +809,34 @@ class JobApplication(models.Model):
     feedback_link = models.TextField(null=True,blank=True)
     round_name = models.CharField(null=True,blank=True,choices=INTERVIEW_CHOICES)
 
-    # Head of Department – overrides MRF requested_by for onboarding emails
-    hod = models.ForeignKey(
-        'accounts.User',
-        on_delete=models.SET_NULL,
+    # Head of Department email – used for onboarding notifications
+    hod_email = models.EmailField(
         null=True,
         blank=True,
-        related_name='hod_applications',
-        help_text='Head of Department for this hire. If set, onboarding emails go here instead of the MRF requester.'
+        help_text='HOD email for this hire. If set, onboarding emails go here instead of the MRF requester.'
+    )
+
+    # Reporting Manager email
+    reporting_manager_email = models.EmailField(
+        null=True,
+        blank=True,
+        help_text='Reporting Manager email for this hire.'
+    )
+
+    # Team name / unit
+    team = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text='Team or unit this candidate will join.'
+    )
+
+    # Shift timings
+    shift_timings = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text='Shift timings for this hire (e.g. 9 AM – 6 PM).'
     )
 
     class Meta:
