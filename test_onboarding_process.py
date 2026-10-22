@@ -84,21 +84,16 @@ def test_full_onboarding():
     print("\nRunning simulated cron checks...\n")
     
     # 3. Simulate time progression
-    # In debug mode:
-    # minute 0: DOJ-15
-    # minute 8: DOJ-7
-    # minute 13: DOJ-2
-    # minute 15: DOJ (0)
-    # minute 22: DOJ+7
-    # minute 45: DOJ+30
-    # minute 60: DOJ+45
-    # minute 105: DOJ+90
+    # In debug mode, each elapsed minute advances to the next milestone:
+    # minute 0: DOJ-15, 1: DOJ-7, 2: DOJ-2, 3: DOJ,
+    # 4: DOJ+1, 5: DOJ+7, 6: DOJ+30, 7: DOJ+45, 8: DOJ+90.
+    key_minutes = list(range(9))
+    milestone_labels = [
+        "DOJ-15", "DOJ-7", "DOJ-2", "DOJ",
+        "DOJ+1", "DOJ+7", "DOJ+30", "DOJ+45", "DOJ+90",
+    ]
     
-    key_minutes = [0, 8, 13, 15, 22, 45, 60, 105]
-    
-    base_time = candidate.created_at
-    
-    for minutes_passed in range(0, 106):
+    for minutes_passed in range(9):
         # We physically shift time backwards to make it look like created_at is older
         # so when daily_onboarding_check calls timezone.now(), the difference is `minutes_passed`.
         # Alternatively, since we can't easily mock timezone.now() globally without a library,
@@ -108,10 +103,13 @@ def test_full_onboarding():
         candidate.save(update_fields=['created_at'])
         
         if minutes_passed in key_minutes:
-            print(f"\n--- Minute {minutes_passed} (Simulated day {(minutes_passed - 15)}) ---")
+            print(
+                f"\n--- Minute {minutes_passed} "
+                f"({milestone_labels[minutes_passed]}) ---"
+            )
             
             # For D45 and D90, we also need to fake scheduled calls if we want to bypass the scheduler check
-            if minutes_passed == 60: # DOJ + 45
+            if minutes_passed == 7: # DOJ + 45
                 print("Simulating HR scheduling the D45 Call...")
                 # We do what the ScheduleD45CallAPI does
                 from onboarding.models import OnboardingCall
@@ -127,7 +125,7 @@ def test_full_onboarding():
                 candidate.is_d45_call_scheduled = True
                 candidate.save(update_fields=['is_d45_call_scheduled'])
                 
-            if minutes_passed == 105: # DOJ + 90
+            if minutes_passed == 8: # DOJ + 90
                 print("Simulating HR scheduling the D90 Call...")
                 from onboarding.models import OnboardingCall
                 OnboardingCall.objects.create(
