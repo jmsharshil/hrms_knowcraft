@@ -212,7 +212,19 @@ def sync_mrf_to_job_status(sender, instance, created, **kwargs):
             job.save(update_fields=['previous_status', 'held_at', 'hold_reason', 'status'])
 
     elif previous_status == 'on_hold' and instance.status != 'on_hold':
-        if job.status == 'on_hold':
+        if instance.status == 'rejected':
+            # Do NOT restore job if MRF was rejected. Deactivate it.
+            if job.status == 'on_hold' or job.is_active:
+                job.is_active = False
+                job.status = 'closed'
+                job.closure_notes = getattr(instance, 'rejection_reason', None) or 'MRF was rejected while on hold.'
+                job.closed_at = timezone.now()
+                job.held_at = None
+                job.hold_reason = ''
+                job.previous_status = None
+                job.save(update_fields=['is_active', 'status', 'closure_notes', 'closed_at', 'held_at', 'hold_reason', 'previous_status', 'updated_at'])
+                job.application_links.filter(is_active=True).update(is_active=False)
+        elif job.status == 'on_hold':
             restore_status = job.previous_status or 'open'
             job.status = restore_status
             job.previous_status = None

@@ -93,8 +93,12 @@ def sync_job_status_to_links(sender, instance, created, **kwargs):
         print(f"Deactivated {updated_count} links for on-hold Job {instance.id}")
 
     elif previous_status == 'on_hold' and instance.status != 'on_hold':
-        updated_count = links.update(is_active=True)
-        print(f"Reactivated {updated_count} links for resumed Job {instance.id}")
+        if instance.is_active and instance.status not in ['closed', 'cancelled', 'filled']:
+            updated_count = links.update(is_active=True)
+            print(f"Reactivated {updated_count} links for resumed Job {instance.id}")
+        else:
+            updated_count = links.filter(is_active=True).update(is_active=False)
+            print(f"Kept/Deactivated {updated_count} links for terminated Job {instance.id}")
 
 # @receiver(pre_save, sender=Job)
 # def handle_job_expiry_revert(sender, instance, **kwargs):

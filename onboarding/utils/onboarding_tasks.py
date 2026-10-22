@@ -112,6 +112,19 @@ def daily_onboarding_check():
                 notify_internal(app, "onboarding_initiation_reminder")
                 continue
 
+        if days_until_joining <= 0 and not getattr(app, 'is_joining_day_manager_email_sent', False):
+            if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
+                logger.info(
+                    "Skipping joining-day manager email for %s while onboarding debug mode is enabled.",
+                    app.candidate_name,
+                )
+            else:
+                from .joining_manager_email import send_joining_day_manager_email
+
+                if send_joining_day_manager_email(app):
+                    app.is_joining_day_manager_email_sent = True
+                    app.save(update_fields=['is_joining_day_manager_email_sent'])
+
         # ── DOJ - 15 Days ───────────────────────────────────────
         if days_until_joining <= 15 and not getattr(app, 'is_doj_minus_15_triggered', False) and app.status != "joined":
             logger.info(f"DOJ - 15 for candidate {app.candidate_name}. Updating ME ticket.")
