@@ -119,6 +119,26 @@ def send_joining_day_manager_email(application):
         )
         return False
 
+    candidate_email = (
+        getattr(application, "work_email", None)
+        or getattr(application, "candidate_email", None)
+        or ""
+    ).strip()
+    if not candidate_email:
+        logger.warning(
+            "Cannot send joining-day manager email for application %s: candidate email is missing.",
+            application.pk,
+        )
+        return False
+    try:
+        validate_email(candidate_email)
+    except ValidationError:
+        logger.warning(
+            "Cannot send joining-day manager email for application %s: candidate email is invalid.",
+            application.pk,
+        )
+        return False
+
     manager_values = {
         "HOD": getattr(application, "hod_email", None),
         "team manager": getattr(onboarding_form, "team_manager", None),
@@ -189,14 +209,14 @@ def send_joining_day_manager_email(application):
     subject = f"Joining Day Information - {candidate_name}"
     send_attempted_at = timezone.now()
     send_email(
-        to=recipient_emails[0],
-        cc=recipient_emails[1:],
+        to=candidate_email,
+        cc=recipient_emails,
         subject=subject,
         text=text,
         template=html,
         use_default_cc=False,
         event="joining_day_manager_notification",
-        email_type="internal",
+        email_type="candidate",
         candidate=application,
     )
 
@@ -207,7 +227,7 @@ def send_joining_day_manager_email(application):
             candidate=application,
             event="joining_day_manager_notification",
             subject=subject,
-            recipient_email=recipient_emails[0],
+            recipient_email=candidate_email,
             sent_at__gte=send_attempted_at,
         ).order_by("-sent_at").first()
     except DatabaseError:
