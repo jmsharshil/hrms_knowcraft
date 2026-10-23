@@ -18,11 +18,11 @@ def _seconds_until_next_friday_630pm():
     today's 18:30.  If it is Friday at/after 18:30 the next Friday
     (7 days later) is targeted instead.
     """
-    import pytz
-    from datetime import datetime, time as dt_time
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
 
-    IST = pytz.timezone("Asia/Kolkata")
-    now_ist = datetime.now(IST)
+    ist = ZoneInfo("Asia/Kolkata")
+    now_ist = datetime.now(ist)
 
     # weekday(): Monday=0 … Friday=4 … Sunday=6
     days_ahead = (4 - now_ist.weekday()) % 7          # 0 if today is Friday
@@ -33,7 +33,6 @@ def _seconds_until_next_friday_630pm():
         # Already past 18:30 on Friday — aim for next Friday
         days_ahead = 7
 
-    from datetime import timedelta
     target += timedelta(days=days_ahead)
 
     delay = (target - now_ist).total_seconds()
@@ -51,7 +50,10 @@ class SchedulerConfig(AppConfig):
 
     def ready(self):
         # Prevent during management commands
-        ignored_commands = ["test", "makemigrations", "migrate", "showmigrations"]
+        ignored_commands = [
+            "test", "makemigrations", "migrate", "showmigrations",
+            "collectstatic", "reconcile_tasks", "check", "check_migrations",
+        ]
         if any(cmd in sys.argv for cmd in ignored_commands):
             return
 
@@ -80,32 +82,34 @@ class SchedulerConfig(AppConfig):
         self._register_tasks()
 
         # ── Reconcile incomplete tasks from DB ───────────────────
-        # Use on_commit or a short delay to ensure DB is ready
-        from django.db import connection
         from onboarding.utils.task_queue import TASK_QUEUE
 
-        def _startup_reconcile():
-            """Run reconciliation + re-arm future timers on startup."""
+        def _startup():
+            """Run coordinated recovery and start this worker's poller."""
+            from django.db import close_old_connections
             from .services import TaskScheduler
 
-            print("[SCHEDULER APP] Running startup reconciliation...")
+            close_old_connections()
 
-            # ── Ensure recurring system tasks exist FIRST ────────
-            # Must run before reconcile() so the singleton guard blocks
-            # duplicate creation when reconcile() completes an existing task.
-            self._ensure_recurring_tasks()
+            def _coordinate_startup():
+                print("[SCHEDULER APP] Running startup reconciliation...")
+                self._ensure_recurring_tasks()
+                TaskScheduler.reconcile()
+                TaskScheduler.reschedule_future_pending()
 
-            # ── Reconcile missed/stuck tasks from DB ─────────────
-            TaskScheduler.reconcile()
-            TaskScheduler.reschedule_future_pending()
-
-            # ── Start periodic reconciliation (every 30 minutes) ─
-            self._start_periodic_reconciliation()
-
-            print("[SCHEDULER APP] Startup complete.")
+            try:
+                if TaskScheduler.run_if_coordinator(_coordinate_startup):
+                    print("[SCHEDULER APP] Startup reconciliation complete.")
+            except Exception:
+                logger.exception("[SCHEDULER APP] Startup reconciliation failed.")
+            finally:
+                # Each worker has a poller; the shared PostgreSQL advisory lock
+                # ensures only one worker reconciles at a time.
+                self._start_background_poller()
+                close_old_connections()
 
         # Enqueue so it runs after Django is fully loaded
-        TASK_QUEUE.enqueue(_startup_reconcile)
+        TASK_QUEUE.enqueue(_startup)
 
     def _register_tasks(self):
         """Register all task_type → callable mappings."""
@@ -273,28 +277,30 @@ class SchedulerConfig(AppConfig):
                 max_retries=cfg["max_retries"],
             )
 
-    def _start_periodic_reconciliation(self):
+    def _start_background_poller(self):
         """
-        Every 30 minutes, run reconcile() to catch any missed tasks
-        (e.g. timers that silently failed, DB rows from external tools).
+        Start a poller in this worker. A PostgreSQL advisory lock ensures only
+        one Gunicorn worker reconciles tasks during each polling interval.
         """
         import threading
+        import time
+        from django.db import close_old_connections
         from .services import TaskScheduler
-        from onboarding.utils.task_queue import TASK_QUEUE
 
-        RECONCILE_INTERVAL = 1800  # 30 minutes
+        def _poller_worker():
+            print("[SCHEDULER POLLER] Dedicated poller thread started (polling every 30s).")
+            # Wait 5 seconds before first poll to let Django finish booting
+            time.sleep(5)
+            while True:
+                try:
+                    close_old_connections()
+                    TaskScheduler.run_if_coordinator(TaskScheduler.reconcile)
+                except Exception as exc:
+                    logger.exception("[SCHEDULER POLLER] Exception during task poll: %s", exc)
+                finally:
+                    close_old_connections()
+                time.sleep(30)
 
-        def _reconcile_loop():
-            TASK_QUEUE.enqueue(TaskScheduler.reconcile)
-            # Re-arm
-            timer = threading.Timer(RECONCILE_INTERVAL, _reconcile_loop)
-            timer.daemon = True
-            timer.start()
-
-        timer = threading.Timer(RECONCILE_INTERVAL, _reconcile_loop)
-        timer.daemon = True
-        timer.start()
-        print(
-            f"[SCHEDULER APP] Periodic reconciliation armed "
-            f"(every {RECONCILE_INTERVAL}s)."
-        )
+        t = threading.Thread(target=_poller_worker, name="TaskSchedulerPoller", daemon=True)
+        t.start()
+        print("[SCHEDULER APP] Background poller daemon armed (every 30s).")

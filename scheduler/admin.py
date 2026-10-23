@@ -73,9 +73,33 @@ def cancel_all_feedback_reminders(modeladmin, request, queryset):
     )
 
 
+@admin.action(description="Reconcile and run overdue pending tasks")
+def reconcile_due_tasks(modeladmin, request, queryset):
+    """
+    Triggers a coordinated reconciliation of overdue pending tasks.
+    """
+    from django.apps import apps
+    sched_app = apps.get_app_config("scheduler")
+
+    def reconcile():
+        sched_app._ensure_recurring_tasks()
+        TaskScheduler.reconcile()
+        TaskScheduler.reschedule_future_pending()
+
+    coordinated = TaskScheduler.run_if_coordinator(reconcile)
+    modeladmin.message_user(
+        request,
+        (
+            "Overdue task reconciliation completed."
+            if coordinated
+            else "Another worker is currently reconciling tasks."
+        )
+    )
+
+
 @admin.register(ScheduledTask)
 class ScheduledTaskAdmin(admin.ModelAdmin):
-    actions = [cancel_tasks, restart_tasks, cancel_all_feedback_reminders]
+    actions = [reconcile_due_tasks, restart_tasks, cancel_tasks, cancel_all_feedback_reminders]
     list_display = [
         "task_type",
         "status",
@@ -97,4 +121,3 @@ class ScheduledTaskAdmin(admin.ModelAdmin):
         "completed_at",
     ]
     ordering = ["-created_at"]
-

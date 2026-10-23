@@ -20,6 +20,8 @@ class BackgroundTaskQueue:
         self.queue.put({"fn": fn, "args": args, "kwargs": kwargs, "attempt": 1})
 
     def _worker(self):
+        from django.db import close_old_connections
+
         while True:
             task = self.queue.get()
 
@@ -27,22 +29,26 @@ class BackgroundTaskQueue:
             args = task["args"]
             kwargs = task["kwargs"]
             attempt = task["attempt"]
+            fn_name = getattr(fn, "__name__", str(fn))
 
             try:
+                close_old_connections()
                 fn(*args, **kwargs)
-                logger.info(f"[TASK] Completed {fn.__name__}")
+                logger.info(f"[TASK] Completed {fn_name}")
             except Exception as e:
-                logger.error(f"[TASK] Failed {fn.__name__}: {e}")
+                logger.error(f"[TASK] Failed {fn_name}: {e}", exc_info=True)
+                close_old_connections()
 
                 if attempt < self.max_retries:
                     task["attempt"] += 1
-                    logger.info(f"[TASK] Retrying ({attempt}/{self.max_retries})...")
+                    logger.info(f"[TASK] Retrying {fn_name} ({attempt}/{self.max_retries})...")
                     time.sleep(2 ** attempt)
                     self.queue.put(task)
                 else:
-                    logger.error(f"[TASK] Max retries reached for {fn.__name__}")
-
-            self.queue.task_done()
+                    logger.error(f"[TASK] Max retries reached for {fn_name}")
+            finally:
+                close_old_connections()
+                self.queue.task_done()
 
 
 # global background queue
