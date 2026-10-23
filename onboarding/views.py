@@ -31,6 +31,7 @@ from accounts.models import User
 from django.conf import settings
 from dateutil import parser
 from django.utils import timezone
+from bgv.models import CandidateBGV
 logger = logging.getLogger(__name__)
 
 FRONTEND_URL = getattr(settings,"FRONTEND_URL")
@@ -2107,6 +2108,7 @@ class ApplicationDocumentSectionsAPI(APIView):
             "experience": [],
             "onboarding": [],
             "offers": [],
+            "bgv": [],
             "other": [],
         }
 
@@ -2141,6 +2143,15 @@ class ApplicationDocumentSectionsAPI(APIView):
                     ),
                 })
 
+        bgv_record = CandidateBGV.objects.filter(candidate=application).first()
+        if bgv_record and bgv_record.report_url:
+            sections["bgv"].append({
+                "key": "report",
+                "name": "BGV report",
+                "url": bgv_record.report_url,
+                "status": bgv_record.status,
+            })
+
         onboarding_form = getattr(application, "onboarding_form", None)
         if onboarding_form:
             for attachment in onboarding_form.attachments.all():
@@ -2150,6 +2161,15 @@ class ApplicationDocumentSectionsAPI(APIView):
                     "name": attachment.name or attachment.file.name.rsplit("/", 1)[-1],
                     "url": self._file_url(request, attachment.file),
                     "uploaded_at": attachment.uploaded_at,
+                })
+
+        for call in application.onboarding_calls.all():
+            if call.transcript_file:
+                sections["onboarding"].append({
+                    "id": str(call.id),
+                    "key": f"{call.call_type}_transcript",
+                    "name": f"{call.get_call_type_display()} transcript",
+                    "url": self._file_url(request, call.transcript_file),
                 })
 
         esign_documents = DocumentEsignTask.objects.filter(

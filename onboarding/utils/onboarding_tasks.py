@@ -30,6 +30,54 @@ DEBUG_ONBOARDING_MILESTONES = (
 )
 
 
+def remind_call_owners_for_missing_materials(now=None):
+    from onboarding.models import EmailLog, OnboardingCall
+    from onboarding.utils.sender import send_email
+
+    now = now or timezone.now()
+    calls = OnboardingCall.objects.filter(
+        end_time__isnull=False,
+        end_time__lte=now,
+    ).select_related("job_application")
+
+    for call in calls:
+        missing_materials = []
+        if not call.mom_notes.strip():
+            missing_materials.append("MOM notes")
+        if not call.transcript_file:
+            missing_materials.append("the call transcript")
+        owner_email = (call.organizer_email or "").strip()
+        if not missing_materials or not owner_email:
+            continue
+
+        candidate_name = call.job_application.candidate_name
+        call_name = call.get_call_type_display()
+        missing_list = ", ".join(missing_materials)
+        completed_at = call.end_time.isoformat()
+        subject = f"Reminder: {call_name} materials for {candidate_name} ({completed_at})"
+        if EmailLog.objects.filter(
+            recipient_email=owner_email,
+            subject=subject,
+            event="onboarding_call_material_reminder",
+            candidate=call.job_application,
+            status="sent",
+        ).exists():
+            continue
+
+        send_email(
+            to=owner_email,
+            subject=subject,
+            text=(
+                f"Please upload {missing_list} for {candidate_name}'s "
+                f"{call_name.lower()}."
+            ),
+            event="onboarding_call_material_reminder",
+            email_type="internal",
+            candidate=call.job_application,
+            use_default_cc=False,
+        )
+
+
 def get_days_until_joining(application, now=None):
     """Return the real or simulated joining offset for an onboarding candidate."""
     now = now or timezone.now()
@@ -119,6 +167,7 @@ def daily_onboarding_check():
     and trigger actions + auto-generate OnboardingTask records based on (joining_date - today).
     """
     logger.info("Running daily_onboarding_check...")
+    remind_call_owners_for_missing_materials()
 
     # We only care about active applications that have a joining date and have accepted the offer.
     # Exclude candidates who have completed onboarding or are rejected/withdrawn.
