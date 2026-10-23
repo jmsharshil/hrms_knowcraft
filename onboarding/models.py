@@ -773,6 +773,12 @@ class OnboardingCall(models.Model):
     
     meeting_id = models.CharField(max_length=512, blank=True, null=True)
     meeting_link = models.TextField(blank=True, null=True)
+    mom_notes = models.TextField(blank=True)
+    transcript_file = models.FileField(
+        upload_to="onboarding/call_transcripts/",
+        null=True,
+        blank=True,
+    )
     
     created_at = models.DateTimeField(default=timezone.now)
 
@@ -862,6 +868,7 @@ class DocumentEsignTask(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
  
     source_file = models.FileField(upload_to="onboarding/esign_source/", null=True, blank=True)
+    signed_file = models.FileField(upload_to="onboarding/esign_signed/", null=True, blank=True)
  
     # Zoho Sign — same shape as OfferDocument
     zoho_request_id = models.CharField(max_length=255, null=True, blank=True)
@@ -886,3 +893,18 @@ class DocumentEsignTask(models.Model):
  
     def __str__(self):
         return f"{self.get_doc_type_display()} - {self.job_application.candidate_name} ({self.status})"
+
+    def reset_signature_state(self):
+        if self.signed_file:
+            self.signed_file.delete(save=False)
+        self.signed_file = None
+        self.status = "ready"
+        self.zoho_request_id = None
+        self.zoho_document_id = None
+        self.raw_response = None
+        self.sent_at = None
+        self.viewed_at = None
+        self.signed_at = None
+        self.completed_at = None
+        self.reminder_sent_at = None
+        self.decline_reason = None

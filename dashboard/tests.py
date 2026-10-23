@@ -2,6 +2,8 @@
 Django test cases for Analytics API date filters and all sections.
 """
 from datetime import datetime, date, time, timedelta
+from io import BytesIO
+import openpyxl
 from django.test import TestCase
 from django.utils import timezone
 from django.db.models import Q
@@ -12,7 +14,15 @@ from accounts.models import Company, User
 from mrf.models import Department, Designation, MRF, WorkflowTemplate, ApprovalWorkflow
 from jobs.models import Job, JobApplication
 from slots.models import InterviewFeedback, Interviewer
-from onboarding.models import ApprovalNote, JobApplicationDocument, OfferDocument
+from onboarding.models import (
+    ApprovalNote,
+    JobApplicationDocument,
+    OfferDocument,
+    OnboardingCall,
+    OnboardingTask,
+    OnboardingTaskList,
+    SurveyResponse,
+)
 
 
 class AnalyticsTestBase(TestCase):
@@ -236,7 +246,8 @@ class AnalyticsSectionSmokeTests(AnalyticsTestBase):
     SECTIONS = [
         'mrf_analytics', 'job_assignment_analytics', 'cv_resume_source_analytics',
         'candidate_pipeline_funnel', 'interview_round_time_analytics',
-        'approval_note_analytics', 'document_offer_process_timeline', 'overall_summary_kpis',
+        'approval_note_analytics', 'document_offer_process_timeline',
+        'onboarding_analytics', 'overall_summary_kpis',
     ]
 
     def test_admin_full_response_200(self):
@@ -262,6 +273,52 @@ class AnalyticsSectionSmokeTests(AnalyticsTestBase):
     def test_user_details_present(self):
         resp = self.client.get('/api/dashboard/analytics/admin/')
         self.assertIn('user_details', resp.json())
+
+    def test_onboarding_analytics_includes_surveys_calls_and_tasks(self):
+        SurveyResponse.objects.create(
+            job_application=self.app_joined,
+            survey_type='30_day_candidate',
+            respondent_name='Joined',
+            respondent_email='joined@example.com',
+            responses={'overall_rating': 5, 'comments': 'Great onboarding'},
+            submitted_at=timezone.make_aware(datetime.combine(self.target_date, time(12, 0))),
+        )
+        OnboardingCall.objects.create(
+            job_application=self.app_joined,
+            call_type='d45',
+            organizer_email='hr@test.com',
+            start_time=timezone.make_aware(datetime.combine(self.target_date, time(13, 0))),
+            end_time=timezone.make_aware(datetime.combine(self.target_date, time(13, 30))),
+            meeting_id='meeting-123',
+            meeting_link='https://example.com/meeting',
+        )
+        task_list = OnboardingTaskList.objects.create(
+            job_application=self.app_joined,
+            name='First month checklist',
+        )
+        OnboardingTask.objects.create(
+            task_list=task_list,
+            title='Complete orientation',
+            status='completed',
+            assigned_to=self.hr,
+        )
+
+        response = self.client.get(
+            '/api/dashboard/analytics/admin/?sections=onboarding_analytics'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        onboarding = response.json()['onboarding_analytics']
+        self.assertEqual(onboarding['surveys']['total_responses'], 1)
+        self.assertEqual(onboarding['surveys']['details'][0]['responses']['overall_rating'], 5)
+        self.assertEqual(onboarding['calls']['total_calls'], 1)
+        self.assertEqual(onboarding['calls']['details'][0]['meeting_id'], 'meeting-123')
+        self.assertEqual(onboarding['tasks']['total_tasks'], 1)
+        completed = next(
+            item for item in onboarding['tasks']['by_status']
+            if item['status'] == 'completed'
+        )
+        self.assertEqual(completed['count'], 1)
 
 
 # ═══════════════════════════════════════════════════
@@ -481,8 +538,12 @@ class DashboardExportTests(AnalyticsTestBase):
         self.assertIn('dashboard_analytics_export.xlsx', resp['Content-Disposition'])
 
     def test_export_with_sections_filter(self):
-        resp = self.client.get('/api/dashboard/export/?sections=job_assignment_analytics,mrf_analytics')
+        resp = self.client.get(
+            '/api/dashboard/export/?sections=job_assignment_analytics,mrf_analytics,onboarding_analytics'
+        )
         self.assertEqual(resp.status_code, 200)
+        workbook = openpyxl.load_workbook(BytesIO(resp.content), read_only=True)
+        self.assertIn('Onboarding', workbook.sheetnames)
 
     def test_export_with_date_and_job_filters(self):
         d = self.target_date.strftime('%Y-%m-%d')
@@ -537,4 +598,3 @@ class StaleHoldDeactivationTests(AnalyticsTestBase):
         self.assertFalse(self.job.is_active, "Associated Job must be deactivated (is_active=False)")
         self.assertEqual(self.job.status, 'closed', "Associated Job status must be 'closed'")
         self.assertFalse(link.is_active, "Job application links must be deactivated")
-

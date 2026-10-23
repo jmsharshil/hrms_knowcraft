@@ -9,7 +9,7 @@ from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.template import Template, Context
 from django.db.models import Exists, OuterRef, Q
-from .models import JobApplicationDocument,ApprovalNote,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog, OnboardingTask, OnboardingTaskList, DocumentEsignTask
+from .models import JobApplicationDocument,ApprovalNote,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog, OnboardingTask, OnboardingTaskList, DocumentEsignTask, OfferDocument
 from onboarding.utils.engine import automation_engine
 from .utils.sender import send_email,send_text,send_document
 from .serializers import (
@@ -2048,6 +2048,153 @@ class DownloadJobApplicationDocumentsView(APIView):
         except Exception as e:
             return HttpResponse(f'Error creating zip file: {str(e)}', status=404)
 
+
+class ApplicationDocumentSectionsAPI(APIView):
+    """Return a candidate's uploaded and signed documents grouped by category."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    DOCUMENT_SECTIONS = {
+        "resume": "candidate_profile",
+        "resume_report": "candidate_profile",
+        "aadhaar": "personal",
+        "pan": "personal",
+        "passport": "personal",
+        "photograph": "personal",
+        "address_proof": "personal",
+        "salary_slip_1": "employment",
+        "salary_slip_2": "employment",
+        "salary_slip_3": "employment",
+        "bank_statement": "employment",
+        "resignation_letter": "employment",
+        "resignation_acceptance": "employment",
+        "tenth_certificate": "education",
+        "twelfth_certificate": "education",
+        "graduation_certificate": "education",
+        "post_graduation_certificate": "education",
+        "additional_certificate_1": "education",
+        "additional_certificate_2": "education",
+        "additional_certificate_3": "education",
+        "experience_letter_1": "experience",
+        "experience_letter_2": "experience",
+        "offer_letter_1": "experience",
+        "offer_letter_2": "experience",
+        "relieving_letter": "experience",
+        "increment_letter": "experience",
+        "salary_annexure": "onboarding",
+        "created_offer_letter": "offers",
+    }
+
+    def _file_url(self, request, file_field):
+        return request.build_absolute_uri(file_field.url) if file_field else None
+
+    def get(self, request, id):
+        if request.user.role not in {"admin", "hr_manager", "hr"}:
+            return Response(
+                {"detail": "You do not have permission to view onboarding documents."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        application = get_object_or_404(
+            JobApplication.objects.select_related("job"),
+            id=id,
+            job__company_id=request.user.company_id,
+        )
+        sections = {
+            "candidate_profile": [],
+            "personal": [],
+            "employment": [],
+            "education": [],
+            "experience": [],
+            "onboarding": [],
+            "offers": [],
+            "other": [],
+        }
+
+        for field_name in ("resume", "resume_report"):
+            file_field = getattr(application, field_name)
+            if file_field:
+                sections["candidate_profile"].append({
+                    "key": field_name,
+                    "name": file_field.name.rsplit("/", 1)[-1],
+                    "url": self._file_url(request, file_field),
+                })
+
+        application_documents = JobApplicationDocument.objects.filter(
+            job_application=application
+        ).first()
+        if application_documents:
+            for model_field in application_documents._meta.get_fields():
+                if not isinstance(model_field, FileField):
+                    continue
+                file_field = getattr(application_documents, model_field.name)
+                if not file_field:
+                    continue
+                section = self.DOCUMENT_SECTIONS.get(model_field.name, "other")
+                sections[section].append({
+                    "key": model_field.name,
+                    "name": file_field.name.rsplit("/", 1)[-1],
+                    "url": self._file_url(request, file_field),
+                    "approved": getattr(
+                        application_documents,
+                        f"{model_field.name}_approved",
+                        None,
+                    ),
+                })
+
+        onboarding_form = getattr(application, "onboarding_form", None)
+        if onboarding_form:
+            for attachment in onboarding_form.attachments.all():
+                sections["onboarding"].append({
+                    "id": str(attachment.id),
+                    "key": "onboarding_form_attachment",
+                    "name": attachment.name or attachment.file.name.rsplit("/", 1)[-1],
+                    "url": self._file_url(request, attachment.file),
+                    "uploaded_at": attachment.uploaded_at,
+                })
+
+        esign_documents = DocumentEsignTask.objects.filter(
+            job_application=application
+        ).order_by("created_at")
+        for document in esign_documents:
+            sections["onboarding"].append({
+                "id": str(document.id),
+                "key": document.doc_type,
+                "name": document.get_doc_type_display(),
+                "status": document.status,
+                "source_file_url": self._file_url(request, document.source_file),
+                "signed_file_url": self._file_url(request, document.signed_file),
+                "sent_at": document.sent_at,
+                "signed_at": document.signed_at,
+                "completed_at": document.completed_at,
+            })
+
+        offer_documents = OfferDocument.objects.filter(
+            application=application
+        ).order_by("created_at")
+        for document in offer_documents:
+            if document.signed_file:
+                sections["offers"].append({
+                    "id": str(document.id),
+                    "key": "signed_offer",
+                    "name": "Signed offer document",
+                    "status": document.status,
+                    "url": self._file_url(request, document.signed_file),
+                    "signed_at": document.signed_at,
+                    "completed_at": document.completed_at,
+                })
+
+        return Response(
+            {
+                "candidate": {
+                    "id": str(application.id),
+                    "name": application.candidate_name,
+                },
+                "sections": sections,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class DownloadApprovalNoteAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -3481,10 +3628,96 @@ class DownloadSurveyAPI(APIView):
             return Response({"error": "Failed to generate PDF"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+def _save_onboarding_call_notes(request, application, call_type):
+    from onboarding.models import OnboardingCall
+
+    notes_provided = "mom_notes" in request.data
+    transcript = request.FILES.get("transcript_file")
+    call = OnboardingCall.objects.filter(
+        job_application=application,
+        call_type=call_type,
+    ).first()
+
+    if call is None and not notes_provided and transcript is None:
+        return None
+    if call is None:
+        call = OnboardingCall.objects.create(
+            job_application=application,
+            call_type=call_type,
+        )
+
+    update_fields = []
+    if notes_provided:
+        notes = request.data.get("mom_notes")
+        if notes is None:
+            notes = ""
+        if not isinstance(notes, str):
+            raise ValueError("mom_notes must be a text value.")
+        call.mom_notes = notes
+        update_fields.append("mom_notes")
+
+    old_transcript = call.transcript_file if transcript else None
+    if transcript:
+        call.transcript_file = transcript
+        update_fields.append("transcript_file")
+
+    if update_fields:
+        call.save(update_fields=update_fields)
+        if old_transcript:
+            old_transcript.delete(save=False)
+    return call
+
+
+def _serialize_onboarding_call(request, call, can_view_documents):
+    if not call:
+        return None
+    return {
+        "id": str(call.id),
+        "call_type": call.call_type,
+        "organizer_email": call.organizer_email,
+        "start_time": call.start_time,
+        "end_time": call.end_time,
+        "meeting_id": call.meeting_id,
+        "meeting_link": call.meeting_link,
+        "mom_notes": call.mom_notes if can_view_documents else None,
+        "transcript_file_url": (
+            request.build_absolute_uri(call.transcript_file.url)
+            if call.transcript_file and can_view_documents else None
+        ),
+        "created_at": call.created_at,
+    }
+
+
+def _can_manage_onboarding_call_documents(request, application):
+    user = request.user
+    return (
+        user.is_authenticated
+        and user.role in {"admin", "hr_manager", "hr"}
+        and user.company_id == getattr(application.job, "company_id", None)
+    )
+
+
 class ScheduleD45CallAPI(APIView):
     permission_classes = [permissions.AllowAny]
     def patch(self, request, id):
         application = get_object_or_404(JobApplication, id=id)
+        if (
+            ("mom_notes" in request.data or "transcript_file" in request.FILES)
+            and not _can_manage_onboarding_call_documents(request, application)
+        ):
+            return Response(
+                {"detail": "Only HR users in the candidate's company can update call notes or transcripts."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if (
+            "mom_notes" in request.data
+            and request.data.get("mom_notes") is not None
+            and not isinstance(request.data.get("mom_notes"), str)
+        ):
+            return Response(
+                {"error": "mom_notes must be a text value."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         
         organizer_email = request.data.get('organizer_email')
         start_time_str = request.data.get('start_time')
@@ -3567,14 +3800,48 @@ class ScheduleD45CallAPI(APIView):
                 logger.error(f"Error creating/updating Teams meeting for D45: {e}")
                 return Response({"error": f"Failed to book MS Teams meeting: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
                 
-        application.is_d45_call_scheduled = True
-        application.save(update_fields=['is_d45_call_scheduled'])     
-        return Response({"message": "Day 45 check-in call booked and marked as scheduled"}, status=status.HTTP_200_OK)
+        try:
+            call = _save_onboarding_call_notes(request, application, "d45")
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if call and call.start_time:
+            application.is_d45_call_scheduled = True
+            application.save(update_fields=['is_d45_call_scheduled'])
+        message = (
+            "Day 45 check-in call booked and marked as scheduled."
+            if call and call.start_time else "Day 45 call details updated successfully."
+        )
+        return Response({
+            "message": message,
+            "call": _serialize_onboarding_call(
+                request,
+                call,
+                _can_manage_onboarding_call_documents(request, application),
+            ),
+        }, status=status.HTTP_200_OK)
 
 class ScheduleD90CallAPI(APIView):
     permission_classes = [permissions.AllowAny]
     def patch(self, request, id):
         application = get_object_or_404(JobApplication, id=id)
+        if (
+            ("mom_notes" in request.data or "transcript_file" in request.FILES)
+            and not _can_manage_onboarding_call_documents(request, application)
+        ):
+            return Response(
+                {"detail": "Only HR users in the candidate's company can update call notes or transcripts."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if (
+            "mom_notes" in request.data
+            and request.data.get("mom_notes") is not None
+            and not isinstance(request.data.get("mom_notes"), str)
+        ):
+            return Response(
+                {"error": "mom_notes must be a text value."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         
         organizer_email = request.data.get('organizer_email')
         start_time_str = request.data.get('start_time')
@@ -3657,9 +3924,26 @@ class ScheduleD90CallAPI(APIView):
                 logger.error(f"Error creating/updating Teams meeting for D90: {e}")
                 return Response({"error": f"Failed to book MS Teams meeting: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
         
-        application.is_d90_call_scheduled = True
-        application.save(update_fields=['is_d90_call_scheduled'])
-        return Response({"message": "Day 90 final review call booked and marked as scheduled"}, status=status.HTTP_200_OK)
+        try:
+            call = _save_onboarding_call_notes(request, application, "d90")
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if call and call.start_time:
+            application.is_d90_call_scheduled = True
+            application.save(update_fields=['is_d90_call_scheduled'])
+        message = (
+            "Day 90 final review call booked and marked as scheduled."
+            if call and call.start_time else "Day 90 call details updated successfully."
+        )
+        return Response({
+            "message": message,
+            "call": _serialize_onboarding_call(
+                request,
+                call,
+                _can_manage_onboarding_call_documents(request, application),
+            ),
+        }, status=status.HTTP_200_OK)
 
 class OnboardingJourneyAPI(APIView):
     """
@@ -3761,11 +4045,17 @@ class OnboardingJourneyAPI(APIView):
                 return None
             return {
                 "id": str(call.id),
+                "call_type": call.call_type,
                 "organizer_email": call.organizer_email,
                 "start_time": call.start_time,
                 "end_time": call.end_time,
                 "meeting_id": call.meeting_id,
                 "meeting_link": call.meeting_link,
+                "mom_notes": call.mom_notes if can_view_call_documents else None,
+                "transcript_file_url": (
+                    request.build_absolute_uri(call.transcript_file.url)
+                    if call.transcript_file and can_view_call_documents else None
+                ),
                 "created_at": call.created_at,
             }
 
@@ -3775,6 +4065,9 @@ class OnboardingJourneyAPI(APIView):
         d90_call = OnboardingCall.objects.filter(
             job_application=application, call_type="d90"
         ).first()
+        can_view_call_documents = _can_manage_onboarding_call_documents(
+            request, application
+        )
 
         # ── Survey enrichment ──────────────────────────────────────────────
         hod_structure = HOD_SURVEY_STRUCTURE_SENIOR if is_senior else HOD_SURVEY_STRUCTURE_JUNIOR
@@ -4008,6 +4301,10 @@ class OnboardingJourneyAPI(APIView):
                     "source_file_url": (
                         request.build_absolute_uri(doc.source_file.url)
                         if doc.source_file else None
+                    ),
+                    "signed_file_url": (
+                        request.build_absolute_uri(doc.signed_file.url)
+                        if doc.signed_file else None
                     ),
                     "zoho_request_id": doc.zoho_request_id,
                     "zoho_document_id": doc.zoho_document_id,
@@ -4352,11 +4649,15 @@ class DocumentEsignTaskViewSet(ModelViewSet):
                     job_application=application,
                     doc_type=doc_type,
                 )
-                # Replace the source file and mark as ready
+                instance.reset_signature_state()
                 instance.source_file = file_obj
-                instance.status = "ready"
                 instance.generated_at = tz.now()
-                instance.save(update_fields=["source_file", "status", "generated_at"])
+                instance.save(update_fields=[
+                    "source_file", "signed_file", "status", "zoho_request_id",
+                    "zoho_document_id", "raw_response", "sent_at", "viewed_at",
+                    "signed_at", "completed_at", "reminder_sent_at",
+                    "decline_reason", "generated_at",
+                ])
 
                 results.append({
                     "doc_type": doc_type,
@@ -4364,6 +4665,11 @@ class DocumentEsignTaskViewSet(ModelViewSet):
                     "status": "created" if created else "updated",
                     "record_status": instance.status,
                     "id": str(instance.id),
+                    "source_file_url": request.build_absolute_uri(instance.source_file.url),
+                    "signed_file_url": (
+                        request.build_absolute_uri(instance.signed_file.url)
+                        if instance.signed_file else None
+                    ),
                 })
             except Exception as exc:
                 results.append({

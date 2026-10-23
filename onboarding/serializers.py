@@ -225,11 +225,32 @@ class OnboardingTaskListSerializer(serializers.ModelSerializer):
 class DocumentEsignTaskSerializer(serializers.ModelSerializer):
     candidate_name = serializers.CharField(source='job_application.candidate_name', read_only=True)
     doc_type_display = serializers.CharField(source='get_doc_type_display', read_only=True)
+    source_file_url = serializers.SerializerMethodField()
+    signed_file_url = serializers.SerializerMethodField()
  
     class Meta:
         model = DocumentEsignTask
         fields = '__all__'
         read_only_fields = [
-            'status', 'zoho_request_id', 'zoho_document_id', 'raw_response',
+            'status', 'signed_file', 'zoho_request_id', 'zoho_document_id', 'raw_response',
             'sent_at', 'viewed_at', 'signed_at', 'completed_at', 'decline_reason',
         ]
+
+    def _get_file_url(self, obj, field_name):
+        file_field = getattr(obj, field_name)
+        if not file_field:
+            return None
+        url = file_field.url
+        request = self.context.get('request')
+        return request.build_absolute_uri(url) if request else url
+
+    def get_source_file_url(self, obj):
+        return self._get_file_url(obj, 'source_file')
+
+    def get_signed_file_url(self, obj):
+        return self._get_file_url(obj, 'signed_file')
+
+    def update(self, instance, validated_data):
+        if validated_data.get('source_file'):
+            instance.reset_signature_state()
+        return super().update(instance, validated_data)

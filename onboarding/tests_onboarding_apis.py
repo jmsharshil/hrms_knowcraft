@@ -5,11 +5,20 @@ from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework import status
 from django.core.management import call_command
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.files.uploadedfile import SimpleUploadedFile
 from unittest.mock import patch
 
 from accounts.models import User
 from jobs.models import JobApplication
-from onboarding.models import OnboardingCall, SurveyResponse, OnboardingTaskList, OnboardingTask
+from onboarding.models import (
+    DocumentEsignTask,
+    JobApplicationDocument,
+    OnboardingCall,
+    SurveyResponse,
+    OnboardingTaskList,
+    OnboardingTask,
+)
 from mrf.models import Designation
 
 class OnboardingAPIsTestCase(APITestCase):
@@ -284,6 +293,69 @@ class OnboardingAPIsTestCase(APITestCase):
         self.assertIsNotNone(call)
         self.assertTrue(call.meeting_id)
 
+    def test_d45_and_d90_call_mom_notes_and_transcript_can_be_created_and_updated(self):
+        for route_name, call_type in (
+            ('d45-scheduled', 'd45'),
+            ('d90-scheduled', 'd90'),
+        ):
+            with self.subTest(call_type=call_type):
+                url = reverse(route_name, kwargs={'id': str(self.application.id)})
+                notes = 'Meeting notes. ' * 40
+                first_response = self.client.patch(
+                    url,
+                    {
+                        'mom_notes': notes,
+                        'transcript_file': SimpleUploadedFile(
+                            f'{call_type}-transcript.txt',
+                            b'original transcript',
+                            content_type='text/plain',
+                        ),
+                    },
+                    format='multipart',
+                )
+
+                self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+                call = OnboardingCall.objects.get(
+                    job_application=self.application,
+                    call_type=call_type,
+                )
+                self.assertEqual(call.mom_notes, notes)
+                with call.transcript_file.open('rb') as transcript:
+                    self.assertEqual(transcript.read(), b'original transcript')
+                self.assertTrue(first_response.json()['call']['transcript_file_url'])
+
+                updated_response = self.client.patch(
+                    url,
+                    {
+                        'mom_notes': 'Updated minutes.',
+                        'transcript_file': SimpleUploadedFile(
+                            f'{call_type}-transcript-updated.txt',
+                            b'updated transcript',
+                            content_type='text/plain',
+                        ),
+                    },
+                    format='multipart',
+                )
+
+                self.assertEqual(updated_response.status_code, status.HTTP_200_OK)
+                call.refresh_from_db()
+                self.assertEqual(call.mom_notes, 'Updated minutes.')
+                with call.transcript_file.open('rb') as transcript:
+                    self.assertEqual(transcript.read(), b'updated transcript')
+
+        journey = self.client.get(reverse(
+            'onboarding-journey',
+            kwargs={'id': str(self.application.id)},
+        ))
+        self.assertEqual(journey.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            journey.json()['calls']['d45']['mom_notes'],
+            'Updated minutes.',
+        )
+        self.assertTrue(
+            journey.json()['calls']['d90']['transcript_file_url']
+        )
+
     def test_onboarding_journey_api(self):
         url = reverse('onboarding-journey', kwargs={'id': str(self.application.id)})
         
@@ -299,6 +371,83 @@ class OnboardingAPIsTestCase(APITestCase):
         self.assertIn('task_lists', data)
         
         self.assertEqual(data['candidate']['id'], str(self.application.id))
+
+    def test_document_sections_api_groups_files_and_returns_signed_file_urls(self):
+        application_documents = JobApplicationDocument.objects.create(
+            job_application=self.application,
+        )
+        application_documents.aadhaar.save(
+            'aadhaar.pdf',
+            SimpleUploadedFile('aadhaar.pdf', b'%PDF personal'),
+        )
+        application_documents.graduation_certificate.save(
+            'graduation.pdf',
+            SimpleUploadedFile('graduation.pdf', b'%PDF education'),
+        )
+        esign_document = DocumentEsignTask.objects.create(
+            job_application=self.application,
+            doc_type='NDA',
+            status='completed',
+        )
+        esign_document.source_file.save(
+            'nda-original.pdf',
+            SimpleUploadedFile('nda-original.pdf', b'%PDF original'),
+        )
+        esign_document.signed_file.save(
+            'nda-signed.pdf',
+            SimpleUploadedFile('nda-signed.pdf', b'%PDF signed'),
+        )
+
+        response = self.client.get(reverse(
+            'application-document-sections',
+            kwargs={'id': str(self.application.id)},
+        ))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        sections = response.json()['sections']
+        self.assertEqual(sections['personal'][0]['key'], 'aadhaar')
+        self.assertTrue(sections['personal'][0]['url'])
+        self.assertEqual(sections['education'][0]['key'], 'graduation_certificate')
+        nda = next(item for item in sections['onboarding'] if item['key'] == 'NDA')
+        self.assertTrue(nda['source_file_url'])
+        self.assertTrue(nda['signed_file_url'])
+
+    @patch('onboarding.utils.zoho_sign.requests.get')
+    @patch('onboarding.utils.zoho_sign.get_access_token', return_value='test-token')
+    def test_zoho_completion_saves_signed_document(self, mock_token, mock_get):
+        document = DocumentEsignTask.objects.create(
+            job_application=self.application,
+            doc_type='UNDERTAKING',
+            status='sent',
+            zoho_request_id='request-123',
+            zoho_document_id='document-123',
+        )
+        mock_get.return_value.content = b'%PDF-1.4 signed'
+        mock_get.return_value.raise_for_status.return_value = None
+
+        payload = {
+            'notifications': {'operation_type': 'RequestCompleted'},
+            'requests': {
+                'request_id': 'request-123',
+                'request_status': 'completed',
+                'document_ids': [{'document_id': 'document-123'}],
+            },
+        }
+        response = self.client.post(
+            reverse('zohosign-webhook'),
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        document.refresh_from_db()
+        self.assertEqual(document.status, 'completed')
+        self.assertTrue(document.signed_file)
+        with document.signed_file.open('rb') as signed_file:
+            self.assertEqual(signed_file.read(), b'%PDF-1.4 signed')
+        self.assertEqual(mock_get.call_count, 1)
+        self.application.refresh_from_db()
+        self.assertTrue(self.application.is_undertaking_signoff_completed)
 
     def test_task_lists_and_tasks_crud(self):
         # 1. Create Task List
