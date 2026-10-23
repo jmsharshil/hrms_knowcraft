@@ -1,5 +1,8 @@
+import logging
 from .sender import send_email,send_text
 from accounts.models import User
+
+logger = logging.getLogger(__name__)
 
 def send_salary_annexure_email(annexure, requested_by):
     """
@@ -8,13 +11,25 @@ def send_salary_annexure_email(annexure, requested_by):
 
     candidate = annexure.job_application
     mrf = candidate.job.mrf
-    approver = User.objects.filter(role='hr_manager').first()
+    approvers = list(User.objects.filter(role='hr_manager', is_active=True))
+    assigned_hr = getattr(candidate.job, "assigned_to_internal_hr", None)
+    if assigned_hr:
+        approvers.append(assigned_hr)
+    if hasattr(candidate.job, "assigned_internal_hrs"):
+        approvers.extend(candidate.job.assigned_internal_hrs.all())
+    approvers = list({user.pk: user for user in approvers}.values())
+    if not approvers and not candidate.job.is_private:
+        logger.error(
+            "No HR approvers found for salary annexure for candidate %s",
+            candidate.pk,
+        )
 
     # =========================
     # HTML Template
     # =========================
 
-    html_content = f"""
+    def build_html_content(approver):
+        return f"""
     <html>
     <body style="margin:0;padding:0;background-color:#f4f4f7;font-family:Arial,Helvetica,sans-serif;">
         <table align="center" border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width:680px;margin:0 auto;background-color:#f4f4f7;">
@@ -170,7 +185,7 @@ def send_salary_annexure_email(annexure, requested_by):
         </table>
     </body>
     </html>
-    """
+        """
 
     # =========================
     # SEND EMAIL
@@ -179,17 +194,8 @@ def send_salary_annexure_email(annexure, requested_by):
     is_private = candidate.job.is_private
 
     if not is_private:
-        send_email(
-            subject=f"Salary Annexure Approval - {candidate.candidate_name}",
-            text="Please view this email in HTML format.",
-            to=approver.email,
-            template=html_content,
-            event="salary_annexure_approval",
-            email_type="internal",
-            candidate=candidate
-        )
-
-        whatsapp_text = f"""
+        def build_whatsapp_text(approver):
+            return f"""
 *Salary Annexure Approval Required*
 
 Dear {approver.name},
@@ -258,9 +264,21 @@ Regards,
 {requested_by.name}
 Recruitment Team
 Knowcraft Analytics Private Limited
-"""
-        if approver.phone:
-            send_text(to=approver.phone,text=whatsapp_text)
+            """
+        for approver in approvers:
+            personalized_html = build_html_content(approver)
+            if approver.email:
+                send_email(
+                    subject=f"Salary Annexure Approval - {candidate.candidate_name}",
+                    text="Please view this email in HTML format.",
+                    to=approver.email,
+                    template=personalized_html,
+                    event="salary_annexure_approval",
+                    email_type="internal",
+                    candidate=candidate
+                )
+            if approver.phone:
+                send_text(to=approver.phone,text=build_whatsapp_text(approver))
     else:
         print(f"Skipping Salary Annexure notification for private job: {candidate.job.id}")
 

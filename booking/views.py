@@ -1870,6 +1870,17 @@ class ManageBookingView(APIView):
                 if extra.phone:
                     send_text(extra.phone,attendees_update_text.format(candidate=candidate,extra=extra,location_str=location_str,maps_link=maps_link))
 
+        if candidate.candidate_phone:
+            send_text(
+                to=candidate.candidate_phone,
+                text=(
+                    f"Dear {candidate.candidate_name}, the interview panel for your "
+                    f"{candidate.round_name} interview has been updated. It remains "
+                    f"scheduled for {candidate.interview_scheduled_at}. Please contact "
+                    "HR if you have any questions."
+                ),
+            )
+
     def _send_combined_notifications(self,booking, candidate, attendees, start_str):
         self._send_attendee_notifications(booking, candidate, attendees)
         self._send_reschedule_notifications(booking, candidate, start_str)
@@ -1879,6 +1890,7 @@ class ManageBookingView(APIView):
             print(f"Skipping cancel notification for private job: {candidate.job.id}")
             return
             
+        candidate_whatsapp_text = cancel_online_interview_text.format(candidate=candidate)
         if booking.interview_type == "online":
             html_content = get_interviewer_email_template(
                 action="cancelled",
@@ -1918,6 +1930,10 @@ class ManageBookingView(APIView):
         else:
             location_str = booking.location.full_address if hasattr(booking, 'location') and hasattr(booking.location, 'full_address') else str(booking.location or "")
             maps_link = booking.location.google_maps_link if hasattr(booking,"location") and hasattr(booking.location, 'google_maps_link') else None
+            candidate_whatsapp_text = cancel_offline_interview_candidate_text.format(
+                candidate=candidate,
+                location_str=location_str,
+            )
 
             send_email(
                 subject=f"In-Person Interview Cancelled - {candidate.candidate_name}",
@@ -1950,7 +1966,7 @@ class ManageBookingView(APIView):
             send_text(booking.interviewer.phone,f"Dear {booking.interviewer.name}, your interview scheduled at {candidate.interview_scheduled_at} has been cancelled.")
         
         if candidate.candidate_phone:
-            send_text(to=candidate.candidate_phone,text=cancel_online_interview_text.format(candidate=candidate))
+            send_text(to=candidate.candidate_phone,text=candidate_whatsapp_text)
 
 #teams grapgh api webhook (Not working)
 from django.http import HttpResponse
