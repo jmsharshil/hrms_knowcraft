@@ -6,7 +6,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from accounts.models import User, Company
-from mrf.models import MRF, Department, Designation
+from mrf.models import MRF, Department, Designation, WorkflowTemplate
 from jobs.models import Job, JobApplication
 from onboarding.models import OnboardingForm
 from onboarding.utils.joining_check import run_joining_date_check
@@ -17,34 +17,60 @@ class JoiningCheckAndJourneyTests(TestCase):
         self.client = APIClient()
         self.company = Company.objects.create(name="Test Company")
         self.dept = Department.objects.create(name="Engineering", company=self.company)
-        self.designation = Designation.objects.create(name="Software Engineer", department=self.dept)
+        self.designation = Designation.objects.create(
+            name="Software Engineer",
+            department=self.dept,
+            key_responsibility="Writing code",
+            required_qualifications="B.Tech",
+            skills_competencies="Python",
+        )
+        self.workflow = WorkflowTemplate.objects.create(name="Standard Workflow", company=self.company)
 
         self.user_hr = User.objects.create(
             email="hr1@knowcraft.in",
-            first_name="HR",
-            last_name="One",
+            name="HR One",
             role="hr",
             company=self.company,
             is_active=True,
         )
         self.mrf = MRF.objects.create(
             company=self.company,
+            mrf_name="Test MRF",
             department=self.dept,
+            position_department=self.dept,
             designation=self.designation,
+            team="Engineering",
+            workflow_template=self.workflow,
             requested_by=self.user_hr,
+            requested_by_name="HR One",
+            requested_by_designation="HR",
             status="approved",
-            no_of_positions=1,
-            positions_filled=0,
+            no_of_vacancies=1,
+            expected_date_of_joining=date.today() + timedelta(days=30),
+            key_responsibility="Coding and testing",
+            required_qualifications="B.Tech in Computer Science",
+            skills_competencies="Python, Django, PostgreSQL",
+            business_justification="New expansion",
+            experience_range="2-5 years",
+            salary_range="10-15 LPA",
         )
-        self.job = Job.objects.create(
-            company=self.company,
-            department=self.dept,
-            mrf=self.mrf,
-            job_title="Software Engineer",
-            status="open",
-            is_active=True,
-            assigned_to_internal_hr=self.user_hr,
-        )
+        self.job = Job.objects.filter(mrf=self.mrf).first()
+        if not self.job:
+            self.job = Job.objects.create(
+                company=self.company,
+                department=self.dept,
+                mrf=self.mrf,
+                job_title="Software Engineer",
+                status="open",
+                is_active=True,
+                no_of_positions=1,
+                positions_filled=0,
+                key_responsibility="Writing code",
+                assigned_to_internal_hr=self.user_hr,
+            )
+        else:
+            self.job.assigned_to_internal_hr = self.user_hr
+            self.job.save(update_fields=['assigned_to_internal_hr'])
 
         self.candidate = JobApplication.objects.create(
             job=self.job,
@@ -62,13 +88,13 @@ class JoiningCheckAndJourneyTests(TestCase):
         )
         self.onboarding_form = OnboardingForm.objects.create(
             job_application=self.candidate,
-            personal_email="john@personal.com",
+            personal_email_id="john@personal.com",
             first_name="John",
             last_name="Doe",
         )
 
-    @patch("onboarding.utils.joining_check.notify_internal")
-    @patch("onboarding.utils.joining_check.automation_engine")
+    @patch("onboarding.utils.notifications.notify_internal")
+    @patch("onboarding.utils.engine.automation_engine")
     def test_run_joining_date_check_missing_work_email(self, mock_engine, mock_notify):
         """Candidate on/after joining_date without work_email stays in joining_pending."""
         self.candidate.work_email = ""

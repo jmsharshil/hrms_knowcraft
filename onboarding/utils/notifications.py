@@ -1047,14 +1047,11 @@ def notify_candidate(candidate: Any, stage: str, cc: list = None, feedback_link:
                 }
                 # For onboarding emails, CC should be internal HRs, not talent@knowcraft.in
                 is_onboarding_stage = bool(
-                    hasattr(candidate, 'onboarding_form') or
-                    getattr(candidate, 'status', None) in [
-                        "offer_accepted", "joining_pending", "joined", "docs_pending", "docs_uploaded", "docs_approved"
-                    ] or
+                    hasattr(candidate, 'onboarding_form') and 
                     stage in [
                         "welcome_wfo", "welcome_wfh", "hr_handbook", "culture_values",
                         "posh_policy", "chatbot_manual", "kai_mascot", "d5_document_verification",
-                        "satisfaction_survey", "d90_survey", "candidate_feedback_reminder"
+                        "satisfaction_survey", "d90_survey"
                     ]
                 )
                 if is_onboarding_stage:
