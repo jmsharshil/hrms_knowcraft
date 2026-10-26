@@ -340,6 +340,8 @@ def daily_onboarding_check():
             #         me_client.update_ticket(app.it_ticket_ref, {}, note=note)
 
             create_milestone_tasks(app, "DOJ_MINUS_7", app.joining_date)
+            # Re-check manager assignments — they may have been filled after D-15
+            _send_manager_assignment_reminders(app)
             app.is_doj_minus_7_triggered = True
             app.save(update_fields=['is_doj_minus_7_triggered'])
             app.refresh_from_db(fields=['is_doj_minus_2_triggered'])
@@ -642,6 +644,8 @@ def run_onboarding_check_for_candidate(app):
             #     note = f"DOJ is in 7 days ({joining_date}). Remote joiner. Please arrange laptop dispatch."
             # me_client.update_ticket(app.it_ticket_ref, {}, note=note)
         create_milestone_tasks(app, "DOJ_MINUS_7", joining_date)
+        # Re-check manager assignments — they may have been filled after D-15
+        _send_manager_assignment_reminders(app)
         app.is_doj_minus_7_triggered = True
         app.save(update_fields=['is_doj_minus_7_triggered'])
         app.refresh_from_db(fields=['is_doj_minus_2_triggered'])

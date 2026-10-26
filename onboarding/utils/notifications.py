@@ -1051,7 +1051,8 @@ def notify_candidate(candidate: Any, stage: str, cc: list = None, feedback_link:
                     stage in [
                         "welcome_wfo", "welcome_wfh", "hr_handbook", "culture_values",
                         "posh_policy", "chatbot_manual", "kai_mascot", "d5_document_verification",
-                        "satisfaction_survey", "d90_survey"
+                        "satisfaction_survey", "d90_survey",
+                        "d45_call_candidate_reminder", "d90_call_candidate_reminder",
                     ]
                 )
                 if is_onboarding_stage:
@@ -1068,9 +1069,16 @@ def notify_candidate(candidate: Any, stage: str, cc: list = None, feedback_link:
                     final_cc = cc
                     use_default_cc = True
 
+                # Resolve {candidate.xxx} placeholders in subject
+                raw_subject = email_cfg["subject"]
+                try:
+                    formatted_subject = raw_subject.format(candidate=candidate, **extra_context)
+                except Exception:
+                    formatted_subject = raw_subject
+
                 send_email(
                     to=recipient_email,
-                    subject=email_cfg["subject"],
+                    subject=formatted_subject,
                     text=formatted_text,
                     cc=final_cc,
                     template=html_template.format(**template_context),
