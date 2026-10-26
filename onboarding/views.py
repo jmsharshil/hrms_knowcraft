@@ -4363,7 +4363,10 @@ class ScheduleD45CallAPI(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         
-        organizer_email = request.data.get('organizer_email')
+        organizer_email = (request.data.get('organizer_email') or '').strip()
+        if not organizer_email and request.user and request.user.is_authenticated:
+            organizer_email = (getattr(request.user, 'email', None) or '').strip()
+
         start_time_str = request.data.get('start_time')
         end_time_str = request.data.get('end_time')
         # Extra attendees beyond the candidate (e.g. HR, HOD)
@@ -4372,9 +4375,10 @@ class ScheduleD45CallAPI(APIView):
             attendee_emails = [attendee_emails]
             
         from django.conf import settings
-        if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
+        if not organizer_email and getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
             organizer_email = "harshil@jmstech.co"
-            attendee_emails.extend(["zeelsh@jmstech.co", "anand@jmstech.co"])
+        if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False) and not attendee_emails:
+            attendee_emails = ["zeelsh@jmstech.co", "anand@jmstech.co"]
         
         if organizer_email and start_time_str and end_time_str:
             try:
@@ -4501,7 +4505,10 @@ class ScheduleD90CallAPI(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         
-        organizer_email = request.data.get('organizer_email')
+        organizer_email = (request.data.get('organizer_email') or '').strip()
+        if not organizer_email and request.user and request.user.is_authenticated:
+            organizer_email = (getattr(request.user, 'email', None) or '').strip()
+
         start_time_str = request.data.get('start_time')
         end_time_str = request.data.get('end_time')
         # Extra attendees beyond the candidate (e.g. HR, HOD)
@@ -4510,9 +4517,10 @@ class ScheduleD90CallAPI(APIView):
             attendee_emails = [attendee_emails]
             
         from django.conf import settings
-        if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
+        if not organizer_email and getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
             organizer_email = "harshil@jmstech.co"
-            attendee_emails.extend(["zeelsh@jmstech.co", "anand@jmstech.co"])
+        if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False) and not attendee_emails:
+            attendee_emails = ["zeelsh@jmstech.co", "anand@jmstech.co"]
         
         if organizer_email and start_time_str and end_time_str:
             try:

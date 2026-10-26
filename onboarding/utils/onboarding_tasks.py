@@ -34,7 +34,7 @@ DEBUG_ONBOARDING_MILESTONES = (
 )
 
 
-def remind_call_owners_for_missing_materials(now=None):
+def remind_call_owners_for_missing_materials(now=None, candidate=None):
     from onboarding.models import EmailLog, OnboardingCall
     from onboarding.utils.sender import send_email
 
@@ -44,9 +44,12 @@ def remind_call_owners_for_missing_materials(now=None):
         end_time__lte=now,
     ).select_related("job_application")
 
+    if candidate:
+        calls = calls.filter(job_application=candidate)
+
     for call in calls:
         missing_materials = []
-        if not call.mom_notes.strip():
+        if not (call.mom_notes or "").strip():
             missing_materials.append("MOM notes")
         if not call.transcript_file:
             missing_materials.append("the call transcript")
@@ -59,11 +62,14 @@ def remind_call_owners_for_missing_materials(now=None):
         missing_list = ", ".join(missing_materials)
         completed_at = call.end_time.isoformat()
         subject = f"Reminder: {call_name} materials for {candidate_name} ({completed_at})"
+
+        # Throttle to at most once per 20 hours per recipient so daily reminders continue until materials are uploaded
+        one_day_ago = now - timezone.timedelta(hours=20)
         if EmailLog.objects.filter(
             recipient_email=owner_email,
-            subject=subject,
             event="onboarding_call_material_reminder",
             candidate=call.job_application,
+            sent_at__gte=one_day_ago,
             status="sent",
         ).exists():
             continue
@@ -865,6 +871,12 @@ def run_onboarding_check_for_candidate(app):
         notify_internal(app, "it_ticket_close_request")
         app.it_ticket_closed = True
         app.save(update_fields=['it_ticket_closed'])
+
+    # Remind call owner if any completed calls for this candidate are still missing MOM notes or transcript
+    try:
+        remind_call_owners_for_missing_materials(candidate=app)
+    except Exception as e:
+        logger.warning(f"[ADMIN ACTION] Could not check missing call materials for {app.candidate_name}: {e}")
 
     logger.info(f"[ADMIN ACTION] Completed onboarding check for: {app.candidate_name}")
     return days_until_joining
