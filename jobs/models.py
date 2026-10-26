@@ -710,6 +710,14 @@ class JobApplication(models.Model):
     is_doj_7_triggered = models.BooleanField(default=False)
     is_doj_45_triggered = models.BooleanField(default=False)
 
+    # Post-Joining Daily Handbooks & Policies tracking
+    is_hr_handbook_sent = models.BooleanField(default=False)
+    is_culture_values_sent = models.BooleanField(default=False)
+    is_posh_policy_sent = models.BooleanField(default=False)
+    is_chatbot_manual_sent = models.BooleanField(default=False)
+    is_kai_mascot_sent = models.BooleanField(default=False)
+    is_post_welcome_docs_sent = models.BooleanField(default=False)
+
     # Tracks how many daily reminders have been sent to HR for un-scheduled calls
     d45_reminder_count = models.PositiveIntegerField(default=0)
     d90_reminder_count = models.PositiveIntegerField(default=0)
@@ -809,18 +817,43 @@ class JobApplication(models.Model):
     feedback_link = models.TextField(null=True,blank=True)
     round_name = models.CharField(null=True,blank=True,choices=INTERVIEW_CHOICES)
 
-    # Head of Department email – used for onboarding notifications
+    # Head of Department details – used for onboarding notifications
+    hod_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text='HOD name for this hire.'
+    )
     hod_email = models.EmailField(
         null=True,
         blank=True,
         help_text='HOD email for this hire. If set, onboarding emails go here instead of the MRF requester.'
     )
 
-    # Reporting Manager email
+    # Reporting Manager details
+    reporting_manager_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text='Reporting Manager name for this hire.'
+    )
     reporting_manager_email = models.EmailField(
         null=True,
         blank=True,
         help_text='Reporting Manager email for this hire.'
+    )
+
+    # Team Manager details
+    team_manager_name = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text='Team Manager name for this hire.'
+    )
+    team_manager_email = models.EmailField(
+        null=True,
+        blank=True,
+        help_text='Team Manager email for this hire.'
     )
 
     # Team name / unit

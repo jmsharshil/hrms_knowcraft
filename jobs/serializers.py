@@ -485,7 +485,9 @@ class JobApplicationSerializer(serializers.ModelSerializer):
             "uploaded_by_name","uploaded_by_email","uploaded_by_role","uploaded_by_phone","interview_end_at",
             "document_upload_link", "candidate_experience_link","is_private","mrf_details", "attendees_details",
             "rejected_by", "rejected_by_name", "rejected_by_email", "rejected_at",
-            "hod_email", "reporting_manager_email",
+            "hod_name", "hod_email",
+            "reporting_manager_name", "reporting_manager_email",
+            "team_manager_name", "team_manager_email",
             "team", "shift_timings",
         ]
     
@@ -736,14 +738,17 @@ class PublicJobApplicationCreateSerializer(serializers.ModelSerializer):
 
 class JobApplicationUpdateSerializer(serializers.ModelSerializer):
     """Serializer for updating job application"""
-    
+
     class Meta:
         model = JobApplication
         fields = ['status', 'notes', 'rating', 'candidate_name','candidate_phone','candidate_email',
                   'source','experience_years','relevant_experience_years','location','skill',
                   'education','current_employer','linkedin_url','job',
                   'work_email', 'resume', 'crafter_id',
-                  'hod_email', 'reporting_manager_email', 'team', 'shift_timings',
+                  'hod_name', 'hod_email',
+                  'reporting_manager_name', 'reporting_manager_email',
+                  'team_manager_name', 'team_manager_email',
+                  'team', 'shift_timings',
                   ]
 
     def validate_resume(self, value):
@@ -799,6 +804,14 @@ class JobApplicationUpdateSerializer(serializers.ModelSerializer):
                 instance,
                 instance.resume.file,
                 instance.job
+            )
+
+        if any(k in validated_data for k in ('team_manager_name', 'team_manager_email')):
+            from onboarding.views import sync_team_manager
+            sync_team_manager(
+                instance,
+                team_manager_name=validated_data.get('team_manager_name'),
+                team_manager_email=validated_data.get('team_manager_email'),
             )
             
         return instance

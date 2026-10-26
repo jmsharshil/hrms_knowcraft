@@ -1976,68 +1976,118 @@ class DownloadJobApplicationDocumentsView(APIView):
                 raise Http404("No candidate found for the provided ID") 
             
             docs = JobApplicationDocument.objects.filter(job_application=candidate).first()
-            if not docs:
-                raise Http404("No documents found for the provided IDs")
 
-            download_files = []
-            for field in docs._meta.get_fields():
-                if isinstance(field, FileField):
-                    file_name = field.name
+            FOLDER_MAPPING = {
+                # 1. Education Documents
+                "tenth_certificate": "1. Education Documents",
+                "twelfth_certificate": "1. Education Documents",
+                "graduation_certificate": "1. Education Documents",
+                "post_graduation_certificate": "1. Education Documents",
+                "additional_certificate_1": "1. Education Documents",
+                "additional_certificate_2": "1. Education Documents",
+                "additional_certificate_3": "1. Education Documents",
 
-                    if hasattr(docs, file_name):
-                        docu = getattr(docs, file_name)
-                        if not docu:
-                            continue
-                        download_files.append(docu)
+                # 2. Personal Documents
+                "pan": "2. Personal Documents",
+                "aadhaar": "2. Personal Documents",
+                "photograph": "2. Personal Documents",
+                "passport": "2. Personal Documents",
+                "address_proof": "2. Personal Documents",
 
-            if not download_files:
-                raise Http404("No documents found for the provided IDs")
+                # 3. Last Organization Documents
+                "offer_letter_1": "3. Last Organization Documents",
+                "offer_letter_2": "3. Last Organization Documents",
+                "experience_letter_1": "3. Last Organization Documents",
+                "experience_letter_2": "3. Last Organization Documents",
+                "salary_slip_1": "3. Last Organization Documents",
+                "salary_slip_2": "3. Last Organization Documents",
+                "salary_slip_3": "3. Last Organization Documents",
+                "bank_statement": "3. Last Organization Documents",
+                "relieving_letter": "3. Last Organization Documents",
+                "increment_letter": "3. Last Organization Documents",
+                "resignation_letter": "3. Last Organization Documents",
+                "resignation_acceptance": "3. Last Organization Documents",
+
+                # 5d. Offer Letter
+                "salary_annexure": "5. Knowcraft Documents/d. Offer Letter",
+                "created_offer_letter": "5. Knowcraft Documents/d. Offer Letter",
+            }
+
+            # List of tuples: (download_file, target_folder)
+            download_items = []
+
+            if docs:
+                for field in docs._meta.get_fields():
+                    if isinstance(field, FileField):
+                        file_name = field.name
+                        if hasattr(docs, file_name):
+                            docu = getattr(docs, file_name)
+                            if docu:
+                                folder = FOLDER_MAPPING.get(file_name, "Other Documents")
+                                download_items.append((docu, folder))
+
+            # 4. Resume & Report
+            if candidate.resume:
+                download_items.append((candidate.resume, "4. Resume and Feedback"))
+            if candidate.resume_report:
+                download_items.append((candidate.resume_report, "4. Resume and Feedback"))
+
+            # 5. Knowcraft Documents: Esign Tasks
+            joining_doc_types = {"FORM_2", "NOMINATION_INS", "FORM_F", "KRA", "FORM_11"}
+            sa_isms_doc_types = {"SA", "NDA", "BOND", "IT_ASSET", "UNDERTAKING", "ISMS_1", "ISMS_2"}
+
+            for esign in DocumentEsignTask.objects.filter(job_application=candidate):
+                target_file = esign.signed_file or esign.source_file
+                if target_file:
+                    if esign.doc_type in joining_doc_types:
+                        folder = "5. Knowcraft Documents/a. Joining Documents"
+                    elif esign.doc_type in sa_isms_doc_types:
+                        folder = "5. Knowcraft Documents/b. Service Agreement and ISMS"
+                    else:
+                        folder = "5. Knowcraft Documents/a. Joining Documents"
+                    download_items.append((target_file, folder))
+
+            # 5d. Offer Documents
+            for offer_doc in OfferDocument.objects.filter(application=candidate):
+                if offer_doc.signed_file:
+                    download_items.append((offer_doc.signed_file, "5. Knowcraft Documents/d. Offer Letter"))
+
+            # 5e. Onboarding Call Transcripts
+            for call in candidate.onboarding_calls.all():
+                if call.transcript_file:
+                    download_items.append((call.transcript_file, "5. Knowcraft Documents/e. Welcome Note"))
+
+            if not download_items:
+                raise Http404("No documents found for the provided candidate ID")
 
             in_memory_zip = io.BytesIO()
-            if settings.USE_AZURE_MEDIA:
-                # Azure Blob connection
-                # connection_string = f"DefaultEndpointsProtocol=https;AccountName={settings.AZURE_ACCOUNT_NAME};AccountKey={settings.AZURE_ACCOUNT_KEY};EndpointSuffix=core.windows.net"
-                # print(connection_string,'======================CONNECTION STRING======================')
-                # blob_service_client = BlobServiceClient.from_connection_string(connection_string)
-                
-                with zipfile.ZipFile(in_memory_zip, mode='w') as zipf:
-                    for download_file in download_files:
-                        file_path = download_file.url
-                        if file_path:
-                            file_path = file_path.split("?")[0]
-                        original_filename = os.path.basename(file_path)
-                        prefix, extension = os.path.splitext(original_filename)
-                        modified_filename = f"{original_filename}{extension}".replace('_',' ').title()
+            with zipfile.ZipFile(in_memory_zip, mode='w') as zipf:
+                for download_file, folder in download_items:
+                    file_path = download_file.url
+                    if file_path:
+                        file_path = file_path.split("?")[0]
+                    original_filename = os.path.basename(file_path)
+                    prefix, extension = os.path.splitext(original_filename)
+                    clean_filename = f"{prefix}{extension}".replace('_', ' ').title()
+                    arcname = f"{folder}/{candidate.candidate_name}_{clean_filename}"
 
-                        # Get blob client
-                        # blob_client = blob_service_client.get_blob_client(
-                        #     container=settings.AZURE_CONTAINER,
-                        #     blob=file_path
-                        # )
-
-                        # # Download blob content
-                        # blob_data = blob_client.download_blob().readall()
-
-                        # # Add file to ZIP
-                        # zipf.writestr(
-                        #     f'{candidate.candidate_name}_{modified_filename}',
-                        #     blob_data)
+                    if settings.USE_AZURE_MEDIA and file_path.startswith(('http://', 'https://')):
                         response = requests.get(file_path)
                         if response.status_code == 200:
-                            zipf.writestr(
-                                f'{candidate.candidate_name}_{modified_filename}',
-                                response.content
-                            )
+                            zipf.writestr(arcname, response.content)
                         else:
-                            print(f"Failed to download: {file_path}")
-            else:
-                with zipfile.ZipFile(in_memory_zip, mode='w') as zipf:
-                    for download_file in download_files: 
-                        file_path = download_file.url
-                        original_filename = os.path.basename(file_path)
-                        prefix, extension = os.path.splitext(original_filename)
-                        modified_filename = f"{original_filename}{extension}".replace('_',' ').title()
-                        zipf.write(file_path, arcname=f'{candidate.candidate_name}_{modified_filename}')
+                            logger.warning(f"Failed to download for zip: {file_path}")
+                    else:
+                        try:
+                            # Try direct local filesystem read
+                            local_path = download_file.path if hasattr(download_file, 'path') else file_path
+                            zipf.write(local_path, arcname=arcname)
+                        except Exception:
+                            # Fallback if path doesn't exist locally
+                            try:
+                                zipf.writestr(arcname, download_file.read())
+                            except Exception as read_err:
+                                logger.warning(f"Failed to read file for zip: {read_err}")
 
             in_memory_zip.seek(0)
             response = StreamingHttpResponse(in_memory_zip, content_type='application/zip')
@@ -2050,39 +2100,305 @@ class DownloadJobApplicationDocumentsView(APIView):
             return HttpResponse(f'Error creating zip file: {str(e)}', status=404)
 
 
+class DownloadAllDocumentsAPIView(APIView):
+    """
+    Separate API to download all documents for a candidate as a zip archive,
+    structured into the exact 5 folders and subfolders from the All Documents API:
+    1. Education Documents
+    2. Personal Documents
+    3. Last Organization Documents
+    4. Resume and Feedback
+    5. Knowcraft Documents:
+       a. Joining Documents
+       b. Service Agreement and ISMS
+       c. BGV
+       d. Offer Letter
+       e. Welcome Note
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, id):
+        try:
+            candidate = JobApplication.objects.filter(id=id).first()
+            if not candidate:
+                raise Http404("No candidate found for the provided ID")
+
+            FOLDER_MAPPING = {
+                # 1. Education Documents
+                "tenth_certificate": ("1. Education Documents", "10th Marksheet Certificate"),
+                "twelfth_certificate": ("1. Education Documents", "12th Marksheet Certificate"),
+                "graduation_certificate": ("1. Education Documents", "Graduation Certificate"),
+                "post_graduation_certificate": ("1. Education Documents", "Post Graduation Certificate"),
+                "additional_certificate_1": ("1. Education Documents", "Professional Certification 1"),
+                "additional_certificate_2": ("1. Education Documents", "Professional Certification 2"),
+                "additional_certificate_3": ("1. Education Documents", "Professional Certification 3"),
+
+                # 2. Personal Documents
+                "pan": ("2. Personal Documents", "PAN Card"),
+                "aadhaar": ("2. Personal Documents", "Aadhaar Card"),
+                "photograph": ("2. Personal Documents", "Passport Photograph"),
+                "passport": ("2. Personal Documents", "Passport"),
+                "address_proof": ("2. Personal Documents", "Address Proof"),
+
+                # 3. Last Organization Documents
+                "offer_letter_1": ("3. Last Organization Documents", "Offer Letter 1"),
+                "offer_letter_2": ("3. Last Organization Documents", "Offer Letter 2"),
+                "experience_letter_1": ("3. Last Organization Documents", "Experience Letter 1"),
+                "experience_letter_2": ("3. Last Organization Documents", "Experience Letter 2"),
+                "salary_slip_1": ("3. Last Organization Documents", "Salary Slip 1"),
+                "salary_slip_2": ("3. Last Organization Documents", "Salary Slip 2"),
+                "salary_slip_3": ("3. Last Organization Documents", "Salary Slip 3"),
+                "bank_statement": ("3. Last Organization Documents", "Bank Statement"),
+                "relieving_letter": ("3. Last Organization Documents", "Relieving Letter"),
+                "increment_letter": ("3. Last Organization Documents", "Increment Appraisal Letter"),
+                "resignation_letter": ("3. Last Organization Documents", "Resignation Letter"),
+                "resignation_acceptance": ("3. Last Organization Documents", "Resignation Acceptance"),
+
+                # 5d. Offer Letter
+                "salary_annexure": ("5. Knowcraft Documents/d. Offer Letter", "Salary Annexure"),
+                "created_offer_letter": ("5. Knowcraft Documents/d. Offer Letter", "Offer Letter"),
+            }
+
+            zip_entries = []
+
+            def _fetch_file_content(file_obj):
+                if not file_obj:
+                    return None
+                file_url = getattr(file_obj, "url", None)
+                if settings.USE_AZURE_MEDIA and file_url and file_url.startswith(("http://", "https://")):
+                    clean_url = file_url.split("?")[0]
+                    try:
+                        res = requests.get(clean_url, timeout=30)
+                        if res.status_code == 200:
+                            return res.content
+                    except Exception as e:
+                        logger.warning(f"Error downloading file from URL {clean_url}: {e}")
+                try:
+                    if hasattr(file_obj, "read"):
+                        file_obj.seek(0)
+                        return file_obj.read()
+                    elif hasattr(file_obj, "path") and os.path.exists(file_obj.path):
+                        with open(file_obj.path, "rb") as f:
+                            return f.read()
+                except Exception as e:
+                    logger.warning(f"Error reading file {file_obj}: {e}")
+                return None
+
+            # ── 1, 2, 3: JobApplicationDocument ──
+            docs = JobApplicationDocument.objects.filter(job_application=candidate).first()
+            if docs:
+                for field in docs._meta.get_fields():
+                    if isinstance(field, FileField):
+                        file_name = field.name
+                        if hasattr(docs, file_name):
+                            file_val = getattr(docs, file_name)
+                            if file_val:
+                                content = _fetch_file_content(file_val)
+                                if content:
+                                    folder, friendly_name = FOLDER_MAPPING.get(file_name, ("Other Documents", file_name.replace("_", " ").title()))
+                                    orig_name = os.path.basename(file_val.name)
+                                    ext = os.path.splitext(orig_name)[1] or ".pdf"
+                                    arcname = f"{folder}/{candidate.candidate_name}_{friendly_name}{ext}"
+                                    zip_entries.append((arcname, content))
+
+            # ── 4: Resume and Feedback ──
+            if candidate.resume:
+                res_content = _fetch_file_content(candidate.resume)
+                if res_content:
+                    ext = os.path.splitext(os.path.basename(candidate.resume.name))[1] or ".pdf"
+                    zip_entries.append((f"4. Resume and Feedback/{candidate.candidate_name}_Resume{ext}", res_content))
+
+            if candidate.resume_report:
+                rep_content = _fetch_file_content(candidate.resume_report)
+                if rep_content:
+                    ext = os.path.splitext(os.path.basename(candidate.resume_report.name))[1] or ".pdf"
+                    zip_entries.append((f"4. Resume and Feedback/{candidate.candidate_name}_Resume_Report{ext}", rep_content))
+
+            # Interview Feedbacks summary text
+            from slots.models import InterviewFeedback
+            feedbacks = InterviewFeedback.objects.filter(job_application=candidate).order_by("interview_date")
+            if feedbacks.exists():
+                fb_lines = [f"INTERVIEW FEEDBACK SUMMARY - {candidate.candidate_name.upper()}\n{'='*50}\n"]
+                for fb in feedbacks:
+                    round_name = fb.get_interview_round_display() if hasattr(fb, "get_interview_round_display") else (fb.interview_round or "Interview Round")
+                    fb_lines.append(f"Round: {round_name}")
+                    fb_lines.append(f"Interviewer: {fb.interviewer_name or '-'}")
+                    fb_lines.append(f"Date: {fb.interview_date or '-'}")
+                    fb_lines.append(f"Status: {fb.is_selected or '-'}")
+                    fb_lines.append(f"Ratings - Comm: {fb.communication_rating}, Tech: {fb.technical_skill_rating}, Attitude: {fb.attitude_intent_rating}, Team: {fb.team_handling_rating}")
+                    fb_lines.append("-" * 40 + "\n")
+                zip_entries.append((f"4. Resume and Feedback/Interview_Feedback_Summary.txt", "\n".join(fb_lines).encode("utf-8")))
+
+            # Approval Notes summary
+            approval_notes = ApprovalNote.objects.filter(candidate=candidate).order_by("-created_at")
+            if approval_notes.exists():
+                an_lines = [f"APPROVAL NOTES - {candidate.candidate_name.upper()}\n{'='*50}\n"]
+                for note in approval_notes:
+                    an_lines.append(f"Status: {note.get_status_display()}")
+                    an_lines.append(f"Manager: {note.manager.name if note.manager else '-'}")
+                    an_lines.append(f"Created: {note.created_at}")
+                    if note.approved_at:
+                        an_lines.append(f"Approved At: {note.approved_at}")
+                    an_lines.append("-" * 40 + "\n")
+                zip_entries.append((f"4. Resume and Feedback/Approval_Notes_Summary.txt", "\n".join(an_lines).encode("utf-8")))
+
+            # ── 5: Knowcraft Documents ──
+            joining_doc_types = {"FORM_2", "NOMINATION_INS", "FORM_F", "KRA", "FORM_11"}
+            sa_isms_doc_types = {"SA", "NDA", "BOND", "IT_ASSET", "UNDERTAKING", "ISMS_1", "ISMS_2"}
+
+            for esign in DocumentEsignTask.objects.filter(job_application=candidate):
+                target_file = esign.signed_file or esign.source_file
+                if target_file:
+                    c = _fetch_file_content(target_file)
+                    if c:
+                        ext = os.path.splitext(os.path.basename(target_file.name))[1] or ".pdf"
+                        doc_label = esign.get_doc_type_display().replace("/", "-")
+                        if esign.doc_type in joining_doc_types:
+                            folder = "5. Knowcraft Documents/a. Joining Documents"
+                        elif esign.doc_type in sa_isms_doc_types:
+                            folder = "5. Knowcraft Documents/b. Service Agreement and ISMS"
+                        else:
+                            folder = "5. Knowcraft Documents/a. Joining Documents"
+                        zip_entries.append((f"{folder}/{candidate.candidate_name}_{doc_label}{ext}", c))
+
+            # Onboarding Form Attachments
+            onboarding_form = getattr(candidate, "onboarding_form", None)
+            if onboarding_form:
+                for att in onboarding_form.attachments.all():
+                    c = _fetch_file_content(att.file)
+                    if c:
+                        orig_name = att.name or os.path.basename(att.file.name)
+                        zip_entries.append((f"5. Knowcraft Documents/a. Joining Documents/{candidate.candidate_name}_{orig_name}", c))
+
+            # 5c. BGV
+            bgv_record = CandidateBGV.objects.filter(candidate=candidate).first()
+            if bgv_record and bgv_record.report_url:
+                bgv_text = f"Candidate: {candidate.candidate_name}\nBGV Status: {bgv_record.status}\nReport URL: {bgv_record.report_url}\n"
+                zip_entries.append(("5. Knowcraft Documents/c. BGV/BGV_Report_Details.txt", bgv_text.encode("utf-8")))
+
+            # 5d. Offer Documents
+            for offer_doc in OfferDocument.objects.filter(application=candidate):
+                if offer_doc.signed_file:
+                    c = _fetch_file_content(offer_doc.signed_file)
+                    if c:
+                        ext = os.path.splitext(os.path.basename(offer_doc.signed_file.name))[1] or ".pdf"
+                        zip_entries.append((f"5. Knowcraft Documents/d. Offer Letter/{candidate.candidate_name}_Signed_Offer{ext}", c))
+
+            # 5e. Welcome Note & Call transcripts
+            welcome_logs = EmailLog.objects.filter(candidate=candidate).filter(
+                Q(event__icontains="welcome") | Q(subject__icontains="welcome")
+            ).order_by("-sent_at")
+            if welcome_logs.exists():
+                w_log = welcome_logs.first()
+                body = w_log.body_html or w_log.body_text or "Welcome to Knowcraft Analytics!"
+                ext = ".html" if w_log.body_html else ".txt"
+                zip_entries.append((f"5. Knowcraft Documents/e. Welcome Note/Welcome_Note{ext}", body.encode("utf-8")))
+
+            for call in candidate.onboarding_calls.all():
+                if call.transcript_file:
+                    c = _fetch_file_content(call.transcript_file)
+                    if c:
+                        ext = os.path.splitext(os.path.basename(call.transcript_file.name))[1] or ".txt"
+                        zip_entries.append((f"5. Knowcraft Documents/e. Welcome Note/{candidate.candidate_name}_{call.get_call_type_display()}_Transcript{ext}", c))
+
+            if not zip_entries:
+                raise Http404("No documents found for this candidate.")
+
+            in_memory_zip = io.BytesIO()
+            with zipfile.ZipFile(in_memory_zip, mode="w") as zipf:
+                for arcname, content in zip_entries:
+                    zipf.writestr(arcname, content)
+
+            in_memory_zip.seek(0)
+            response = StreamingHttpResponse(in_memory_zip, content_type="application/zip")
+            response["Content-Disposition"] = f'attachment; filename="{candidate.candidate_name} All Documents.zip"'
+            return response
+
+        except JobApplicationDocument.DoesNotExist:
+            raise Http404("One or more documents do not exist")
+        except Exception as e:
+            return HttpResponse(f'Error creating zip file: {str(e)}', status=404)
+
+
 class ApplicationDocumentSectionsAPI(APIView):
-    """Return a candidate's uploaded and signed documents grouped by category."""
+    """
+    Return a candidate's uploaded and signed documents grouped by category according to:
+    1. Education Documents
+    2. Personal Documents
+    3. Last Organization Documents
+    4. Resume and Feedback
+    5. Knowcraft Documents:
+       a. Joining Documents
+       b. Service Agreement and ISMS
+       c. BGV
+       d. Offer Letter
+       e. Welcome Note
+    """
     permission_classes = [permissions.IsAuthenticated]
 
     DOCUMENT_SECTIONS = {
-        "resume": "candidate_profile",
-        "resume_report": "candidate_profile",
-        "aadhaar": "personal",
-        "pan": "personal",
-        "passport": "personal",
-        "photograph": "personal",
-        "address_proof": "personal",
-        "salary_slip_1": "employment",
-        "salary_slip_2": "employment",
-        "salary_slip_3": "employment",
-        "bank_statement": "employment",
-        "resignation_letter": "employment",
-        "resignation_acceptance": "employment",
-        "tenth_certificate": "education",
-        "twelfth_certificate": "education",
-        "graduation_certificate": "education",
-        "post_graduation_certificate": "education",
-        "additional_certificate_1": "education",
-        "additional_certificate_2": "education",
-        "additional_certificate_3": "education",
-        "experience_letter_1": "experience",
-        "experience_letter_2": "experience",
-        "offer_letter_1": "experience",
-        "offer_letter_2": "experience",
-        "relieving_letter": "experience",
-        "increment_letter": "experience",
-        "salary_annexure": "onboarding",
-        "created_offer_letter": "offers",
+        # 1. Education Documents
+        "tenth_certificate": "education_documents",
+        "twelfth_certificate": "education_documents",
+        "graduation_certificate": "education_documents",
+        "post_graduation_certificate": "education_documents",
+        "additional_certificate_1": "education_documents",
+        "additional_certificate_2": "education_documents",
+        "additional_certificate_3": "education_documents",
+
+        # 2. Personal Documents
+        "pan": "personal_documents",
+        "aadhaar": "personal_documents",
+        "photograph": "personal_documents",
+        "passport": "personal_documents",
+        "address_proof": "personal_documents",
+
+        # 3. Last Organization Documents
+        "offer_letter_1": "last_organization_documents",
+        "offer_letter_2": "last_organization_documents",
+        "experience_letter_1": "last_organization_documents",
+        "experience_letter_2": "last_organization_documents",
+        "salary_slip_1": "last_organization_documents",
+        "salary_slip_2": "last_organization_documents",
+        "salary_slip_3": "last_organization_documents",
+        "bank_statement": "last_organization_documents",
+        "relieving_letter": "last_organization_documents",
+        "increment_letter": "last_organization_documents",
+        "resignation_letter": "last_organization_documents",
+        "resignation_acceptance": "last_organization_documents",
+
+        # 5d. Offer Letter
+        "salary_annexure": "offer_letter",
+        "created_offer_letter": "offer_letter",
+    }
+
+    DOCUMENT_LABELS = {
+        "tenth_certificate": "10th Marksheet/Certificate",
+        "twelfth_certificate": "12th Marksheet/Certificate",
+        "graduation_certificate": "Graduation Documents",
+        "post_graduation_certificate": "Post-Graduation Documents",
+        "additional_certificate_1": "Professional Certification 1",
+        "additional_certificate_2": "Professional Certification 2",
+        "additional_certificate_3": "Professional Certification 3",
+        "pan": "PAN Card",
+        "aadhaar": "Aadhaar Card",
+        "photograph": "Passport Photograph",
+        "passport": "Passport",
+        "address_proof": "Address Proof / Other Identification",
+        "offer_letter_1": "Offer Letter (Previous Employer 1)",
+        "offer_letter_2": "Offer Letter (Previous Employer 2)",
+        "experience_letter_1": "Experience Letter 1",
+        "experience_letter_2": "Experience Letter 2",
+        "salary_slip_1": "Salary Slip 1",
+        "salary_slip_2": "Salary Slip 2",
+        "salary_slip_3": "Salary Slip 3",
+        "bank_statement": "Bank Statement",
+        "relieving_letter": "Relieving Letter",
+        "increment_letter": "Increment/Appraisal Letter",
+        "resignation_letter": "Resignation Letter",
+        "resignation_acceptance": "Resignation Acceptance",
+        "salary_annexure": "Salary Annexure",
+        "created_offer_letter": "Offer Letter",
     }
 
     def _file_url(self, request, file_field):
@@ -2100,30 +2416,29 @@ class ApplicationDocumentSectionsAPI(APIView):
             id=id,
             job__company_id=request.user.company_id,
         )
-        sections = {
-            "candidate_profile": [],
-            "personal": [],
-            "employment": [],
-            "education": [],
-            "experience": [],
-            "onboarding": [],
-            "offers": [],
-            "bgv": [],
-            "other": [],
-        }
 
-        for field_name in ("resume", "resume_report"):
-            file_field = getattr(application, field_name)
-            if file_field:
-                sections["candidate_profile"].append({
-                    "key": field_name,
-                    "name": file_field.name.rsplit("/", 1)[-1],
-                    "url": self._file_url(request, file_field),
-                })
+        from slots.models import InterviewFeedback
 
+        # Category 1: Education Documents
+        education_docs = []
+        # Category 2: Personal Documents
+        personal_docs = []
+        # Category 3: Last Organization Documents
+        last_organization_docs = []
+        # Category 4: Resume and Feedback
+        resume_and_feedback_docs = []
+        # Category 5: Knowcraft Documents (sub-folders)
+        joining_docs = []
+        service_agreement_isms_docs = []
+        bgv_docs = []
+        offer_letter_docs = []
+        welcome_note_docs = []
+
+        # ── 1, 2, 3: Files from JobApplicationDocument ──
         application_documents = JobApplicationDocument.objects.filter(
             job_application=application
         ).first()
+
         if application_documents:
             for model_field in application_documents._meta.get_fields():
                 if not isinstance(model_field, FileField):
@@ -2131,31 +2446,130 @@ class ApplicationDocumentSectionsAPI(APIView):
                 file_field = getattr(application_documents, model_field.name)
                 if not file_field:
                     continue
+
                 section = self.DOCUMENT_SECTIONS.get(model_field.name, "other")
-                sections[section].append({
+                doc_item = {
                     "key": model_field.name,
-                    "name": file_field.name.rsplit("/", 1)[-1],
+                    "name": self.DOCUMENT_LABELS.get(model_field.name, file_field.name.rsplit("/", 1)[-1]),
+                    "file_name": file_field.name.rsplit("/", 1)[-1],
                     "url": self._file_url(request, file_field),
                     "approved": getattr(
                         application_documents,
                         f"{model_field.name}_approved",
                         None,
                     ),
+                }
+
+                if section == "education_documents":
+                    education_docs.append(doc_item)
+                elif section == "personal_documents":
+                    personal_docs.append(doc_item)
+                elif section == "last_organization_documents":
+                    last_organization_docs.append(doc_item)
+                elif section == "offer_letter":
+                    offer_letter_docs.append(doc_item)
+
+        # ── 4: Resume and Feedback ──
+        # Candidate Resume
+        for field_name in ("resume", "resume_report"):
+            file_field = getattr(application, field_name)
+            if file_field:
+                resume_and_feedback_docs.append({
+                    "key": field_name,
+                    "type": "resume",
+                    "name": "Candidate Resume" if field_name == "resume" else "Candidate Resume Report",
+                    "file_name": file_field.name.rsplit("/", 1)[-1],
+                    "url": self._file_url(request, file_field),
                 })
 
-        bgv_record = CandidateBGV.objects.filter(candidate=application).first()
-        if bgv_record and bgv_record.report_url:
-            sections["bgv"].append({
-                "key": "report",
-                "name": "BGV report",
-                "url": bgv_record.report_url,
-                "status": bgv_record.status,
+        # Interview Feedback Forms
+        interview_feedbacks = InterviewFeedback.objects.filter(job_application=application).order_by("-interview_date")
+        for fb in interview_feedbacks:
+            round_display = fb.get_interview_round_display() if hasattr(fb, "get_interview_round_display") else (fb.interview_round or "Round")
+            resume_and_feedback_docs.append({
+                "id": str(fb.id),
+                "key": f"interview_feedback_{fb.interview_round or 'round'}",
+                "type": "interview_feedback",
+                "name": f"Interview Feedback ({round_display})",
+                "round": fb.interview_round,
+                "interviewer_name": fb.interviewer_name or "-",
+                "interview_date": fb.interview_date.strftime('%d-%b-%Y') if fb.interview_date else None,
+                "selection_status": fb.is_selected,
+                "ratings": {
+                    "communication": fb.communication_rating,
+                    "technical": fb.technical_skill_rating,
+                    "attitude": fb.attitude_intent_rating,
+                    "team_handling": fb.team_handling_rating,
+                },
             })
 
+        # Approval Notes
+        approval_notes = ApprovalNote.objects.filter(candidate=application).order_by("-created_at")
+        for note in approval_notes:
+            resume_and_feedback_docs.append({
+                "id": str(note.id),
+                "key": "approval_note",
+                "type": "approval_note",
+                "name": f"Approval Note ({note.get_status_display()})",
+                "status": note.status,
+                "manager_name": note.manager.name if note.manager else None,
+                "manager_email": note.manager.email if note.manager else None,
+                "created_at": note.created_at,
+                "approved_at": note.approved_at,
+                "rejected_at": note.rejected_at,
+                "url": request.build_absolute_uri(f"/api/onboarding/approval-note/{note.id}/download/"),
+            })
+
+        # Candidature Email Communications
+        candidature_emails = EmailLog.objects.filter(candidate=application).order_by("-sent_at")
+        for email_log in candidature_emails:
+            resume_and_feedback_docs.append({
+                "id": str(email_log.id),
+                "key": "candidature_email",
+                "type": "email_communication",
+                "name": email_log.subject or f"Email: {email_log.event}",
+                "subject": email_log.subject,
+                "event": email_log.event,
+                "recipient": email_log.recipient_email,
+                "sent_at": email_log.sent_at,
+                "status": email_log.status,
+            })
+
+        # ── 5: Knowcraft Documents ──
+        # 5a. Joining Documents:
+        joining_doc_types = {"FORM_2", "NOMINATION_INS", "FORM_F", "KRA", "FORM_11"}
+        # 5b. Service Agreement and ISMS:
+        sa_isms_doc_types = {"SA", "NDA", "BOND", "IT_ASSET", "UNDERTAKING", "ISMS_1", "ISMS_2"}
+
+        esign_documents = DocumentEsignTask.objects.filter(
+            job_application=application
+        ).order_by("created_at")
+
+        for document in esign_documents:
+            doc_item = {
+                "id": str(document.id),
+                "key": document.doc_type,
+                "name": document.get_doc_type_display(),
+                "status": document.status,
+                "source_file_url": self._file_url(request, document.source_file),
+                "signed_file_url": self._file_url(request, document.signed_file),
+                "url": self._file_url(request, document.signed_file or document.source_file),
+                "sent_at": document.sent_at,
+                "signed_at": document.signed_at,
+                "completed_at": document.completed_at,
+            }
+            if document.doc_type in joining_doc_types:
+                joining_docs.append(doc_item)
+            elif document.doc_type in sa_isms_doc_types:
+                service_agreement_isms_docs.append(doc_item)
+            else:
+                joining_docs.append(doc_item)
+
+        # Onboarding Form Attachments (Joining Checklist, etc.)
         onboarding_form = getattr(application, "onboarding_form", None)
         if onboarding_form:
             for attachment in onboarding_form.attachments.all():
-                sections["onboarding"].append({
+                joining_docs.append({
                     "id": str(attachment.id),
                     "key": "onboarding_form_attachment",
                     "name": attachment.name or attachment.file.name.rsplit("/", 1)[-1],
@@ -2163,45 +2577,175 @@ class ApplicationDocumentSectionsAPI(APIView):
                     "uploaded_at": attachment.uploaded_at,
                 })
 
+        # 5c. BGV (Background Verification Report)
+        bgv_record = CandidateBGV.objects.filter(candidate=application).first()
+        if bgv_record and bgv_record.report_url:
+            bgv_docs.append({
+                "key": "report",
+                "name": "Background Verification Report",
+                "url": bgv_record.report_url,
+                "status": bgv_record.status,
+            })
+
+        # 5d. Offer Letter
+        offer_documents = OfferDocument.objects.filter(
+            application=application
+        ).order_by("created_at")
+        for document in offer_documents:
+            if document.signed_file:
+                offer_letter_docs.append({
+                    "id": str(document.id),
+                    "key": "signed_offer",
+                    "name": "Signed Offer Letter",
+                    "status": document.status,
+                    "url": self._file_url(request, document.signed_file),
+                    "signed_at": document.signed_at,
+                    "completed_at": document.completed_at,
+                })
+
+        offer_emails = EmailLog.objects.filter(
+            candidate=application
+        ).filter(
+            Q(event__icontains="offer") |
+            Q(event__icontains="annexure") |
+            Q(event__icontains="salary") |
+            Q(subject__icontains="offer") |
+            Q(subject__icontains="salary") |
+            Q(subject__icontains="annexure")
+        ).order_by("-sent_at")
+
+        for o_email in offer_emails:
+            offer_letter_docs.append({
+                "id": str(o_email.id),
+                "key": "offer_salary_email",
+                "type": "email",
+                "name": o_email.subject,
+                "subject": o_email.subject,
+                "event": o_email.event,
+                "sent_at": o_email.sent_at,
+                "status": o_email.status,
+            })
+
+        # 5e. Welcome Note
+        welcome_emails = EmailLog.objects.filter(
+            candidate=application
+        ).filter(
+            Q(event__icontains="welcome") |
+            Q(subject__icontains="welcome")
+        ).order_by("-sent_at")
+
+        for w_email in welcome_emails:
+            welcome_note_docs.append({
+                "id": str(w_email.id),
+                "key": "welcome_email",
+                "type": "email",
+                "name": w_email.subject,
+                "subject": w_email.subject,
+                "event": w_email.event,
+                "sent_at": w_email.sent_at,
+                "status": w_email.status,
+            })
+
         for call in application.onboarding_calls.all():
             if call.transcript_file:
-                sections["onboarding"].append({
+                welcome_note_docs.append({
                     "id": str(call.id),
                     "key": f"{call.call_type}_transcript",
                     "name": f"{call.get_call_type_display()} transcript",
                     "url": self._file_url(request, call.transcript_file),
                 })
 
-        esign_documents = DocumentEsignTask.objects.filter(
-            job_application=application
-        ).order_by("created_at")
-        for document in esign_documents:
-            sections["onboarding"].append({
-                "id": str(document.id),
-                "key": document.doc_type,
-                "name": document.get_doc_type_display(),
-                "status": document.status,
-                "source_file_url": self._file_url(request, document.source_file),
-                "signed_file_url": self._file_url(request, document.signed_file),
-                "sent_at": document.sent_at,
-                "signed_at": document.signed_at,
-                "completed_at": document.completed_at,
-            })
+        # Build complete sections dictionary (both structured and legacy-compatible)
+        sections = {
+            # Structured categories matching requested specification
+            "education_documents": education_docs,
+            "personal_documents": personal_docs,
+            "last_organization_documents": last_organization_docs,
+            "resume_and_feedback": resume_and_feedback_docs,
+            "knowcraft_documents": {
+                "joining_documents": joining_docs,
+                "service_agreement_and_isms": service_agreement_isms_docs,
+                "bgv": bgv_docs,
+                "offer_letter": offer_letter_docs,
+                "welcome_note": welcome_note_docs,
+            },
 
-        offer_documents = OfferDocument.objects.filter(
-            application=application
-        ).order_by("created_at")
-        for document in offer_documents:
-            if document.signed_file:
-                sections["offers"].append({
-                    "id": str(document.id),
-                    "key": "signed_offer",
-                    "name": "Signed offer document",
-                    "status": document.status,
-                    "url": self._file_url(request, document.signed_file),
-                    "signed_at": document.signed_at,
-                    "completed_at": document.completed_at,
-                })
+            # Backward-compatible keys for existing clients & test suites
+            "education": education_docs,
+            "personal": personal_docs,
+            "employment": last_organization_docs,
+            "experience": [d for d in last_organization_docs if any(k in d.get("key", "") for k in ["experience", "offer", "relieving", "increment"])],
+            "candidate_profile": [d for d in resume_and_feedback_docs if "resume" in d.get("key", "")],
+            "bgv": bgv_docs,
+            "offers": offer_letter_docs,
+            "onboarding": [d for d in (joining_docs + service_agreement_isms_docs + welcome_note_docs) if d.get("key") != "report"],
+            "other": [],
+        }
+
+        # Structured tree array representation for frontends rendering folder/tree views
+        folders = [
+            {
+                "id": "1",
+                "name": "1. Education Documents",
+                "key": "education_documents",
+                "documents": education_docs,
+            },
+            {
+                "id": "2",
+                "name": "2. Personal Documents",
+                "key": "personal_documents",
+                "documents": personal_docs,
+            },
+            {
+                "id": "3",
+                "name": "3. Last Organization Documents",
+                "key": "last_organization_documents",
+                "documents": last_organization_docs,
+            },
+            {
+                "id": "4",
+                "name": "4. Resume and Feedback",
+                "key": "resume_and_feedback",
+                "documents": resume_and_feedback_docs,
+            },
+            {
+                "id": "5",
+                "name": "5. Knowcraft Documents",
+                "key": "knowcraft_documents",
+                "subfolders": [
+                    {
+                        "id": "5a",
+                        "name": "a. Joining Documents",
+                        "key": "joining_documents",
+                        "documents": joining_docs,
+                    },
+                    {
+                        "id": "5b",
+                        "name": "b. Service Agreement and ISMS",
+                        "key": "service_agreement_and_isms",
+                        "documents": service_agreement_isms_docs,
+                    },
+                    {
+                        "id": "5c",
+                        "name": "c. BGV",
+                        "key": "bgv",
+                        "documents": bgv_docs,
+                    },
+                    {
+                        "id": "5d",
+                        "name": "d. Offer Letter",
+                        "key": "offer_letter",
+                        "documents": offer_letter_docs,
+                    },
+                    {
+                        "id": "5e",
+                        "name": "e. Welcome Note",
+                        "key": "welcome_note",
+                        "documents": welcome_note_docs,
+                    },
+                ],
+            },
+        ]
 
         return Response(
             {
@@ -2209,6 +2753,7 @@ class ApplicationDocumentSectionsAPI(APIView):
                     "id": str(application.id),
                     "name": application.candidate_name,
                 },
+                "folders": folders,
                 "sections": sections,
             },
             status=status.HTTP_200_OK,
@@ -2430,6 +2975,41 @@ class EmailLogViewSet(ReadOnlyModelViewSet):
 
         return qs
 
+def sync_team_manager(application, team_manager_raw=None):
+    """
+    Syncs Team Manager between OnboardingForm and JobApplication:
+    - OnboardingForm has a single field `team_manager` (which can be either an email OR a name, not both).
+    - If team_manager_raw contains '@', it syncs ONLY to JobApplication.team_manager_email.
+    - If team_manager_raw does NOT contain '@', it syncs ONLY to JobApplication.team_manager_name.
+    - Only the matching field is updated; the other field is untouched.
+    """
+    if not application or not team_manager_raw:
+        return
+
+    raw = str(team_manager_raw).strip()
+    if not raw:
+        return
+
+    if "@" in raw:
+        if getattr(application, "team_manager_email", None) != raw:
+            application.team_manager_email = raw
+            application.save(update_fields=["team_manager_email"])
+    else:
+        if getattr(application, "team_manager_name", None) != raw:
+            application.team_manager_name = raw
+            application.save(update_fields=["team_manager_name"])
+
+    # Sync back to OnboardingForm if present
+    try:
+        from onboarding.models import OnboardingForm
+        ob_form = OnboardingForm.objects.filter(job_application=application).first()
+        if ob_form and ob_form.team_manager != raw:
+            ob_form.team_manager = raw
+            ob_form.save(update_fields=["team_manager"])
+    except Exception:
+        pass
+
+
 # --- Onboarding Post-Joining APIs ---
 
 class InitiateOnboardingAPI(APIView):
@@ -2462,7 +3042,7 @@ class InitiateOnboardingAPI(APIView):
             "employee_category": form.employee_category,
             "center_office_location": form.center_office_location,
             "mode_for_collecting_assets": form.mode_for_collecting_assets,
-            "team_manager": form.team_manager,
+            "team_manager": form.team_manager or application.team_manager_email or application.team_manager_name,
             "work_from": form.work_from,
             "crafter_id": form.crafter_id,
             "emails_to_notify": form.emails_to_notify,
@@ -2578,6 +3158,12 @@ class InitiateOnboardingAPI(APIView):
                     size=upload.size,
                 )
 
+            # Sync team manager from onboarding form to job application (email or name only)
+            sync_team_manager(
+                application,
+                team_manager_raw=form_data.get("team_manager"),
+            )
+
             # Send admin notification email with full form details
             try:
                 _send_onboarding_form_admin_email(application, form_data, request.user)
@@ -2639,16 +3225,54 @@ class InitiateOnboardingAPI(APIView):
             f"for application {application.id}. Fields: {changed_fields}"
         )
 
+        # Sync team manager if provided in update payload (email or name only)
+        if "team_manager" in request.data:
+            sync_team_manager(
+                application,
+                team_manager_raw=form.team_manager,
+            )
+
+        # Dispatch email as New IT Ticket Request on form update
+        try:
+            full_form_data = {
+                "assets": form.assets,
+                "site": form.site,
+                "subject": form.subject,
+                "first_name": form.first_name,
+                "last_name": form.last_name,
+                "personal_email_id": form.personal_email_id,
+                "contact_number": form.contact_number,
+                "joining_date": form.joining_date,
+                "designation": form.designation,
+                "department": form.department,
+                "employee_category": form.employee_category,
+                "center_office_location": form.center_office_location,
+                "mode_for_collecting_assets": form.mode_for_collecting_assets,
+                "team_manager": form.team_manager,
+                "work_from": form.work_from,
+                "crafter_id": form.crafter_id,
+                "emails_to_notify": form.emails_to_notify,
+                "current_address": form.current_address,
+                "description": form.description,
+                "custom_notes": form.custom_notes,
+                "requester_id": form.requester_id,
+                "requester_name": form.requester_name,
+                "requester_email_id": form.requester_email_id,
+            }
+            _send_onboarding_form_admin_email(application, full_form_data, request.user, is_update=True)
+        except Exception as email_err:
+            logger.warning(f"IT ticket email failed on onboarding form update for {application.id}: {email_err}")
+
         return Response({
-            "message": "Onboarding form updated successfully.",
+            "message": "Onboarding form updated successfully and IT ticket request email sent.",
             "onboarding_form_id": str(form.id),
             "updated_fields": changed_fields,
         }, status=status.HTTP_200_OK)
 
-def _send_onboarding_form_admin_email(application, form_data, submitted_by):
+def _send_onboarding_form_admin_email(application, form_data, submitted_by, is_update=False):
     """
-    Sends a rich HTML summary email to all admin-role users when
-    an onboarding form is submitted. No Zoho ManageEngine dependency.
+    Sends a rich HTML summary email to the IT / admin team when
+    an onboarding form is submitted or updated as an IT ticket request.
     """
     from accounts.models import User
     from onboarding.utils.sender import send_email

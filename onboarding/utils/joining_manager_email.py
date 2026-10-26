@@ -141,7 +141,7 @@ def send_joining_day_manager_email(application):
 
     manager_values = {
         "HOD": getattr(application, "hod_email", None),
-        "team manager": getattr(onboarding_form, "team_manager", None),
+        "team manager": getattr(application, "team_manager_email", None) or getattr(onboarding_form, "team_manager", None),
         "reporting manager": getattr(application, "reporting_manager_email", None),
     }
     missing = [
@@ -178,8 +178,8 @@ def send_joining_day_manager_email(application):
         return False
 
     candidate_name = (application.candidate_name or "").strip()
-    team_manager_name = resolved["team manager"]["name"]
-    reporting_manager_name = resolved["reporting manager"]["name"]
+    team_manager_name = (getattr(application, "team_manager_name", None) or "").strip() or resolved["team manager"]["name"]
+    reporting_manager_name = (getattr(application, "reporting_manager_name", None) or "").strip() or resolved["reporting manager"]["name"]
     text = (
         f"Hi {candidate_name},\n\n"
         f"Please note that you will be a part of Mr. {team_manager_name}’s team, "

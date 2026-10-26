@@ -1670,6 +1670,10 @@ def resolve_internal_emails(candidate,receivers: list[str],*,strict_hod_email: b
                 add_email(getattr(candidate, "reporting_manager_email", None))
                 continue
 
+            if role == "team_manager":
+                add_email(getattr(candidate, "team_manager_email", None))
+                continue
+
             # =========================
             # HR MANAGER
             # =========================

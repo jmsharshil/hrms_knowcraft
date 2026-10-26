@@ -159,7 +159,11 @@ class JobApplicationAdmin(admin.ModelAdmin):
                 'it_ticket_ref', 'emp_account_active', 'work_email',
                 'technical_buddy_name', 'technical_buddy_email', 'cultural_buddy_name', 'cultural_buddy_email', 'is_escalated', 
                 'is_satisfaction_survey_filled', 'is_hod_survey_filled',
-                'is_d45_call_scheduled', 'is_d90_call_scheduled'
+                'is_d45_call_scheduled', 'is_d90_call_scheduled',
+                'hod_name', 'hod_email',
+                'reporting_manager_name', 'reporting_manager_email',
+                'team_manager_name', 'team_manager_email',
+                'team', 'shift_timings',
             )
         }),
         # ── 4. Compensation ───────────────────────────────────────
@@ -334,11 +338,21 @@ class JobApplicationAdmin(admin.ModelAdmin):
             return
 
         # Keep this sequence aligned with DEBUG_ONBOARDING_MILESTONES.
-        MILESTONE_MINUTES = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        MILESTONE_MINUTES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
         MILESTONE_LABELS = {
-            0: "DOJ - 15", 1: "DOJ -  7", 2: "DOJ -  2",
-            3: "DOJ   0",  4: "DOJ +  1", 5: "DOJ +  7",
-            6: "DOJ + 30", 7: "DOJ + 45", 8: "DOJ + 90",
+            0: "DOJ - 15",
+            1: "DOJ -  7",
+            2: "DOJ -  2",
+            3: "DOJ   0",
+            4: "DOJ +  1 (Day 2: HR Handbook)",
+            5: "DOJ +  2 (Day 3: Culture & Values)",
+            6: "DOJ +  3 (Day 4: POSH Policy)",
+            7: "DOJ +  4 (Day 5: Chatbot Manual)",
+            8: "DOJ +  5 (Day 6: KAI Mascot + D5 Verification)",
+            9: "DOJ +  7",
+            10: "DOJ + 30",
+            11: "DOJ + 45",
+            12: "DOJ + 90",
         }
 
         # Freeze queryset — thread must not hold a live DB cursor
@@ -399,6 +413,8 @@ class JobApplicationAdmin(admin.ModelAdmin):
                     for flag in [
                         'work_email', 'status', 'is_doj_minus_15_triggered', 'is_doj_minus_7_triggered',
                         'is_doj_minus_2_triggered', 'is_doj_0_triggered', 'is_post_welcome_docs_sent',
+                        'is_hr_handbook_sent', 'is_culture_values_sent', 'is_posh_policy_sent',
+                        'is_chatbot_manual_sent', 'is_kai_mascot_sent',
                         'is_esign_packet_generated', 'is_esign_reminder_sent', 'is_d5_verification_sent',
                         'is_undertaking_signoff_sent', 'is_doj_7_triggered', 'is_escalated',
                         'is_d30_survey_sent', 'is_hod_survey_filled', 'is_d45_call_scheduled',

@@ -43,6 +43,32 @@ def _seconds_until_next_friday_630pm():
     return int(max(delay, 0))
 
 
+def _seconds_until_next_morning_9am():
+    """
+    Return the number of seconds from *now* (IST) until the next
+    morning at 09:00 IST (UTC+5:30).
+
+    If today is before 09:00 IST, the delay targets today's 09:00 IST.
+    If it is at/after 09:00 IST, targets tomorrow's 09:00 IST.
+    """
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    ist = ZoneInfo("Asia/Kolkata")
+    now_ist = datetime.now(ist)
+
+    target = now_ist.replace(hour=9, minute=0, second=0, microsecond=0)
+    if now_ist >= target:
+        target += timedelta(days=1)
+
+    delay = (target - now_ist).total_seconds()
+    logger.info(
+        "[SCHEDULER] Next daily onboarding check scheduled in %.0fs (at %s IST).",
+        delay, target.strftime("%A %Y-%m-%d %H:%M %Z"),
+    )
+    return int(max(delay, 0))
+
+
 class SchedulerConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "scheduler"
@@ -211,7 +237,7 @@ class SchedulerConfig(AppConfig):
             {
                 "task_type": "daily_onboarding_check",
                 "interval_seconds": 86400,       # 1 day
-                "delay_seconds": 20,             # first run after 20s
+                "delay_seconds": _seconds_until_next_morning_9am(),  # 09:00 IST every morning
                 "max_retries": 3,
             },
             {
@@ -268,6 +294,25 @@ class SchedulerConfig(AppConfig):
                         new_scheduled_at, new_delay,
                     )
                     continue  # skip schedule() — row already exists and will be re-armed
+
+            # ── Daily onboarding check: guard against stale scheduled_at ─────
+            # If a pending row already exists but its scheduled_at is in the
+            # past (e.g. server restart), bump it to the next morning 09:00 IST
+            # so it does not fire immediately on startup.
+            if cfg["task_type"] == "daily_onboarding_check" and pending_rows:
+                surviving_row = pending_rows[0]
+                if surviving_row.scheduled_at <= tz.now():
+                    new_delay = _seconds_until_next_morning_9am()
+                    new_scheduled_at = tz.now() + _dt.timedelta(seconds=new_delay)
+                    ScheduledTask.objects.filter(id=surviving_row.id).update(
+                        scheduled_at=new_scheduled_at,
+                    )
+                    logger.info(
+                        "[SCHEDULER] Bumped stale 'daily_onboarding_check' "
+                        "scheduled_at to %s IST (in %ds).",
+                        new_scheduled_at, new_delay,
+                    )
+                    continue
 
             TaskScheduler.schedule(
                 task_type=cfg["task_type"],
