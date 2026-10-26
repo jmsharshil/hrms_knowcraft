@@ -1318,6 +1318,7 @@ def dept_head_weekly_report_task():
                         'assigned_to_consultancy', 'assigned_to_internal_hr', 'assigned_to_both'
                     ]
                 )
+                & Q(requested_by=head)
                 & (Q(department=head.department) | Q(position_department=head.department))
                 & (Q(job__isnull=True) | Q(job__is_private=False))
             )
@@ -1339,6 +1340,9 @@ def dept_head_weekly_report_task():
                 if getattr(mrf, 'is_private', False):
                     continue
                 if hasattr(mrf, 'job') and mrf.job and getattr(mrf.job, 'is_private', False):
+                    continue
+                # Must be requested by this department head
+                if getattr(mrf, 'requested_by_id', None) != head.id:
                     continue
 
                 desig_name = mrf.designation.name if mrf.designation else (mrf.mrf_name or "Unknown")

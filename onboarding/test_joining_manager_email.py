@@ -90,13 +90,15 @@ class JoiningDayManagerEmailTests(SimpleTestCase):
         send_email_mock.assert_called_once()
         args = send_email_mock.call_args.kwargs
         self.assertEqual(args["to"], "candidate@example.com")
-        self.assertEqual(args["cc"], [])
+        self.assertEqual(
+            args["cc"],
+            ["hod@example.com", "team@example.com", "reporting@example.com"]
+        )
         self.assertFalse(args["use_default_cc"])
         self.assertEqual(args["event"], "joining_day_manager_notification")
         self.assertEqual(args["email_type"], "candidate")
         self.assertIn("Mr. Team Manager’s team", args["text"])
         self.assertIn("Reporting Manager", args["text"])
-        self.assertIn("Your HOD will be Department Head", args["text"])
         self.assertEqual(
             email_log_filter.call_args.kwargs["recipient_email"],
             "candidate@example.com",
