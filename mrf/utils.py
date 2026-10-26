@@ -1308,14 +1308,19 @@ def dept_head_weekly_report_task():
                 logger.warning("[WEEKLY-REPORT] Department head %s has no assigned department. Skipping.", head.email)
                 continue
 
-            mrf_filter = Q(
-                is_active=True,
-                status__in=[
-                    # 'filled' excluded — position already hired, no need to report
-                    'approved', 'joining_pending', 'open', 'in_progress',
-                    'assigned_to_consultancy', 'assigned_to_internal_hr', 'assigned_to_both'
-                ]
-            ) & (Q(department=head.department) | Q(position_department=head.department))
+            mrf_filter = (
+                Q(
+                    is_active=True,
+                    is_private=False,
+                    status__in=[
+                        # 'filled' excluded — position already hired, no need to report
+                        'approved', 'joining_pending', 'open', 'in_progress',
+                        'assigned_to_consultancy', 'assigned_to_internal_hr', 'assigned_to_both'
+                    ]
+                )
+                & (Q(department=head.department) | Q(position_department=head.department))
+                & (Q(job__isnull=True) | Q(job__is_private=False))
+            )
 
             if head.company_id:
                 mrf_filter &= Q(company_id=head.company_id)
@@ -1330,13 +1335,27 @@ def dept_head_weekly_report_task():
             pipeline_candidates_data = []
 
             for mrf in active_mrfs:
+                # Private MRFs and private jobs must never appear in weekly report
+                if getattr(mrf, 'is_private', False):
+                    continue
+                if hasattr(mrf, 'job') and mrf.job and getattr(mrf.job, 'is_private', False):
+                    continue
+
                 desig_name = mrf.designation.name if mrf.designation else (mrf.mrf_name or "Unknown")
                 openings = mrf.no_of_vacancies or 1
                 team = mrf.team or (mrf.department.name if mrf.department else "-")
 
                 stage_counts = {}
                 if hasattr(mrf, 'job') and mrf.job:
-                    all_apps = JobApplication.objects.filter(job=mrf.job, is_active=True)
+                    if getattr(mrf.job, 'is_private', False):
+                        continue
+
+                    all_apps = JobApplication.objects.filter(
+                        job=mrf.job,
+                        is_active=True,
+                        job__is_private=False,
+                        job__mrf__is_private=False
+                    )
                     for entry in all_apps.values('status').annotate(count=Count('id')):
                         stage_counts[entry['status']] = entry['count']
 
@@ -1358,6 +1377,8 @@ def dept_head_weekly_report_task():
                     ).select_related('job', 'job__designation').distinct()
 
                     for app in active_apps:
+                        if getattr(app.job, 'is_private', False) or (app.job and hasattr(app.job, 'mrf') and getattr(app.job.mrf, 'is_private', False)):
+                            continue
                         pipeline_candidates_data.append((mrf, app))
 
                 received = stage_counts.get('received', 0)
@@ -1420,6 +1441,10 @@ def dept_head_weekly_report_task():
                     f"Doc/Approval: {doc_approval} | Offer Released: {offer_released} | Offer Accepted: {offer_accepted} | "
                     f"Joining Expected: {joining_expected} | Remarks: {remarks}"
                 )
+
+            if not summary_html_rows:
+                # No non-private MRFs to report for this department head
+                continue
 
             # Build Hiring Summary Table HTML
             hiring_summary_table = f"""
