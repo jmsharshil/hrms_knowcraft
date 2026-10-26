@@ -1045,13 +1045,40 @@ def notify_candidate(candidate: Any, stage: str, cc: list = None, feedback_link:
                     "feedback_link": feedback_link,
                     **extra_context
                 }
+                # For onboarding emails, CC should be internal HRs, not talent@knowcraft.in
+                is_onboarding_stage = bool(
+                    hasattr(candidate, 'onboarding_form') or
+                    getattr(candidate, 'status', None) in [
+                        "offer_accepted", "joining_pending", "joined", "docs_pending", "docs_uploaded", "docs_approved"
+                    ] or
+                    stage in [
+                        "welcome_wfo", "welcome_wfh", "hr_handbook", "culture_values",
+                        "posh_policy", "chatbot_manual", "kai_mascot", "d5_document_verification",
+                        "satisfaction_survey", "d90_survey", "candidate_feedback_reminder"
+                    ]
+                )
+                if is_onboarding_stage:
+                    final_cc = [c for c in (cc or []) if c and c.lower() != "talent@knowcraft.in"]
+                    try:
+                        hr_recipients = resolve_internal_emails(candidate, ["hr"])
+                        for hr_email in hr_recipients:
+                            if hr_email and hr_email.lower() != (recipient_email or "").lower() and hr_email not in final_cc:
+                                final_cc.append(hr_email)
+                    except Exception as e:
+                        logger.warning(f"Could not resolve internal HR emails for CC: {e}")
+                    use_default_cc = False
+                else:
+                    final_cc = cc
+                    use_default_cc = True
+
                 send_email(
                     to=recipient_email,
                     subject=email_cfg["subject"],
                     text=formatted_text,
-                    cc=cc,
+                    cc=final_cc,
                     template=html_template.format(**template_context),
                     attachments=attachments,
+                    use_default_cc=use_default_cc,
                     event="onboarding_stage_update",
                     email_type="candidate",
                     candidate=candidate
@@ -1950,7 +1977,25 @@ def notify_internal(candidate: Any, stage: str, cc: list = None) -> bool:
                 FRONTEND_URL=FRONTEND_URL
             )
 
-            send_email(email, subject=subject, text=body, template=template,event="onboarding_stage_update",email_type="internal")
+            onboarding_cc = [c for c in (cc or []) if c and c.lower() != "talent@knowcraft.in"]
+            try:
+                for hr_e in resolve_internal_emails(candidate, ["hr"]):
+                    if hr_e and hr_e.lower() != (email or "").lower() and hr_e not in onboarding_cc:
+                        onboarding_cc.append(hr_e)
+            except Exception as _hr_err:
+                logger.warning(f"Could not resolve internal HRs for notify_internal CC: {_hr_err}")
+
+            send_email(
+                email,
+                subject=subject,
+                text=body,
+                template=template,
+                cc=onboarding_cc,
+                use_default_cc=False,
+                event="onboarding_stage_update",
+                email_type="internal",
+                candidate=candidate
+            )
 
         # =========================
         # SMS (FIXED)

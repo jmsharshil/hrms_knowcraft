@@ -195,9 +195,9 @@ class SchedulerConfig(AppConfig):
         from mrf.utils import auto_reject_stale_held_mrfs
         TaskScheduler.register("mrf_auto_reject_held", lambda: auto_reject_stale_held_mrfs())
 
-        # Weekly Department Head Report
+        #  Department Head Report
         from mrf.utils import dept_head_weekly_report_task
-        TaskScheduler.register("dept_head_weekly_report", lambda: dept_head_weekly_report_task())
+        # TaskScheduler.register("dept_head_weekly_report", lambda: dept_head_weekly_report_task())
 
         # Candidate Experience Feedback 24h Reminder
         from onboarding.utils.notifications import candidate_feedback_reminder_task
@@ -230,8 +230,8 @@ class SchedulerConfig(AppConfig):
             },
             {
                 "task_type": "joining_date_check",
-                "interval_seconds": 3600,        # 1 hour
-                "delay_seconds": 15,             # first run after 15s
+                "interval_seconds": 86400,       # 1 day
+                "delay_seconds": _seconds_until_next_morning_9am(),  # 09:00 IST every morning
                 "max_retries": 3,
             },
             {
@@ -295,12 +295,16 @@ class SchedulerConfig(AppConfig):
                     )
                     continue  # skip schedule() — row already exists and will be re-armed
 
-            # ── Daily onboarding check: guard against stale scheduled_at ─────
+            # ── Daily onboarding check / Joining date check: guard against stale scheduled_at ─────
             # If a pending row already exists but its scheduled_at is in the
             # past (e.g. server restart), bump it to the next morning 09:00 IST
             # so it does not fire immediately on startup.
-            if cfg["task_type"] == "daily_onboarding_check" and pending_rows:
+            if cfg["task_type"] in ("daily_onboarding_check", "joining_date_check") and pending_rows:
                 surviving_row = pending_rows[0]
+                if surviving_row.interval_seconds != cfg["interval_seconds"]:
+                    ScheduledTask.objects.filter(id=surviving_row.id).update(
+                        interval_seconds=cfg["interval_seconds"]
+                    )
                 if surviving_row.scheduled_at <= tz.now():
                     new_delay = _seconds_until_next_morning_9am()
                     new_scheduled_at = tz.now() + _dt.timedelta(seconds=new_delay)
@@ -308,9 +312,9 @@ class SchedulerConfig(AppConfig):
                         scheduled_at=new_scheduled_at,
                     )
                     logger.info(
-                        "[SCHEDULER] Bumped stale 'daily_onboarding_check' "
+                        "[SCHEDULER] Bumped stale '%s' "
                         "scheduled_at to %s IST (in %ds).",
-                        new_scheduled_at, new_delay,
+                        cfg["task_type"], new_scheduled_at, new_delay,
                     )
                     continue
 

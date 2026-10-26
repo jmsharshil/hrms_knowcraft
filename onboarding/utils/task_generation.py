@@ -91,7 +91,24 @@ def create_task(app, title, description="", due_date=None, assigned_to=None, tea
     </body>
     </html>
 """
-            send_email(email_to, subject=subject, text=body, template=html_template, event="onboarding_task_created", email_type="internal")
+            from onboarding.utils.notifications import resolve_internal_emails
+            internal_hrs = []
+            try:
+                internal_hrs = resolve_internal_emails(app, ["hr"])
+            except Exception as _hr_err:
+                logger.warning(f"Could not resolve internal HRs for task creation CC: {_hr_err}")
+            cc_hrs = [e for e in internal_hrs if e and e.lower() != email_to.lower() and e.lower() != "talent@knowcraft.in"]
+            send_email(
+                email_to,
+                subject=subject,
+                text=body,
+                template=html_template,
+                cc=cc_hrs,
+                use_default_cc=False,
+                event="onboarding_task_created",
+                email_type="internal",
+                candidate=app
+            )
             
     return task, created
 

@@ -5,16 +5,21 @@ import time
 
 logger = logging.getLogger(__name__)
 
+from django.conf import settings
+
 def run_joining_date_check():
     """
-    Check for candidates in 'joining_pending' whose joining date is today or in the past,
-    and transition them to 'joined'.
+    Check for candidates in 'joining_pending' whose joining date is today or in the past:
+    - If work_email is present, transition them to 'joined' and send the joining day manager email.
+    - If work_email is missing, keep them in 'joining_pending' and trigger missing_work_email_reminder.
 
-    Called periodically by the persistent TaskScheduler (recurring every 3600s).
+    Called periodically by the persistent TaskScheduler (recurring daily in the morning at 09:00 AM IST)
+    and at the start of daily_onboarding_check.
     Returns True to keep the recurring task alive.
     """
     from jobs.models import JobApplication
     from onboarding.utils.engine import automation_engine
+    from onboarding.utils.notifications import notify_internal
     print("[JOINING CHECK] Starting background check for joining dates...")
     try:
         # Find candidates whose joining date has arrived
@@ -36,11 +41,41 @@ def run_joining_date_check():
                 ).first()
                 if not locked_app:
                     continue
-                print(f"[JOINING CHECK] Auto-transitioning {locked_app.candidate_name} (ID: {locked_app.id}) to joined")
+
+                work_email = (getattr(locked_app, 'work_email', None) or '').strip()
+                if not work_email and hasattr(locked_app, 'refresh_from_db'):
+                    try:
+                        locked_app.refresh_from_db(fields=['work_email'])
+                        work_email = (getattr(locked_app, 'work_email', None) or '').strip()
+                    except Exception:
+                        pass
+
+                if not work_email:
+                    print(
+                        f"[JOINING CHECK] Candidate {locked_app.candidate_name} (ID: {locked_app.id}) "
+                        f"has reached joining date ({locked_app.joining_date}) but work_email is missing. "
+                        "Candidate remains in 'joining_pending'."
+                    )
+                    if hasattr(locked_app, 'onboarding_form'):
+                        notify_internal(locked_app, "missing_work_email_reminder")
+                    continue
+
+                print(
+                    f"[JOINING CHECK] Candidate {locked_app.candidate_name} (ID: {locked_app.id}) "
+                    f"has work_email ({work_email}). Auto-transitioning to joined."
+                )
                 # automation_engine will handle status change, notifications, Job/MRF sync
                 ok, reason = automation_engine(locked_app, 'joining_pending', 'joined')
                 if not ok:
                     logger.warning(f"Transition failed for {locked_app.id}: {reason}")
+                else:
+                    if not getattr(locked_app, 'is_joining_day_manager_email_sent', False):
+                        if not getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
+                            from onboarding.utils.joining_manager_email import send_joining_day_manager_email
+                            if send_joining_day_manager_email(locked_app):
+                                locked_app.is_joining_day_manager_email_sent = True
+                                locked_app.save(update_fields=['is_joining_day_manager_email_sent'])
+
         print(f"[JOINING CHECK] Successfully processed {len(apps_to_update)} candidates.")
         return True
     except Exception as e:

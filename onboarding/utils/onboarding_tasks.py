@@ -255,6 +255,13 @@ def daily_onboarding_check():
     and trigger actions + auto-generate OnboardingTask records based on (joining_date - today).
     """
     logger.info("Running daily_onboarding_check...")
+    # First, run joining date check: transition candidates with work_email on/after joining date to joined
+    try:
+        from onboarding.utils.joining_check import run_joining_date_check
+        run_joining_date_check()
+    except Exception as e:
+        logger.error(f"Error executing run_joining_date_check in daily_onboarding_check: {e}")
+
     remind_call_owners_for_missing_materials()
 
     # We only care about active applications that have a joining date and have accepted the offer.

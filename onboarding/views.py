@@ -4780,6 +4780,22 @@ class OnboardingJourneyAPI(APIView):
         onboarding_form_exists = OnboardingForm.objects.filter(job_application=application).exists()
         is_onboarding_initiated = bool(application.it_ticket_ref) or onboarding_form_exists
 
+        hod_name = (getattr(application, 'hod_name', None) or '').strip()
+        hod_email = (getattr(application, 'hod_email', None) or '').strip()
+        hod_assigned = bool(hod_name or hod_email)
+        if hod_name and hod_email:
+            hod_detail = f"{hod_name} ({hod_email})"
+        else:
+            hod_detail = hod_name or hod_email or "Pending assignment"
+
+        reporting_manager_name = (getattr(application, 'reporting_manager_name', None) or '').strip()
+        reporting_manager_email = (getattr(application, 'reporting_manager_email', None) or '').strip()
+        reporting_manager_assigned = bool(reporting_manager_name or reporting_manager_email)
+        if reporting_manager_name and reporting_manager_email:
+            reporting_manager_detail = f"{reporting_manager_name} ({reporting_manager_email})"
+        else:
+            reporting_manager_detail = reporting_manager_name or reporting_manager_email or "Pending assignment"
+
         milestones = [
             {
                 "key": "onboarding_initiated",
@@ -4787,6 +4803,20 @@ class OnboardingJourneyAPI(APIView):
                 "completed": is_onboarding_initiated,
                 "detail": f"IT Ticket: {application.it_ticket_ref}" if application.it_ticket_ref else ("Form Submitted" if onboarding_form_exists else None),
                 "emails_sent": "IT Team (internal), HR (CC)",
+            },
+            {
+                "key": "hod_assigned",
+                "label": "HOD Assigned",
+                "completed": hod_assigned,
+                "detail": hod_detail,
+                "emails_sent": hod_email or "None",
+            },
+            {
+                "key": "reporting_manager_assigned",
+                "label": "Reporting Manager Assigned",
+                "completed": reporting_manager_assigned,
+                "detail": reporting_manager_detail,
+                "emails_sent": reporting_manager_email or "None",
             },
             {
                 "key": "doj_minus_15",
@@ -4921,6 +4951,12 @@ class OnboardingJourneyAPI(APIView):
                 "it_ticket_closed": application.it_ticket_closed,
                 "emp_account_active": application.emp_account_active,
                 "is_undertaking_signoff_completed": getattr(application, 'is_undertaking_signoff_completed', False),
+                "hod_name": getattr(application, 'hod_name', None),
+                "hod_email": getattr(application, 'hod_email', None),
+                "reporting_manager_name": getattr(application, 'reporting_manager_name', None),
+                "reporting_manager_email": getattr(application, 'reporting_manager_email', None),
+                "team_manager_name": getattr(application, 'team_manager_name', None),
+                "team_manager_email": getattr(application, 'team_manager_email', None),
             },
 
             # ── MRF / Requisition ────────────────────────────────────
