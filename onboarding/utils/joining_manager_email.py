@@ -141,7 +141,10 @@ def send_joining_day_manager_email(application):
 
     manager_values = {
         "HOD": getattr(application, "hod_email", None),
-        "team manager": getattr(application, "team_manager_email", None) or getattr(onboarding_form, "team_manager", None),
+        "team manager": (
+            getattr(application, "team_manager_email", None)
+            or (getattr(onboarding_form, "team_manager", None) if onboarding_form else None)
+        ),
         "reporting manager": getattr(application, "reporting_manager_email", None),
     }
     missing = [
@@ -156,22 +159,44 @@ def send_joining_day_manager_email(application):
         )
         return False
 
-    try:
-        resolved = {
-            role: _resolve_teams_user(value)
-            for role, value in manager_values.items()
-        }
-    except (requests.RequestException, KeyError, ValueError):
-        logger.exception(
-            "Microsoft Graph lookup failed for joining-day manager email, application %s.",
-            application.pk,
-        )
-        return False
+    resolved = {}
+    for role, value in manager_values.items():
+        user_match = None
+        try:
+            user_match = _resolve_teams_user(value)
+        except Exception as e:
+            logger.warning("Microsoft Graph lookup failed for %s (%s): %s", role, value, e)
 
-    unresolved = [role for role, manager in resolved.items() if not manager]
+        if not user_match:
+            # Fallback to names & emails stored directly on application
+            fallback_name = ""
+            if role == "HOD":
+                fallback_name = (getattr(application, "hod_name", None) or "").strip()
+            elif role == "team manager":
+                fallback_name = (
+                    (getattr(application, "team_manager_name", None) or "").strip()
+                    or (getattr(application, "reporting_manager_name", None) or "").strip()
+                )
+            elif role == "reporting manager":
+                fallback_name = (getattr(application, "reporting_manager_name", None) or "").strip()
+
+            if not fallback_name:
+                fallback_name = value.split("@")[0].replace(".", " ").title() if "@" in value else value
+
+            fallback_email = value if "@" in value else ""
+            if not fallback_email and role == "team manager":
+                fallback_email = getattr(application, "reporting_manager_email", None) or ""
+
+            if fallback_email:
+                user_match = {"name": fallback_name, "email": fallback_email}
+
+        if user_match:
+            resolved[role] = user_match
+
+    unresolved = [role for role in manager_values if role not in resolved]
     if unresolved:
         logger.warning(
-            "Joining-day manager email for application %s is waiting for valid Teams matches: %s.",
+            "Joining-day manager email for application %s is waiting for valid manager matches: %s.",
             application.pk,
             ", ".join(unresolved),
         )

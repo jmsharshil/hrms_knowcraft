@@ -4381,63 +4381,77 @@ class ScheduleD45CallAPI(APIView):
                 from dateutil.parser import parse
                 from booking.utils import create_teams_meeting, update_teams_meeting
                 from onboarding.models import OnboardingCall
-                
+
                 start_dt = parse(start_time_str)
                 end_dt = parse(end_time_str)
                 candidate_email = application.work_email or application.candidate_email
                 subject = f"Day 45 Check-in Call: {application.candidate_name}"
-                
+
                 # Build deduplicated attendee list: candidate first, then extras
                 all_attendees = [candidate_email] + [
                     e for e in attendee_emails if e and e != candidate_email
                 ]
-                
+
                 # Check if a meeting already exists for this candidate
                 existing_call = OnboardingCall.objects.filter(
                     job_application=application, call_type="d45"
                 ).first()
-                
-                if existing_call and existing_call.meeting_id:
-                    # ── UPDATE the existing Teams calendar event (no duplicate created) ──
-                    event = update_teams_meeting(
-                        organizer_email=organizer_email,
-                        event_id=existing_call.meeting_id,
-                        start_dt=start_dt,
-                        end_dt=end_dt,
-                        subject=subject,
-                    )
-                    meeting_id = existing_call.meeting_id
-                    meeting_link = existing_call.meeting_link  # link stays the same
-                else:
-                    # ── CREATE a fresh Teams meeting ──
-                    event = create_teams_meeting(
-                        organizer_email, all_attendees, start_dt, end_dt, subject
-                    )
-                    meeting_id = event.get("id") if event else None
-                    meeting_link = (
-                        (event.get("onlineMeeting") or {}).get("joinUrl")
-                        or event.get("onlineMeetingUrl")
-                        or (event.get("onlineMeeting") or {}).get("joinWebUrl")
-                        or None
-                    ) if event else None
-                
-                # Persist / update the DB record
-                OnboardingCall.objects.update_or_create(
-                    job_application=application,
-                    call_type="d45",
-                    defaults={
-                        "organizer_email": organizer_email,
-                        "start_time": start_dt,
-                        "end_time": end_dt,
-                        "meeting_id": meeting_id,
-                        "meeting_link": meeting_link,
-                    }
+
+                # Detect whether this is a genuine reschedule or just a notes/transcript update
+                def _dt_matches(stored, incoming):
+                    if not stored:
+                        return False
+                    # Compare ignoring microseconds to handle serialisation rounding
+                    return abs((stored - incoming).total_seconds()) < 60
+
+                is_reschedule = not (
+                    existing_call
+                    and _dt_matches(existing_call.start_time, start_dt)
+                    and _dt_matches(existing_call.end_time, end_dt)
                 )
-                
-                # Send candidate reminder for the D45 call
-                from onboarding.utils.notifications import notify_candidate
-                notify_candidate(application, "d45_call_candidate_reminder")
-                
+
+                if is_reschedule:
+                    if existing_call and existing_call.meeting_id:
+                        # ── UPDATE the existing Teams calendar event ──
+                        event = update_teams_meeting(
+                            organizer_email=organizer_email,
+                            event_id=existing_call.meeting_id,
+                            start_dt=start_dt,
+                            end_dt=end_dt,
+                            subject=subject,
+                        )
+                        meeting_id = existing_call.meeting_id
+                        meeting_link = existing_call.meeting_link
+                    else:
+                        # ── CREATE a fresh Teams meeting ──
+                        event = create_teams_meeting(
+                            organizer_email, all_attendees, start_dt, end_dt, subject
+                        )
+                        meeting_id = event.get("id") if event else None
+                        meeting_link = (
+                            (event.get("onlineMeeting") or {}).get("joinUrl")
+                            or event.get("onlineMeetingUrl")
+                            or (event.get("onlineMeeting") or {}).get("joinWebUrl")
+                            or None
+                        ) if event else None
+
+                    # Persist / update the DB record with new schedule
+                    OnboardingCall.objects.update_or_create(
+                        job_application=application,
+                        call_type="d45",
+                        defaults={
+                            "organizer_email": organizer_email,
+                            "start_time": start_dt,
+                            "end_time": end_dt,
+                            "meeting_id": meeting_id,
+                            "meeting_link": meeting_link,
+                        }
+                    )
+
+                    # Send candidate reminder only on an actual reschedule
+                    from onboarding.utils.notifications import notify_candidate
+                    notify_candidate(application, "d45_call_candidate_reminder")
+
             except Exception as e:
                 import logging
                 logger = logging.getLogger(__name__)
@@ -4505,63 +4519,76 @@ class ScheduleD90CallAPI(APIView):
                 from dateutil.parser import parse
                 from booking.utils import create_teams_meeting, update_teams_meeting
                 from onboarding.models import OnboardingCall
-                
+
                 start_dt = parse(start_time_str)
                 end_dt = parse(end_time_str)
                 candidate_email = application.work_email or application.candidate_email
                 subject = f"Day 90 Final Review Call: {application.candidate_name}"
-                
+
                 # Build deduplicated attendee list: candidate first, then extras
                 all_attendees = [candidate_email] + [
                     e for e in attendee_emails if e and e != candidate_email
                 ]
-                
+
                 # Check if a meeting already exists for this candidate
                 existing_call = OnboardingCall.objects.filter(
                     job_application=application, call_type="d90"
                 ).first()
-                
-                if existing_call and existing_call.meeting_id:
-                    # ── UPDATE the existing Teams calendar event (no duplicate created) ──
-                    event = update_teams_meeting(
-                        organizer_email=organizer_email,
-                        event_id=existing_call.meeting_id,
-                        start_dt=start_dt,
-                        end_dt=end_dt,
-                        subject=subject,
-                    )
-                    meeting_id = existing_call.meeting_id
-                    meeting_link = existing_call.meeting_link  # link stays the same
-                else:
-                    # ── CREATE a fresh Teams meeting ──
-                    event = create_teams_meeting(
-                        organizer_email, all_attendees, start_dt, end_dt, subject
-                    )
-                    meeting_id = event.get("id") if event else None
-                    meeting_link = (
-                        (event.get("onlineMeeting") or {}).get("joinUrl")
-                        or event.get("onlineMeetingUrl")
-                        or (event.get("onlineMeeting") or {}).get("joinWebUrl")
-                        or None
-                    ) if event else None
-                
-                # Persist / update the DB record
-                OnboardingCall.objects.update_or_create(
-                    job_application=application,
-                    call_type="d90",
-                    defaults={
-                        "organizer_email": organizer_email,
-                        "start_time": start_dt,
-                        "end_time": end_dt,
-                        "meeting_id": meeting_id,
-                        "meeting_link": meeting_link,
-                    }
+
+                # Detect whether this is a genuine reschedule or just a notes/transcript update
+                def _dt_matches(stored, incoming):
+                    if not stored:
+                        return False
+                    return abs((stored - incoming).total_seconds()) < 60
+
+                is_reschedule = not (
+                    existing_call
+                    and _dt_matches(existing_call.start_time, start_dt)
+                    and _dt_matches(existing_call.end_time, end_dt)
                 )
-                
-                # Send candidate reminder for the D90 call
-                from onboarding.utils.notifications import notify_candidate
-                notify_candidate(application, "d90_call_candidate_reminder")
-                
+
+                if is_reschedule:
+                    if existing_call and existing_call.meeting_id:
+                        # ── UPDATE the existing Teams calendar event ──
+                        event = update_teams_meeting(
+                            organizer_email=organizer_email,
+                            event_id=existing_call.meeting_id,
+                            start_dt=start_dt,
+                            end_dt=end_dt,
+                            subject=subject,
+                        )
+                        meeting_id = existing_call.meeting_id
+                        meeting_link = existing_call.meeting_link
+                    else:
+                        # ── CREATE a fresh Teams meeting ──
+                        event = create_teams_meeting(
+                            organizer_email, all_attendees, start_dt, end_dt, subject
+                        )
+                        meeting_id = event.get("id") if event else None
+                        meeting_link = (
+                            (event.get("onlineMeeting") or {}).get("joinUrl")
+                            or event.get("onlineMeetingUrl")
+                            or (event.get("onlineMeeting") or {}).get("joinWebUrl")
+                            or None
+                        ) if event else None
+
+                    # Persist / update the DB record with new schedule
+                    OnboardingCall.objects.update_or_create(
+                        job_application=application,
+                        call_type="d90",
+                        defaults={
+                            "organizer_email": organizer_email,
+                            "start_time": start_dt,
+                            "end_time": end_dt,
+                            "meeting_id": meeting_id,
+                            "meeting_link": meeting_link,
+                        }
+                    )
+
+                    # Send candidate reminder only on an actual reschedule
+                    from onboarding.utils.notifications import notify_candidate
+                    notify_candidate(application, "d90_call_candidate_reminder")
+
             except Exception as e:
                 import logging
                 logger = logging.getLogger(__name__)
@@ -4805,20 +4832,6 @@ class OnboardingJourneyAPI(APIView):
                 "emails_sent": "IT Team (internal), HR (CC)",
             },
             {
-                "key": "hod_assigned",
-                "label": "HOD Assigned",
-                "completed": hod_assigned,
-                "detail": hod_detail,
-                "emails_sent": hod_email or "None",
-            },
-            {
-                "key": "reporting_manager_assigned",
-                "label": "Reporting Manager Assigned",
-                "completed": reporting_manager_assigned,
-                "detail": reporting_manager_detail,
-                "emails_sent": reporting_manager_email or "None",
-            },
-            {
                 "key": "doj_minus_15",
                 "label": "Day -15 — IT Provisioning Update",
                 "completed": bool(application.is_doj_minus_15_triggered),
@@ -4845,6 +4858,34 @@ class OnboardingJourneyAPI(APIView):
                 "completed": application.status == "joined" or bool(application.is_doj_0_triggered),
                 "detail": "Buddy Assigned, Account Activated",
                 "emails_sent": f"{candidate_email_display}" + (f", Buddies: {buddy_emails}" if buddy_emails != "Not assigned" else ""),
+            },
+            {
+                "key": "hod_assigned",
+                "label": "Day 0 — HOD Assigned",
+                "completed": hod_assigned,
+                "detail": hod_detail,
+                "emails_sent": hod_email or "None",
+            },
+            {
+                "key": "reporting_manager_assigned",
+                "label": "Day 0 — Reporting Manager Assigned",
+                "completed": reporting_manager_assigned,
+                "detail": reporting_manager_detail,
+                "emails_sent": reporting_manager_email or "None",
+            },
+            {
+                "key": "joining_day_manager_email",
+                "label": "Day 0 — Team & Reporting Manager Details Sent",
+                "completed": bool(application.is_joining_day_manager_email_sent),
+                "detail": (
+                    "Sent to candidate (CC: HOD, Team Mgr, RM)"
+                    if application.is_joining_day_manager_email_sent
+                    else "Pending (sent on Day 0 once managers assigned)"
+                ),
+                "emails_sent": (
+                    f"Candidate: {candidate_email_display}"
+                    + (f", CC: {reporting_manager_email}" if reporting_manager_email else "")
+                ) if application.is_joining_day_manager_email_sent else "None",
             },
             {
                 "key": "doj_0_esign",

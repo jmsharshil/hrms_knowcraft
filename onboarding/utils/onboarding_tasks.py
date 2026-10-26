@@ -296,17 +296,11 @@ def daily_onboarding_check():
                 continue
 
         if days_until_joining <= 0 and not getattr(app, 'is_joining_day_manager_email_sent', False):
-            if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
-                logger.info(
-                    "Skipping joining-day manager email for %s while onboarding debug mode is enabled.",
-                    app.candidate_name,
-                )
-            else:
-                from .joining_manager_email import send_joining_day_manager_email
+            from .joining_manager_email import send_joining_day_manager_email
 
-                if send_joining_day_manager_email(app):
-                    app.is_joining_day_manager_email_sent = True
-                    app.save(update_fields=['is_joining_day_manager_email_sent'])
+            if send_joining_day_manager_email(app):
+                app.is_joining_day_manager_email_sent = True
+                app.save(update_fields=['is_joining_day_manager_email_sent'])
 
         # ── DOJ - 15 Days ───────────────────────────────────────
         if days_until_joining <= 15 and not getattr(app, 'is_doj_minus_15_triggered', False) and app.status != "joined":
@@ -402,6 +396,8 @@ def daily_onboarding_check():
             # In debug mode we skip the real Zoho API call.
             if getattr(app, 'is_esign_packet_generated', False) and not is_debug:
                 send_documents_for_esign(app)
+            # At Day 0 (joining day), alert HR if HOD or Reporting Manager is still unassigned
+            _send_manager_assignment_reminders(app)
 
             app.is_doj_0_triggered = True
             app.save(update_fields=['is_doj_0_triggered'])
@@ -706,6 +702,17 @@ def run_onboarding_check_for_candidate(app):
 
         if getattr(app, 'is_esign_packet_generated', False) and not is_debug:
             send_documents_for_esign(app)
+
+        # At Day 0 (joining day), alert HR if HOD or Reporting Manager is still unassigned
+        _send_manager_assignment_reminders(app)
+
+        # Send joining-day manager notification email to candidate
+        if not getattr(app, 'is_joining_day_manager_email_sent', False):
+            from .joining_manager_email import send_joining_day_manager_email
+            if send_joining_day_manager_email(app):
+                app.is_joining_day_manager_email_sent = True
+                app.save(update_fields=['is_joining_day_manager_email_sent'])
+
         app.is_doj_0_triggered = True
         app.save(update_fields=['is_doj_0_triggered'])
 
