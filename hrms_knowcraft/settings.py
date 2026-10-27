@@ -33,7 +33,7 @@ ONBOARDING_DEBUG_MINUTES = os.getenv(
     "ONBOARDING_DEBUG_MINUTES", "false"
 ).strip().lower() in {"1", "true", "yes", "on"}
 
-ALLOWED_HOSTS = ['hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net','127.0.0.1','localhost','demp-hrms-hzdme4brg0dgfxa3.centralindia-01.azurewebsites.net','hireproknowcraft-crhacdc8dxd7dfhh.centralindia-01.azurewebsites.net','d7b9-2405-201-2005-1965-9445-471c-b9b-214.ngrok-free.app']
+ALLOWED_HOSTS = ['hrmprod-apagecadd0adfng8.centralindia-01.azurewebsites.net','127.0.0.1','localhost','demp-hrms-hzdme4brg0dgfxa3.centralindia-01.azurewebsites.net','hireproknowcraft-crhacdc8dxd7dfhh.centralindia-01.azurewebsites.net','d7b9-2405-201-2005-1965-9445-471c-b9b-214.ngrok-free.app', 'staging-hrms-caetb7aubme9bcfr.centralindia-01.azurewebsites.net']
 
 AUTH_USER_MODEL = 'accounts.User'
 # Application definition
@@ -288,7 +288,8 @@ CORS_ALLOWED_ORIGINS = [
     "https://demp-hrms-hzdme4brg0dgfxa3.centralindia-01.azurewebsites.net",
     "https://hrms.hirewithjms.com",
     "http://hireproui-gmfbf9hucjbqd2e6.centralindia-01.azurewebsites.net",
-    'https://knowcraft.recruitsmart.co'
+    'https://knowcraft.recruitsmart.co',
+    "https://staging-hrms-caetb7aubme9bcfr.centralindia-01.azurewebsites.net"
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -361,6 +362,7 @@ CSRF_TRUSTED_ORIGINS = [
     'https://hireproknowcraft-crhacdc8dxd7dfhh.centralindia-01.azurewebsites.net',
     'https://knowcraft.recruitsmart.co',
     'https://sign.zoho.in',
+    'https://staging-hrms-caetb7aubme9bcfr.centralindia-01.azurewebsites.net'
 ]
 
 MICROSOFT_CLIENT_ID = os.getenv("MICROSOFT_CLIENT_ID")
