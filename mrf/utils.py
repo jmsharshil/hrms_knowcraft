@@ -1257,6 +1257,7 @@ def dept_head_weekly_report_task():
     import logging
     from datetime import date, timedelta
     from django.db.models import Count, Q
+    from django.utils import timezone
 
     from accounts.models import User
     from jobs.models import JobApplication
@@ -1266,7 +1267,10 @@ def dept_head_weekly_report_task():
     logger = logging.getLogger(__name__)
 
     today = date.today()
-    week_label = f"{(today - timedelta(days=today.weekday() + 7)).strftime('%d %b')} – {(today - timedelta(days=today.weekday() + 1)).strftime('%d %b %Y')}"
+    week_start_date = today - timedelta(days=7)
+    week_end_date = today
+    week_start_dt = timezone.now() - timedelta(days=7)
+    week_label = f"{week_start_date.strftime('%d %b')} – {week_end_date.strftime('%d %b %Y')}"
 
     dept_heads = User.objects.filter(role='department_head', is_active=True).exclude(email='')
 
@@ -1300,18 +1304,27 @@ def dept_head_weekly_report_task():
     sent_count = 0
     for head in dept_heads:
         try:
-            mrf_filter = Q(
-                is_active=True,
-                status__in=[
-                    # 'filled' excluded — position already hired, no need to report
-                    'approved', 'joining_pending', 'open', 'in_progress',
-                    'assigned_to_consultancy', 'assigned_to_internal_hr', 'assigned_to_both'
-                ]
+            if not head.department:
+                logger.warning("[WEEKLY-REPORT] Department head %s has no assigned department. Skipping.", head.email)
+                continue
+
+            mrf_filter = (
+                Q(
+                    is_active=True,
+                    is_private=False,
+                    status__in=[
+                        # 'filled' excluded — position already hired, no need to report
+                        'approved', 'joining_pending', 'open', 'in_progress',
+                        'assigned_to_consultancy', 'assigned_to_internal_hr', 'assigned_to_both'
+                    ]
+                )
+                & Q(requested_by=head)
+                & (Q(department=head.department) | Q(position_department=head.department))
+                & (Q(job__isnull=True) | Q(job__is_private=False))
             )
-            if head.department:
-                mrf_filter &= (Q(requested_by=head) | Q(department=head.department))
-            else:
-                mrf_filter &= Q(requested_by=head)
+
+            if head.company_id:
+                mrf_filter &= Q(company_id=head.company_id)
 
             active_mrfs = MRF.objects.filter(mrf_filter).select_related('designation', 'department', 'job').distinct()
 
@@ -1323,17 +1336,34 @@ def dept_head_weekly_report_task():
             pipeline_candidates_data = []
 
             for mrf in active_mrfs:
+                # Private MRFs and private jobs must never appear in weekly report
+                if getattr(mrf, 'is_private', False):
+                    continue
+                if hasattr(mrf, 'job') and mrf.job and getattr(mrf.job, 'is_private', False):
+                    continue
+                # Must be requested by this department head
+                if getattr(mrf, 'requested_by_id', None) != head.id:
+                    continue
+
                 desig_name = mrf.designation.name if mrf.designation else (mrf.mrf_name or "Unknown")
                 openings = mrf.no_of_vacancies or 1
                 team = mrf.team or (mrf.department.name if mrf.department else "-")
 
                 stage_counts = {}
                 if hasattr(mrf, 'job') and mrf.job:
-                    all_apps = JobApplication.objects.filter(job=mrf.job, is_active=True)
+                    if getattr(mrf.job, 'is_private', False):
+                        continue
+
+                    all_apps = JobApplication.objects.filter(
+                        job=mrf.job,
+                        is_active=True,
+                        job__is_private=False,
+                        job__mrf__is_private=False
+                    )
                     for entry in all_apps.values('status').annotate(count=Count('id')):
                         stage_counts[entry['status']] = entry['count']
 
-                    # Candidates in active recruitment pipeline
+                    # Candidates in active recruitment pipeline with weekly updates only
                     active_apps = all_apps.exclude(
                         status__in=[
                             'rejected', 'backed_out', 'duplicate_rejected', 'joined',
@@ -1341,9 +1371,18 @@ def dept_head_weekly_report_task():
                             'interview_rejected_2', 'interview_rejected_3',
                             'interview_rejected_final', 'interview_rejected_management_client'
                         ]
-                    ).select_related('job', 'job__designation')
+                    ).filter(
+                        Q(created_at__gte=week_start_dt) |
+                        Q(updated_at__gte=week_start_dt) |
+                        Q(bookings__start__date__gte=week_start_date, bookings__start__date__lte=week_end_date) |
+                        Q(bookings__created_at__gte=week_start_dt) |
+                        Q(interview_feedbacks__interview_date__gte=week_start_date, interview_feedbacks__interview_date__lte=week_end_date) |
+                        Q(interview_feedbacks__created_at__gte=week_start_dt)
+                    ).select_related('job', 'job__designation').distinct()
 
                     for app in active_apps:
+                        if getattr(app.job, 'is_private', False) or (app.job and hasattr(app.job, 'mrf') and getattr(app.job.mrf, 'is_private', False)):
+                            continue
                         pipeline_candidates_data.append((mrf, app))
 
                 received = stage_counts.get('received', 0)
@@ -1407,6 +1446,10 @@ def dept_head_weekly_report_task():
                     f"Joining Expected: {joining_expected} | Remarks: {remarks}"
                 )
 
+            if not summary_html_rows:
+                # No non-private MRFs to report for this department head
+                continue
+
             # Build Hiring Summary Table HTML
             hiring_summary_table = f"""
 <table border="1" cellpadding="6" cellspacing="0" width="100%" style="border-collapse:collapse;border:1px solid #000000;font-size:12px;font-family:Arial,Helvetica,sans-serif;width:100%;min-width:740px;">
@@ -1444,12 +1487,26 @@ def dept_head_weekly_report_task():
                 cand_name = app.candidate_name or "N/A"
                 cand_stage = STAGE_DISPLAY_MAP.get(app.status, app.status.replace('_', ' ').title())
 
-                booking = Booking.objects.filter(candidate=app).order_by('-start').first()
+                booking = (
+                    Booking.objects.filter(
+                        candidate=app,
+                        start__date__gte=week_start_date,
+                        start__date__lte=week_end_date
+                    ).order_by('-start').first() or
+                    Booking.objects.filter(candidate=app).order_by('-start').first()
+                )
                 if booking:
                     interview_date = booking.start.strftime('%d-%b-%Y') if booking.start else "-"
                     interviewer_name = booking.interviewer.name if booking.interviewer else "-"
                 else:
-                    feedback = InterviewFeedback.objects.filter(job_application=app).order_by('-created_at').first()
+                    feedback = (
+                        InterviewFeedback.objects.filter(
+                            job_application=app,
+                            interview_date__gte=week_start_date,
+                            interview_date__lte=week_end_date
+                        ).order_by('-created_at').first() or
+                        InterviewFeedback.objects.filter(job_application=app).order_by('-created_at').first()
+                    )
                     if feedback and feedback.interview_date:
                         interview_date = feedback.interview_date.strftime('%d-%b-%Y')
                         interviewer_name = feedback.interviewer_name or "-"
@@ -1485,10 +1542,10 @@ def dept_head_weekly_report_task():
                 pipeline_html_rows.append("""
 <tr>
   <td colspan="5" style="border:1px solid #000000;padding:12px 10px;text-align:center;color:#6b7280;font-style:italic;">
-    No active candidates in the pipeline currently.
+    No candidate updates for this week.
   </td>
 </tr>""")
-                pipeline_text_rows.append("No active candidates in the pipeline currently.")
+                pipeline_text_rows.append("No candidate updates for this week.")
 
             candidate_pipeline_table = f"""
 <table border="1" cellpadding="6" cellspacing="0" width="100%" style="border-collapse:collapse;border:1px solid #000000;font-size:12px;font-family:Arial,Helvetica,sans-serif;width:100%;min-width:680px;">

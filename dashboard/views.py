@@ -1,3 +1,4 @@
+import json
 import uuid
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.exceptions import ValidationError
@@ -2564,6 +2565,133 @@ class BaseAnalyticsView(APIView):
 
         return section8
 
+    def calc_onboarding_analytics(self, apps_qs, request=None):
+        from onboarding.models import OnboardingCall, OnboardingTask, SurveyResponse
+
+        survey_qs = SurveyResponse.objects.filter(
+            job_application__in=apps_qs
+        ).select_related('job_application', 'job_application__job').order_by('-submitted_at')
+        survey_counts = dict(
+            survey_qs.values('survey_type')
+            .annotate(count=Count('id'))
+            .values_list('survey_type', 'count')
+        )
+        surveys = [
+            {
+                'id': str(survey.id),
+                'candidate_id': str(survey.job_application_id),
+                'candidate_name': survey.job_application.candidate_name or 'N/A',
+                'job_title': survey.job_application.job.job_title if survey.job_application.job else 'N/A',
+                'survey_type': survey.survey_type,
+                'survey_type_display': survey.get_survey_type_display(),
+                'respondent_name': survey.respondent_name,
+                'respondent_email': survey.respondent_email,
+                'submitted_at': survey.submitted_at,
+                'responses': survey.responses or {},
+            }
+            for survey in survey_qs
+        ]
+
+        call_qs = OnboardingCall.objects.filter(
+            job_application__in=apps_qs
+        ).select_related('job_application', 'job_application__job').order_by('-start_time', '-created_at')
+        calls = [
+            {
+                'id': str(call.id),
+                'candidate_id': str(call.job_application_id),
+                'candidate_name': call.job_application.candidate_name or 'N/A',
+                'job_title': call.job_application.job.job_title if call.job_application.job else 'N/A',
+                'call_type': call.call_type,
+                'call_type_display': call.get_call_type_display(),
+                'organizer_email': call.organizer_email,
+                'start_time': call.start_time,
+                'end_time': call.end_time,
+                'meeting_id': call.meeting_id,
+                'meeting_link': call.meeting_link,
+                'mom_notes': call.mom_notes,
+                'transcript_file_url': (
+                    request.build_absolute_uri(call.transcript_file.url)
+                    if call.transcript_file and request
+                    else call.transcript_file.url if call.transcript_file
+                    else None
+                ),
+                'created_at': call.created_at,
+            }
+            for call in call_qs
+        ]
+
+        task_qs = OnboardingTask.objects.filter(
+            task_list__job_application__in=apps_qs
+        ).select_related(
+            'task_list',
+            'task_list__job_application',
+            'task_list__job_application__job',
+            'assigned_to',
+        ).order_by('-created_at')
+        task_counts = dict(
+            task_qs.values('status')
+            .annotate(count=Count('id'))
+            .values_list('status', 'count')
+        )
+        tasks = [
+            {
+                'id': str(task.id),
+                'candidate_id': str(task.task_list.job_application_id),
+                'candidate_name': task.task_list.job_application.candidate_name or 'N/A',
+                'job_title': task.task_list.job_application.job.job_title if task.task_list.job_application.job else 'N/A',
+                'task_list_name': task.task_list.name,
+                'title': task.title,
+                'description': task.description,
+                'status': task.status,
+                'assigned_to': task.assigned_to.name if task.assigned_to else None,
+                'due_date': task.due_date,
+                'created_at': task.created_at,
+                'updated_at': task.updated_at,
+            }
+            for task in task_qs
+        ]
+
+        return {
+            'surveys': {
+                'total_responses': len(surveys),
+                'by_type': [
+                    {
+                        'survey_type': survey_type,
+                        'survey_type_display': display,
+                        'count': survey_counts.get(survey_type, 0),
+                    }
+                    for survey_type, display in SurveyResponse.SURVEY_TYPE_CHOICES
+                ],
+                'details': surveys,
+            },
+            'calls': {
+                'total_calls': len(calls),
+                'scheduled_calls': call_qs.filter(start_time__isnull=False).count(),
+                'unscheduled_calls': call_qs.filter(start_time__isnull=True).count(),
+                'by_type': [
+                    {
+                        'call_type': call_type,
+                        'call_type_display': display,
+                        'count': call_qs.filter(call_type=call_type).count(),
+                    }
+                    for call_type, display in OnboardingCall.CALL_TYPE_CHOICES
+                ],
+                'details': calls,
+            },
+            'tasks': {
+                'total_tasks': sum(task_counts.values()),
+                'by_status': [
+                    {
+                        'status': task_status,
+                        'status_display': display,
+                        'count': task_counts.get(task_status, 0),
+                    }
+                    for task_status, display in OnboardingTask.STATUS_CHOICES
+                ],
+                'details': tasks,
+            },
+        }
+
     def get_sections(self):
         """Override this in subclasses to return only allowed sections."""
         return []
@@ -2736,6 +2864,8 @@ class BaseAnalyticsView(APIView):
         if 'document_offer_process_timeline' in requested_sections:
             # Pass company to filter OfferDocuments correctly
             data['document_offer_process_timeline'] = self.calc_document_offer_process_timeline(broad_job_qs, (date_from, date_to), company, request.user, request.user.role)
+        if 'onboarding_analytics' in requested_sections:
+            data['onboarding_analytics'] = self.calc_onboarding_analytics(app_qs, request)
         if 'overall_summary_kpis' in requested_sections:
             data['overall_summary_kpis'] = self.calc_overall_summary_kpis(mrf_qs, job_qs, app_qs, platform_app_qs, referral_qs, company, (date_from, date_to))
 
@@ -2747,12 +2877,13 @@ class BaseAnalyticsView(APIView):
 # ══════════════════════════════════════════════════
 
 class AdminAnalyticsAPIView(BaseAnalyticsView):
-    """Full access to all 8 sections."""
+    """Full access to all analytics sections."""
     def get_sections(self):
         return [
             'mrf_analytics', 'job_assignment_analytics', 'cv_resume_source_analytics',
             'candidate_pipeline_funnel', 'interview_round_time_analytics', 
-            'approval_note_analytics', 'document_offer_process_timeline', 'overall_summary_kpis'
+            'approval_note_analytics', 'document_offer_process_timeline',
+            'onboarding_analytics', 'overall_summary_kpis'
         ]
 
 class HRManagerAnalyticsAPIView(AdminAnalyticsAPIView):
@@ -2767,7 +2898,12 @@ class HRAnalyticsAPIView(BaseAnalyticsView):
         return mrf_q, job_q, app_q
 
     def get_sections(self):
-        return ['cv_resume_source_analytics', 'candidate_pipeline_funnel', 'interview_round_time_analytics', 'overall_summary_kpis','job_assignment_analytics','approval_note_analytics','document_offer_process_timeline']
+        return [
+            'cv_resume_source_analytics', 'candidate_pipeline_funnel',
+            'interview_round_time_analytics', 'overall_summary_kpis',
+            'job_assignment_analytics', 'approval_note_analytics',
+            'document_offer_process_timeline', 'onboarding_analytics',
+        ]
 
 class DeptHeadAnalyticsAPIView(BaseAnalyticsView):
     """Dept Head Focus: MRFs, Jobs, Pipeline, KPIs."""
@@ -2778,7 +2914,11 @@ class DeptHeadAnalyticsAPIView(BaseAnalyticsView):
         return mrf_q, job_q, app_q
 
     def get_sections(self):
-        return ['mrf_analytics', 'job_assignment_analytics', 'candidate_pipeline_funnel', 'overall_summary_kpis']
+        return [
+            'mrf_analytics', 'job_assignment_analytics',
+            'candidate_pipeline_funnel', 'onboarding_analytics',
+            'overall_summary_kpis',
+        ]
 
 class ConsultancyAnalyticsAPIView(BaseAnalyticsView):
     """Consultancy Focus: CVs, Pipeline, KPIs."""
@@ -2800,7 +2940,8 @@ class UserCompareAnalyticsAPIView(BaseAnalyticsView):
         return [
             'mrf_analytics', 'job_assignment_analytics', 'cv_resume_source_analytics',
             'candidate_pipeline_funnel', 'interview_round_time_analytics', 
-            'approval_note_analytics', 'document_offer_process_timeline', 'overall_summary_kpis'
+            'approval_note_analytics', 'document_offer_process_timeline',
+            'onboarding_analytics', 'overall_summary_kpis'
         ]
 
     def get(self, request):
@@ -3305,6 +3446,80 @@ class DashboardExportAPIView(BaseAnalyticsView):
                 self._auto_width(ws8)
             except Exception:
                 pass
+
+        if 'onboarding_analytics' in requested_sections:
+            onboarding_data = self.calc_onboarding_analytics(app_qs, request)
+            ws_onboarding = add_sheet("Onboarding")
+
+            def append_safe_row(values):
+                ws_onboarding.append([
+                    "'" + value
+                    if isinstance(value, str) and value.startswith(('=', '+', '-', '@', '\t', '\r'))
+                    else value
+                    for value in values
+                ])
+
+            ws_onboarding.append(["Onboarding Metric", "Value"])
+            ws_onboarding.append(["Survey Responses", onboarding_data['surveys']['total_responses']])
+            ws_onboarding.append(["Onboarding Calls", onboarding_data['calls']['total_calls']])
+            ws_onboarding.append(["Scheduled Calls", onboarding_data['calls']['scheduled_calls']])
+            ws_onboarding.append(["Unscheduled Calls", onboarding_data['calls']['unscheduled_calls']])
+            ws_onboarding.append(["Onboarding Tasks", onboarding_data['tasks']['total_tasks']])
+            for survey_type in onboarding_data['surveys']['by_type']:
+                ws_onboarding.append([
+                    f"Survey - {survey_type['survey_type_display']}",
+                    survey_type['count'],
+                ])
+            for call_type in onboarding_data['calls']['by_type']:
+                ws_onboarding.append([
+                    f"Calls - {call_type['call_type_display']}",
+                    call_type['count'],
+                ])
+            for status_data in onboarding_data['tasks']['by_status']:
+                ws_onboarding.append([f"Tasks - {status_data['status_display']}", status_data['count']])
+
+            ws_onboarding.append([])
+            ws_onboarding.append(["--- Survey Responses ---"])
+            append_safe_row([
+                "Candidate", "Job", "Survey Type", "Respondent",
+                "Respondent Email", "Submitted At", "Responses",
+            ])
+            for survey in onboarding_data['surveys']['details']:
+                append_safe_row([
+                    survey['candidate_name'], survey['job_title'],
+                    survey['survey_type_display'], survey['respondent_name'],
+                    survey['respondent_email'], survey['submitted_at'],
+                    json.dumps(survey['responses'], ensure_ascii=False, default=str),
+                ])
+
+            ws_onboarding.append([])
+            ws_onboarding.append(["--- Onboarding Calls ---"])
+            append_safe_row([
+                "Candidate", "Job", "Call Type", "Organizer", "Start Time",
+                "End Time", "Meeting ID", "Meeting Link",
+            ])
+            for call in onboarding_data['calls']['details']:
+                append_safe_row([
+                    call['candidate_name'], call['job_title'],
+                    call['call_type_display'], call['organizer_email'],
+                    call['start_time'], call['end_time'],
+                    call['meeting_id'], call['meeting_link'],
+                ])
+
+            ws_onboarding.append([])
+            ws_onboarding.append(["--- Onboarding Tasks ---"])
+            append_safe_row([
+                "Candidate", "Job", "Task List", "Task", "Status",
+                "Assigned To", "Due Date", "Description",
+            ])
+            for task in onboarding_data['tasks']['details']:
+                append_safe_row([
+                    task['candidate_name'], task['job_title'],
+                    task['task_list_name'], task['title'], task['status'],
+                    task['assigned_to'], task['due_date'], task['description'],
+                ])
+            self._style_header(ws_onboarding)
+            self._auto_width(ws_onboarding)
 
         # ── Sheet 9: Overall KPIs ──
         if 'overall_summary_kpis' in requested_sections:

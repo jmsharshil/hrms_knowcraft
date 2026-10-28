@@ -20,6 +20,8 @@ def store_old_job(sender, instance, **kwargs):
         instance._old_status = None
         instance._old_joining_date = None
         instance._old_crafter_id = None
+        instance._old_team_manager_name = None
+        instance._old_team_manager_email = None
         return
 
     try:
@@ -28,11 +30,15 @@ def store_old_job(sender, instance, **kwargs):
         instance._old_status = old_instance.status
         instance._old_joining_date = old_instance.joining_date
         instance._old_crafter_id = old_instance.crafter_id
+        instance._old_team_manager_name = getattr(old_instance, "team_manager_name", None)
+        instance._old_team_manager_email = getattr(old_instance, "team_manager_email", None)
     except JobApplication.DoesNotExist:
         instance._old_job_id = None
         instance._old_status = None
         instance._old_joining_date = None
         instance._old_crafter_id = None
+        instance._old_team_manager_name = None
+        instance._old_team_manager_email = None
 
 @receiver(post_save, sender=JobApplication)
 def update_approval_note_status(sender, instance, created, **kwargs):
@@ -386,13 +392,16 @@ from onboarding.models import OnboardingForm
 def store_old_onboarding_form(sender, instance, **kwargs):
     if not instance.pk:
         instance._old_crafter_id = None
+        instance._old_team_manager = None
         return
     
     try:
         old_instance = OnboardingForm.objects.get(pk=instance.pk)
         instance._old_crafter_id = old_instance.crafter_id
+        instance._old_team_manager = old_instance.team_manager
     except OnboardingForm.DoesNotExist:
         instance._old_crafter_id = None
+        instance._old_team_manager = None
 
 @receiver(post_save, sender=OnboardingForm)
 def sync_onboarding_form_crafter_id(sender, instance, created, **kwargs):
@@ -403,5 +412,35 @@ def sync_onboarding_form_crafter_id(sender, instance, created, **kwargs):
     
     if old_crafter_id != instance.crafter_id and instance.job_application_id:
         JobApplication.objects.filter(pk=instance.job_application_id).update(crafter_id=instance.crafter_id)
+
+@receiver(post_save, sender=OnboardingForm)
+def sync_onboarding_form_team_manager(sender, instance, created, **kwargs):
+    """
+    Auto-sync team_manager back to JobApplication if changed from OnboardingForm
+    """
+    old_tm = getattr(instance, '_old_team_manager', None)
+    if instance.job_application_id:
+        from onboarding.views import sync_team_manager
+        app = JobApplication.objects.filter(pk=instance.job_application_id).first()
+        if not app:
+            return
+        if instance.team_manager and (created or old_tm != instance.team_manager):
+            sync_team_manager(app, team_manager_raw=instance.team_manager)
+        elif not instance.team_manager and (app.team_manager_email or app.team_manager_name):
+            val = app.team_manager_email or app.team_manager_name
+            OnboardingForm.objects.filter(pk=instance.pk).update(team_manager=val)
+            instance.team_manager = val
+
+@receiver(post_save, sender=JobApplication)
+def sync_job_application_team_manager(sender, instance, created, **kwargs):
+    """
+    Auto-sync team_manager_name/email to OnboardingForm.team_manager
+    """
+    old_name = getattr(instance, '_old_team_manager_name', None)
+    old_email = getattr(instance, '_old_team_manager_email', None)
+    if (created or old_name != instance.team_manager_name or old_email != instance.team_manager_email):
+        val = instance.team_manager_email or instance.team_manager_name
+        if val:
+            OnboardingForm.objects.filter(job_application=instance).exclude(team_manager=val).update(team_manager=val)
 
 

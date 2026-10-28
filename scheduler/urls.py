@@ -1,11 +1,13 @@
 # scheduler/urls.py
 
 from django.urls import path
-from .views import TaskCancelView, TaskRestartView
+from .views import TaskCancelView, TaskRestartView, TaskReconcileView, TaskSummaryView
 
 app_name = "scheduler"
 
 urlpatterns = [
+    path('tasks/reconcile/', TaskReconcileView.as_view(), name='task-reconcile'),
+    path('tasks/summary/', TaskSummaryView.as_view(), name='task-summary'),
     path('tasks/<uuid:task_id>/cancel/', TaskCancelView.as_view(), name='task-cancel'),
     path('tasks/<uuid:task_id>/restart/', TaskRestartView.as_view(), name='task-restart'),
 ]

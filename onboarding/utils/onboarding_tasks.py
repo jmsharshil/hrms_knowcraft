@@ -22,12 +22,70 @@ DEBUG_ONBOARDING_MILESTONES = (
     (1, 7),
     (2, 2),
     (3, 0),
-    (4, -1),
-    (5, -7),
-    (6, -30),
-    (7, -45),
-    (8, -90),
+    (4, -1),   # Day 2: HR Handbook & DOJ+1 esign reminder
+    (5, -2),   # Day 3: Culture & Values Handbook
+    (6, -3),   # Day 4: POSH Policy & Guidelines
+    (7, -4),   # Day 5: Chatbot User Manual
+    (8, -5),   # Day 6: KAI Mascot + D5 verification & Undertaking signoff
+    (9, -7),   # DOJ + 7
+    (10, -30), # DOJ + 30
+    (11, -45), # DOJ + 45
+    (12, -90), # DOJ + 90
 )
+
+
+def remind_call_owners_for_missing_materials(now=None, candidate=None):
+    from onboarding.models import EmailLog, OnboardingCall
+    from onboarding.utils.sender import send_email
+
+    now = now or timezone.now()
+    calls = OnboardingCall.objects.filter(
+        end_time__isnull=False,
+        end_time__lte=now,
+    ).select_related("job_application")
+
+    if candidate:
+        calls = calls.filter(job_application=candidate)
+
+    for call in calls:
+        missing_materials = []
+        if not (call.mom_notes or "").strip():
+            missing_materials.append("MOM notes")
+        if not call.transcript_file:
+            missing_materials.append("the call transcript")
+        owner_email = (call.organizer_email or "").strip()
+        if not missing_materials or not owner_email:
+            continue
+
+        candidate_name = call.job_application.candidate_name
+        call_name = call.get_call_type_display()
+        missing_list = ", ".join(missing_materials)
+        completed_at = call.end_time.isoformat()
+        subject = f"Reminder: {call_name} materials for {candidate_name} ({completed_at})"
+
+        # Throttle to at most once per 20 hours per recipient so daily reminders continue until materials are uploaded
+        one_day_ago = now - timezone.timedelta(hours=20)
+        if EmailLog.objects.filter(
+            recipient_email=owner_email,
+            event="onboarding_call_material_reminder",
+            candidate=call.job_application,
+            sent_at__gte=one_day_ago,
+            status="sent",
+        ).exists():
+            continue
+
+        send_email(
+            to=owner_email,
+            subject=subject,
+            text=(
+                f"Please upload {missing_list} for {candidate_name}'s "
+                f"{call_name.lower()}."
+            ),
+            event="onboarding_call_material_reminder",
+            email_type="internal",
+            candidate=call.job_application,
+            use_default_cc=False,
+        )
 
 
 def get_days_until_joining(application, now=None):
@@ -113,12 +171,104 @@ def is_candidate_bgv_completed(application):
     return False, resolved
 
 
+def process_daily_onboarding_policy_emails(app, days_until_joining):
+    """
+    Sends 1 post-welcome policy/handbook email every morning starting from Day 2:
+      Day 2 (DOJ + 1): HR Handbook
+      Day 3 (DOJ + 2): Culture & Values Handbook
+      Day 4 (DOJ + 3): POSH Policy & Guidelines
+      Day 5 (DOJ + 4): HR Buddy Chatbot User Manual
+      Day 6 (DOJ + 5): KAI Happiness Mascot Check-in
+    Ensures at most 1 email is sent per morning run.
+    """
+    if days_until_joining > -1:
+        return None
+
+    if getattr(app, 'is_post_welcome_docs_sent', False):
+        return None
+
+    work_email = (getattr(app, 'work_email', None) or '').strip()
+    if not work_email and hasattr(app, 'refresh_from_db'):
+        try:
+            app.refresh_from_db(fields=['work_email'])
+            work_email = (getattr(app, 'work_email', None) or '').strip()
+        except Exception:
+            pass
+
+    is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
+    if not work_email:
+        if is_debug and getattr(app, 'candidate_email', None):
+            work_email = app.candidate_email
+            logger.info(f"[DEBUG SIMULATION] Using candidate_email {work_email} for daily policy emails for {app.candidate_name}.")
+        else:
+            logger.info(f"Work email missing for {app.candidate_name}. Deferring daily policy email.")
+            return None
+
+    from .notifications import (
+        send_hr_handbook_email,
+        send_culture_values_email,
+        send_posh_policy_email,
+        send_chatbot_manual_email,
+        send_kai_mascot_email,
+    )
+    from onboarding.models import EmailLog
+
+    def _already_sent(flag_attr, event_name):
+        if getattr(app, flag_attr, False):
+            return True
+        return EmailLog.objects.filter(candidate=app, event=event_name, status='sent').exists()
+
+    daily_policy_steps = [
+        (1, 'is_hr_handbook_sent', 'hr_handbook', send_hr_handbook_email),
+        (2, 'is_culture_values_sent', 'culture_values', send_culture_values_email),
+        (3, 'is_posh_policy_sent', 'posh_policy', send_posh_policy_email),
+        (4, 'is_chatbot_manual_sent', 'chatbot_manual', send_chatbot_manual_email),
+        (5, 'is_kai_mascot_sent', 'kai_mascot', send_kai_mascot_email),
+    ]
+
+    days_past = abs(days_until_joining)
+
+    for min_days, flag_attr, event_name, send_fn in daily_policy_steps:
+        if not _already_sent(flag_attr, event_name):
+            if days_past >= min_days:
+                logger.info(
+                    f"[ONBOARDING MORNING TASK] Candidate {app.candidate_name} (Day {days_past + 1}): "
+                    f"Sending daily policy email '{event_name}'."
+                )
+                sent = send_fn(app)
+                if sent:
+                    setattr(app, flag_attr, True)
+                    save_cols = [flag_attr]
+                    if all(_already_sent(f, e) for _, f, e, _ in daily_policy_steps):
+                        app.is_post_welcome_docs_sent = True
+                        save_cols.append('is_post_welcome_docs_sent')
+                    try:
+                        app.save(update_fields=save_cols)
+                    except Exception as err:
+                        logger.warning(f"Could not update {flag_attr} for {app.candidate_name}: {err}")
+                    return event_name
+                return None
+            else:
+                # Milestone not reached yet
+                break
+
+    return None
+
+
 def daily_onboarding_check():
     """
     Daily task to scan all candidates in 'offer_accepted', 'docs_pending', 'joining_pending' or 'joined' status,
     and trigger actions + auto-generate OnboardingTask records based on (joining_date - today).
     """
     logger.info("Running daily_onboarding_check...")
+    # First, run joining date check: transition candidates with work_email on/after joining date to joined
+    try:
+        from onboarding.utils.joining_check import run_joining_date_check
+        run_joining_date_check()
+    except Exception as e:
+        logger.error(f"Error executing run_joining_date_check in daily_onboarding_check: {e}")
+
+    remind_call_owners_for_missing_materials()
 
     # We only care about active applications that have a joining date and have accepted the offer.
     # Exclude candidates who have completed onboarding or are rejected/withdrawn.
@@ -152,17 +302,11 @@ def daily_onboarding_check():
                 continue
 
         if days_until_joining <= 0 and not getattr(app, 'is_joining_day_manager_email_sent', False):
-            if getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
-                logger.info(
-                    "Skipping joining-day manager email for %s while onboarding debug mode is enabled.",
-                    app.candidate_name,
-                )
-            else:
-                from .joining_manager_email import send_joining_day_manager_email
+            from .joining_manager_email import send_joining_day_manager_email
 
-                if send_joining_day_manager_email(app):
-                    app.is_joining_day_manager_email_sent = True
-                    app.save(update_fields=['is_joining_day_manager_email_sent'])
+            if send_joining_day_manager_email(app):
+                app.is_joining_day_manager_email_sent = True
+                app.save(update_fields=['is_joining_day_manager_email_sent'])
 
         # ── DOJ - 15 Days ───────────────────────────────────────
         if days_until_joining <= 15 and not getattr(app, 'is_doj_minus_15_triggered', False) and app.status != "joined":
@@ -196,6 +340,8 @@ def daily_onboarding_check():
             #         me_client.update_ticket(app.it_ticket_ref, {}, note=note)
 
             create_milestone_tasks(app, "DOJ_MINUS_7", app.joining_date)
+            # Re-check manager assignments — they may have been filled after D-15
+            _send_manager_assignment_reminders(app)
             app.is_doj_minus_7_triggered = True
             app.save(update_fields=['is_doj_minus_7_triggered'])
             app.refresh_from_db(fields=['is_doj_minus_2_triggered'])
@@ -243,17 +389,8 @@ def daily_onboarding_check():
             app.work_email = work_email
             is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
             
-            # Send post-welcome handbooks & policies (HR Handbook, Culture & Values, Chatbot Manual, KAI Mascot, POSH Policy)
-            if not getattr(app, 'is_post_welcome_docs_sent', False):
-                logger.info(f"DOJ 0 for candidate {app.candidate_name}. Sending post-welcome handbooks & policies emails.")
-                from .notifications import send_post_welcome_handbooks_and_policies
-                res = send_post_welcome_handbooks_and_policies(app)
-                if res and any(res.values()):
-                    app.is_post_welcome_docs_sent = True
-                    try:
-                        app.save(update_fields=['is_post_welcome_docs_sent'])
-                    except Exception:
-                        pass
+            # Note: Handbooks & policies are sent 1 per day starting from Day 2 morning check
+            # via process_daily_onboarding_policy_emails()
 
             if (app.status == "joined" or is_debug) and not getattr(app, 'is_esign_packet_generated', False):
                 logger.info(f"DOJ 0 for candidate {app.candidate_name}. Generating esign doc records.")
@@ -265,6 +402,8 @@ def daily_onboarding_check():
             # In debug mode we skip the real Zoho API call.
             if getattr(app, 'is_esign_packet_generated', False) and not is_debug:
                 send_documents_for_esign(app)
+            # At Day 0 (joining day), alert HR if HOD or Reporting Manager is still unassigned
+            _send_manager_assignment_reminders(app)
 
             app.is_doj_0_triggered = True
             app.save(update_fields=['is_doj_0_triggered'])
@@ -280,6 +419,13 @@ def daily_onboarding_check():
                 send_esign_reminders(app)
                 app.is_esign_reminder_sent = True
                 app.save(update_fields=['is_esign_reminder_sent'])
+
+        # ── Day 2+ (DOJ + 1 onwards) — Daily Policy & Handbook emails (1 per morning) ──
+        if days_until_joining <= -1:
+            try:
+                process_daily_onboarding_policy_emails(app, days_until_joining)
+            except Exception as err:
+                logger.error(f"Error in process_daily_onboarding_policy_emails for {app.candidate_name}: {err}", exc_info=True)
 
         # ── DOJ + 5 Days (Document Verification & Undertaking Sign-off) ────────
         if days_until_joining <= -5:
@@ -500,6 +646,8 @@ def run_onboarding_check_for_candidate(app):
             #     note = f"DOJ is in 7 days ({joining_date}). Remote joiner. Please arrange laptop dispatch."
             # me_client.update_ticket(app.it_ticket_ref, {}, note=note)
         create_milestone_tasks(app, "DOJ_MINUS_7", joining_date)
+        # Re-check manager assignments — they may have been filled after D-15
+        _send_manager_assignment_reminders(app)
         app.is_doj_minus_7_triggered = True
         app.save(update_fields=['is_doj_minus_7_triggered'])
         app.refresh_from_db(fields=['is_doj_minus_2_triggered'])
@@ -548,16 +696,8 @@ def run_onboarding_check_for_candidate(app):
         app.work_email = work_email
         is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
         
-        if not getattr(app, 'is_post_welcome_docs_sent', False):
-            logger.info(f"[ADMIN ACTION] DOJ 0 for {app.candidate_name}. Sending post-welcome handbooks & policies emails.")
-            from .notifications import send_post_welcome_handbooks_and_policies
-            res = send_post_welcome_handbooks_and_policies(app)
-            if res and any(res.values()):
-                app.is_post_welcome_docs_sent = True
-                try:
-                    app.save(update_fields=['is_post_welcome_docs_sent'])
-                except Exception:
-                    pass
+        # Note: Handbooks & policies are sent 1 per day starting from Day 2 morning check
+        # via process_daily_onboarding_policy_emails()
 
         if (app.status == "joined" or is_debug) and not getattr(app, 'is_esign_packet_generated', False):
             logger.info(f"[ADMIN ACTION] DOJ 0 for {app.candidate_name}. Generating esign doc records.")
@@ -568,6 +708,17 @@ def run_onboarding_check_for_candidate(app):
 
         if getattr(app, 'is_esign_packet_generated', False) and not is_debug:
             send_documents_for_esign(app)
+
+        # At Day 0 (joining day), alert HR if HOD or Reporting Manager is still unassigned
+        _send_manager_assignment_reminders(app)
+
+        # Send joining-day manager notification email to candidate
+        if not getattr(app, 'is_joining_day_manager_email_sent', False):
+            from .joining_manager_email import send_joining_day_manager_email
+            if send_joining_day_manager_email(app):
+                app.is_joining_day_manager_email_sent = True
+                app.save(update_fields=['is_joining_day_manager_email_sent'])
+
         app.is_doj_0_triggered = True
         app.save(update_fields=['is_doj_0_triggered'])
 
@@ -582,6 +733,13 @@ def run_onboarding_check_for_candidate(app):
             app.is_esign_reminder_sent = True
             app.save(update_fields=['is_esign_reminder_sent'])
             create_milestone_tasks(app, "DOJ_PLUS_1_ESIGN_REMINDER", joining_date)
+
+    # ── Day 2+ (DOJ + 1 onwards) — Daily Policy & Handbook emails (1 per morning) ──
+    if days_until_joining <= -1:
+        try:
+            process_daily_onboarding_policy_emails(app, days_until_joining)
+        except Exception as err:
+            logger.error(f"[ADMIN ACTION] Error in process_daily_onboarding_policy_emails for {app.candidate_name}: {err}", exc_info=True)
 
     # ── DOJ + 5 Days — Document Verification & Undertaking Sign-off ─────────
     if days_until_joining <= -5:
@@ -713,6 +871,12 @@ def run_onboarding_check_for_candidate(app):
         notify_internal(app, "it_ticket_close_request")
         app.it_ticket_closed = True
         app.save(update_fields=['it_ticket_closed'])
+
+    # Remind call owner if any completed calls for this candidate are still missing MOM notes or transcript
+    try:
+        remind_call_owners_for_missing_materials(candidate=app)
+    except Exception as e:
+        logger.warning(f"[ADMIN ACTION] Could not check missing call materials for {app.candidate_name}: {e}")
 
     logger.info(f"[ADMIN ACTION] Completed onboarding check for: {app.candidate_name}")
     return days_until_joining

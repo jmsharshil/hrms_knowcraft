@@ -35,6 +35,53 @@ def get_access_token():
 
     return data["access_token"]
 
+
+def download_zoho_sign_pdf(request_id):
+    """Download a PDF document for a Zoho Sign request."""
+    if not request_id:
+        raise ValueError("A Zoho Sign request ID is required.")
+
+    access_token = get_access_token()
+    response = requests.get(
+        f"{ZOHO_SIGN_URL}/requests/"
+        f"{requests.utils.quote(request_id, safe='')}/pdf",
+        headers={"Authorization": f"Zoho-oauthtoken {access_token}"},
+        timeout=60,
+    )
+    response.raise_for_status()
+    pdf_content = response.content
+    if not pdf_content.startswith(b"%PDF"):
+        raise ValueError(
+            f"Zoho Sign returned a non-PDF response for request {request_id}."
+        )
+    return pdf_content
+
+
+def download_completed_sign_document(document_task):
+    """Download the completed, signed PDF for a Zoho Sign request."""
+    import logging
+
+    from django.core.files.base import ContentFile
+    from django.utils.text import slugify
+
+    logger = logging.getLogger(__name__)
+    if document_task.signed_file:
+        return
+    if not document_task.zoho_request_id:
+        raise ValueError(
+            f"Missing Zoho request ID for document {document_task.id}."
+        )
+
+    pdf_content = download_zoho_sign_pdf(document_task.zoho_request_id)
+    candidate_name = slugify(document_task.job_application.candidate_name) or "candidate"
+    filename = f"{candidate_name}-{document_task.doc_type.lower()}-signed.pdf"
+    document_task.signed_file.save(filename, ContentFile(pdf_content), save=False)
+    logger.info(
+        "Saved signed Zoho document for application %s (%s).",
+        document_task.job_application_id,
+        document_task.doc_type,
+    )
+
 # def send_offer_letter(request):
 #     # Example: get candidate data somehow (e.g. POST JSON)
 #     candidate_email = request.POST["email"]
@@ -444,6 +491,20 @@ def zoho_sign_webhook(request):
                 return JsonResponse({"error":reason})
         
         elif doc_type == 'DocumentEsignTask':
+            try:
+                download_completed_sign_document(doc)
+            except Exception:
+                import logging
+
+                logging.getLogger(__name__).exception(
+                    "Failed to download signed Zoho document for request %s.",
+                    doc.zoho_request_id,
+                )
+                return JsonResponse(
+                    {"status": "signed_document_download_failed"},
+                    status=502,
+                )
+
             # Persist undertaking sign-off flag (as per summary)
             if getattr(doc, 'doc_type', None) == 'UNDERTAKING':
                 application.is_undertaking_signoff_completed = True
@@ -1048,15 +1109,33 @@ def send_undertaking_signoff(app):
 
         # Store as a DocumentEsignTask so the webhook can track signing status
         from onboarding.models import DocumentEsignTask
-        DocumentEsignTask.objects.create(
+        document_task, created = DocumentEsignTask.objects.get_or_create(
             job_application=app,
             doc_type="UNDERTAKING",
-            zoho_request_id=request_id,
-            zoho_document_id=document_id,
-            status="sent",
-            sent_at=timezone.now(),
-            raw_response=data,
         )
+        if not created:
+            document_task.reset_signature_state()
+        document_task.zoho_request_id = request_id
+        document_task.zoho_document_id = document_id
+        document_task.status = "sent"
+        document_task.sent_at = timezone.now()
+        document_task.raw_response = data
+        document_task.save()
+
+        try:
+            from django.core.files.base import ContentFile
+            from django.utils.text import slugify
+
+            candidate_name = slugify(app.candidate_name) or "candidate"
+            document_task.source_file.save(
+                f"{candidate_name}-undertaking-sent.pdf",
+                ContentFile(download_zoho_sign_pdf(request_id)),
+            )
+        except Exception:
+            logger.exception(
+                "Failed to save the sent undertaking document for request %s.",
+                request_id,
+            )
 
         logger.info(f"Undertaking sign-off sent to {app.candidate_name} ({recipient_email})")
         return data

@@ -5,11 +5,22 @@ from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework import status
 from django.core.management import call_command
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.files.uploadedfile import SimpleUploadedFile
 from unittest.mock import patch
 
 from accounts.models import User
+from bgv.models import CandidateBGV
 from jobs.models import JobApplication
-from onboarding.models import OnboardingCall, SurveyResponse, OnboardingTaskList, OnboardingTask
+from onboarding.models import (
+    DocumentEsignTask,
+    EmailLog,
+    JobApplicationDocument,
+    OnboardingCall,
+    SurveyResponse,
+    OnboardingTaskList,
+    OnboardingTask,
+)
 from mrf.models import Designation
 
 class OnboardingAPIsTestCase(APITestCase):
@@ -284,6 +295,69 @@ class OnboardingAPIsTestCase(APITestCase):
         self.assertIsNotNone(call)
         self.assertTrue(call.meeting_id)
 
+    def test_d45_and_d90_call_mom_notes_and_transcript_can_be_created_and_updated(self):
+        for route_name, call_type in (
+            ('d45-scheduled', 'd45'),
+            ('d90-scheduled', 'd90'),
+        ):
+            with self.subTest(call_type=call_type):
+                url = reverse(route_name, kwargs={'id': str(self.application.id)})
+                notes = 'Meeting notes. ' * 40
+                first_response = self.client.patch(
+                    url,
+                    {
+                        'mom_notes': notes,
+                        'transcript_file': SimpleUploadedFile(
+                            f'{call_type}-transcript.txt',
+                            b'original transcript',
+                            content_type='text/plain',
+                        ),
+                    },
+                    format='multipart',
+                )
+
+                self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+                call = OnboardingCall.objects.get(
+                    job_application=self.application,
+                    call_type=call_type,
+                )
+                self.assertEqual(call.mom_notes, notes)
+                with call.transcript_file.open('rb') as transcript:
+                    self.assertEqual(transcript.read(), b'original transcript')
+                self.assertTrue(first_response.json()['call']['transcript_file_url'])
+
+                updated_response = self.client.patch(
+                    url,
+                    {
+                        'mom_notes': 'Updated minutes.',
+                        'transcript_file': SimpleUploadedFile(
+                            f'{call_type}-transcript-updated.txt',
+                            b'updated transcript',
+                            content_type='text/plain',
+                        ),
+                    },
+                    format='multipart',
+                )
+
+                self.assertEqual(updated_response.status_code, status.HTTP_200_OK)
+                call.refresh_from_db()
+                self.assertEqual(call.mom_notes, 'Updated minutes.')
+                with call.transcript_file.open('rb') as transcript:
+                    self.assertEqual(transcript.read(), b'updated transcript')
+
+        journey = self.client.get(reverse(
+            'onboarding-journey',
+            kwargs={'id': str(self.application.id)},
+        ))
+        self.assertEqual(journey.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            journey.json()['calls']['d45']['mom_notes'],
+            'Updated minutes.',
+        )
+        self.assertTrue(
+            journey.json()['calls']['d90']['transcript_file_url']
+        )
+
     def test_onboarding_journey_api(self):
         url = reverse('onboarding-journey', kwargs={'id': str(self.application.id)})
         
@@ -299,6 +373,172 @@ class OnboardingAPIsTestCase(APITestCase):
         self.assertIn('task_lists', data)
         
         self.assertEqual(data['candidate']['id'], str(self.application.id))
+
+    def test_document_sections_api_groups_files_and_returns_signed_file_urls(self):
+        application_documents = JobApplicationDocument.objects.create(
+            job_application=self.application,
+        )
+        application_documents.aadhaar.save(
+            'aadhaar.pdf',
+            SimpleUploadedFile('aadhaar.pdf', b'%PDF personal'),
+        )
+        application_documents.graduation_certificate.save(
+            'graduation.pdf',
+            SimpleUploadedFile('graduation.pdf', b'%PDF education'),
+        )
+        call = OnboardingCall.objects.create(
+            job_application=self.application,
+            call_type='d45',
+        )
+        call.transcript_file.save(
+            'd45-transcript.txt',
+            SimpleUploadedFile('d45-transcript.txt', b'call transcript'),
+        )
+        esign_document = DocumentEsignTask.objects.create(
+            job_application=self.application,
+            doc_type='NDA',
+            status='completed',
+        )
+        esign_document.source_file.save(
+            'nda-original.pdf',
+            SimpleUploadedFile('nda-original.pdf', b'%PDF original'),
+        )
+        esign_document.signed_file.save(
+            'nda-signed.pdf',
+            SimpleUploadedFile('nda-signed.pdf', b'%PDF signed'),
+        )
+        bgv_record, _ = CandidateBGV.objects.update_or_create(
+            candidate=self.application,
+            defaults={
+                'report_url': 'https://reports.example.test/bgv/123',
+                'status': 'completed',
+            },
+        )
+
+        response = self.client.get(reverse(
+            'application-document-sections',
+            kwargs={'id': str(self.application.id)},
+        ))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        sections = response.json()['sections']
+        self.assertEqual(sections['personal'][0]['key'], 'aadhaar')
+        self.assertTrue(sections['personal'][0]['url'])
+        self.assertEqual(sections['education'][0]['key'], 'graduation_certificate')
+        self.assertEqual(sections['bgv'][0]['url'], bgv_record.report_url)
+        self.assertEqual(sections['bgv'][0]['status'], 'completed')
+        transcript = next(
+            item for item in sections['onboarding']
+            if item['key'] == 'd45_transcript'
+        )
+        self.assertTrue(transcript['url'])
+        nda = next(item for item in sections['onboarding'] if item['key'] == 'NDA')
+        self.assertTrue(nda['source_file_url'])
+        self.assertTrue(nda['signed_file_url'])
+
+    @patch('onboarding.utils.sender.send_email')
+    def test_call_owner_is_reminded_once_after_call_if_materials_are_missing(self, mock_send_email):
+        from onboarding.utils.onboarding_tasks import remind_call_owners_for_missing_materials
+
+        def record_sent_email(**kwargs):
+            EmailLog.objects.create(
+                recipient_email=kwargs['to'],
+                subject=kwargs['subject'],
+                event=kwargs['event'],
+                email_type=kwargs['email_type'],
+                candidate=kwargs['candidate'],
+                status='sent',
+            )
+
+        mock_send_email.side_effect = record_sent_email
+        call = OnboardingCall.objects.create(
+            job_application=self.application,
+            call_type='d45',
+            organizer_email='call.owner@example.com',
+            end_time=timezone.now() - timedelta(minutes=1),
+        )
+
+        remind_call_owners_for_missing_materials()
+        call.refresh_from_db()
+        mock_send_email.assert_called_once()
+        self.assertEqual(
+            mock_send_email.call_args.kwargs['to'],
+            'call.owner@example.com',
+        )
+        self.assertIn('MOM notes', mock_send_email.call_args.kwargs['text'])
+        self.assertIn('call transcript', mock_send_email.call_args.kwargs['text'])
+        self.assertFalse(mock_send_email.call_args.kwargs['use_default_cc'])
+
+        remind_call_owners_for_missing_materials()
+        mock_send_email.assert_called_once()
+
+    @patch('onboarding.utils.sender.send_email')
+    def test_call_material_reminder_skips_future_calls_and_calls_without_owner(self, mock_send_email):
+        from onboarding.utils.onboarding_tasks import remind_call_owners_for_missing_materials
+
+        OnboardingCall.objects.create(
+            job_application=self.application,
+            call_type='d45',
+            organizer_email='call.owner@example.com',
+            end_time=timezone.now() + timedelta(hours=1),
+        )
+        OnboardingCall.objects.create(
+            job_application=self.application,
+            call_type='d90',
+            end_time=timezone.now() - timedelta(minutes=1),
+        )
+        complete_call = OnboardingCall.objects.create(
+            job_application=self.application,
+            call_type='d90',
+            organizer_email='call.owner@example.com',
+            end_time=timezone.now() - timedelta(minutes=1),
+            mom_notes='Completed meeting minutes.',
+        )
+        complete_call.transcript_file.save(
+            'complete-transcript.txt',
+            SimpleUploadedFile('complete-transcript.txt', b'complete transcript'),
+        )
+
+        remind_call_owners_for_missing_materials()
+
+        mock_send_email.assert_not_called()
+
+    @patch('onboarding.utils.zoho_sign.requests.get')
+    @patch('onboarding.utils.zoho_sign.get_access_token', return_value='test-token')
+    def test_zoho_completion_saves_signed_document(self, mock_token, mock_get):
+        document = DocumentEsignTask.objects.create(
+            job_application=self.application,
+            doc_type='UNDERTAKING',
+            status='sent',
+            zoho_request_id='request-123',
+            zoho_document_id='document-123',
+        )
+        mock_get.return_value.content = b'%PDF-1.4 signed'
+        mock_get.return_value.raise_for_status.return_value = None
+
+        payload = {
+            'notifications': {'operation_type': 'RequestCompleted'},
+            'requests': {
+                'request_id': 'request-123',
+                'request_status': 'completed',
+                'document_ids': [{'document_id': 'document-123'}],
+            },
+        }
+        response = self.client.post(
+            reverse('zohosign-webhook'),
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        document.refresh_from_db()
+        self.assertEqual(document.status, 'completed')
+        self.assertTrue(document.signed_file)
+        with document.signed_file.open('rb') as signed_file:
+            self.assertEqual(signed_file.read(), b'%PDF-1.4 signed')
+        self.assertEqual(mock_get.call_count, 1)
+        self.application.refresh_from_db()
+        self.assertTrue(self.application.is_undertaking_signoff_completed)
 
     def test_task_lists_and_tasks_crud(self):
         # 1. Create Task List

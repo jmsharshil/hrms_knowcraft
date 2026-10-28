@@ -26,9 +26,11 @@ import logging
 import threading
 from datetime import timedelta
 
+from django.db import connection, transaction
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+SCHEDULER_COORDINATOR_LOCK_ID = 7241956831201
 
 
 class TaskScheduler:
@@ -48,6 +50,34 @@ class TaskScheduler:
     # Used to prevent reconcile/reschedule_future_pending from double-arming
     # tasks that schedule() already armed.
     _armed_task_ids: set = set()
+
+    @classmethod
+    def run_if_coordinator(cls, callback):
+        """
+        Run scheduler-wide coordination under a PostgreSQL transaction lock.
+
+        Every Gunicorn worker may start a poller, but only one worker can
+        reconcile or create recurring tasks at a time. The lock is released
+        automatically if the database connection or process goes away.
+        """
+        if connection.vendor != "postgresql":
+            raise RuntimeError(
+                "The multi-worker scheduler requires PostgreSQL advisory locks."
+            )
+
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT pg_try_advisory_xact_lock(%s)",
+                    [SCHEDULER_COORDINATOR_LOCK_ID],
+                )
+                acquired = cursor.fetchone()[0]
+
+            if not acquired:
+                return False
+
+            callback()
+            return True
 
     # ── Registration ─────────────────────────────────────────────
 
@@ -81,8 +111,7 @@ class TaskScheduler:
 
         # ── Singleton guard for recurring tasks ───────────
         if is_recurring:
-            # Only check 'pending' status. If we include 'running', a currently running
-            # task cannot reschedule itself (which it may need to do if it aborts early).
+            # Check for existing pending row
             existing_qs = ScheduledTask.objects.filter(
                 task_type=task_type,
                 status="pending",
@@ -92,12 +121,23 @@ class TaskScheduler:
             else:
                 existing_qs = existing_qs.filter(task_kwargs__in=[{}, None])
 
-            if existing_qs.exists():
-                logger.info(
-                    "[SCHEDULER] Recurring task '%s' with kwargs %s already pending/running — skipped.",
-                    task_type, task_kwargs
-                )
-                return None
+            existing_task = existing_qs.order_by("-created_at").first()
+            if existing_task:
+                # If the existing pending task is already due or overdue, ensure it's armed/reconciled
+                now = timezone.now()
+                if existing_task.scheduled_at <= now:
+                    logger.info(
+                        "[SCHEDULER] Recurring task '%s' already pending and due (%s) — re-arming.",
+                        task_type, existing_task.scheduled_at
+                    )
+                    cls._armed_task_ids.discard(existing_task.id)
+                    cls._schedule_in_memory(existing_task.id, delay_seconds=0)
+                else:
+                    logger.info(
+                        "[SCHEDULER] Recurring task '%s' already pending for %s — skipped duplicate.",
+                        task_type, existing_task.scheduled_at
+                    )
+                return existing_task
 
         scheduled_at = timezone.now() + timedelta(seconds=delay_seconds)
 
@@ -159,11 +199,13 @@ class TaskScheduler:
     @classmethod
     def _execute(cls, task_id):
         """
-        Called by TASK_QUEUE workers.  Loads the DB row, runs the
+        Called by TASK_QUEUE workers. Loads the DB row, runs the
         registered function, and updates the status accordingly.
         """
-        from django.db import transaction
+        from django.db import transaction, close_old_connections
         from .models import ScheduledTask
+
+        close_old_connections()
 
         # ── Phase 1: Claim the task inside a short atomic block ──────
         with transaction.atomic():
@@ -171,12 +213,11 @@ class TaskScheduler:
                 # Use select_for_update to lock the row and skip if another worker already grabbed it
                 task = ScheduledTask.objects.select_for_update(skip_locked=True).get(id=task_id)
             except ScheduledTask.DoesNotExist:
-                logger.warning("[SCHEDULER] Task %s not found in DB or already locked — skipping.", task_id)
+                # Already grabbed by another worker or not in DB
                 return
 
             # ── Guard: skip if already cancelled, completed, or running ────────
             if task.status in ("cancelled", "completed", "running"):
-                print(f"[SCHEDULER] Task {task_id} is {task.status} — skipping execution.")
                 return
 
             fn = cls._registry.get(task.task_type)
@@ -196,16 +237,13 @@ class TaskScheduler:
             task.save(update_fields=["status", "started_at", "updated_at"])
 
         # ── Phase 2: Execute OUTSIDE the transaction ─────────────────
-        # The lock is released now so the task function can freely do its
-        # own DB queries (InterviewFeedback check, TaskScheduler.cancel, etc.)
-        # without deadlocking.
+        kwargs = task.task_kwargs or {}
         try:
             print(f"[SCHEDULER] Executing task {task_id} ({task.task_type})...")
-            result = fn(**task.task_kwargs)
+            close_old_connections()
+            result = fn(**kwargs)
 
-            # Re-read task status from DB: another thread/request may have
-            # cancelled this task while it was running (e.g. feedback was
-            # submitted during reminder execution).
+            close_old_connections()
             task.refresh_from_db()
             if task.status == "cancelled":
                 print(f"[SCHEDULER] Task {task_id} was cancelled during execution — not rescheduling.")
@@ -218,7 +256,6 @@ class TaskScheduler:
             print(f"[SCHEDULER] Task {task_id} completed successfully.")
 
             # Recurring only on success and if the task function did not return False
-            # (used by conditional tasks like feedback reminders to stop after completion)
             if (
                 task.is_recurring
                 and task.interval_seconds
@@ -242,6 +279,7 @@ class TaskScheduler:
                 "[SCHEDULER] Task %s (%s) failed: %s",
                 task_id, task.task_type, exc,
             )
+            close_old_connections()
             task.refresh_from_db()
             task.retry_count += 1
 
@@ -260,7 +298,6 @@ class TaskScheduler:
                     f"({task.retry_count}/{task.max_retries}) in {backoff}s"
                 )
                 cls._schedule_in_memory(task_id, backoff)
-                return  # Don't reschedule recurring yet
             else:
                 task.status = "failed"
                 task.error_message = str(exc)
@@ -269,19 +306,40 @@ class TaskScheduler:
                 ])
                 print(f"[SCHEDULER] Task {task_id} failed permanently after {task.max_retries} retries.")
 
+                # If recurring, schedule the next cycle so recurrence doesn't die forever
+                if task.is_recurring and task.interval_seconds:
+                    logger.warning(
+                        "[SCHEDULER] Recurring task '%s' failed all retries. "
+                        "Scheduling next run in %ds to keep recurrence alive.",
+                        task.task_type, task.interval_seconds
+                    )
+                    cls.schedule(
+                        task_type=task.task_type,
+                        task_kwargs=task.task_kwargs if task.task_kwargs else None,
+                        delay_seconds=task.interval_seconds,
+                        is_recurring=True,
+                        interval_seconds=task.interval_seconds,
+                        max_retries=task.max_retries,
+                    )
+        finally:
+            close_old_connections()
+
     # ── Reconciliation ───────────────────────────────────────────
 
     @classmethod
     def reconcile(cls):
         """
-        Query DB for tasks that should have run but didn't (e.g. after
-        a restart).  Re-schedule them in memory with zero delay.
+        Re-schedule overdue pending tasks. Running tasks are not retried
+        automatically because they may still be performing external side effects.
         """
+        from django.db import close_old_connections
         from .models import ScheduledTask
 
+        if not connection.in_atomic_block:
+            close_old_connections()
         now = timezone.now()
 
-        # Tasks that were pending and their time has passed
+        # 1. Tasks that were pending and their time has arrived/passed
         missed_pending = list(
             ScheduledTask.objects.filter(
                 status="pending",
@@ -289,33 +347,16 @@ class TaskScheduler:
             ).values_list("id", flat=True)
         )
 
-        # Tasks stuck in 'running' (process died mid-execution)
-        stuck_running = list(
-            ScheduledTask.objects.filter(
-                status="running",
-            ).values_list("id", flat=True)
-        )
-
-        # Reset stuck tasks to pending so _execute picks them up
-        if stuck_running:
-            ScheduledTask.objects.filter(
-                id__in=stuck_running,
-            ).update(status="pending", updated_at=now)
-
-        all_ids = missed_pending + stuck_running
-        if not all_ids:
-            print("[SCHEDULER] Reconciliation: no missed/stuck tasks found.")
+        if not missed_pending:
             return
 
         print(
-            f"[SCHEDULER] Reconciliation: re-scheduling {len(all_ids)} task(s) "
-            f"({len(missed_pending)} missed, {len(stuck_running)} stuck)."
+            f"[SCHEDULER] Reconciliation: re-scheduling {len(missed_pending)} overdue task(s)."
         )
 
-        for task_id in all_ids:
-            if task_id in cls._armed_task_ids:
-                logger.info("[SCHEDULER] Reconcile: task %s already armed — skipped.", task_id)
-                continue
+        for task_id in missed_pending:
+            # Force discard from armed set so it is guaranteed to run
+            cls._armed_task_ids.discard(task_id)
             cls._schedule_in_memory(task_id, delay_seconds=0)
 
     # ── Future pending tasks ─────────────────────────────────────
@@ -323,12 +364,14 @@ class TaskScheduler:
     @classmethod
     def reschedule_future_pending(cls):
         """
-        On startup, also re-arm timers for tasks that are pending but
-        whose scheduled_at is in the future (they had timers that were
-        lost on restart).
+        Re-arm future pending tasks in this worker.
         """
         from .models import ScheduledTask
 
+        if not connection.in_atomic_block:
+            from django.db import close_old_connections
+
+            close_old_connections()
         now = timezone.now()
         future_tasks = list(
             ScheduledTask.objects.filter(
@@ -338,7 +381,6 @@ class TaskScheduler:
         )
 
         if not future_tasks:
-            print("[SCHEDULER] No future pending tasks to re-arm.")
             return
 
         print(
@@ -346,7 +388,6 @@ class TaskScheduler:
         )
         for task_id, scheduled_at in future_tasks:
             if task_id in cls._armed_task_ids:
-                logger.info("[SCHEDULER] Future re-arm: task %s already armed — skipped.", task_id)
                 continue
             delay = max((scheduled_at - now).total_seconds(), 0)
             cls._schedule_in_memory(task_id, delay)

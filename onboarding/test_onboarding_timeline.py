@@ -33,7 +33,7 @@ class OnboardingTimelineTests(SimpleTestCase):
         self.assertEqual(
             get_days_until_joining(
                 candidate,
-                now=start + timedelta(minutes=9),
+                now=start + timedelta(minutes=13),
             ),
             -90,
         )
