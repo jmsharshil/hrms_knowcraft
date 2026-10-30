@@ -278,7 +278,7 @@ Knowcraft Analytics Private Limited
                     candidate=candidate
                 )
             if approver.phone:
-                send_text(to=approver.phone,text=build_whatsapp_text(approver))
+                send_text(to=approver.phone, text=build_whatsapp_text(approver), candidate=candidate, event="salary_annexure_approval")
     else:
         print(f"Skipping Salary Annexure notification for private job: {candidate.job.id}")
 

@@ -9,7 +9,7 @@ from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.template import Template, Context
 from django.db.models import Exists, OuterRef, Q
-from .models import JobApplicationDocument,ApprovalNote,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog, OnboardingTask, OnboardingTaskList, DocumentEsignTask, OfferDocument
+from .models import JobApplicationDocument,ApprovalNote,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog, WhatsAppLog, OnboardingTask, OnboardingTaskList, DocumentEsignTask, OfferDocument
 from onboarding.utils.engine import automation_engine
 from .utils.sender import send_email,send_text,send_document
 from .serializers import (
@@ -17,6 +17,7 @@ from .serializers import (
     SalaryAnnexureSerializer,
     SalaryAnnexureHistorySerializer,
     EmailLogSerializer,
+    WhatsAppLogSerializer,
     OnboardingTaskListSerializer,
     OnboardingTaskSerializer,
     DocumentEsignTaskSerializer
@@ -991,8 +992,8 @@ Knowcraft Analytics Private Limited
                         candidate=candidate
                     )
                     if approver.phone:
-                        send_text(to=approver.phone,text=whatsapp_text)
-                        send_document(to=approver.phone,text="Candidate Resume",file_url=candidate.resume.url,filename=f'{candidate.candidate_name}_Resume.pdf')
+                        send_text(to=approver.phone, text=whatsapp_text, candidate=candidate, event="approval_note_sent")
+                        send_document(to=approver.phone, text="Candidate Resume", file_url=candidate.resume.url, filename=f'{candidate.candidate_name}_Resume.pdf', candidate=candidate, event="approval_note_sent")
                 elif approval_note and candidate.job.is_private:
                     print(f"Skipping Approval Note notification for private job: {candidate.job.id}")
 
@@ -1583,9 +1584,9 @@ Thank you.
             print(f"Skipping Offer Letter notification for private job: {job_application.job.id}")
 
         if recipient_phone and not is_private:
-            send_text(to=recipient_phone,text=message)
+            send_text(to=recipient_phone, text=message, candidate=job_application, event="offer_letter")
             if annexure_attachment:
-                send_document(to=recipient_phone,text="Salary Annexure",filename=f"{job_application.candidate_name}_annexure.pdf",file_url=job_application.docs.salary_annexure.url)
+                send_document(to=recipient_phone, text="Salary Annexure", filename=f"{job_application.candidate_name}_annexure.pdf", file_url=job_application.docs.salary_annexure.url, candidate=job_application, event="salary_annexure")
         automation_engine(job_application,job_application.status,"offer_pending")
         return Response(
             {"message": "Review email sent successfully!"},
@@ -1740,8 +1741,8 @@ Thank you.
             print(f"Skipping Salary Annexure Prep notification for private job: {job_application.job.id}")
 
         if recipient_phone and not is_private:
-            send_text(to=recipient_phone,text=message)
-            send_document(to=recipient_phone,text="Candidate Resume",file_url=job_application.resume.url,filename=f'{job_application.candidate_name}_Resume.pdf')
+            send_text(to=recipient_phone, text=message, candidate=job_application, event="salary_annexure_sent")
+            send_document(to=recipient_phone, text="Candidate Resume", file_url=job_application.resume.url, filename=f'{job_application.candidate_name}_Resume.pdf', candidate=job_application, event="salary_annexure_sent")
         automation_engine(job_application, job_application.status, "salary_annexure_prep")
         return Response(
             {"message": "Salary Annexure review email sent successfully!"},
@@ -2562,6 +2563,22 @@ class ApplicationDocumentSectionsAPI(APIView):
                 "status": email_log.status,
             })
 
+        # Candidature WhatsApp Communications
+        candidature_whatsapps = WhatsAppLog.objects.filter(candidate=application).order_by("-sent_at")
+        for wa_log in candidature_whatsapps:
+            resume_and_feedback_docs.append({
+                "id": str(wa_log.id),
+                "key": "candidature_whatsapp",
+                "type": "whatsapp_communication",
+                "name": f"WhatsApp: {wa_log.event}",
+                "message": wa_log.message_text,
+                "message_type": wa_log.message_type,
+                "event": wa_log.event,
+                "recipient": wa_log.recipient_phone,
+                "sent_at": wa_log.sent_at,
+                "status": wa_log.status,
+            })
+
         # ── 5: Knowcraft Documents ──
         # 5a. Joining Documents:
         joining_doc_types = {"FORM_2", "NOMINATION_INS", "FORM_F", "KRA", "FORM_11"}
@@ -2936,6 +2953,56 @@ class EmailLogViewSet(ReadOnlyModelViewSet):
             qs = qs.filter(email_type=email_type)
             
         candidate_id = self.request.query_params.get("candidate_id")
+        if candidate_id:
+            qs = qs.filter(candidate_id=candidate_id)
+
+        return qs
+
+
+class WhatsAppLogViewSet(ReadOnlyModelViewSet):
+    """
+    API View to list all WhatsApp messages sent out from the system.
+    Supports filtering by phone, event, status, candidate, and name.
+    """
+    queryset = WhatsAppLog.objects.select_related('candidate').order_by('-sent_at')
+    serializer_class = WhatsAppLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        # Only HR/Admin can see audit logs
+        if user.role != 'admin':
+            return WhatsAppLog.objects.none()
+
+        qs = super().get_queryset()
+
+        # General search (candidate name, message text, or recipient phone)
+        search = self.request.query_params.get("search")
+        if search:
+            search = search.strip()
+            qs = qs.filter(
+                Q(candidate__candidate_name__icontains=search) |
+                Q(message_text__icontains=search) |
+                Q(recipient_phone__icontains=search)
+            )
+
+        name = self.request.query_params.get("name") or self.request.query_params.get("candidate_name")
+        if name:
+            qs = qs.filter(candidate__candidate_name__icontains=name.strip())
+
+        phone = self.request.query_params.get("phone") or self.request.query_params.get("recipient_phone")
+        if phone:
+            qs = qs.filter(recipient_phone__icontains=phone.strip())
+
+        event = self.request.query_params.get("event")
+        if event:
+            qs = qs.filter(event__iexact=event.strip())
+
+        status_val = self.request.query_params.get("status")
+        if status_val:
+            qs = qs.filter(status=status_val.strip())
+
+        candidate_id = self.request.query_params.get("candidate") or self.request.query_params.get("candidate_id")
         if candidate_id:
             qs = qs.filter(candidate_id=candidate_id)
 

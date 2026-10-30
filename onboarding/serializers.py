@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import DocuSignOffer, JobApplicationDocument,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog, OnboardingTask, OnboardingTaskList, DocumentEsignTask
+from .models import DocuSignOffer, JobApplicationDocument,SalaryAnnexure,SalaryAnnexureHistory,SalaryComponent,EmailLog, WhatsAppLog, OnboardingTask, OnboardingTaskList, DocumentEsignTask
 from jobs.models import JobApplication
 # class CandidateSerializer(serializers.ModelSerializer):
 #     class Meta:
@@ -189,6 +189,32 @@ class EmailLogSerializer(serializers.ModelSerializer):
             "status",
             "error_message",
             "sent_at"
+        ]
+
+    def get_candidate_name(self, obj):
+        if obj.candidate:
+            return obj.candidate.candidate_name
+        return None
+
+
+class WhatsAppLogSerializer(serializers.ModelSerializer):
+    candidate_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = WhatsAppLog
+        fields = [
+            "id",
+            "recipient_phone",
+            "message_text",
+            "message_type",
+            "file_url",
+            "filename",
+            "event",
+            "candidate",
+            "candidate_name",
+            "status",
+            "error_message",
+            "sent_at",
         ]
 
     def get_candidate_name(self, obj):

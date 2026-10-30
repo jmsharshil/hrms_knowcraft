@@ -5,7 +5,7 @@ from .views import (
     CandidateInterviewSummaryAPIView, SalaryAnnexureHistoryViewSet, SalaryAnnexureViewSet,
     ReviewJobApplicationDocumentsAPI, SendForOfferLetterEmailAPI, SendForSalaryAnnexureEmailAPI,
     DownloadJobApplicationDocumentsView, DownloadAllDocumentsAPIView, ApplicationDocumentSectionsAPI, DownloadApprovalNoteAPIView, RevertOfferAPIView,
-    EmailLogViewSet,
+    EmailLogViewSet, WhatsAppLogViewSet,
     ResolveEscalationAPI, AssignBuddyAPI, CompleteSurveyAPI, ScheduleD45CallAPI, ScheduleD90CallAPI,
     SearchTeamsUsersAPI, InitiateOnboardingAPI, RevertRejectionAPI, GetSurveyStructureAPI, SurveyStructureManagerAPI,
     GetManageEngineSitesAPI, GetManageEngineAssetsAPI, GetManageEngineDepartmentsAPI, GetManageEngineDesignationsAPI,
@@ -21,6 +21,7 @@ router = DefaultRouter()
 # router.register(r"salary-annexures", SalaryAnnexureViewSet, basename="salary-annexure")
 # router.register(r"salary-annexure-history", SalaryAnnexureHistoryViewSet, basename="salary-annexure-history")
 router.register(r"email-logs", EmailLogViewSet, basename="email-logs")
+router.register(r"whatsapp-logs", WhatsAppLogViewSet, basename="whatsapp-logs")
 router.register(r"task-lists", OnboardingTaskListViewSet, basename="onboarding-task-lists")
 router.register(r"tasks", OnboardingTaskViewSet, basename="onboarding-tasks")
 router.register(r"esign-docs", DocumentEsignTaskViewSet, basename="esign-docs")
