@@ -261,14 +261,16 @@ class TaskScheduler:
                 and task.interval_seconds
                 and result is not False
             ):
+                from .apps import get_next_recurring_delay
+                next_delay = get_next_recurring_delay(task.task_type, task.interval_seconds)
                 print(
                     f"[SCHEDULER] Recurring task '{task.task_type}' — "
-                    f"scheduling next run in {task.interval_seconds}s"
+                    f"scheduling next run in {next_delay}s"
                 )
                 cls.schedule(
                     task_type=task.task_type,
                     task_kwargs=task.task_kwargs if task.task_kwargs else None,
-                    delay_seconds=task.interval_seconds,
+                    delay_seconds=next_delay,
                     is_recurring=True,
                     interval_seconds=task.interval_seconds,
                     max_retries=task.max_retries,
@@ -308,15 +310,17 @@ class TaskScheduler:
 
                 # If recurring, schedule the next cycle so recurrence doesn't die forever
                 if task.is_recurring and task.interval_seconds:
+                    from .apps import get_next_recurring_delay
+                    next_delay = get_next_recurring_delay(task.task_type, task.interval_seconds)
                     logger.warning(
                         "[SCHEDULER] Recurring task '%s' failed all retries. "
                         "Scheduling next run in %ds to keep recurrence alive.",
-                        task.task_type, task.interval_seconds
+                        task.task_type, next_delay
                     )
                     cls.schedule(
                         task_type=task.task_type,
                         task_kwargs=task.task_kwargs if task.task_kwargs else None,
-                        delay_seconds=task.interval_seconds,
+                        delay_seconds=next_delay,
                         is_recurring=True,
                         interval_seconds=task.interval_seconds,
                         max_retries=task.max_retries,

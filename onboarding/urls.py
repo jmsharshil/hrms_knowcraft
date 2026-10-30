@@ -10,7 +10,8 @@ from .views import (
     SearchTeamsUsersAPI, InitiateOnboardingAPI, RevertRejectionAPI, GetSurveyStructureAPI, SurveyStructureManagerAPI,
     GetManageEngineSitesAPI, GetManageEngineAssetsAPI, GetManageEngineDepartmentsAPI, GetManageEngineDesignationsAPI,
     OnboardingTaskViewSet, OnboardingTaskListViewSet, OnboardingJourneyAPI, DocumentEsignTaskViewSet,
-    DownloadSurveyAPI, BulkSurveyDataAPI, ManageEngineRequestersAPI, VerifyD5DocumentAPI
+    DownloadSurveyAPI, BulkSurveyDataAPI, ManageEngineRequestersAPI, VerifyD5DocumentAPI,
+    DownloadInterviewFeedbackPDFAPIView,
 )
 from .utils.opensign import opensign_webhook
 from .utils.zoho_sign import zoho_sign_webhook
@@ -36,6 +37,7 @@ urlpatterns = [
     path('application/<str:id>/documents/download-all/',DownloadAllDocumentsAPIView.as_view(),name='download-all-documents'),
     path("application/<str:id>/documents/download/",DownloadJobApplicationDocumentsView.as_view(),name="download-documents"),
     path("approval-note/<str:id>/download/", DownloadApprovalNoteAPIView.as_view(), name="download-approval-note"),
+    path("interview-feedback/<uuid:feedback_id>/download-pdf/", DownloadInterviewFeedbackPDFAPIView.as_view(), name="download-interview-feedback-pdf"),
     path("send-approval-note/", SendApprovalNoteAPIView.as_view(),name="send-approval-note"),
     path("candidates/<uuid:candidate_id>/interview-summary/",CandidateInterviewSummaryAPIView.as_view(),name="candidate-interview-summary"),
     # path('opensign/webhook/',opensign_webhook,name="opensign-webhook"),

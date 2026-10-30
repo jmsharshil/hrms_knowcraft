@@ -2057,7 +2057,13 @@ class DownloadJobApplicationDocumentsView(APIView):
                 if call.transcript_file:
                     download_items.append((call.transcript_file, "5. Knowcraft Documents/e. Welcome Note"))
 
-            if not download_items:
+            from slots.models import InterviewFeedback
+            from onboarding.utils.pdf_maker import generate_interview_feedback_pdf, generate_approval_note_pdf
+
+            feedbacks = InterviewFeedback.objects.filter(job_application=candidate).order_by("interview_date")
+            approval_notes = ApprovalNote.objects.filter(candidate=candidate).order_by("-created_at")
+
+            if not download_items and not feedbacks.exists() and not approval_notes.exists():
                 raise Http404("No documents found for the provided candidate ID")
 
             in_memory_zip = io.BytesIO()
@@ -2088,6 +2094,22 @@ class DownloadJobApplicationDocumentsView(APIView):
                                 zipf.writestr(arcname, download_file.read())
                             except Exception as read_err:
                                 logger.warning(f"Failed to read file for zip: {read_err}")
+
+                # 4. Interview Feedbacks — one branded PDF per round
+                for fb in feedbacks:
+                    try:
+                        fb_filename, fb_pdf_bytes, _ = generate_interview_feedback_pdf(fb)
+                        zipf.writestr(f"4. Resume and Feedback/{fb_filename}", fb_pdf_bytes)
+                    except Exception as e:
+                        logger.warning(f"Could not generate interview feedback PDF for feedback {fb.id}: {e}")
+
+                # 4. Approval Notes — one branded PDF per note
+                for note in approval_notes:
+                    try:
+                        an_filename, an_pdf_bytes, _ = generate_approval_note_pdf(note)
+                        zipf.writestr(f"4. Resume and Feedback/{an_filename}", an_pdf_bytes)
+                    except Exception as e:
+                        logger.warning(f"Could not generate approval note PDF for note {note.id}: {e}")
 
             in_memory_zip.seek(0)
             response = StreamingHttpResponse(in_memory_zip, content_type='application/zip')
@@ -2214,33 +2236,25 @@ class DownloadAllDocumentsAPIView(APIView):
                     ext = os.path.splitext(os.path.basename(candidate.resume_report.name))[1] or ".pdf"
                     zip_entries.append((f"4. Resume and Feedback/{candidate.candidate_name}_Resume_Report{ext}", rep_content))
 
-            # Interview Feedbacks summary text
+            # Interview Feedbacks — one branded PDF per round
             from slots.models import InterviewFeedback
+            from onboarding.utils.pdf_maker import generate_interview_feedback_pdf, generate_approval_note_pdf
             feedbacks = InterviewFeedback.objects.filter(job_application=candidate).order_by("interview_date")
-            if feedbacks.exists():
-                fb_lines = [f"INTERVIEW FEEDBACK SUMMARY - {candidate.candidate_name.upper()}\n{'='*50}\n"]
-                for fb in feedbacks:
-                    round_name = fb.get_interview_round_display() if hasattr(fb, "get_interview_round_display") else (fb.interview_round or "Interview Round")
-                    fb_lines.append(f"Round: {round_name}")
-                    fb_lines.append(f"Interviewer: {fb.interviewer_name or '-'}")
-                    fb_lines.append(f"Date: {fb.interview_date or '-'}")
-                    fb_lines.append(f"Status: {fb.is_selected or '-'}")
-                    fb_lines.append(f"Ratings - Comm: {fb.communication_rating}, Tech: {fb.technical_skill_rating}, Attitude: {fb.attitude_intent_rating}, Team: {fb.team_handling_rating}")
-                    fb_lines.append("-" * 40 + "\n")
-                zip_entries.append((f"4. Resume and Feedback/Interview_Feedback_Summary.txt", "\n".join(fb_lines).encode("utf-8")))
+            for fb in feedbacks:
+                try:
+                    fb_filename, fb_pdf_bytes, _ = generate_interview_feedback_pdf(fb)
+                    zip_entries.append((f"4. Resume and Feedback/{fb_filename}", fb_pdf_bytes))
+                except Exception as e:
+                    logger.warning(f"Could not generate interview feedback PDF for feedback {fb.id}: {e}")
 
-            # Approval Notes summary
+            # Approval Notes — one branded PDF per note
             approval_notes = ApprovalNote.objects.filter(candidate=candidate).order_by("-created_at")
-            if approval_notes.exists():
-                an_lines = [f"APPROVAL NOTES - {candidate.candidate_name.upper()}\n{'='*50}\n"]
-                for note in approval_notes:
-                    an_lines.append(f"Status: {note.get_status_display()}")
-                    an_lines.append(f"Manager: {note.manager.name if note.manager else '-'}")
-                    an_lines.append(f"Created: {note.created_at}")
-                    if note.approved_at:
-                        an_lines.append(f"Approved At: {note.approved_at}")
-                    an_lines.append("-" * 40 + "\n")
-                zip_entries.append((f"4. Resume and Feedback/Approval_Notes_Summary.txt", "\n".join(an_lines).encode("utf-8")))
+            for note in approval_notes:
+                try:
+                    an_filename, an_pdf_bytes, _ = generate_approval_note_pdf(note)
+                    zip_entries.append((f"4. Resume and Feedback/{an_filename}", an_pdf_bytes))
+                except Exception as e:
+                    logger.warning(f"Could not generate approval note PDF for note {note.id}: {e}")
 
             # ── 5: Knowcraft Documents ──
             joining_doc_types = {"FORM_2", "NOMINATION_INS", "FORM_F", "KRA", "FORM_11"}
@@ -2491,15 +2505,28 @@ class ApplicationDocumentSectionsAPI(APIView):
                 "key": f"interview_feedback_{fb.interview_round or 'round'}",
                 "type": "interview_feedback",
                 "name": f"Interview Feedback ({round_display})",
+                "file_name": f"Interview_Feedback_{fb.interview_round or 'round'}_{application.candidate_name.replace(' ', '_')}.pdf",
+                # PDF download URL — generates the full branded feedback PDF on demand
+                "url": request.build_absolute_uri(f"/api/interview-feedback/{fb.id}/download-pdf/"),
                 "round": fb.interview_round,
+                "round_display": round_display,
                 "interviewer_name": fb.interviewer_name or "-",
                 "interview_date": fb.interview_date.strftime('%d-%b-%Y') if fb.interview_date else None,
                 "selection_status": fb.is_selected,
+                "round_avg_score": fb.get_round_avg(),
                 "ratings": {
-                    "communication": fb.communication_rating,
-                    "technical": fb.technical_skill_rating,
-                    "attitude": fb.attitude_intent_rating,
-                    "team_handling": fb.team_handling_rating,
+                    "communication":     fb.communication_rating,
+                    "technical":         fb.technical_skill_rating,
+                    "attitude":          fb.attitude_intent_rating,
+                    "team_handling":     fb.team_handling_rating,
+                    "stability":         fb.stability_rating,
+                    "problem_solving":   fb.problem_solving_rating,
+                    "analytical":        fb.analytical_thinking_rating,
+                    "cultural_fit":      fb.cultural_fit_rating,
+                    "competency":        fb.competency_rating,
+                    "interpersonal":     fb.interpersonal_skills_rating,
+                    "leadership":        fb.leadership_skills_rating,
+                    "learning_agility":  fb.learning_agility_rating,
                 },
             })
 
@@ -2517,7 +2544,7 @@ class ApplicationDocumentSectionsAPI(APIView):
                 "created_at": note.created_at,
                 "approved_at": note.approved_at,
                 "rejected_at": note.rejected_at,
-                "url": request.build_absolute_uri(f"/api/onboarding/approval-note/{note.id}/download/"),
+                "url": request.build_absolute_uri(f"/api/approval-note/{note.id}/download/"),
             })
 
         # Candidature Email Communications
@@ -2579,13 +2606,46 @@ class ApplicationDocumentSectionsAPI(APIView):
 
         # 5c. BGV (Background Verification Report)
         bgv_record = CandidateBGV.objects.filter(candidate=application).first()
-        if bgv_record and bgv_record.report_url:
-            bgv_docs.append({
-                "key": "report",
+        if bgv_record:
+            # Always include the BGV record with full metadata so the frontend
+            # can show status, check-level breakdowns, and the report link.
+            safe_name = (application.candidate_name or "candidate").replace(" ", "_")
+            bgv_item = {
+                "id": str(bgv_record.id),
+                "key": "bgv_report",
+                "type": "bgv_report",
                 "name": "Background Verification Report",
-                "url": bgv_record.report_url,
+                "file_name": f"BGV_Report_{safe_name}.pdf",
+                # source tells the frontend whether this is an external link or
+                # a locally-stored file so it can open/download correctly.
+                "source": "external_url",
+                "url": bgv_record.report_url or None,
                 "status": bgv_record.status,
-            })
+                "status_display": bgv_record.get_status_display() if bgv_record.status else None,
+                "ongrid_individual_id": bgv_record.ongrid_individual_id,
+                "initiated_at": bgv_record.initiated_at,
+                "completed_at": bgv_record.completed_at,
+                "remarks": bgv_record.remarks,
+                # Per-check statuses — only include checks that were actually requested
+                "checks": {
+                    k: v for k, v in {
+                        "address_verification": bgv_record.av_status,
+                        "bank_account_verification": bgv_record.bav_status,
+                        "court_check": bgv_record.cc_status,
+                        "court_record_verification": bgv_record.ccrv_status,
+                        "criminal_verification": bgv_record.cvv_status,
+                        "driving_licence": bgv_record.dlv_status,
+                        "drug_test": bgv_record.drg_status,
+                        "education_verification": bgv_record.eduv_status,
+                        "employment_verification": bgv_record.empv_status,
+                        "employee_reference": bgv_record.eref_status,
+                        "pan_verification": bgv_record.panv_status,
+                        "passport_verification": bgv_record.ppv_status,
+                    }.items()
+                    if v and v != "NOT_REQUESTED"
+                },
+            }
+            bgv_docs.append(bgv_item)
 
         # 5d. Offer Letter
         offer_documents = OfferDocument.objects.filter(
@@ -2678,7 +2738,7 @@ class ApplicationDocumentSectionsAPI(APIView):
             "candidate_profile": [d for d in resume_and_feedback_docs if "resume" in d.get("key", "")],
             "bgv": bgv_docs,
             "offers": offer_letter_docs,
-            "onboarding": [d for d in (joining_docs + service_agreement_isms_docs + welcome_note_docs) if d.get("key") != "report"],
+            "onboarding": [d for d in (joining_docs + service_agreement_isms_docs + welcome_note_docs) if d.get("key") not in {"report", "bgv_report"}],
             "other": [],
         }
 
@@ -2761,144 +2821,20 @@ class ApplicationDocumentSectionsAPI(APIView):
 
 
 class DownloadApprovalNoteAPIView(APIView):
+    """
+    Download a full branded Approval Note PDF for a given ApprovalNote ID.
+    The PDF mirrors the approval email — Candidate Details, Interview Rounds
+    (interviewers + scores), Offer & Other Details, and approval status banner.
+    """
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, id):
         note = get_object_or_404(ApprovalNote, id=id)
-        
         try:
-            from reportlab.lib.pagesizes import letter
-            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-            from reportlab.lib.styles import getSampleStyleSheet
-            from reportlab.lib import colors
-            from io import BytesIO
-            import json
-
-            buffer = BytesIO()
-            doc = SimpleDocTemplate(buffer, pagesize=letter)
-            elements = []
-            styles = getSampleStyleSheet()
-
-            # Header with Logo
-            title = f"Approval Note: {note.candidate.candidate_name if note.candidate else 'Unknown'}"
-            from reportlab.lib.styles import ParagraphStyle
-            from reportlab.platypus import Image
-            
-            title_style = ParagraphStyle(
-                'CustomTitle',
-                parent=styles['Title'],
-                alignment=0, # Left align
-                textColor=colors.HexColor('#0B3D91'),
-                fontSize=22,
-                spaceAfter=0
-            )
-            
-            logo_url = "https://hireprostorage.blob.core.windows.net/media/knowcraft_logo.png"
-            try:
-                import urllib.request
-                import io
-                req = urllib.request.Request(logo_url, headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req) as response:
-                    img_data = io.BytesIO(response.read())
-                logo = Image(img_data, width=150, height=45)
-                header_data = [[Paragraph(title, title_style), logo]]
-                col_widths = [350, 150]
-            except Exception as e:
-                print(f"Error loading logo: {e}")
-                header_data = [[Paragraph(title, title_style), ""]]
-                col_widths = [400, 100]
-
-            header_table = Table(header_data, colWidths=col_widths)
-            header_table.setStyle(TableStyle([
-                ('ALIGN', (0,0), (0,0), 'LEFT'),
-                ('ALIGN', (1,0), (1,0), 'RIGHT'),
-                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 15),
-                ('LINEBELOW', (0,0), (-1,-1), 2, colors.HexColor('#0B3D91')),
-            ]))
-            
-            elements.append(header_table)
-            elements.append(Spacer(1, 15))
-
-            # Custom Styles
-            normal_style = styles['Normal']
-            normal_style.fontSize = 10
-            normal_style.textColor = colors.HexColor('#333333')
-            normal_style.leading = 14
-            
-            label_style = ParagraphStyle(
-                'LabelStyle',
-                parent=normal_style,
-                fontName='Helvetica-Bold',
-                textColor=colors.HexColor('#0B3D91'),
-            )
-
-            heading_style = ParagraphStyle(
-                'HeadingStyle',
-                parent=styles['Heading2'],
-                textColor=colors.HexColor('#0B3D91'),
-                fontSize=16,
-                spaceAfter=12,
-                spaceBefore=20,
-                borderPadding=0,
-            )
-
-            # Basic Info
-            elements.append(Paragraph("Basic Information", heading_style))
-            basic_data = [
-                [Paragraph("Candidate Name", label_style), Paragraph(note.candidate.candidate_name if note.candidate else "N/A", normal_style)],
-                [Paragraph("Current Status", label_style), Paragraph(dict(ApprovalNote.STATUS_CHOICES).get(note.status,note.status), normal_style)],
-                [Paragraph("Approver", label_style), Paragraph(note.manager.name if note.manager else "N/A", normal_style)],
-                [Paragraph("Requested By", label_style), Paragraph(note.created_by.name if note.created_by else "N/A", normal_style)],
-                [Paragraph("Requested At", label_style), Paragraph(str(note.created_at.date()) if note.created_at else "N/A", normal_style)]
-            ]
-            
-            t = Table(basic_data, colWidths=[150, 350])
-            t.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#F4F6FB')),
-                ('TEXTCOLOR', (0,0), (-1,-1), colors.HexColor('#333333')),
-                ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                ('PADDING', (0,0), (-1,-1), 10),
-                ('LINEBELOW', (0,0), (-1,-1), 1, colors.HexColor('#E6EBF5')),
-                ('LINEABOVE', (0,0), (-1,0), 1, colors.HexColor('#E6EBF5')),
-            ]))
-            elements.append(t)
-            elements.append(Spacer(1, 10))
-
-            # Payload Data
-            elements.append(Paragraph("Detailed Information", heading_style))
-
-            if isinstance(note.payload, dict):
-                payload_data = []
-                for k, v in note.payload.items():
-                    k_str = str(k).replace('_', ' ').title()
-                    if isinstance(v, dict) or isinstance(v, list):
-                        v_str = json.dumps(v, indent=2)
-                    else:
-                        v_str = str(v)
-                    payload_data.append([
-                        Paragraph(f"• {k_str}", label_style), 
-                        Paragraph(v_str, normal_style)
-                    ])
-                
-                if payload_data:
-                    pt = Table(payload_data, colWidths=[200, 300])
-                    pt.setStyle(TableStyle([
-                        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-                        ('VALIGN', (0,0), (-1,-1), 'TOP'),
-                        ('PADDING', (0,0), (-1,-1), 10),
-                        ('LINEBELOW', (0,0), (-1,-1), 0.5, colors.HexColor('#E6EBF5')),
-                    ]))
-                    elements.append(pt)
-            else:
-                elements.append(Paragraph(str(note.payload), normal_style))
-
-            doc.build(elements)
-            buffer.seek(0)
-
-            response = HttpResponse(buffer, content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="approval_note_{note.candidate.candidate_name}.pdf"'
+            from onboarding.utils.pdf_maker import generate_approval_note_pdf
+            filename, pdf_bytes, mime = generate_approval_note_pdf(note)
+            response = HttpResponse(pdf_bytes, content_type=mime)
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
             return response
             
         except Exception as e:
@@ -2910,11 +2846,41 @@ class DownloadApprovalNoteAPIView(APIView):
                 "manager": note.manager.name if note.manager else None,
                 "created_by": note.created_by.name if note.created_by else None,
                 "status": note.status,
-                "payload": note.payload
+                "payload": note.payload,
             }
-            response = HttpResponse(json.dumps(data, indent=4), content_type='application/json')
-            response['Content-Disposition'] = f'attachment; filename="approval_note_{note.candidate.candidate_name}.json"'
+            resp = HttpResponse(json.dumps(data, indent=4), content_type='application/json')
+            resp['Content-Disposition'] = (
+                f'attachment; filename="approval_note_'
+                f'{(note.candidate.candidate_name if note.candidate else "unknown").replace(" ","_")}.json"'
+            )
+            return resp
+
+
+class DownloadInterviewFeedbackPDFAPIView(APIView):
+    """
+    Download a detailed Interview Feedback PDF for a given InterviewFeedback ID.
+    The PDF includes: round metadata, colour-coded rating bars with remarks for
+    every dimension, candidate profile fields (CTC, notice period, etc.), and
+    qualitative notes (strengths, improvements, cultural fit, comments).
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, feedback_id):
+        from slots.models import InterviewFeedback
+        fb = get_object_or_404(InterviewFeedback, id=feedback_id)
+
+        try:
+            from onboarding.utils.pdf_maker import generate_interview_feedback_pdf
+            filename, pdf_bytes, mime = generate_interview_feedback_pdf(fb)
+            response = HttpResponse(pdf_bytes, content_type=mime)
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
             return response
+        except Exception as e:
+            logger.error(f"Interview feedback PDF generation failed for {feedback_id}: {e}")
+            return Response(
+                {"error": f"Failed to generate PDF: {e}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 class EmailLogViewSet(ReadOnlyModelViewSet):
     """
