@@ -134,3 +134,82 @@ class OnboardingNotificationRoutingTests(SimpleTestCase):
         )
 
         self.assertIn("reporting@example.com", recipients)
+    @patch("onboarding.models.EmailLog.objects.filter")
+    @patch("onboarding.utils.onboarding_tasks.notify_internal")
+    def test_manager_assignment_reminders_deduplicate_when_already_sent_in_email_log(
+        self, notify, mock_filter
+    ):
+        mock_qs = mock_filter.return_value
+        mock_qs.exists.return_value = True
+
+        self.candidate._meta = True
+        self.candidate.pk = 123
+        self.candidate.hod_email = None
+        self.candidate.reporting_manager_email = None
+
+        _send_manager_assignment_reminders(self.candidate)
+
+        notify.assert_not_called()
+
+    @patch("onboarding.models.EmailLog.objects.filter")
+    @patch("onboarding.utils.onboarding_tasks.notify_internal")
+    def test_manager_assignment_reminders_send_when_not_in_email_log(
+        self, notify, mock_filter
+    ):
+        mock_qs = mock_filter.return_value
+        mock_qs.exists.return_value = False
+
+        self.candidate._meta = True
+        self.candidate.pk = 123
+        self.candidate.hod_email = None
+        self.candidate.reporting_manager_email = None
+
+        _send_manager_assignment_reminders(self.candidate)
+
+        self.assertEqual(
+            notify.call_args_list,
+            [
+                call(self.candidate, "hod_assignment_reminder"),
+                call(self.candidate, "reporting_manager_assignment_reminder"),
+            ],
+        )
+
+    @patch("onboarding.utils.onboarding_tasks._send_manager_assignment_reminders")
+    @patch("onboarding.utils.onboarding_tasks.notify_internal")
+    @patch("onboarding.utils.onboarding_tasks.create_milestone_tasks")
+    def test_onboarding_check_calls_assignment_reminders_only_on_day_0(
+        self, mock_tasks, mock_notify, mock_reminders
+    ):
+        from onboarding.utils.onboarding_tasks import run_onboarding_check_for_candidate
+
+        candidate = SimpleNamespace(
+            pk=1,
+            candidate_name="Day Tester",
+            status="offer_accepted",
+            joining_date="2026-05-15",
+            is_doj_minus_15_triggered=False,
+            is_doj_minus_7_triggered=False,
+            is_doj_minus_2_triggered=False,
+            is_doj_0_triggered=False,
+            work_email="",
+            job=SimpleNamespace(job_type="work_from_home", is_private=False),
+            refresh_from_db=lambda *args, **kwargs: None,
+            save=lambda *args, **kwargs: None,
+        )
+
+        with patch("onboarding.utils.onboarding_tasks.get_days_until_joining") as mock_days:
+            # At Day 15:
+            mock_days.return_value = 15
+            run_onboarding_check_for_candidate(candidate)
+            mock_reminders.assert_not_called()
+
+            # At Day 7:
+            mock_days.return_value = 7
+            run_onboarding_check_for_candidate(candidate)
+            mock_reminders.assert_not_called()
+
+            # At Day 0 (even with work_email missing):
+            mock_days.return_value = 0
+            run_onboarding_check_for_candidate(candidate)
+            mock_reminders.assert_called_once_with(candidate)
+

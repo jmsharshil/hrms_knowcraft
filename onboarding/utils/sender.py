@@ -124,10 +124,44 @@ def _headers():
         "Content-Type": "application/json",
     }
 
-def send_text(to: str, text: str, is_private=False):
-    """Try common payload variants so we don't get stuck on a minor mismatch."""
+
+def _log_whatsapp(to, text="", message_type="text", event="whatsapp", candidate=None, file_url=None, filename=None, status="sent", error=None):
+    """Persist a WhatsApp audit record (fire-and-forget, never blocks the caller)."""
+    try:
+        from onboarding.models import WhatsAppLog, JobApplication
+        from django.db.models import Q
+
+        if candidate is None and to:
+            try:
+                clean_phone = str(to).strip().replace(" ", "").replace("-", "")
+                if len(clean_phone) >= 10:
+                    candidate = JobApplication.objects.filter(
+                        Q(candidate_phone__icontains=clean_phone[-10:])
+                    ).order_by("-created_at").first()
+            except Exception:
+                candidate = None
+
+        return WhatsAppLog.objects.create(
+            recipient_phone=str(to or ""),
+            message_text=text or "",
+            message_type=message_type or "text",
+            file_url=file_url,
+            filename=filename,
+            event=event or "whatsapp",
+            candidate=candidate,
+            status=status,
+            error_message=error or "",
+        )
+    except Exception as exc:
+        logger.warning(f"Failed to log whatsapp record: {exc}")
+        return None
+
+
+def send_text(to: str, text: str, is_private=False, candidate=None, event="whatsapp_text", **kwargs):
+    """Send WhatsApp text message. Suppressed when ONBOARDING_DEBUG_MINUTES is True."""
     if is_private:
         logger.info(f"Skipping text to {to} for private record")
+        _log_whatsapp(to, text, message_type="text", event=event, candidate=candidate, status="skipped", error="Skipped for private record")
         return
 
     if not to:
@@ -138,135 +172,156 @@ def send_text(to: str, text: str, is_private=False):
     if text:
         text = append_sms_disclaimer(text)
 
-    # 1) 'to' + 'text'  (most common)
-    try:
-        payload = {"to": to, "text": text}
-        # return _safe_post_async(payload)
-        return SEND_QUEUE.enqueue(payload)
+    is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
+    if is_debug:
+        logger.info(f"[DEBUG MODE] Intercepting text/whatsapp to {to}. Marking as skipped (pending approval).")
+        _log_whatsapp(to, text, message_type="text", event=event, candidate=candidate, status="skipped", error="Intercepted for debug approval")
+        return
 
+    payload = {"to": to, "text": text}
+    try:
+        log_obj = _log_whatsapp(to, text, message_type="text", event=event, candidate=candidate, status="sent")
+        if log_obj:
+            payload["_log_id"] = str(log_obj.id)
+        return SEND_QUEUE.enqueue(payload)
     except Exception as e1:
-        logger.warning("send_text variant1 failed: %s", e1)
+        logger.warning("send_text failed: %s", e1)
+        _log_whatsapp(to, text, message_type="text", event=event, candidate=candidate, status="failed", error=str(e1))
 
-    # 2) 'number' + 'text'
-    try:
-        payload= {"number": to, "text": text}
-        # return _safe_post_async(payload)
-        return SEND_QUEUE.enqueue(payload)
-    except Exception as e2:
-        logger.warning("send_text variant2 failed: %s", e2)
 
-    # 3) 'to' + 'message'
-    payload={"to": to, "message": text}
-    return SEND_QUEUE.enqueue(payload)
-    # return _safe_post_async(payload)
-
-def send_image(to: str, image_url: str, caption: str = "", is_private=False):
+def send_image(to: str, image_url: str, caption: str = "", is_private=False, candidate=None, event="whatsapp_image", **kwargs):
+    """Send WhatsApp image. Suppressed when ONBOARDING_DEBUG_MINUTES is True."""
     if is_private:
         logger.info(f"Skipping image to {to} for private record")
+        _log_whatsapp(to, caption, message_type="image", event=event, candidate=candidate, file_url=image_url, status="skipped", error="Skipped for private record")
         return
 
     if not to:
         logger.error("Missing recipient number in send_image()")
         return
-    
-    # 1) 'imageUrl' + (optional 'text')
+
+    is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
+    if is_debug:
+        logger.info(f"[DEBUG MODE] Intercepting whatsapp image to {to}. Marking as skipped (pending approval).")
+        _log_whatsapp(to, caption, message_type="image", event=event, candidate=candidate, file_url=image_url, status="skipped", error="Intercepted for debug approval")
+        return
+
     payload = {"to": to, "imageUrl": image_url}
     if caption:
         payload["text"] = caption
     try:
-        # return _safe_post_async(payload)
+        log_obj = _log_whatsapp(to, caption, message_type="image", event=event, candidate=candidate, file_url=image_url, status="sent")
+        if log_obj:
+            payload["_log_id"] = str(log_obj.id)
         return SEND_QUEUE.enqueue(payload)
     except Exception as e1:
-        logger.warning("send_image variant1 failed: %s", e1)
+        logger.warning("send_image failed: %s", e1)
+        _log_whatsapp(to, caption, message_type="image", event=event, candidate=candidate, file_url=image_url, status="failed", error=str(e1))
 
-    # 2) fallback 'image' + 'caption'
-    payload = {"to": to, "image": image_url}
-    if caption:
-        payload["caption"] = caption
-    # return _safe_post_async(payload)
-    return SEND_QUEUE.enqueue(payload)
 
-def send_document(to: str, file_url: str, filename: str, text: str = "", is_private=False):
+def send_document(to: str, file_url: str, filename: str, text: str = "", is_private=False, candidate=None, event="whatsapp_document", **kwargs):
+    """Send WhatsApp document. Suppressed when ONBOARDING_DEBUG_MINUTES is True."""
     if is_private:
         logger.info(f"Skipping document to {to} for private record")
+        _log_whatsapp(to, text, message_type="document", event=event, candidate=candidate, file_url=file_url, filename=filename, status="skipped", error="Skipped for private record")
         return
 
     if not to:
         logger.error("Missing recipient number in send_document()")
         return
-    
-    payload = {"to": to, "documentUrl": file_url, "fileName":filename}
+
+    is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
+    if is_debug:
+        logger.info(f"[DEBUG MODE] Intercepting whatsapp document to {to}. Marking as skipped (pending approval).")
+        _log_whatsapp(to, text, message_type="document", event=event, candidate=candidate, file_url=file_url, filename=filename, status="skipped", error="Intercepted for debug approval")
+        return
+
+    payload = {"to": to, "documentUrl": file_url, "fileName": filename}
     if text:
         payload["text"] = text
-    
-    return SEND_QUEUE.enqueue(payload)
+    try:
+        log_obj = _log_whatsapp(to, text, message_type="document", event=event, candidate=candidate, file_url=file_url, filename=filename, status="sent")
+        if log_obj:
+            payload["_log_id"] = str(log_obj.id)
+        return SEND_QUEUE.enqueue(payload)
+    except Exception as e1:
+        logger.warning("send_document failed: %s", e1)
+        _log_whatsapp(to, text, message_type="document", event=event, candidate=candidate, file_url=file_url, filename=filename, status="failed", error=str(e1))
 
-def send_location(phone: str, latitude: float, longitude: float, text: str, address: str, name: str, is_private=False):
+
+def send_location(phone: str, latitude: float, longitude: float, text: str, address: str, name: str, is_private=False, candidate=None, event="whatsapp_location", **kwargs):
     """
-    Sends a WhatsApp location message via WaSender API.
-
-    Args:
-        phone (str): Recipient's phone number in international format (e.g., '918401611072')
-        latitude (float): Latitude of location
-        longitude (float): Longitude of location
-        address (str): Full address or description
-        text (str): The text content of the message. Required if no media/contact/location is sent.
-        is_private (bool): If True, communication is suppressed.
+    Sends a WhatsApp location message via WaSender API. Suppressed when ONBOARDING_DEBUG_MINUTES is True.
     """
     if is_private:
         logger.info(f"Skipping location to {phone} for private record")
+        _log_whatsapp(phone, text or f"Location: {name}, {address}", message_type="location", event=event, candidate=candidate, status="skipped", error="Skipped for private record")
         return
 
     if not phone:
         logger.error("Missing recipient number in send_location()")
         return
-    
+
+    is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
+    if is_debug:
+        logger.info(f"[DEBUG MODE] Intercepting whatsapp location to {phone}. Marking as skipped (pending approval).")
+        _log_whatsapp(phone, text or f"Location: {name}, {address}", message_type="location", event=event, candidate=candidate, status="skipped", error="Intercepted for debug approval")
+        return
+
     payload = {
         "to": phone,
         "text": text,
-        "location":{
-        "latitude": latitude,
-        "longitude": longitude,
-        "name": name,
-        "address": address
+        "location": {
+            "latitude": latitude,
+            "longitude": longitude,
+            "name": name,
+            "address": address
         }
     }
     try:
-        # return _safe_post_async(payload)
+        log_obj = _log_whatsapp(phone, text or f"Location: {name}, {address}", message_type="location", event=event, candidate=candidate, status="sent")
+        if log_obj:
+            payload["_log_id"] = str(log_obj.id)
         return SEND_QUEUE.enqueue(payload)
     except Exception as e1:
         logger.warning("send location failed: %s", e1)
+        _log_whatsapp(phone, text or f"Location: {name}, {address}", message_type="location", event=event, candidate=candidate, status="failed", error=str(e1))
 
-def send_contact(phone: str, contact_name: str, contact_number: str, is_private=False):
+
+def send_contact(phone: str, contact_name: str, contact_number: str, is_private=False, candidate=None, event="whatsapp_contact", **kwargs):
     """
-    Sends a WhatsApp contact card (vCard) via WaSender API.
-
-    Args:
-        phone (str): Recipient's phone number in international format (e.g., '918401611072')
-        contact_name (str): Contact's full name
-        contact_number (str): Contact's phone number (in international format)
-        is_private (bool): If True, communication is suppressed.
+    Sends a WhatsApp contact card (vCard) via WaSender API. Suppressed when ONBOARDING_DEBUG_MINUTES is True.
     """
     if is_private:
         logger.info(f"Skipping contact to {phone} for private record")
+        _log_whatsapp(phone, f"Contact: {contact_name} ({contact_number})", message_type="contact", event=event, candidate=candidate, status="skipped", error="Skipped for private record")
         return
 
     if not phone:
         logger.error("Missing recipient number in send_contact()")
         return
-    
+
+    is_debug = getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False)
+    if is_debug:
+        logger.info(f"[DEBUG MODE] Intercepting whatsapp contact to {phone}. Marking as skipped (pending approval).")
+        _log_whatsapp(phone, f"Contact: {contact_name} ({contact_number})", message_type="contact", event=event, candidate=candidate, status="skipped", error="Intercepted for debug approval")
+        return
+
     payload = {
         "to": phone,
-        "contact":{
-            "name":contact_name,
-            "phone":contact_number
+        "contact": {
+            "name": contact_name,
+            "phone": contact_number
         }
     }
     try:
-        # return _safe_post_async(payload)
+        log_obj = _log_whatsapp(phone, f"Contact: {contact_name} ({contact_number})", message_type="contact", event=event, candidate=candidate, status="sent")
+        if log_obj:
+            payload["_log_id"] = str(log_obj.id)
         return SEND_QUEUE.enqueue(payload)
     except Exception as e1:
         logger.warning("send contact failed: %s", e1)
+        _log_whatsapp(phone, f"Contact: {contact_name} ({contact_number})", message_type="contact", event=event, candidate=candidate, status="failed", error=str(e1))
 
 class WasenderQueue:
     def __init__(self, api_base: str, headers_func, max_retries=5, pause_after_success=0.4):
@@ -342,7 +397,15 @@ class WasenderQueue:
                 delay = min(delay, 30)
 
         logger.error("❌ Giving up after %d attempts for %s", max_attempts, payload.get("to"))
-        # you can add code here to persist failed payloads or notify admins
+        if payload.get("_log_id"):
+            try:
+                from onboarding.models import WhatsAppLog
+                WhatsAppLog.objects.filter(id=payload["_log_id"]).update(
+                    status="failed",
+                    error_message=f"Giving up after {max_attempts} attempts"
+                )
+            except Exception:
+                pass
 
 # instantiate a global queue object (use same _headers function you already have)
 SEND_QUEUE = WasenderQueue(API_BASE, _headers, max_retries=20, pause_after_success=0.4)

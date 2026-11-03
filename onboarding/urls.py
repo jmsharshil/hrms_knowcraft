@@ -5,12 +5,13 @@ from .views import (
     CandidateInterviewSummaryAPIView, SalaryAnnexureHistoryViewSet, SalaryAnnexureViewSet,
     ReviewJobApplicationDocumentsAPI, SendForOfferLetterEmailAPI, SendForSalaryAnnexureEmailAPI,
     DownloadJobApplicationDocumentsView, DownloadAllDocumentsAPIView, ApplicationDocumentSectionsAPI, DownloadApprovalNoteAPIView, RevertOfferAPIView,
-    EmailLogViewSet,
+    EmailLogViewSet, WhatsAppLogViewSet,
     ResolveEscalationAPI, AssignBuddyAPI, CompleteSurveyAPI, ScheduleD45CallAPI, ScheduleD90CallAPI,
     SearchTeamsUsersAPI, InitiateOnboardingAPI, RevertRejectionAPI, GetSurveyStructureAPI, SurveyStructureManagerAPI,
     GetManageEngineSitesAPI, GetManageEngineAssetsAPI, GetManageEngineDepartmentsAPI, GetManageEngineDesignationsAPI,
     OnboardingTaskViewSet, OnboardingTaskListViewSet, OnboardingJourneyAPI, DocumentEsignTaskViewSet,
-    DownloadSurveyAPI, BulkSurveyDataAPI, ManageEngineRequestersAPI, VerifyD5DocumentAPI
+    DownloadSurveyAPI, BulkSurveyDataAPI, ManageEngineRequestersAPI, VerifyD5DocumentAPI,
+    DownloadInterviewFeedbackPDFAPIView,
 )
 from .utils.opensign import opensign_webhook
 from .utils.zoho_sign import zoho_sign_webhook
@@ -20,6 +21,7 @@ router = DefaultRouter()
 # router.register(r"salary-annexures", SalaryAnnexureViewSet, basename="salary-annexure")
 # router.register(r"salary-annexure-history", SalaryAnnexureHistoryViewSet, basename="salary-annexure-history")
 router.register(r"email-logs", EmailLogViewSet, basename="email-logs")
+router.register(r"whatsapp-logs", WhatsAppLogViewSet, basename="whatsapp-logs")
 router.register(r"task-lists", OnboardingTaskListViewSet, basename="onboarding-task-lists")
 router.register(r"tasks", OnboardingTaskViewSet, basename="onboarding-tasks")
 router.register(r"esign-docs", DocumentEsignTaskViewSet, basename="esign-docs")
@@ -36,6 +38,7 @@ urlpatterns = [
     path('application/<str:id>/documents/download-all/',DownloadAllDocumentsAPIView.as_view(),name='download-all-documents'),
     path("application/<str:id>/documents/download/",DownloadJobApplicationDocumentsView.as_view(),name="download-documents"),
     path("approval-note/<str:id>/download/", DownloadApprovalNoteAPIView.as_view(), name="download-approval-note"),
+    path("interview-feedback/<uuid:feedback_id>/download-pdf/", DownloadInterviewFeedbackPDFAPIView.as_view(), name="download-interview-feedback-pdf"),
     path("send-approval-note/", SendApprovalNoteAPIView.as_view(),name="send-approval-note"),
     path("candidates/<uuid:candidate_id>/interview-summary/",CandidateInterviewSummaryAPIView.as_view(),name="candidate-interview-summary"),
     # path('opensign/webhook/',opensign_webhook,name="opensign-webhook"),

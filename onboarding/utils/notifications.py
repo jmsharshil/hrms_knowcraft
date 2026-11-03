@@ -1508,14 +1508,14 @@ Knowcraft Analytics Private Limited""",
     "hod_assignment_reminder": {
         "receivers": ["hr", "hr_manager"],
         "subject": "Action Required: Head of Department Not Assigned – {candidate.candidate_name}",
-        "body": "The Head of Department (HOD) has not been assigned for {candidate.candidate_name} who is joining in 15 days. Please assign the HOD in HRMS so that the correct person receives onboarding notifications (D-7 HOD briefing, 30-day surveys, escalation alerts).",
-        "sms": "Action required: Please assign HOD for {candidate.candidate_name} (joining in 15 days) in HRMS.",
+        "body": "The Head of Department (HOD) has not been assigned for {candidate.candidate_name}. Please assign the HOD in HRMS so that the correct person receives onboarding notifications (30-day surveys, escalation alerts).",
+        "sms": "Action required: Please assign HOD for {candidate.candidate_name} in HRMS.",
     },
     "reporting_manager_assignment_reminder": {
         "receivers": ["hr", "hr_manager"],
         "subject": "Action Required: Reporting Manager Not Assigned – {candidate.candidate_name}",
-        "body": "A Reporting Manager has not been assigned for {candidate.candidate_name}, who is joining in 15 days. Please assign the Reporting Manager in HRMS so the correct person receives onboarding communications and can review ZingHR requests.",
-        "sms": "Action required: Please assign a Reporting Manager for {candidate.candidate_name} (joining in 15 days) in HRMS.",
+        "body": "A Reporting Manager has not been assigned for {candidate.candidate_name}. Please assign the Reporting Manager in HRMS so the correct person receives onboarding communications and can review ZingHR requests.",
+        "sms": "Action required: Please assign a Reporting Manager for {candidate.candidate_name} in HRMS.",
     },
     "bgv_escalation": {
         "receivers": ["hr", "admin"],

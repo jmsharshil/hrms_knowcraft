@@ -69,6 +69,19 @@ def _seconds_until_next_morning_9am():
     return int(max(delay, 0))
 
 
+def get_next_recurring_delay(task_type: str, interval_seconds: int) -> int:
+    """
+    Calculate the delay in seconds for the next run of a recurring task.
+    For tasks with fixed wall-clock targets (e.g. morning 09:00 IST, Friday 18:30 IST),
+    we target the exact scheduled time rather than blindly adding interval_seconds.
+    """
+    if task_type in ("daily_onboarding_check", "joining_date_check"):
+        return _seconds_until_next_morning_9am()
+    elif task_type == "dept_head_weekly_report":
+        return _seconds_until_next_friday_630pm()
+    return int(interval_seconds)
+
+
 class SchedulerConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "scheduler"
@@ -281,42 +294,51 @@ class SchedulerConfig(AppConfig):
             # which runs right after _ensure_recurring_tasks().
             if cfg["task_type"] == "dept_head_weekly_report" and pending_rows:
                 surviving_row = pending_rows[0]
-                if surviving_row.scheduled_at <= tz.now():
+                from zoneinfo import ZoneInfo
+                ist = ZoneInfo("Asia/Kolkata")
+                sched_ist = surviving_row.scheduled_at.astimezone(ist)
+                is_misaligned = (sched_ist.weekday() != 4 or sched_ist.hour != 18 or sched_ist.minute != 30)
+                is_stale = surviving_row.scheduled_at <= tz.now()
+
+                if is_stale or is_misaligned:
                     new_delay = _seconds_until_next_friday_630pm()
                     new_scheduled_at = tz.now() + _dt.timedelta(seconds=new_delay)
                     ScheduledTask.objects.filter(id=surviving_row.id).update(
                         scheduled_at=new_scheduled_at,
                     )
                     logger.info(
-                        "[SCHEDULER] Bumped stale 'dept_head_weekly_report' "
-                        "scheduled_at to %s IST (in %ds). "
-                        "reschedule_future_pending() will re-arm the in-memory timer.",
-                        new_scheduled_at, new_delay,
+                        "[SCHEDULER] Realigned 'dept_head_weekly_report' scheduled_at to %s IST (in %ds).",
+                        new_scheduled_at.astimezone(ist), new_delay,
                     )
-                    continue  # skip schedule() — row already exists and will be re-armed
+                continue
 
-            # ── Daily onboarding check / Joining date check: guard against stale scheduled_at ─────
-            # If a pending row already exists but its scheduled_at is in the
-            # past (e.g. server restart), bump it to the next morning 09:00 IST
-            # so it does not fire immediately on startup.
+            # ── Daily onboarding check / Joining date check: guard against stale or misaligned scheduled_at ─────
             if cfg["task_type"] in ("daily_onboarding_check", "joining_date_check") and pending_rows:
                 surviving_row = pending_rows[0]
                 if surviving_row.interval_seconds != cfg["interval_seconds"]:
                     ScheduledTask.objects.filter(id=surviving_row.id).update(
                         interval_seconds=cfg["interval_seconds"]
                     )
-                if surviving_row.scheduled_at <= tz.now():
+                from zoneinfo import ZoneInfo
+                ist = ZoneInfo("Asia/Kolkata")
+                sched_ist = surviving_row.scheduled_at.astimezone(ist)
+                is_misaligned = (sched_ist.hour != 9 or sched_ist.minute != 0)
+                is_stale = surviving_row.scheduled_at <= tz.now()
+
+                if is_stale or is_misaligned:
                     new_delay = _seconds_until_next_morning_9am()
                     new_scheduled_at = tz.now() + _dt.timedelta(seconds=new_delay)
                     ScheduledTask.objects.filter(id=surviving_row.id).update(
                         scheduled_at=new_scheduled_at,
                     )
                     logger.info(
-                        "[SCHEDULER] Bumped stale '%s' "
-                        "scheduled_at to %s IST (in %ds).",
-                        cfg["task_type"], new_scheduled_at, new_delay,
+                        "[SCHEDULER] Realigned '%s' scheduled_at to %s IST (in %ds).",
+                        cfg["task_type"], new_scheduled_at.astimezone(ist), new_delay,
                     )
-                    continue
+                continue
+
+            elif pending_rows:
+                continue
 
             TaskScheduler.schedule(
                 task_type=cfg["task_type"],

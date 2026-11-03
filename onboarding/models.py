@@ -618,6 +618,66 @@ class EmailLog(models.Model):
         return f"{self.subject} → {self.recipient_email} ({self.event})"
 
 
+class WhatsAppLog(models.Model):
+    """Audit log for every WhatsApp message sent through the system."""
+
+    MESSAGE_TYPE_CHOICES = [
+        ("text", "Text"),
+        ("document", "Document"),
+        ("image", "Image"),
+        ("location", "Location"),
+        ("contact", "Contact"),
+        ("other", "Other"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    # Who received the WhatsApp message
+    recipient_phone = models.CharField(max_length=50, help_text="Recipient phone number")
+
+    # What was sent
+    message_text = models.TextField(blank=True, help_text="Text content or caption")
+    message_type = models.CharField(max_length=20, choices=MESSAGE_TYPE_CHOICES, default="text")
+    file_url = models.TextField(blank=True, null=True, help_text="Attachment URL (for document/image)")
+    filename = models.CharField(max_length=255, blank=True, null=True, help_text="Attachment file name")
+
+    # Why it was sent
+    event = models.CharField(max_length=100, default="unknown", help_text="The event/stage that triggered this WhatsApp message")
+
+    # Linked candidate (optional)
+    candidate = models.ForeignKey(
+        JobApplication,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="whatsapp_logs",
+        help_text="Linked candidate application, if applicable"
+    )
+
+    # Status
+    status = models.CharField(
+        max_length=20,
+        choices=[("sent", "Sent"), ("failed", "Failed"), ("skipped", "Skipped")],
+        default="sent"
+    )
+    error_message = models.TextField(blank=True, null=True)
+
+    sent_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "whatsapp_logs"
+        ordering = ["-sent_at"]
+        indexes = [
+            models.Index(fields=["recipient_phone"]),
+            models.Index(fields=["event"]),
+            models.Index(fields=["sent_at"]),
+            models.Index(fields=["candidate"]),
+        ]
+
+    def __str__(self):
+        return f"{self.recipient_phone} ({self.message_type}) → {self.event} [{self.status}]"
+
+
 class OnboardingForm(models.Model):
     """
     Stores the full onboarding initiation form submitted by HR

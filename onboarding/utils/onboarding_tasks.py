@@ -116,20 +116,52 @@ def get_days_until_joining(application, now=None):
 
 
 def _send_manager_assignment_reminders(application):
+    from onboarding.models import EmailLog
+
+    cutoff = timezone.now() - timedelta(hours=20)
+    has_db_record = bool(getattr(application, '_meta', None) and getattr(application, 'pk', None))
+    candidate_name = getattr(application, 'candidate_name', 'candidate')
+
     if not getattr(application, 'hod_email', None):
-        logger.info(
-            "HOD not assigned for %s. Sending hod_assignment_reminder.",
-            application.candidate_name,
-        )
-        notify_internal(application, "hod_assignment_reminder")
+        already_sent = False
+        if has_db_record:
+            try:
+                already_sent = EmailLog.objects.filter(
+                    candidate=application,
+                    subject__icontains="Head of Department Not Assigned",
+                    sent_at__gte=cutoff,
+                    status__in=["sent", "skipped"],
+                ).exists()
+            except Exception as e:
+                logger.warning("Failed to check EmailLog for hod_assignment_reminder: %s", e)
+
+        if not already_sent:
+            logger.info(
+                "HOD not assigned for %s. Sending hod_assignment_reminder.",
+                candidate_name,
+            )
+            notify_internal(application, "hod_assignment_reminder")
 
     if not getattr(application, 'reporting_manager_email', None):
-        logger.info(
-            "Reporting Manager not assigned for %s. "
-            "Sending reporting_manager_assignment_reminder.",
-            application.candidate_name,
-        )
-        notify_internal(application, "reporting_manager_assignment_reminder")
+        already_sent = False
+        if has_db_record:
+            try:
+                already_sent = EmailLog.objects.filter(
+                    candidate=application,
+                    subject__icontains="Reporting Manager Not Assigned",
+                    sent_at__gte=cutoff,
+                    status__in=["sent", "skipped"],
+                ).exists()
+            except Exception as e:
+                logger.warning("Failed to check EmailLog for reporting_manager_assignment_reminder: %s", e)
+
+        if not already_sent:
+            logger.info(
+                "Reporting Manager not assigned for %s. "
+                "Sending reporting_manager_assignment_reminder.",
+                candidate_name,
+            )
+            notify_internal(application, "reporting_manager_assignment_reminder")
 
 
 def is_candidate_bgv_completed(application):
@@ -321,8 +353,6 @@ def daily_onboarding_check():
             # Send Email to IT Team
             notify_internal(app, "doj_minus_15_it_team")
 
-            _send_manager_assignment_reminders(app)
-
             create_milestone_tasks(app, "DOJ_MINUS_15", app.joining_date)
             app.is_doj_minus_15_triggered = True
             app.save(update_fields=['is_doj_minus_15_triggered'])
@@ -340,8 +370,6 @@ def daily_onboarding_check():
             #         me_client.update_ticket(app.it_ticket_ref, {}, note=note)
 
             create_milestone_tasks(app, "DOJ_MINUS_7", app.joining_date)
-            # Re-check manager assignments — they may have been filled after D-15
-            _send_manager_assignment_reminders(app)
             app.is_doj_minus_7_triggered = True
             app.save(update_fields=['is_doj_minus_7_triggered'])
             app.refresh_from_db(fields=['is_doj_minus_2_triggered'])
@@ -372,6 +400,9 @@ def daily_onboarding_check():
 
         # ── DOJ 0 — Statutory docs + Handbooks & Policies + Zoho Sign packet ────────────
         if days_until_joining <= 0 and not getattr(app, 'is_doj_0_triggered', False):
+            # At Day 0 (joining day), alert HR if HOD or Reporting Manager is still unassigned
+            _send_manager_assignment_reminders(app)
+
             work_email = (getattr(app, 'work_email', None) or '').strip()
             if not work_email and hasattr(app, 'refresh_from_db'):
                 try:
@@ -402,8 +433,6 @@ def daily_onboarding_check():
             # In debug mode we skip the real Zoho API call.
             if getattr(app, 'is_esign_packet_generated', False) and not is_debug:
                 send_documents_for_esign(app)
-            # At Day 0 (joining day), alert HR if HOD or Reporting Manager is still unassigned
-            _send_manager_assignment_reminders(app)
 
             app.is_doj_0_triggered = True
             app.save(update_fields=['is_doj_0_triggered'])
@@ -629,7 +658,6 @@ def run_onboarding_check_for_candidate(app):
         #         note += " (Remote joiner: VPN setup task required)."
         #     me_client.update_ticket(app.it_ticket_ref, {}, note=note)
         notify_internal(app, "doj_minus_15_it_team")
-        _send_manager_assignment_reminders(app)
         create_milestone_tasks(app, "DOJ_MINUS_15", joining_date)
         app.is_doj_minus_15_triggered = True
         app.save(update_fields=['is_doj_minus_15_triggered'])
@@ -646,8 +674,6 @@ def run_onboarding_check_for_candidate(app):
             #     note = f"DOJ is in 7 days ({joining_date}). Remote joiner. Please arrange laptop dispatch."
             # me_client.update_ticket(app.it_ticket_ref, {}, note=note)
         create_milestone_tasks(app, "DOJ_MINUS_7", joining_date)
-        # Re-check manager assignments — they may have been filled after D-15
-        _send_manager_assignment_reminders(app)
         app.is_doj_minus_7_triggered = True
         app.save(update_fields=['is_doj_minus_7_triggered'])
         app.refresh_from_db(fields=['is_doj_minus_2_triggered'])
@@ -679,6 +705,9 @@ def run_onboarding_check_for_candidate(app):
 
     # ── DOJ 0 — Statutory docs + Handbooks & Policies + e-sign packet ─────────────────────────────
     if days_until_joining <= 0 and not getattr(app, 'is_doj_0_triggered', False):
+        # At Day 0 (joining day), alert HR if HOD or Reporting Manager is still unassigned
+        _send_manager_assignment_reminders(app)
+
         work_email = (getattr(app, 'work_email', None) or '').strip()
         if not work_email and hasattr(app, 'refresh_from_db'):
             try:
@@ -708,9 +737,6 @@ def run_onboarding_check_for_candidate(app):
 
         if getattr(app, 'is_esign_packet_generated', False) and not is_debug:
             send_documents_for_esign(app)
-
-        # At Day 0 (joining day), alert HR if HOD or Reporting Manager is still unassigned
-        _send_manager_assignment_reminders(app)
 
         # Send joining-day manager notification email to candidate
         if not getattr(app, 'is_joining_day_manager_email_sent', False):

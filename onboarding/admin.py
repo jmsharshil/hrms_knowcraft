@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     ApprovalNote, JobApplicationDocument, SalaryAnnexure, SalaryAnnexureHistory,
-    SalaryComponent, OfferDocument, EmailLog, OnboardingForm, OnboardingFormAttachment, SurveyResponse, OnboardingCall,
+    SalaryComponent, OfferDocument, EmailLog, WhatsAppLog, OnboardingForm, OnboardingFormAttachment, SurveyResponse, OnboardingCall,
     OnboardingTaskList, OnboardingTask, DocumentEsignTask
 )
 
@@ -226,6 +226,60 @@ class EmailLogAdmin(admin.ModelAdmin):
     approve_and_send_emails.short_description = "Approve and send selected pending emails"
 
 admin.site.register(EmailLog, EmailLogAdmin)
+
+
+class WhatsAppLogAdmin(admin.ModelAdmin):
+    list_display = ('id', 'recipient_phone', 'get_candidate_name', 'message_type', 'event', 'status', 'sent_at', 'error_message')
+    list_filter = ('status', 'message_type', 'sent_at')
+    search_fields = ('recipient_phone', 'message_text', 'error_message', 'candidate__candidate_name')
+    readonly_fields = ('sent_at',)
+    date_hierarchy = 'sent_at'
+    ordering = ('-sent_at',)
+    list_per_page = 50
+    list_select_related = ('candidate',)
+    actions = ['approve_and_send_messages']
+
+    def get_candidate_name(self, obj):
+        return obj.candidate.candidate_name if obj.candidate else '-'
+    get_candidate_name.short_description = 'Candidate'
+
+    def approve_and_send_messages(self, request, queryset):
+        from django.utils import timezone
+        from onboarding.utils.sender import SEND_QUEUE
+        
+        pending_messages = queryset.filter(status='skipped', error_message='Intercepted for debug approval')
+        count = 0
+        for log in pending_messages:
+            try:
+                if log.message_type == 'document' and log.file_url:
+                    payload = {"to": log.recipient_phone, "documentUrl": log.file_url, "fileName": log.filename or "Document.pdf"}
+                    if log.message_text:
+                        payload["text"] = log.message_text
+                elif log.message_type == 'image' and log.file_url:
+                    payload = {"to": log.recipient_phone, "imageUrl": log.file_url}
+                    if log.message_text:
+                        payload["text"] = log.message_text
+                else:
+                    payload = {"to": log.recipient_phone, "text": log.message_text}
+                
+                payload["_log_id"] = str(log.id)
+                SEND_QUEUE.enqueue(payload)
+                log.status = 'sent'
+                log.sent_at = timezone.now()
+                log.error_message = ''
+                log.save(update_fields=['status', 'sent_at', 'error_message'])
+                count += 1
+            except Exception as e:
+                log.status = 'failed'
+                log.error_message = str(e)
+                log.save(update_fields=['status', 'error_message'])
+                
+        self.message_user(request, f"Successfully approved and queued {count} WhatsApp messages.")
+    
+    approve_and_send_messages.short_description = "Approve and send selected pending WhatsApp messages"
+
+
+admin.site.register(WhatsAppLog, WhatsAppLogAdmin)
 
 
 class OnboardingFormAttachmentInline(admin.TabularInline):

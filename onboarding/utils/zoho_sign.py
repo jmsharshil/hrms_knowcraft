@@ -861,7 +861,7 @@ def send_offer_letter_email(candidate):
         email_type="candidate",
         candidate=candidate
     )
-    send_text(to=candidate.candidate_phone,text=f"""
+    send_text(to=candidate.candidate_phone, candidate=candidate, event='offer_letter_zoho_sent', text=f"""
 Hi {candidate.candidate_name},  
 
 We are pleased to offer you the position of {candidate.job.mrf.designation.name} in the {candidate.job.mrf.department.name} team at Knowcraft Analytics Private Limited.
