@@ -192,6 +192,7 @@ class OnboardingNotificationRoutingTests(SimpleTestCase):
             is_doj_minus_2_triggered=False,
             is_doj_0_triggered=False,
             work_email="",
+            onboarding_form=SimpleNamespace(),
             job=SimpleNamespace(job_type="work_from_home", is_private=False),
             refresh_from_db=lambda *args, **kwargs: None,
             save=lambda *args, **kwargs: None,
@@ -212,4 +213,3 @@ class OnboardingNotificationRoutingTests(SimpleTestCase):
             mock_days.return_value = 0
             run_onboarding_check_for_candidate(candidate)
             mock_reminders.assert_called_once_with(candidate)
-

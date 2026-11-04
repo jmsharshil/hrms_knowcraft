@@ -2,6 +2,7 @@
 
 import logging
 from datetime import timedelta
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from django.conf import settings
 from jobs.models import JobApplication
@@ -32,6 +33,13 @@ DEBUG_ONBOARDING_MILESTONES = (
     (11, -45), # DOJ + 45
     (12, -90), # DOJ + 90
 )
+
+
+def _has_onboarding_form(application):
+    try:
+        return getattr(application, 'onboarding_form', None) is not None
+    except ObjectDoesNotExist:
+        return False
 
 
 def remind_call_owners_for_missing_materials(now=None, candidate=None):
@@ -117,6 +125,9 @@ def get_days_until_joining(application, now=None):
 
 def _send_manager_assignment_reminders(application):
     from onboarding.models import EmailLog
+
+    if not _has_onboarding_form(application):
+        return
 
     cutoff = timezone.now() - timedelta(hours=20)
     has_db_record = bool(getattr(application, '_meta', None) and getattr(application, 'pk', None))
@@ -324,7 +335,7 @@ def daily_onboarding_check():
 
         # Gate: The onboarding task milestones will ONLY start after the onboarding initiation form is filled.
         # For candidates who have already joined, the initiation reminder email should NOT be sent.
-        if not hasattr(app, 'onboarding_form'):
+        if not _has_onboarding_form(app):
             if (getattr(app, 'status', None) or '').strip().lower() == "joined":
                 logger.debug(f"Candidate {app.candidate_name} is already joined. Skipping onboarding initiation reminder.")
             else:
@@ -374,9 +385,9 @@ def daily_onboarding_check():
             app.save(update_fields=['is_doj_minus_7_triggered'])
             app.refresh_from_db(fields=['is_doj_minus_2_triggered'])
 
-        # ── DOJ - 2 Days ────────────────────────────────────────
-        if days_until_joining <= 2 and not app.is_doj_minus_2_triggered and app.status != "joined":
-            logger.info(f"DOJ - 2 for candidate {app.candidate_name}. Welcome Email.")
+        # ── DOJ (Day 0) Welcome Email ─────────────────────────
+        if days_until_joining <= 0 and not getattr(app, 'is_doj_minus_2_triggered', False):
+            logger.info(f"DOJ for candidate {app.candidate_name}. Welcome Email.")
             location = "Gurugram"
             try:
                 from onboarding.models import ApprovalNote
@@ -636,6 +647,15 @@ def run_onboarding_check_for_candidate(app):
 
     logger.info(f"[ADMIN ACTION] Running onboarding check for: {app.candidate_name}")
 
+    if not _has_onboarding_form(app):
+        if (getattr(app, 'status', None) or '').strip().lower() != "joined":
+            notify_internal(app, "onboarding_initiation_reminder")
+        logger.info(
+            "[ADMIN ACTION] Skipping onboarding milestones for %s because the initiation form is not filled.",
+            getattr(app, 'candidate_name', 'candidate'),
+        )
+        return 999
+
     # me_client = ManageEngineClient()
     joining_date = app.joining_date
     if not joining_date:
@@ -678,8 +698,8 @@ def run_onboarding_check_for_candidate(app):
         app.save(update_fields=['is_doj_minus_7_triggered'])
         app.refresh_from_db(fields=['is_doj_minus_2_triggered'])
 
-    # ── DOJ - 2 Days ────────────────────────────────────────────────────────
-    if days_until_joining <= 2 and not getattr(app, 'is_doj_minus_2_triggered', False) and app.status != "joined":
+    # ── DOJ (Day 0) Welcome Email ─────────────────────────────────────────
+    if days_until_joining <= 0 and not getattr(app, 'is_doj_minus_2_triggered', False):
         logger.info(f"[ADMIN ACTION] DOJ - 2 for {app.candidate_name}. Welcome email.")
         
         location = "Gurugram"
