@@ -174,6 +174,24 @@ class OnboardingNotificationRoutingTests(SimpleTestCase):
             ],
         )
 
+    @patch("onboarding.utils.onboarding_tasks.notify_internal")
+    def test_manual_check_does_not_send_milestone_reminders_without_onboarding_form(
+        self, notify
+    ):
+        candidate = SimpleNamespace(
+            pk=456,
+            candidate_name="Form Pending",
+            status="offer_accepted",
+            joining_date="2026-05-15",
+            refresh_from_db=lambda *args, **kwargs: None,
+        )
+
+        from onboarding.utils.onboarding_tasks import run_onboarding_check_for_candidate
+
+        run_onboarding_check_for_candidate(candidate)
+
+        notify.assert_called_once_with(candidate, "onboarding_initiation_reminder")
+
     @patch("onboarding.utils.onboarding_tasks._send_manager_assignment_reminders")
     @patch("onboarding.utils.onboarding_tasks.notify_internal")
     @patch("onboarding.utils.onboarding_tasks.create_milestone_tasks")
