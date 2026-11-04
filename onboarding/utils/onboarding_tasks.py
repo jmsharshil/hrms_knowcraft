@@ -56,6 +56,9 @@ def remind_call_owners_for_missing_materials(now=None, candidate=None):
         calls = calls.filter(job_application=candidate)
 
     for call in calls:
+        if not _has_onboarding_form(call.job_application):
+            continue
+
         missing_materials = []
         if not (call.mom_notes or "").strip():
             missing_materials.append("MOM notes")
@@ -342,7 +345,7 @@ def daily_onboarding_check():
                 logger.info(f"Onboarding form pending for candidate {app.candidate_name}. Sending reminder.")
                 # Send reminder until it is filled
                 notify_internal(app, "onboarding_initiation_reminder")
-                continue
+            continue
 
         if days_until_joining <= 0 and not getattr(app, 'is_joining_day_manager_email_sent', False):
             from .joining_manager_email import send_joining_day_manager_email

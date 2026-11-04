@@ -71,10 +71,11 @@ def run_joining_date_check():
                 else:
                     if not getattr(locked_app, 'is_joining_day_manager_email_sent', False):
                         if not getattr(settings, 'ONBOARDING_DEBUG_MINUTES', False):
-                            from onboarding.utils.joining_manager_email import send_joining_day_manager_email
-                            if send_joining_day_manager_email(locked_app):
-                                locked_app.is_joining_day_manager_email_sent = True
-                                locked_app.save(update_fields=['is_joining_day_manager_email_sent'])
+                            if hasattr(locked_app, 'onboarding_form'):
+                                from onboarding.utils.joining_manager_email import send_joining_day_manager_email
+                                if send_joining_day_manager_email(locked_app):
+                                    locked_app.is_joining_day_manager_email_sent = True
+                                    locked_app.save(update_fields=['is_joining_day_manager_email_sent'])
 
         print(f"[JOINING CHECK] Successfully processed {len(apps_to_update)} candidates.")
         return True
