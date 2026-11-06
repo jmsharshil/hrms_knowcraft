@@ -536,6 +536,12 @@ class DashboardExportTests(AnalyticsTestBase):
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
         self.assertIn('dashboard_analytics_export.xlsx', resp['Content-Disposition'])
+        workbook = openpyxl.load_workbook(BytesIO(resp.content), read_only=True)
+        summary_rows = {row[0]: row[1] for row in workbook['Summary'].iter_rows(values_only=True)}
+        api_resp = self.client.get('/api/dashboard/analytics/admin/')
+        api_summary = api_resp.json()['summary']
+        self.assertEqual(summary_rows['Total Combined CVs'], api_summary['total_combined_cv_count'])
+        self.assertEqual(summary_rows['  Direct Applications'], api_summary['cv_counts']['direct_applications'])
 
     def test_export_with_sections_filter(self):
         resp = self.client.get(

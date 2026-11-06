@@ -171,7 +171,7 @@ class InterviewFeedbackAdmin(admin.ModelAdmin):
     )
     def candidate_link(self, obj):
         if obj.job_application:
-            url = reverse("admin:jobs_jobapplication_change", args=[obj.job_application.id])
+            url = reverse("admin:slots_interviewfeedback_change", args=[obj.id])
             return format_html('<a href="{}">{}</a>', url, obj.job_application.candidate_name)
         return "—"
 
@@ -184,7 +184,9 @@ class InterviewFeedbackAdmin(admin.ModelAdmin):
         The decorator ensures Django treats this as a list_display method, not a model field.
         """
         avg = getattr(obj, 'get_round_avg', lambda: 0)()
-        if not isinstance(avg, (int, float)):
+        try:
+            avg = float(avg)
+        except (TypeError, ValueError):
             avg = 0.0
         if avg >= 4.0:
             color = 'green'
@@ -192,7 +194,9 @@ class InterviewFeedbackAdmin(admin.ModelAdmin):
             color = 'orange'
         else:
             color = 'red'
-        return format_html('<span style="color:{};">{:.2f}</span>', color, avg)
+        return format_html('<span style="color:{};">{}</span>', color, f'{avg:.2f}')
+    round_average.short_description = 'Round Avg'
+    round_average.admin_order_field = 'hr_round_avg_rating'
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('job_application')

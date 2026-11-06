@@ -1327,6 +1327,24 @@ class BaseAnalyticsView(APIView):
                 interview_round='case_study_round'
             ).values_list('job_application_id', flat=True)
         )
+        hr_feedback_app_ids = set(
+            InterviewFeedback.objects.filter(
+                job_application__in=app_qs,
+                interview_round='hr_round'
+            ).values_list('job_application_id', flat=True)
+        )
+        tech_feedback_app_ids = set(
+            InterviewFeedback.objects.filter(
+                job_application__in=app_qs,
+                interview_round='technical_round'
+            ).values_list('job_application_id', flat=True)
+        )
+        final_feedback_app_ids = set(
+            InterviewFeedback.objects.filter(
+                job_application__in=app_qs,
+                interview_round='final_round'
+            ).values_list('job_application_id', flat=True)
+        )
         mgt_client_feedback_app_ids = set(
             InterviewFeedback.objects.filter(
                 job_application__in=app_qs,
@@ -1361,7 +1379,8 @@ class BaseAnalyticsView(APIView):
         # Final Round (Mandatory)
         final_promoted_st = ['interview_next_management_client'] + mgt_base_st + selected_st
         final_completed_st = ['interview_done_final', 'interview_rejected_final'] + final_promoted_st
-        final_reached_st = ['interview_pending_final', 'interview_next_final'] + final_completed_st
+        final_reached_st = Q(status__in=['interview_pending_final', 'interview_next_final'] + final_completed_st) | Q(id__in=final_feedback_app_ids)
+        final_completed_st_q = Q(status__in=['interview_done_final', 'interview_rejected_final'] + final_promoted_st) | Q(id__in=final_feedback_app_ids)
 
         # Case Study Round (Optional)
         # Use transition rules and feedback to correctly count active and historic candidates who passed through this stage
@@ -1370,17 +1389,21 @@ class BaseAnalyticsView(APIView):
         case_completed_st = Q(status__in=['interview_done_3', 'interview_rejected_3']) | Q(id__in=case_study_feedback_app_ids)
 
         # Technical Round (Mandatory)
-        tech_promoted_st = list(set(case_base_st + final_reached_st))
+        tech_promoted_st = list(set(case_base_st + ['interview_pending_final', 'interview_next_final'] + final_completed_st))
         tech_completed_st = ['interview_done_2', 'interview_rejected_2'] + tech_promoted_st
-        tech_reached_st = ['interview_pending_2', 'interview_next_2'] + tech_completed_st
+        tech_reached_statuses = ['interview_pending_2', 'interview_next_2'] + tech_completed_st
+        tech_reached_st = Q(status__in=tech_reached_statuses) | Q(id__in=tech_feedback_app_ids)
+        tech_completed_st_q = Q(status__in=['interview_done_2', 'interview_rejected_2'] + tech_promoted_st) | Q(id__in=tech_feedback_app_ids)
 
         # HR Round (Mandatory)
-        hr_promoted_st = tech_reached_st
+        hr_promoted_st = tech_reached_statuses
         hr_completed_st = ['interview_done_1', 'interview_rejected_1'] + hr_promoted_st
-        hr_reached_st = ['interview_pending_1'] + hr_completed_st
+        hr_reached_statuses = ['interview_pending_1'] + hr_completed_st
+        hr_reached_st = Q(status__in=hr_reached_statuses) | Q(id__in=hr_feedback_app_ids)
+        hr_completed_st_q = Q(status__in=hr_completed_st) | Q(id__in=hr_feedback_app_ids)
 
         # Top of Funnel
-        shortlisted_st = ['shortlisted'] + hr_reached_st
+        shortlisted_st = ['shortlisted'] + hr_reached_statuses
         received_st = ['received', 'duplicate_rejected', 'rejected'] + shortlisted_st
 
         # Build Granular Funnel
@@ -1390,12 +1413,12 @@ class BaseAnalyticsView(APIView):
             ('Shortlisted', shortlisted_st),
             
             ('Reached HR Round', hr_reached_st),
-            ('Completed HR Round', hr_completed_st),
+            ('Completed HR Round', hr_completed_st_q),
             ('Rejected at HR', ['interview_rejected_1']),
             ('Promoted to Tech Round', tech_reached_st),
             
             ('Reached Technical Round', tech_reached_st),
-            ('Completed Technical Round', tech_completed_st),
+            ('Completed Technical Round', tech_completed_st_q),
             ('Rejected at Tech', ['interview_rejected_2']),
             ('Promoted to Case Study', case_reached_st),
             
@@ -1405,7 +1428,7 @@ class BaseAnalyticsView(APIView):
             ('Promoted to Final Round', final_reached_st),
             
             ('Reached Final Round', final_reached_st),
-            ('Completed Final Round', final_completed_st),
+            ('Completed Final Round', final_completed_st_q),
             ('Rejected at Final', ['interview_rejected_final']),
             ('Promoted to Mgt/Client Round', mgt_reached_st),
             
@@ -3352,29 +3375,26 @@ class DashboardExportAPIView(BaseAnalyticsView):
 
         # ── Sheet 5: Pipeline Funnel ──
         if 'candidate_pipeline_funnel' in requested_sections:
-            try:
-                pipeline = self.calc_candidate_pipeline_funnel(app_qs, target_users, interviewer_app_ids)
-                ws5 = add_sheet("Pipeline Funnel")
-                ws5.append(["Stage", "Count"])
-                for s in pipeline.get("funnel_stages", []):
-                    ws5.append([s.get("stage", ""), s.get("count", 0)])
-                ws5.append([])
-                ws5.append(["--- Drop-Off Rates ---"])
-                ws5.append(["From Stage", "To Stage", "Drop-Off %"])
-                for d in pipeline.get("drop_off_rates", []):
-                    ws5.append([d.get("from_stage", ""), d.get("to_stage", ""), d.get("drop_off_percentage", 0)])
-                ws5.append([])
-                ws5.append(["--- Candidates By Status ---"])
-                ws5.append(["Status", "Count"])
-                for k, v in pipeline.get("candidates_by_status", {}).items():
-                    ws5.append([k, v])
-                ws5.append([])
-                ws5.append(["Offer Acceptance Rate (%)", pipeline.get("offer_acceptance_rate", 0)])
-                ws5.append(["Offer Rejection Rate (%)", pipeline.get("offer_rejection_rate", 0)])
-                self._style_header(ws5)
-                self._auto_width(ws5)
-            except Exception:
-                pass
+            pipeline = self.calc_candidate_pipeline_funnel(app_qs, target_users, interviewer_app_ids)
+            ws5 = add_sheet("Pipeline Funnel")
+            ws5.append(["Stage", "Count"])
+            for s in pipeline.get("funnel_stages", []):
+                ws5.append([s.get("stage", ""), s.get("count", 0)])
+            ws5.append([])
+            ws5.append(["--- Drop-Off Rates ---"])
+            ws5.append(["From Stage", "To Stage", "Drop-Off %"])
+            for d in pipeline.get("drop_off_rates", []):
+                ws5.append([d.get("from_stage", ""), d.get("to_stage", ""), d.get("drop_off_percentage", 0)])
+            ws5.append([])
+            ws5.append(["--- Candidates By Status ---"])
+            ws5.append(["Status", "Count"])
+            for k, v in pipeline.get("candidates_by_status", {}).items():
+                ws5.append([k, v])
+            ws5.append([])
+            ws5.append(["Offer Acceptance Rate (%)", pipeline.get("offer_acceptance_rate", 0)])
+            ws5.append(["Offer Rejection Rate (%)", pipeline.get("offer_rejection_rate", 0)])
+            self._style_header(ws5)
+            self._auto_width(ws5)
 
         # ── Sheet 6: Interview Round Analytics ──
         if 'interview_round_time_analytics' in requested_sections:
@@ -3586,5 +3606,12 @@ class DashboardExportAPIView(BaseAnalyticsView):
 
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         response['Content-Disposition'] = 'attachment; filename="dashboard_analytics_export.xlsx"'
+        from datetime import datetime
+        for export_ws in wb.worksheets:
+            for export_row in export_ws.iter_rows():
+                for export_cell in export_row:
+                    cell_value = export_cell.value
+                    if isinstance(cell_value, datetime) and cell_value.tzinfo is not None:
+                        export_cell.value = cell_value.replace(tzinfo=None)
         wb.save(response)
         return response
