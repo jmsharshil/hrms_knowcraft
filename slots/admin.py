@@ -177,13 +177,17 @@ class InterviewFeedbackAdmin(admin.ModelAdmin):
     def round_average(self, obj):
         """Use the model's get_round_avg() and color-code it."""
         avg = getattr(obj, 'get_round_avg', lambda: 0)()
+        try:
+            avg = float(avg)
+        except (TypeError, ValueError):
+            avg = 0.0
         if avg >= 4.0:
             color = 'green'
         elif avg >= 3.0:
             color = 'orange'
         else:
             color = 'red'
-        return format_html('<span style="color:{};">{:.2f}</span>', color, avg)
+        return format_html('<span style="color:{};">{}</span>', color, f'{avg:.2f}')
     round_average.short_description = 'Round Avg'
     round_average.admin_order_field = 'hr_round_avg_rating'
 
