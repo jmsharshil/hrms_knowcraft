@@ -168,7 +168,7 @@ class InterviewFeedbackAdmin(admin.ModelAdmin):
 
     def candidate_link(self, obj):
         if obj.job_application:
-            url = reverse("admin:jobs_jobapplication_change", args=[obj.job_application.id])
+            url = reverse("admin:slots_interviewfeedback_change", args=[obj.id])
             return format_html('<a href="{}">{}</a>', url, obj.job_application.candidate_name)
         return "—"
     candidate_link.short_description = 'Candidate'
