@@ -13,6 +13,7 @@ class CompanyAdmin(admin.ModelAdmin):
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
+    autocomplete_fields = ['company', 'department', 'created_by']
     list_display = ['email', 'name', 'role', 'company', 'phone', 'pin_set', 'is_active', 'created_at','department']
     list_filter = ['role', 'is_active', 'pin_set', 'created_at', 'company','department']
     search_fields = ['email', 'name', 'company__name']
@@ -48,6 +49,7 @@ class UserAdmin(BaseUserAdmin):
 
 @admin.register(MagicLink)
 class MagicLinkAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['user']
     list_display = ['user', 'purpose', 'created_at', 'expires_at', 'used', 'is_valid_status']
     list_filter = ['purpose', 'used', 'created_at']
     search_fields = ['user__email', 'user__name', 'token']

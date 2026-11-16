@@ -8,6 +8,7 @@ from .models import (
 # Register your models here.
 
 class JobApplicationDocumentAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['job_application']
     list_display = ('id', 'get_candidate_name', 'joining_docs_status', 'created_at')
     search_fields = ('job_application__candidate_name', 'job_application__candidate_email')
     list_filter = ('joining_docs_status', 'created_at')
@@ -18,6 +19,7 @@ class JobApplicationDocumentAdmin(admin.ModelAdmin):
     get_candidate_name.admin_order_field = 'job_application__candidate_name'
 
 class OfferDocumentAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['application']
     list_display = ('id', 'get_candidate_name', 'status', 'sent_at', 'signed_at')
     search_fields = ('application__candidate_name', 'application__candidate_email', 'zoho_document_id')
     list_filter = ('status', 'created_at')
@@ -29,6 +31,7 @@ class OfferDocumentAdmin(admin.ModelAdmin):
 
 
 class ApprovalNoteAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['candidate', 'manager', 'created_by']
     list_display = (
         'id', 
         'get_candidate_name', 
@@ -74,6 +77,7 @@ class ApprovalNoteAdmin(admin.ModelAdmin):
 
 
 class SalaryAnnexureAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['job_application', 'prepared_by', 'reviewed_by']
     list_display = (
         'id',
         'get_candidate_name',
@@ -178,6 +182,7 @@ admin.site.register(OfferDocument, OfferDocumentAdmin)
 
 
 class EmailLogAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['candidate']
     list_display = ('id', 'recipient_email', 'get_candidate_name', 'subject', 'status', 'sent_at', 'error_message')
     list_filter = ('status', 'sent_at')
     search_fields = ('recipient_email', 'subject', 'body_text', 'error_message', 'candidate__candidate_name')
@@ -229,6 +234,7 @@ admin.site.register(EmailLog, EmailLogAdmin)
 
 
 class WhatsAppLogAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['candidate']
     list_display = ('id', 'recipient_phone', 'get_candidate_name', 'message_type', 'event', 'status', 'sent_at', 'error_message')
     list_filter = ('status', 'message_type', 'sent_at')
     search_fields = ('recipient_phone', 'message_text', 'error_message', 'candidate__candidate_name')
@@ -289,6 +295,7 @@ class OnboardingFormAttachmentInline(admin.TabularInline):
 
 
 class OnboardingFormAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['job_application', 'submitted_by']
     list_display = (
         'id', 'get_candidate_name', 'ticket_ref', 'designation',
         'department', 'work_from', 'employee_category', 'joining_date', 'created_at'
@@ -340,6 +347,7 @@ class OnboardingFormAdmin(admin.ModelAdmin):
 
 
 class SurveyResponseAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['job_application']
     list_display = (
         'id', 'get_candidate_name', 'get_candidate_email',
         'survey_type', 'respondent_name', 'respondent_email', 'submitted_at'
@@ -380,6 +388,7 @@ class SurveyResponseAdmin(admin.ModelAdmin):
 
 
 class OnboardingCallAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['job_application']
     list_display = (
         'id', 'get_candidate_name', 'call_type', 'organizer_email',
         'start_time', 'end_time', 'get_has_meeting_link', 'created_at'
@@ -419,12 +428,14 @@ class OnboardingCallAdmin(admin.ModelAdmin):
 
 
 class OnboardingTaskListAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['job_application']
     list_display = ('id', 'job_application', 'name', 'created_at')
     search_fields = ('name', 'job_application__candidate_name')
     readonly_fields = ('id', 'created_at', 'updated_at')
     list_filter = ('created_at',)
 
 class OnboardingTaskAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['task_list', 'assigned_to']
     list_display = ('id', 'task_list', 'title', 'status', 'due_date', 'assigned_to')
     search_fields = ('title', 'task_list__job_application__candidate_name')
     list_filter = ('status', 'due_date', 'created_at')
@@ -438,6 +449,7 @@ admin.site.register(OnboardingTask, OnboardingTaskAdmin)
 
 @admin.register(DocumentEsignTask)
 class DocumentEsignTaskAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['job_application']
     list_display = ('id', 'job_application', 'doc_type', 'status', 'created_at')
     search_fields = ('job_application__candidate_name', 'doc_type')
     list_filter = ('status', 'doc_type', 'created_at')

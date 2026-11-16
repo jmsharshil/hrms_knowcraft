@@ -4,6 +4,7 @@ from .models import CandidateBGV
 
 @admin.register(CandidateBGV)
 class CandidateBGVAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['candidate']
     list_display = [
         "candidate",
         "status",

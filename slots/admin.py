@@ -80,6 +80,7 @@ class InterviewerAdmin(admin.ModelAdmin):
 
 @admin.register(InterviewFeedback)
 class InterviewFeedbackAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['job_application']
     list_display = (
         'candidate_link', 'interview_round', 'is_selected', 'created_at'
     )
