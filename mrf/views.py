@@ -1,12 +1,21 @@
+import io
+import csv
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated,AllowAny
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.renderers import BaseRenderer, JSONRenderer
+from rest_framework.negotiation import DefaultContentNegotiation
 from django.utils import timezone
 from django.db.models import Q, Case, When, Value, IntegerField
 from django.db import transaction,IntegrityError
+from django.http import HttpResponse
 from slots.models import Interviewer
+from jobs.models import Job, JobApplication
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 from .models import (
     Department, Designation, MRF, MRFApproval, 
     ApprovalWorkflow, WorkflowTemplate, PrivateMRFApprovalLevel
@@ -256,12 +265,33 @@ class MRFPagination(PageNumberPagination):
     page_size_query_param = 'page_size'
     max_page_size = 200
 
+class ExcelRenderer(BaseRenderer):
+    media_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    format = 'xlsx'
+
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        return data
+
+class CSVRenderer(BaseRenderer):
+    media_type = 'text/csv'
+    format = 'csv'
+
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        return data
+
+class ExportContentNegotiator(DefaultContentNegotiation):
+    def filter_renderers(self, renderers, format):
+        fmt = (format or '').lower().strip()
+        filtered = [r for r in renderers if getattr(r, 'format', None) == fmt]
+        return filtered if filtered else renderers
+
 class MRFViewSet(viewsets.ModelViewSet):
     """ViewSet for managing MRFs"""
     queryset = MRF.objects.all()
     serializer_class = MRFListSerializer
     pagination_class = MRFPagination
     permission_classes = [IsAuthenticated]
+    content_negotiation_class = ExportContentNegotiator
     
     def get_serializer_class(self):
         if self.action == 'list':
@@ -279,6 +309,8 @@ class MRFViewSet(viewsets.ModelViewSet):
         return MRFDetailSerializer
     
     def get_permissions(self):
+        if self.action in ['export', 'export_mrf_data']:
+            return [AllowAny()]
         if self.action == 'create':
             return [IsAuthenticated(), CanCreateMRF()]
         elif self.action in ['update', 'partial_update']:
@@ -350,34 +382,66 @@ class MRFViewSet(viewsets.ModelViewSet):
         
         # Apply filters from query params
         status_filter = self.request.query_params.get('status')
-        if status_filter and status_filter not in ['pending_my_approval','all_pending']:
-            queryset = queryset.filter(status=status_filter)
-        
-        if status_filter and status_filter == 'all_pending':
-            queryset = queryset.filter(
-                status__in=['pending_level_1', 'pending_level_2', 'pending_level_3']
-            )
-        
-        if status_filter and status_filter=='pending_my_approval':
-            # Pending approval count for current user
-            workflow_levels = ApprovalWorkflow.objects.filter(
-                required_role=user.role,
-                is_active=True,
-                approver=user,
-                template__company=getattr(user, 'company', None)
-            ).values_list('template_id', 'level')
-            
-            q_objects = Q()
-            for template_id, level in workflow_levels:
-                q_objects |= Q(
-                    workflow_template_id=template_id,
-                    current_approval_level=level - 1
-                )
-            
-            if q_objects:
-                queryset = queryset.filter(q_objects).filter(
+        if status_filter:
+            s_clean = status_filter.strip().lower()
+            if s_clean == 'all_pending':
+                queryset = queryset.filter(
                     status__in=['pending_level_1', 'pending_level_2', 'pending_level_3']
                 )
+            elif s_clean == 'pending_my_approval':
+                # Pending approval count for current user
+                workflow_levels = ApprovalWorkflow.objects.filter(
+                    required_role=user.role,
+                    is_active=True,
+                    approver=user,
+                    template__company=getattr(user, 'company', None)
+                ).values_list('template_id', 'level')
+                
+                q_objects = Q()
+                for template_id, level in workflow_levels:
+                    q_objects |= Q(
+                        workflow_template_id=template_id,
+                        current_approval_level=level - 1
+                    )
+                
+                if q_objects:
+                    queryset = queryset.filter(q_objects).filter(
+                        status__in=['pending_level_1', 'pending_level_2', 'pending_level_3']
+                    )
+                else:
+                    queryset = queryset.none()
+            elif s_clean not in ['all', '']:
+                # Supports:
+                # - open (open, assigned to internal hr/consultancy/both)
+                # - on_hold / on hold
+                # - filled
+                # - joining_pending / joining pending
+                # - comma-separated list of statuses, e.g. "open,joining_pending"
+                status_list = [s.strip() for s in status_filter.split(',') if s.strip()]
+                status_q = Q()
+                for s in status_list:
+                    s_norm = s.lower().replace(' ', '_')
+                    if s_norm == 'open':
+                        status_q |= (
+                            Q(job__status__in=['open', 'assigned_to_consultancy', 'assigned_to_internal_hr', 'assigned_to_both']) |
+                            Q(status='open') |
+                            (Q(status='approved') & (Q(job__isnull=True) | Q(job__status__in=['open', 'assigned_to_consultancy', 'assigned_to_internal_hr', 'assigned_to_both'])))
+                        )
+                    elif s_norm == 'on_hold':
+                        status_q |= (Q(status='on_hold') | Q(job__status='on_hold'))
+                    elif s_norm == 'filled':
+                        status_q |= (Q(status='filled') | Q(job__status='filled'))
+                    elif s_norm == 'joining_pending':
+                        status_q |= (Q(status='joining_pending') | Q(job__status='joining_pending'))
+                    elif s_norm == 'closed':
+                        status_q |= (Q(status='closed') | Q(job__status='closed'))
+                    elif s_norm == 'cancelled':
+                        status_q |= (Q(status='cancelled') | Q(job__status='cancelled'))
+                    elif s_norm == 'all_pending':
+                        status_q |= Q(status__in=['pending_level_1', 'pending_level_2', 'pending_level_3'])
+                    else:
+                        status_q |= (Q(status=s_norm) | Q(job__status=s_norm))
+                queryset = queryset.filter(status_q)
         
         department_filter = self.request.query_params.get('department')
         if department_filter and department_filter != '' and is_valid_uuid(department_filter):
@@ -435,6 +499,21 @@ class MRFViewSet(viewsets.ModelViewSet):
         else:
             queryset = queryset.filter(is_active=True)
 
+        # General search filter
+        search_param = (
+            self.request.query_params.get('search') or
+            self.request.query_params.get('q')
+        )
+        if search_param:
+            search_param = search_param.strip()
+            queryset = queryset.filter(
+                Q(requisition_no__icontains=search_param) |
+                Q(mrf_name__icontains=search_param) |
+                Q(job__job_title__icontains=search_param) |
+                Q(department__name__icontains=search_param) |
+                Q(designation__name__icontains=search_param)
+            )
+
         # Requisition number search filter
         requisition_no_filter = (
             self.request.query_params.get('requisition_no') or
@@ -443,6 +522,25 @@ class MRFViewSet(viewsets.ModelViewSet):
         )
         if requisition_no_filter:
             queryset = queryset.filter(requisition_no__icontains=requisition_no_filter.strip())
+
+        # Priority filter
+        priority_filter = self.request.query_params.get('priority')
+        if priority_filter:
+            queryset = queryset.filter(priority__iexact=priority_filter.strip())
+
+        # Job type filter
+        job_type_filter = self.request.query_params.get('job_type')
+        if job_type_filter:
+            queryset = queryset.filter(job_type__iexact=job_type_filter.strip())
+
+        # Date range filters (by creation date)
+        from_date = self.request.query_params.get('from_date')
+        if from_date:
+            queryset = queryset.filter(created_at__date__gte=from_date)
+
+        to_date = self.request.query_params.get('to_date')
+        if to_date:
+            queryset = queryset.filter(created_at__date__lte=to_date)
 
         # Annotate with priority to push joining_pending and filled to the end
         queryset = queryset.annotate(
@@ -1130,68 +1228,359 @@ class MRFViewSet(viewsets.ModelViewSet):
             "id": str(mrf.id)
         }, status=status.HTTP_200_OK)
 
-    @action(detail=False, methods=["get"])
+    @action(detail=False, methods=['get'], url_path='export', renderer_classes=[ExcelRenderer, CSVRenderer, JSONRenderer])
+    def export(self, request):
+        """
+        Export endpoint alias accessible at /api/mrf/mrfs/export/
+        """
+        return self.export_mrf_data(request)
+
+    @action(detail=False, methods=['get'], url_path='export_mrf_data', renderer_classes=[ExcelRenderer, CSVRenderer, JSONRenderer])
     def export_mrf_data(self, request):
-        from jobs import Job, JobApplication
-        import pandas as pd
-        from django.db.models import F
-        from django.http import HttpResponse
+        """
+        Export comprehensive MRF data with relevant Job details and Candidate pipeline metrics.
 
-        mrf_data_list = []
+        Authentication:
+          - Without auth token: returns ALL MRF data (no role/company restrictions).
+          - With auth token: respects role-based filtering, company isolation, and private MRF checks.
 
-        for mrf in MRF.objects.filter(is_private=False):
-            mrf_details = {
-                "id": mrf.id,
-                "name": mrf.mrf_name,
-                "status": mrf.status,
-                "created_at": mrf.created_at,
-                "requested_by": mrf.requested_by_name,
-                "requisition_no": mrf.requisition_no,
-                "department": mrf.department.name if mrf.department else "",
-                "designation": mrf.designation.name if mrf.designation else "",
-                "job_type": mrf.job_type,
-                "priority": mrf.priority,
-                "approved_at": mrf.approved_at,
-                "no_of_vacancies": mrf.no_of_vacancies,
-                "held_at": mrf.held_at,
-                "held_by": mrf.held_by.name if mrf.held_by else "",
-                "hold_reason": mrf.hold_reason,
-            }
+        Supports status filtering:
+          - 'open' (includes open, assigned to internal hr, assigned to consultancy, assigned to both)
+          - 'on_hold'
+          - 'filled'
+          - 'joining_pending'
+          - Comma-separated combinations (e.g. ?status=open,joining_pending)
+          - All accessible MRFs (?status=all or omitted)
+        Supports formats:
+          - 'xlsx' (default: styled professional Excel workbook)
+          - 'csv' (UTF-8 BOM encoded CSV)
+          - 'json' (JSON response with total_count and results)
+        """
+        user = request.user
 
-            job = Job.objects.filter(mrf=mrf).first()
+        # Unauthenticated: return all MRFs without role/company restrictions
+        if not user or not user.is_authenticated:
+            base_qs = MRF.objects.filter(is_active=True)
 
-            mrf_details["positions_filled"] = (
-                job.positions_filled if job else 0
+            # Apply status filter even for unauthenticated requests
+            status_filter = request.query_params.get('status')
+            if status_filter:
+                s_clean = status_filter.strip().lower()
+                if s_clean not in ['all', '']:
+                    status_list = [s.strip() for s in status_filter.split(',') if s.strip()]
+                    status_q = Q()
+                    for s in status_list:
+                        s_norm = s.lower().replace(' ', '_')
+                        if s_norm == 'open':
+                            status_q |= (
+                                Q(job__status__in=['open', 'assigned_to_consultancy', 'assigned_to_internal_hr', 'assigned_to_both']) |
+                                Q(status='open') |
+                                (Q(status='approved') & (Q(job__isnull=True) | Q(job__status__in=['open', 'assigned_to_consultancy', 'assigned_to_internal_hr', 'assigned_to_both'])))
+                            )
+                        elif s_norm == 'on_hold':
+                            status_q |= (Q(status='on_hold') | Q(job__status='on_hold'))
+                        elif s_norm == 'filled':
+                            status_q |= (Q(status='filled') | Q(job__status='filled'))
+                        elif s_norm == 'joining_pending':
+                            status_q |= (Q(status='joining_pending') | Q(job__status='joining_pending'))
+                        elif s_norm == 'closed':
+                            status_q |= (Q(status='closed') | Q(job__status='closed'))
+                        elif s_norm == 'cancelled':
+                            status_q |= (Q(status='cancelled') | Q(job__status='cancelled'))
+                        else:
+                            status_q |= (Q(status=s_norm) | Q(job__status=s_norm))
+                    base_qs = base_qs.filter(status_q)
+
+            queryset = base_qs.select_related(
+                'department',
+                'designation',
+                'position_department',
+                'requested_by',
+                'held_by',
+                'company',
+                'job',
+                'job__assigned_to_internal_hr',
+                'job__assigned_to_consultancy',
+                'job__closed_by',
+                'job__posted_by',
+            ).prefetch_related(
+                'job__assigned_internal_hrs',
+                'job__assigned_consultancies',
+                'job__applications',
+            ).distinct()
+        else:
+            # Authenticated: use role-based get_queryset()
+            queryset = self.get_queryset().select_related(
+                'department',
+                'designation',
+                'position_department',
+                'requested_by',
+                'held_by',
+                'company',
+                'job',
+                'job__assigned_to_internal_hr',
+                'job__assigned_to_consultancy',
+                'job__closed_by',
+                'job__posted_by',
+            ).prefetch_related(
+                'job__assigned_internal_hrs',
+                'job__assigned_consultancies',
+                'job__applications',
+            ).distinct()
+
+        export_rows = []
+        for mrf in queryset:
+            job = getattr(mrf, 'job', None)
+            applications = list(job.applications.all()) if job else []
+
+            # Application metrics
+            total_apps = len(applications)
+            shortlisted_count = sum(
+                1 for app in applications
+                if app.is_shortlisted or app.status in [
+                    'shortlisted', 'technical_interview_1', 'technical_interview_2',
+                    'final_interview', 'offer_pending', 'offer_sent',
+                    'offer_accepted', 'joining_pending', 'joined'
+                ]
+            )
+            joining_pending_count = sum(1 for app in applications if app.status == 'joining_pending')
+            joined_count = sum(1 for app in applications if app.status == 'joined')
+
+            # Candidate summaries
+            joined_or_pending_list = []
+            for app in applications:
+                if app.status in ['joining_pending', 'joined', 'offer_accepted']:
+                    doj_str = app.joining_date.strftime('%Y-%m-%d') if app.joining_date else 'No DOJ'
+                    status_str = dict(JobApplication.STATUS_CHOICES).get(app.status, app.status.replace('_', ' ').title())
+                    name_str = app.candidate_name or 'Unknown Candidate'
+                    joined_or_pending_list.append(f"{name_str} ({status_str}, DOJ: {doj_str})")
+
+            joined_or_pending_summary = "; ".join(joined_or_pending_list)
+            all_candidates_summary = ", ".join([app.candidate_name for app in applications if app.candidate_name])
+
+            # Assigned HRs
+            assigned_hrs = []
+            if job:
+                if job.assigned_to_internal_hr:
+                    hr_label = job.assigned_to_internal_hr.name or job.assigned_to_internal_hr.email
+                    if hr_label:
+                        assigned_hrs.append(hr_label)
+                for u in job.assigned_internal_hrs.all():
+                    hr_label = u.name or u.email
+                    if hr_label and hr_label not in assigned_hrs:
+                        assigned_hrs.append(hr_label)
+            assigned_hrs_str = ", ".join(assigned_hrs)
+
+            # Assigned Consultancies
+            assigned_consults = []
+            if job:
+                if job.assigned_to_consultancy:
+                    c_label = job.assigned_to_consultancy.name or job.assigned_to_consultancy.email
+                    if c_label:
+                        assigned_consults.append(c_label)
+                for u in job.assigned_consultancies.all():
+                    c_label = u.name or u.email
+                    if c_label and c_label not in assigned_consults:
+                        assigned_consults.append(c_label)
+            assigned_consults_str = ", ".join(assigned_consults)
+
+            # Vacancy & Filled counts
+            vacancies = (job.no_of_positions if (job and job.no_of_positions is not None) else (mrf.no_of_vacancies or 0))
+            filled = job.positions_filled if job else (vacancies if mrf.status == 'filled' else 0)
+            remaining = max(0, vacancies - filled)
+
+            # Display labels
+            mrf_status_disp = dict(MRF.STATUS_CHOICES).get(mrf.status, (mrf.status or '').replace('_', ' ').title())
+            job_status_disp = (
+                dict(Job.JOB_STATUS_CHOICES).get(job.status, job.status.replace('_', ' ').title())
+                if job else 'No Job Created'
             )
 
-            if job:
-                applications = JobApplication.objects.filter(job=job).values(
-                    "joining_date",
-                    "created_at",
-                ).annotate(
-                    candidate_name=F("candidate__name")
-                )
+            # Format dates
+            created_at_str = mrf.created_at.strftime('%Y-%m-%d %H:%M') if mrf.created_at else ''
+            approved_at_str = mrf.approved_at.strftime('%Y-%m-%d %H:%M') if mrf.approved_at else ''
+            req_date_str = mrf.date_of_request.strftime('%Y-%m-%d') if mrf.date_of_request else ''
+            expected_doj_str = mrf.expected_date_of_joining.strftime('%Y-%m-%d') if mrf.expected_date_of_joining else ''
+            expected_closure_str = job.expected_closure_date.strftime('%Y-%m-%d') if (job and job.expected_closure_date) else ''
+            held_at_str = mrf.held_at.strftime('%Y-%m-%d %H:%M') if mrf.held_at else (job.held_at.strftime('%Y-%m-%d %H:%M') if (job and job.held_at) else '')
+            closed_at_str = job.closed_at.strftime('%Y-%m-%d %H:%M') if (job and job.closed_at) else ''
 
-                mrf_details["applications"] = ", ".join(
-                    [
-                        f'{app["candidate_name"]} ({app["joining_date"]})'
-                        for app in applications
-                    ]
-                )
-            else:
-                mrf_details["applications"] = ""
+            row = {
+                "Requisition ID": mrf.requisition_no or "",
+                "MRF Title": mrf.mrf_name or "",
+                "MRF Status": mrf_status_disp,
+                "Job Status": job_status_disp,
+                "Department": mrf.department.name if mrf.department else (mrf.position_department.name if mrf.position_department else ""),
+                "Designation": mrf.designation.name if mrf.designation else "",
+                "Job Type": (mrf.job_type or "").replace('_', ' ').title(),
+                "Priority": (mrf.priority or "").capitalize(),
+                "Location": mrf.location or (job.location if job else ""),
+                "No. of Vacancies": vacancies,
+                "Positions Filled": filled,
+                "Positions Remaining": remaining,
+                "Experience Range": mrf.experience_range or (job.experience_range if job else ""),
+                "Salary Range": mrf.salary_range or (job.salary_range if job else ""),
+                "Expected Date of Joining": expected_doj_str,
+                "Expected Closure Date": expected_closure_str,
+                "Requested By": mrf.requested_by_name or (mrf.requested_by.name if mrf.requested_by else ""),
+                "Requested By Email": mrf.requested_by.email if mrf.requested_by else "",
+                "Requested By Designation": mrf.requested_by_designation or "",
+                "Date of Request": req_date_str,
+                "Created At": created_at_str,
+                "Approved At": approved_at_str,
+                "Current Approval Level": f"Level {mrf.current_approval_level}" if mrf.current_approval_level is not None else "",
+                "Assigned Internal HR": assigned_hrs_str,
+                "Assigned Consultancies": assigned_consults_str,
+                "Total Applications": total_apps,
+                "Shortlisted Candidates Count": shortlisted_count,
+                "Joining Pending Count": joining_pending_count,
+                "Joined Count": joined_count,
+                "Joined / Joining Pending Candidates": joined_or_pending_summary,
+                "All Candidates": all_candidates_summary,
+                "Hold Reason": mrf.hold_reason or (job.hold_reason if job else ""),
+                "Held At": held_at_str,
+                "Held By": mrf.held_by.name if mrf.held_by else "",
+                "Job Closed At": closed_at_str,
+                "Job Closed By": job.closed_by.name if (job and job.closed_by) else "",
+                "Job Closure Notes": job.closure_notes if job else "",
+                "Replacement Crafter Name": mrf.resigned_crafter_name or "",
+                "Replacement Crafter Ecode": mrf.resigned_crafter_ecode or "",
+                "Replacement Crafter Designation": mrf.resigned_crafter_designation or "",
+                "Skills & Competencies": mrf.skills_competencies or "",
+                "Business Justification": mrf.business_justification or "",
+                "MRF ID": str(mrf.id),
+                "Job ID": str(job.id) if job else "",
+            }
+            export_rows.append(row)
 
-            mrf_data_list.append(mrf_details)
+        export_format = request.query_params.get('format', 'xlsx').lower().strip()
+        timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
 
-        df = pd.DataFrame(mrf_data_list)
+        # JSON Format
+        if export_format == 'json':
+            return Response({
+                "total_count": len(export_rows),
+                "results": export_rows
+            }, status=status.HTTP_200_OK)
 
+        # CSV Format
+        if export_format == 'csv':
+            output = io.StringIO()
+            fieldnames = list(export_rows[0].keys()) if export_rows else [
+                "Requisition ID", "MRF Title", "MRF Status", "Job Status", "Department", "Designation"
+            ]
+            writer = csv.DictWriter(output, fieldnames=fieldnames)
+            writer.writeheader()
+            for r in export_rows:
+                writer.writerow(r)
+
+            filename = f"mrf_export_{timestamp}.csv"
+            response = HttpResponse(
+                output.getvalue().encode('utf-8-sig'),
+                content_type="text/csv; charset=utf-8"
+            )
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
+            return response
+
+        # Default: Excel (.xlsx) Format
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "MRF & Job Export"
+
+        headers = list(export_rows[0].keys()) if export_rows else [
+            "Requisition ID", "MRF Title", "MRF Status", "Job Status", "Department",
+            "Designation", "Job Type", "Priority", "Location", "No. of Vacancies",
+            "Positions Filled", "Positions Remaining", "Total Applications"
+        ]
+        ws.append(headers)
+
+        # Styling
+        header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
+        header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+        data_font = Font(name="Calibri", size=10)
+        data_alignment_left = Alignment(horizontal="left", vertical="center")
+        data_alignment_center = Alignment(horizontal="center", vertical="center")
+        data_alignment_right = Alignment(horizontal="right", vertical="center")
+
+        thin_side = Side(border_style="thin", color="D1D5DB")
+        cell_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+        alt_fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+
+        # Style Header Row
+        ws.row_dimensions[1].height = 28
+        for col_idx in range(1, len(headers) + 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = cell_border
+
+        numeric_headers = {
+            "No. of Vacancies", "Positions Filled", "Positions Remaining",
+            "Total Applications", "Shortlisted Candidates Count",
+            "Joining Pending Count", "Joined Count"
+        }
+        center_headers = {
+            "Requisition ID", "MRF Status", "Job Status", "Job Type",
+            "Priority", "Expected Date of Joining", "Expected Closure Date",
+            "Date of Request", "Created At", "Approved At", "Current Approval Level",
+            "Held At", "Job Closed At"
+        }
+
+        # Write Data Rows
+        for row_idx, data_dict in enumerate(export_rows, start=2):
+            ws.row_dimensions[row_idx].height = 20
+            is_alt = (row_idx % 2 == 0)
+            row_values = [
+                val if isinstance(val, (int, float, bool)) else (str(val) if val is not None else "")
+                for val in (data_dict.get(h, "") for h in headers)
+            ]
+            ws.append(row_values)
+
+            for col_idx, header_name in enumerate(headers, start=1):
+                cell = ws.cell(row=row_idx, column=col_idx)
+                cell.font = data_font
+                cell.border = cell_border
+                if is_alt:
+                    cell.fill = alt_fill
+
+                if header_name in numeric_headers:
+                    cell.alignment = data_alignment_right
+                elif header_name in center_headers:
+                    cell.alignment = data_alignment_center
+                else:
+                    cell.alignment = data_alignment_left
+
+        # Auto-adjust column widths
+        for col in ws.columns:
+            max_len = 0
+            col_letter = get_column_letter(col[0].column)
+            for cell in col:
+                val_str = str(cell.value or '')
+                if '\n' in val_str:
+                    lines = val_str.split('\n')
+                    line_len = max(len(l) for l in lines) if lines else 0
+                    if line_len > max_len:
+                        max_len = line_len
+                elif len(val_str) > max_len:
+                    max_len = len(val_str)
+            ws.column_dimensions[col_letter].width = max(13, min(max_len + 4, 52))
+
+        ws.freeze_panes = "A2"
+        ws.views.sheetView[0].showGridLines = True
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        filename = f"mrf_export_{timestamp}.xlsx"
         response = HttpResponse(
+            output.getvalue(),
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-        response["Content-Disposition"] = 'attachment; filename="mrf_data.xlsx"'
-
-        df.to_excel(response, index=False)
-
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
         
             
