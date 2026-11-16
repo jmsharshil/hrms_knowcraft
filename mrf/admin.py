@@ -24,6 +24,7 @@ class DepartmentAdmin(admin.ModelAdmin):
 
 @admin.register(Designation)
 class DesignationAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['department']
     list_display = [
         'name', 'code', 'department', 'company', 'tat_days', 
         'salary_range', 'expirience', 'is_active', 'created_at'
@@ -48,12 +49,14 @@ class DesignationAdmin(admin.ModelAdmin):
 class ApprovalWorkflowInline(admin.TabularInline):
     model = ApprovalWorkflow
     extra = 1
+    autocomplete_fields = ['approver']
     fields = ['level', 'required_role', 'approver', 'order', 'is_active']
     ordering = ['order', 'level']
 
 
 @admin.register(WorkflowTemplate)
 class WorkflowTemplateAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['department']
     list_display = ['name', 'department', 'company', 'is_active', 'is_default', 'get_total_levels', 'created_at']
     list_filter = ['is_active', 'is_default', 'department', 'company']
     search_fields = ['name', 'description', 'department__name']
@@ -76,6 +79,7 @@ class WorkflowTemplateAdmin(admin.ModelAdmin):
 
 @admin.register(ApprovalWorkflow)
 class ApprovalWorkflowAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['template', 'approver']
     list_display = ['template', 'level', 'required_role', 'approver', 'order', 'is_active', 'created_at']
     list_filter = ['template', 'is_active', 'required_role']
     search_fields = ['template__name', 'approver__name', 'approver__email', 'required_role']
@@ -85,6 +89,7 @@ class ApprovalWorkflowAdmin(admin.ModelAdmin):
 class PrivateMRFApprovalLevelInline(admin.TabularInline):
     model = PrivateMRFApprovalLevel
     extra = 0
+    autocomplete_fields = ['approver']
     fields = ['level', 'approver', 'is_active', 'created_at']
     readonly_fields = ['created_at']
     ordering = ['level']
@@ -109,6 +114,7 @@ class MRFRevisionInline(admin.StackedInline):
 
 @admin.register(MRF)
 class MRFAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['workflow_template', 'department', 'requested_by', 'designation', 'position_department', 'hr_interviewer', 'case_study_interviewer', 'final_interviewer', 'management_client_interviewer', 'held_by']
     list_display = [
         'requisition_no', 'mrf_name', 'workflow_template', 'department', 'designation', 
         'requested_by', 'status', 'priority', 'job_type', 'no_of_vacancies',
@@ -207,6 +213,7 @@ class MRFAdmin(admin.ModelAdmin):
 
 @admin.register(MRFApproval)
 class MRFApprovalAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['company', 'mrf', 'approver']
     list_display = ['mrf', 'level', 'approver', 'action', 'comments', 'created_at']
     list_filter = ['action', 'level', 'created_at']
     search_fields = ['mrf__requisition_no', 'approver__name', 'approver__email']
@@ -215,6 +222,7 @@ class MRFApprovalAdmin(admin.ModelAdmin):
 
 @admin.register(MRFRevision)
 class MRFRevisionAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['mrf', 'revised_by']
     list_display = ['mrf', 'revised_by', 'revision_notes', 'created_at']
     search_fields = ['mrf__requisition_no', 'revised_by__name', 'revised_by__email']
     readonly_fields = ['created_at']
@@ -229,6 +237,7 @@ class PrivateMRFApprovalLevelInline(admin.TabularInline):
 
 @admin.register(PrivateMRFApprovalLevel)
 class PrivateMRFApprovalLevelAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['mrf', 'approver']
     list_display = ['mrf', 'level', 'approver', 'is_active', 'created_at']
     list_filter = ['is_active', 'level', 'created_at']
     search_fields = ['mrf__requisition_no', 'approver__name', 'approver__email']

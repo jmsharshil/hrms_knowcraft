@@ -4,6 +4,7 @@ from .models import AuditLog
 
 @admin.register(AuditLog)
 class AuditLogAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['user']
     list_display = [
         "timestamp", "user", "company", "action", "method",
         "path", "status_code", "flushed_to_blob",

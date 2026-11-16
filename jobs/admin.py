@@ -3,6 +3,7 @@ from .models import Job, JobAssignmentHistory, JobApplication, JobApplicationLin
 
 @admin.register(Application)
 class ApplicationAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['job', 'department', 'designation', 'rejected_by']
     list_display = [
         'candidate_name', 'candidate_email', 'job', 'source', 'created_at'
     ]
@@ -12,6 +13,7 @@ class ApplicationAdmin(admin.ModelAdmin):
 
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['mrf', 'department', 'designation', 'assigned_by', 'posted_by']
     filter_horizontal = ('assigned_consultancies', 'assigned_internal_hrs')
     
     list_display = [
@@ -79,6 +81,7 @@ class JobAdmin(admin.ModelAdmin):
 
 @admin.register(JobAssignmentHistory)
 class JobAssignmentHistoryAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['job', 'consultancy', 'performed_by']
     list_display = [
         'job', 'action', 'consultancy', 'performed_by', 'created_at'
     ]
@@ -97,6 +100,7 @@ class JobAssignmentHistoryAdmin(admin.ModelAdmin):
 
 @admin.register(JobApplication)
 class JobApplicationAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['job', 'application_link', 'submitted_by', 'rejected_by']
     list_display = [
         'candidate_name', 'candidate_email', 'candidate_phone',
         'job', 'status', 'bgv_status', 'source',
@@ -486,6 +490,7 @@ class ReferralApplicationAdmin(admin.ModelAdmin):
 
 @admin.register(JobApplicationLink)
 class JobApplicationLinkAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['job', 'created_by']
     list_display = ['id', 'job', 'platform', 'title', 'is_active', 'created_at']
     list_filter = ['platform', 'is_active', 'created_at']
     search_fields = ['job__job_title', 'title', 'platform']

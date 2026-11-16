@@ -4,6 +4,7 @@ from .models import RecruitmentCost, CandidateExperienceFeedback
 
 @admin.register(RecruitmentCost)
 class RecruitmentCostAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['job']
     list_display = [
         'job', 'consultancy_fees', 'ads_expense',
         'referral_bonus', 'employee_package', 'total_cost',
@@ -16,6 +17,7 @@ class RecruitmentCostAdmin(admin.ModelAdmin):
 
 @admin.register(CandidateExperienceFeedback)
 class CandidateExperienceFeedbackAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['application']
     list_display = [
         'application', 'feedback_type', 'nps_score',
         'overall_satisfaction', 'interviewer_quality',

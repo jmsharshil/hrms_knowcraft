@@ -7,6 +7,7 @@ from django.urls import reverse
 
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
+    autocomplete_fields = ['candidate', 'slot', 'interviewer', 'location']
     list_display = (
         'id', 'candidate_link', 'interviewer', 'interview_type',
         'start', 'end', 'location', 'meeting_link_display',
