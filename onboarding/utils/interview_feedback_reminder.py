@@ -204,33 +204,33 @@ def interview_feedback_reminder_task(booking_id, round_name=None):
     # Send reminders as long as the interview is in progress for this round
     # (pending OR done but feedback not yet submitted).
     # Stop ONLY when the candidate has definitively moved PAST this round
-    # (e.g. promoted to next round, selected, rejected, or any later stage).
+    # (e.g. promoted to next round, selected, rejected, backed_out, or any later stage).
     # NOTE: We do NOT stop on interview_done_X because at that point the
     # interviewer still needs to submit feedback.
     ROUND_STOP_ON = {
-        # For hr_round: stop once moved to next round, selected or rejected.
+        # Terminal statuses that should cancel all further feedback reminders.
         "hr_round": {
             "interview_next_2", "interview_next_3", "interview_next_final",
             "interview_next_management_client", "interview_rejected_1",
-            "consolidated_result_review", "selected", "rejected",
+            "consolidated_result_review", "selected", "rejected", "backed_out",
         },
         "technical_round": {
             "interview_next_3", "interview_next_final",
             "interview_next_management_client", "interview_rejected_2",
-            "consolidated_result_review", "selected", "rejected",
+            "consolidated_result_review", "selected", "rejected", "backed_out",
         },
         "case_study_round": {
             "interview_next_final", "interview_next_management_client",
             "interview_rejected_3",
-            "consolidated_result_review", "selected", "rejected",
+            "consolidated_result_review", "selected", "rejected", "backed_out",
         },
         "final_round": {
             "interview_next_management_client", "interview_rejected_final",
-            "consolidated_result_review", "selected", "rejected",
+            "consolidated_result_review", "selected", "rejected", "backed_out",
         },
         "management_client_round": {
             "interview_rejected_management_client",
-            "consolidated_result_review", "selected", "rejected",
+            "consolidated_result_review", "selected", "rejected", "backed_out",
         },
     }
 
