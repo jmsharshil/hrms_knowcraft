@@ -41,7 +41,7 @@ class CanCreateMRF(permissions.BasePermission):
     """Control who can create MRFs"""
     
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role in ['admin','department_head']
+        return request.user.is_authenticated and request.user.role in ['admin','department_head', 'hr_manager']
     
 class CanViewMRF(permissions.BasePermission):
     """Control who can view MRFs"""
