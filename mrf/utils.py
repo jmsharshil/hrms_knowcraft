@@ -1246,13 +1246,63 @@ def auto_reject_stale_held_mrfs():
     return count
 
 
-# ─── Weekly Department Head Report ────────────────────────────────────────────
+# ─── Weekly Department Head / Requester Report ───────────────────────────────
 
-def dept_head_weekly_report_task():
+def get_mrf_approver_emails(mrf):
     """
-    Send a weekly recruitment status report to each department head for their
-    active open positions.
-    Includes Hiring Summary table and Candidate's Pipeline table.
+    Collect email addresses of all approvers for a non-private MRF.
+    - Configured approvers from workflow template levels
+    - Role-based approvers if specific approver is not set on a level
+    - Historical approvers who have approved the MRF
+    Note: Private MRFs and private approval levels are strictly excluded.
+    """
+    if getattr(mrf, 'is_private', False):
+        return set()
+
+    emails = set()
+    from accounts.models import User
+
+    # 1. From workflow template levels
+    if mrf.workflow_template:
+        for level in mrf.workflow_template.levels.filter(is_active=True).select_related('approver'):
+            if level.approver and level.approver.email and level.approver.is_active:
+                emails.add(level.approver.email.strip().lower())
+            elif level.required_role and mrf.company_id:
+                # If specific approver is not set on level, find active users with that role in company
+                role_users = User.objects.filter(
+                    role=level.required_role,
+                    company_id=mrf.company_id,
+                    is_active=True
+                ).exclude(email='')
+                for u in role_users:
+                    if u.email:
+                        emails.add(u.email.strip().lower())
+
+    # 2. From historical approvals recorded on the MRF
+    for approval in mrf.approvals.filter(action='approved').select_related('approver'):
+        if approval.approver and approval.approver.email and approval.approver.is_active:
+            emails.add(approval.approver.email.strip().lower())
+
+    return emails
+
+
+def dept_head_weekly_report_task(dry_run=False, target_user_ids=None, return_details=False):
+    """
+    Send a weekly recruitment status report to each MRF requester for their
+    active open positions, with the approvers in CC.
+
+    Parameters:
+    - dry_run (bool): If True, computes the full reports without dispatching real emails.
+    - target_user_ids (iterable): Optional list of User IDs to restrict execution to.
+    - return_details (bool): If True, returns dict with sent_count and reports list.
+
+    Guarantees:
+    - Sent to the requester (mrf.requested_by).
+    - Approvers of the non-private MRFs are included in CC.
+    - Requester is excluded from CC (since they are in 'to').
+    - NO private MRFs, private jobs, or candidate details from private MRFs
+      are ever included.
+    - Includes Hiring Summary table and Candidate Pipeline table.
     """
     import logging
     from datetime import date, timedelta
@@ -1271,8 +1321,6 @@ def dept_head_weekly_report_task():
     week_end_date = today
     week_start_dt = timezone.now() - timedelta(days=7)
     week_label = f"{week_start_date.strftime('%d %b')} – {week_end_date.strftime('%d %b %Y')}"
-
-    dept_heads = User.objects.filter(role='department_head', is_active=True).exclude(email='')
 
     STAGE_DISPLAY_MAP = {
         "received": "HR Screening (Received)",
@@ -1301,49 +1349,78 @@ def dept_head_weekly_report_task():
         "joining_pending": "Joining Pending",
     }
 
+    # Query active, strictly non-private MRFs that are in open recruitment
+    active_mrfs_base = MRF.objects.filter(
+        is_active=True,
+        is_private=False,
+        status__in=[
+            # 'filled' excluded — position already hired, no need to report
+            'approved', 'joining_pending', 'open', 'in_progress',
+            'assigned_to_consultancy', 'assigned_to_internal_hr', 'assigned_to_both'
+        ]
+    ).filter(
+        Q(job__isnull=True) | (
+            Q(job__is_active=True) &
+            Q(job__is_private=False) &
+            ~Q(job__status__in=['filled', 'closed', 'cancelled'])
+        )
+    ).filter(
+        requested_by__isnull=False,
+        requested_by__is_active=True
+    ).exclude(
+        requested_by__email=''
+    )
+
+    # Get distinct requesters who have active non-private MRFs
+    requester_ids = list(active_mrfs_base.values_list('requested_by_id', flat=True).distinct())
+    requesters = User.objects.filter(id__in=requester_ids, is_active=True).exclude(email='')
+    if target_user_ids:
+        requesters = requesters.filter(id__in=target_user_ids)
+
     sent_count = 0
-    for head in dept_heads:
+    generated_reports = []
+    for requester in requesters:
         try:
-            if not head.department:
-                logger.warning("[WEEKLY-REPORT] Department head %s has no assigned department. Skipping.", head.email)
-                continue
-
-            mrf_filter = (
-                Q(
-                    is_active=True,
-                    is_private=False,
-                    status__in=[
-                        # 'filled' excluded — position already hired, no need to report
-                        'approved', 'joining_pending', 'open', 'in_progress',
-                        'assigned_to_consultancy', 'assigned_to_internal_hr', 'assigned_to_both'
-                    ]
-                )
-                & Q(requested_by=head)
-                & (Q(department=head.department) | Q(position_department=head.department))
-                & (Q(job__isnull=True) | Q(job__is_private=False))
+            # Fetch strictly only active non-private MRFs requested by this user
+            requester_mrfs = active_mrfs_base.filter(
+                requested_by=requester
             )
+            if getattr(requester, 'company_id', None):
+                requester_mrfs = requester_mrfs.filter(company_id=requester.company_id)
 
-            if head.company_id:
-                mrf_filter &= Q(company_id=head.company_id)
+            requester_mrfs = requester_mrfs.select_related(
+                'designation', 'department', 'position_department', 'job',
+                'workflow_template', 'hr_interviewer', 'final_interviewer'
+            ).prefetch_related(
+                'workflow_template__levels',
+                'workflow_template__levels__approver',
+                'approvals',
+                'approvals__approver',
+                'technical_interviewers',
+            ).distinct()
 
-            active_mrfs = MRF.objects.filter(mrf_filter).select_related('designation', 'department', 'job').distinct()
-
-            if not active_mrfs.exists():
+            if not requester_mrfs.exists():
                 continue
 
             summary_html_rows = []
             summary_text_rows = []
             pipeline_candidates_data = []
+            seen_app_ids = set()
+            approver_emails = set()
 
-            for mrf in active_mrfs:
+            for mrf in requester_mrfs:
                 # Private MRFs and private jobs must never appear in weekly report
                 if getattr(mrf, 'is_private', False):
                     continue
-                if hasattr(mrf, 'job') and mrf.job and getattr(mrf.job, 'is_private', False):
+                if hasattr(mrf, 'job') and mrf.job and (getattr(mrf.job, 'is_private', False) or not getattr(mrf.job, 'is_active', True)):
                     continue
-                # Must be requested by this department head
-                if getattr(mrf, 'requested_by_id', None) != head.id:
+
+                # Ensure this MRF was strictly requested by this requester
+                if mrf.requested_by_id != requester.id:
                     continue
+
+                # Collect approvers for this non-private MRF
+                approver_emails.update(get_mrf_approver_emails(mrf))
 
                 desig_name = mrf.designation.name if mrf.designation else (mrf.mrf_name or "Unknown")
                 openings = mrf.no_of_vacancies or 1
@@ -1351,12 +1428,16 @@ def dept_head_weekly_report_task():
 
                 stage_counts = {}
                 if hasattr(mrf, 'job') and mrf.job:
-                    if getattr(mrf.job, 'is_private', False):
+                    if getattr(mrf.job, 'is_private', False) or not getattr(mrf.job, 'is_active', True):
                         continue
 
+                    # Candidates strictly belonging to this MRF's job requested by this requester
                     all_apps = JobApplication.objects.filter(
                         job=mrf.job,
+                        job__mrf=mrf,
+                        job__mrf__requested_by=requester,
                         is_active=True,
+                        job__is_active=True,
                         job__is_private=False,
                         job__mrf__is_private=False
                     )
@@ -1367,9 +1448,11 @@ def dept_head_weekly_report_task():
                     active_apps = all_apps.exclude(
                         status__in=[
                             'rejected', 'backed_out', 'duplicate_rejected', 'joined',
-                            'approval_rejected', 'offer_rejected', 'interview_rejected_1',
-                            'interview_rejected_2', 'interview_rejected_3',
-                            'interview_rejected_final', 'interview_rejected_management_client'
+                            'approval_rejected', 'offer_rejected', 'rejected_annexure',
+                            'interview_rejected_1', 'interview_rejected_2', 'interview_rejected_3',
+                            'interview_rejected_final', 'interview_rejected_management_client',
+                            'terminated_bgv', 'terminated_misconduct', 'terminated_other',
+                            'offer_declined',
                         ]
                     ).filter(
                         Q(created_at__gte=week_start_dt) |
@@ -1383,7 +1466,9 @@ def dept_head_weekly_report_task():
                     for app in active_apps:
                         if getattr(app.job, 'is_private', False) or (app.job and hasattr(app.job, 'mrf') and getattr(app.job.mrf, 'is_private', False)):
                             continue
-                        pipeline_candidates_data.append((mrf, app))
+                        if app.id not in seen_app_ids:
+                            seen_app_ids.add(app.id)
+                            pipeline_candidates_data.append((mrf, app))
 
                 received = stage_counts.get('received', 0)
                 shortlisted = stage_counts.get('shortlisted', 0)
@@ -1418,7 +1503,7 @@ def dept_head_weekly_report_task():
 
                 if joining_expected >= openings or mrf.status == 'joining_pending':
                     remarks = "Joining Pending"
-                elif mrf.status == 'filled':
+                elif mrf.status == 'filled' or (hasattr(mrf, 'job') and mrf.job and mrf.job.status == 'filled'):
                     remarks = "Position Filled"
                 else:
                     remarks = "Open"
@@ -1447,7 +1532,7 @@ def dept_head_weekly_report_task():
                 )
 
             if not summary_html_rows:
-                # No non-private MRFs to report for this department head
+                # No non-private MRFs to report for this requester
                 continue
 
             # Build Hiring Summary Table HTML
@@ -1474,7 +1559,7 @@ def dept_head_weekly_report_task():
   </tbody>
 </table>"""
 
-            # ── 2. Build Candidate Pipeline Rows ──────────────────────────────
+            # Build Candidate Pipeline Rows
             pipeline_html_rows = []
             pipeline_text_rows = []
 
@@ -1566,63 +1651,73 @@ def dept_head_weekly_report_task():
             hiring_summary_text = "\n".join(summary_text_rows)
             candidate_pipeline_text = "\n".join(pipeline_text_rows)
 
+            manager_name = requester.name or requester.get_full_name() or "Hiring Manager"
+
             template = email_templates["dept_head_weekly_report"].format(
-                manager_name=head.name,
+                manager_name=manager_name,
                 hiring_summary_table=hiring_summary_table,
                 candidate_pipeline_table=candidate_pipeline_table,
             )
             text = alt_text["dept_head_weekly_report"].format(
-                manager_name=head.name,
+                manager_name=manager_name,
                 hiring_summary_text=hiring_summary_text,
                 candidate_pipeline_text=candidate_pipeline_text,
             )
 
-            send_email(
-                to=head.email,
-                subject=f"Weekly Recruitment Update – {week_label}",
-                template=template,
-                text=text,
-                event="dept_head_weekly_report",
-                email_type="internal",
-            )
+            # Exclude requester's own email from CC list
+            if requester.email:
+                approver_emails.discard(requester.email.strip().lower())
+            cc_list = sorted(list(approver_emails))
+            subject = f"Weekly Recruitment Update – {week_label}"
+
+            if not dry_run:
+                send_email(
+                    to=requester.email.strip(),
+                    subject=subject,
+                    cc=cc_list,
+                    template=template,
+                    text=text,
+                    event="dept_head_weekly_report",
+                    email_type="internal",
+                )
+                logger.info(
+                    "[WEEKLY-REPORT] Sent weekly report to requester %s (%s) with %d approver(s) in CC: %s",
+                    manager_name, requester.email, len(cc_list), cc_list
+                )
+            else:
+                logger.info(
+                    "[WEEKLY-REPORT][DRY RUN] Would send weekly report to requester %s (%s) with %d approver(s) in CC: %s",
+                    manager_name, requester.email, len(cc_list), cc_list
+                )
+
             sent_count += 1
+            if return_details:
+                generated_reports.append({
+                    "requester_id": str(requester.id),
+                    "requester_name": manager_name,
+                    "requester_email": requester.email.strip(),
+                    "cc_list": cc_list,
+                    "subject": subject,
+                    "mrf_count": len(summary_html_rows),
+                    "candidate_count": len(pipeline_candidates_data),
+                    "template": template,
+                    "text": text,
+                })
 
         except Exception as e:
-            logger.error("[WEEKLY-REPORT] Failed for dept head %s: %s", head.email, e)
+            logger.error("[WEEKLY-REPORT] Failed for requester %s: %s", getattr(requester, 'email', str(requester)), e)
 
-    print(f"[WEEKLY-REPORT] Sent {sent_count} weekly report(s).")
+    mode_label = "DRY RUN " if dry_run else ""
+    print(f"[WEEKLY-REPORT] {mode_label}Processed {sent_count} weekly report(s).")
 
-    # ── Self-reschedule to the next Friday at 18:30 IST ──────────────────────
-    # We do this explicitly so the next run is always pinned to Friday 18:30,
-    # instead of drifting with the generic interval_seconds offset.
-    try:
-        import pytz
-        from datetime import datetime, timedelta
-        from scheduler.services import TaskScheduler
+    if return_details:
+        return {
+            "sent_count": sent_count,
+            "dry_run": dry_run,
+            "reports": generated_reports,
+        }
+    return sent_count
 
-        IST = pytz.timezone("Asia/Kolkata")
-        now_ist = datetime.now(IST)
-        days_ahead = (4 - now_ist.weekday()) % 7  # 0 if today is Friday
-        target = now_ist.replace(hour=18, minute=30, second=0, microsecond=0)
-        if days_ahead == 0 and now_ist >= target:
-            days_ahead = 7
-        target += timedelta(days=days_ahead)
-        delay = int(max((target - now_ist).total_seconds(), 0))
+# Backward-compatible alias
+weekly_recruitment_report_task = dept_head_weekly_report_task
 
-        TaskScheduler.schedule(
-            task_type="dept_head_weekly_report",
-            delay_seconds=delay,
-            is_recurring=True,
-            interval_seconds=604800,
-            max_retries=2,
-        )
-        logger.info(
-            "[WEEKLY-REPORT] Next report scheduled in %ds (at %s IST).",
-            delay, target.strftime("%A %Y-%m-%d %H:%M %Z"),
-        )
-    except Exception as reschedule_err:
-        logger.error("[WEEKLY-REPORT] Failed to self-reschedule: %s", reschedule_err)
-
-    # Return False so the generic recurring mechanism does NOT add a second
-    # copy using the flat interval_seconds offset.
-    return False
