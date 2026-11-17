@@ -208,9 +208,9 @@ class SchedulerConfig(AppConfig):
         from mrf.utils import auto_reject_stale_held_mrfs
         TaskScheduler.register("mrf_auto_reject_held", lambda: auto_reject_stale_held_mrfs())
 
-        #  Department Head Report
+        # Weekly Recruitment Report (Sent to requester, approvers in CC)
         from mrf.utils import dept_head_weekly_report_task
-        # TaskScheduler.register("dept_head_weekly_report", lambda: dept_head_weekly_report_task())
+        TaskScheduler.register("dept_head_weekly_report", lambda: dept_head_weekly_report_task())
 
         # Candidate Experience Feedback 24h Reminder
         from onboarding.utils.notifications import candidate_feedback_reminder_task
