@@ -115,9 +115,6 @@ class UserAdmin(BaseUserAdmin):
                   Generated <strong>{len(reports)}</strong> report(s). None of these emails were dispatched.
                 </p>
               </div>
-              <div>
-                <a href="/admin/accounts/user/" class="btn-back">← Back to Admin Panel</a>
-              </div>
             </div>
             {''.join(cards_html)}
           </div>
